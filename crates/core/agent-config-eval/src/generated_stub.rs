@@ -64,7 +64,11 @@ export function defineView(config) {
 
 // Per-extension-project options, declared as a default export from each
 // extension's `ship.config.ts`:
-//   export default defineConfig({ agents_dir: "agents", skills_dir: "skills", rules_dir: "rules", agents: { mcp: {…} } });
+//   export default defineConfig({
+//     agents_dir: "agents", skills_dir: "skills", rules_dir: "rules",
+//     hooks_dir: "hooks", triggers_dir: "triggers", ...
+//     agents: { mcp: {…}, permissions: { presets: { ... } } },
+//   });
 // The function emits the same way as the other declare-forms so the
 // Rust harvest picks it up via the `"config"` kind — the default-export
 // shape is purely for ecosystem conformance; the side-effecting emit is
@@ -73,8 +77,14 @@ export function defineView(config) {
 // relative to the dir containing the `ship.config.ts` declaring it.
 // Defaults are applied by the resolver: skills → "skills/", rules → "rules/",
 // agents → "agents/", collections → "collections/", pipelines → "pipelines/",
-// triggers → "triggers/". The `agents.mcp` block holds the MCP server
-// registrations (the per-call `defineMcpServer` form died with slice 2c).
+// triggers → "triggers/", hooks → "hooks/". The `agents.mcp` block holds
+// the MCP server registrations (the per-call `defineMcpServer` form
+// died with slice 2c); the `agents.permissions.presets` block holds the
+// named permission presets (the `.ship/permissions.jsonc` per-preset
+// sections died with slice 3 close-out, A3+A4). Hooks are on-disk
+// files at `<hooks_dir>/<event-stem>.<ext>` — not a `defineConfig`
+// sub-block, the same way skills + rules are on-disk files and not
+// declare-forms.
 export function defineConfig(config) {
   return __emit("config", config);
 }
@@ -96,4 +106,4 @@ pub const TRIGGER_SOURCE_WEBHOOK_FIELDS: &[&str] = &["kind", "path", "secret"];
 pub const TRIGGER_SOURCE_FILE_FIELDS: &[&str] = &["glob", "kind"];
 pub const TRIGGER_SOURCE_CRON_FIELDS: &[&str] = &["kind", "schedule"];
 pub const COLLECTION_FIELD_DEF_FIELDS: &[&str] = &["default", "filterable", "name", "required", "sortable", "type", "values"];
-pub const CONFIG_DEF_FIELDS: &[&str] = &["agents", "agents_dir", "collections_dir", "pipelines_dir", "rules_dir", "skills_dir", "triggers_dir"];
+pub const CONFIG_DEF_FIELDS: &[&str] = &["agents", "agents_dir", "collections_dir", "hooks_dir", "pipelines_dir", "rules_dir", "skills_dir", "triggers_dir"];

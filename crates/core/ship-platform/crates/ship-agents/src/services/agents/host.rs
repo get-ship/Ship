@@ -355,8 +355,18 @@ where
                 // this runs. Extract approver agent_id from the auth context
                 // injected by the middleware.
                 let approver = host.extract_approver(&ctx)?;
+                // Slice 3 close-out: `ship_agents::services::permissions`
+                // was removed (the runtime CRUD service had no live UI
+                // consumer; the named-preset layer moved to
+                // `defineConfig.agents.permissions.presets` in
+                // `ship.config.ts`). `provisioned_grants_for` (the
+                // granted-capability baseline) is the OTHER
+                // `provisioned_grants_for` — it lives in
+                // `ship_auth::grants_projection` (re-exported here
+                // so the host stays independent of the deleted
+                // services/permissions module).
                 let mut baseline: std::collections::BTreeSet<String> =
-                    crate::services::permissions::projection::provisioned_grants_for(&agent)
+                    ship_auth::grants_projection::provisioned_grants_for(&agent)
                         .ok()
                         .flatten()
                         .unwrap_or_default()

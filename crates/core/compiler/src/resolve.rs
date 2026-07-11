@@ -2,8 +2,8 @@ use std::collections::{BTreeMap, HashSet};
 use std::path::PathBuf;
 
 use crate::types::{
-    AgentProfile, CollectionDef, HookConfig, McpServerConfig, Permissions, PipelineDef,
-    PluginsManifest, SpaceManifest, Rule, Skill, TriggerDef, ViewDescriptor,
+    AgentProfile, CollectionDef, HookConfig, McpServerConfig, PermissionPreset, Permissions,
+    PipelineDef, PluginsManifest, SpaceManifest, Rule, Skill, TriggerDef, ViewDescriptor,
 };
 
 // ─── Phase-2 descriptor types ────────────────────────────────────────────────
@@ -258,6 +258,29 @@ pub struct ExtensionLibrary {
     /// Hooks from `agents/hooks.toml`.
     #[serde(default)]
     pub hooks: Vec<HookConfig>,
+    /// Named permission presets from
+    /// `defineConfig({ agents: { permissions: { presets: { ... } } } })`.
+    /// Replaces the per-preset sections of the dead
+    /// `.ship/permissions.jsonc` (slice 3 close-out, A3+A4). Authored
+    /// as the `defineConfig.agents.permissions.presets` map in each
+    /// extension's `ship.config.ts`; harvested by the resolver's
+    /// `merge_ts_declarations` walk and consumed by the compile path
+    /// (agent-def's `apply_agent_permissions`) instead of the disk
+    /// read the leaf used to do. `BTreeMap` so the resolved view is
+    /// byte-stable (the descriptor cache key is a content hash, but
+    /// the in-memory form needs stable order for diff tests).
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub permissions_presets: std::collections::BTreeMap<String, PermissionPreset>,
+    /// The hooks dir relative to the space root (default `"hooks/"`).
+    /// Each file at `<hooks_dir>/<event-stem>.<ext>` becomes a
+    /// `HookConfig` whose `id = <event-stem>`, `trigger = <event>`,
+    /// `command = "bash <hooks_dir>/<event-stem>.<ext>"`. The leaf
+    /// no longer walks `.ship/hooks.jsonc` (that file died with
+    /// slice 3 close-out); the resolver walks the per-extension-
+    /// project hooks dir the same way it walks skills + rules.
+    /// `None` means use the default `"hooks/"`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hooks_dir: Option<String>,
     /// Plugin install intent from the active preset's `[plugins]` section.
     #[serde(default)]
     pub plugins: PluginsManifest,

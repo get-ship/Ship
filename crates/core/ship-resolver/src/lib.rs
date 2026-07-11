@@ -281,6 +281,106 @@ fn merge_ts_declarations(
             library.rules.sort_by(|a, b| a.file_name.cmp(&b.file_name));
         }
     }
+
+    // ── Hooks: resolve `hooks_dir` from `defineConfig` (last wins)
+    //    falling through to the unified default `"hooks/"`.
+    //
+    // Slice 3 close-out (A3): hooks arrive as on-disk files at
+    // `<hooks_dir>/<event-stem>.<ext>`. The leaf no longer reads
+    // `.ship/hooks.jsonc` — the resolver walks the per-extension-project
+    // hooks dir, same as skills + rules. Filename → trigger mapping
+    // happens in `space_loader::walk_hooks_dir`; the resolver is just
+    // the side that decides WHERE the dir is (the `defineConfig`
+    // pointer, falling through to the unified default).
+    //
+    // The walked records MERGE into `library.hooks` with the same
+    // first-wins id-collision policy as every other noun this crate
+    // harvests — an entry already in the library (the leaf's
+    // presence-only stub, post slice 3 always empty) wins, then the
+    // first on-disk file claim wins.
+    let resolved_hooks_dir: String = declarations
+        .config
+        .iter()
+        .filter_map(|c| c.hooks_dir.clone())
+        .last()
+        .map(|s| s.trim_end_matches('/').to_string())
+        .unwrap_or_else(|| "hooks".to_string());
+    // Track the resolved dir on the descriptor (`library.hooks_dir`)
+    // so downstream consumers + diff tests see the same scalar the
+    // walk used. `None` means "use the default" — the leaf's
+    // post-slice-3 contract is "empty unless the resolver sets it",
+    // so we always set it after the resolution step.
+    library.hooks_dir = Some(resolved_hooks_dir.clone());
+    {
+        let mut seen: HashSet<String> =
+            library.hooks.iter().map(|h| h.id.clone()).collect();
+        let mut added_hooks: Vec<String> = Vec::new();
+        match space_loader::walk_hooks_dir(fs, &cap, &resolved_hooks_dir) {
+            Ok(found) => {
+                for hook in found {
+                    if seen.insert(hook.id.clone()) {
+                        added_hooks.push(hook.id.clone());
+                        library.hooks.push(hook);
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::warn!(
+                    "resolver: walk_hooks_dir failed for {}: {e}",
+                    resolved_hooks_dir
+                );
+            }
+        }
+        // Stable order — same conditional-sort policy as skills +
+        // rules. The descriptor cache's content hash depends on a
+        // stable iteration order.
+        if !added_hooks.is_empty() {
+            library.hooks.sort_by(|a, b| a.id.cmp(&b.id));
+        }
+    }
+
+    // ── Permission presets: harvest `defineConfig.agents.permissions.presets`
+    //    and seed `library.permissions_presets`.
+    //
+    // Slice 3 close-out (A4): the leaf no longer reads
+    // `.ship/permissions.jsonc`. The named-preset layer
+    // (`ship-readonly` / `ship-standard` / `ship-autonomous` /
+    // `ship-elevated`) moves to
+    // `defineConfig({ agents: { permissions: { presets: { ... } } } })`
+    // in `ship.config.ts`. The per-module map is harvested by walking
+    // `declarations.config` (root-last-wins, same as the skills/rules
+    // dir overrides), converting each `PermissionPresetDeclare` into
+    // a `compiler::PermissionPreset` via field-for-field clone, and
+    // inserting into the `BTreeMap`-keyed library field. First-wins
+    // on id collision (two extensions declaring the same preset name
+    // → the first one in declared order wins, mirroring the
+    // `agents.mcp` collision policy the slice-2c close-out set).
+    //
+    // The map is the descriptor's only on-disk authority for presets
+    // post slice 3 — the leaf's `load_permission_preset` (disk read)
+    // is replaced by an in-memory lookup against this map, which the
+    // compile path (agent-def's `apply_agent_permissions`) consumes
+    // directly. See `agent_def::compile::permissions::apply_agent_permissions`.
+    for cfg in &declarations.config {
+        let Some(agents) = &cfg.agents else { continue };
+        let Some(perms) = &agents.permissions else { continue };
+        for (name, declared) in &perms.presets {
+            // First-wins: the entry already in the map (from a
+            // prior `defineConfig` call in declared order) wins.
+            // `BTreeMap::entry()` gives us the same semantics in
+            // one call: `or_insert_with` is no-op when the key is
+            // already present.
+            library.permissions_presets.entry(name.clone()).or_insert_with(|| {
+                compiler::PermissionPreset {
+                    default_mode: declared.default_mode.clone(),
+                    tools_allow: declared.tools_allow.clone(),
+                    tools_deny: declared.tools_deny.clone(),
+                    tools_ask: declared.tools_ask.clone(),
+                    additional_directories: declared.additional_directories.clone(),
+                }
+            });
+        }
+    }
 }
 
 /// Append `incoming` items into `existing`, skipping any whose key is

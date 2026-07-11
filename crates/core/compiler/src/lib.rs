@@ -52,7 +52,7 @@ pub use types::{
     CatalogCategory, CatalogEntry, CatalogKind, CollectionDef, CollectionFieldDef,
     CollectionFieldType, CommandPermissions, FsPermissions,
     HookConfig, HookTrigger, ListAgentsResponse, McpRefs, McpServerConfig, McpServerType,
-    NamespaceConfig, NetworkPermissions, NetworkPolicy, Permissions,
+    NamespaceConfig, NetworkPermissions, NetworkPolicy, Permissions, PermissionPreset,
     PipelineDef, PipelineGate, PipelineStep, PipelineStepSpec,
     PluginEntry, PluginRefs, PluginsManifest, ProfileMeta, ProfilePermissions, ProfileRules,
     SpaceManifest, PullAgent, PullMcpServer, PullProfile, PullResponse, PullRule, PullSkill, Rule,

@@ -1,10 +1,20 @@
 //! Load a [`ExtensionLibrary`] from the `.ship/` directory tree.
 //! No compilation or resolution occurs here — pure filesystem loading.
+//!
+//! **Slice 3 close-out (A3+A4)**: the leaf no longer reads
+//! `.ship/hooks.jsonc` or `.ship/permissions.jsonc` (both files died
+//! with the dot-ship close-out). `permissions` + `hooks` +
+//! `permissions_presets` are populated by the resolver's
+//! `merge_ts_declarations` (the TS declare-form harvest + the
+//! on-disk `<hooks_dir>/<event>.<ext>` walk). The leaf's
+//! `load_permission_preset` is now an in-memory lookup against
+//! `ExtensionLibrary::permissions_presets` — the caller side
+//! ([`apply_agent_permissions`]) passes the map, not a `ship_dir`.
+//! See [`super::permissions`] for the consumer.
 
 use anyhow::Result;
 use compiler::{
-    HookConfig, HookTrigger, McpServerConfig, McpServerType, Permissions,
-    ExtensionLibrary, Rule,
+    McpServerConfig, McpServerType, ExtensionLibrary, Rule,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -130,8 +140,15 @@ impl McpFile {
 pub fn load_library(ship_dir: &Path) -> Result<ExtensionLibrary> {
     Ok(ExtensionLibrary {
         mcp_servers: load_mcp_servers(ship_dir)?,
-        permissions: load_permissions(ship_dir)?,
-        hooks: load_hooks(ship_dir)?,
+        // Slice 3 close-out: permissions, hooks, permissions_presets
+        // are resolver-sourced now (the leaf's per-file disk reads
+        // died with this slice). The leaf returns defaults — the
+        // resolver's `merge_ts_declarations` populates them with
+        // values harvested from the `defineConfig` block + the
+        // on-disk hooks-dir walk.
+        permissions: compiler::Permissions::default(),
+        hooks: Vec::new(),
+        permissions_presets: std::collections::BTreeMap::new(),
         rules: load_rules(ship_dir)?,
         skills: Vec::new(),
         agent_profiles: Vec::new(),
@@ -184,100 +201,26 @@ fn load_mcp_servers(ship_dir: &Path) -> Result<Vec<McpServerConfig>> {
         .collect())
 }
 
-// ── Permissions ───────────────────────────────────────────────────────────────
+// ── Permission preset lookup (slice 3 close-out) ───────────────────────────
 
-fn load_permissions(ship_dir: &Path) -> Result<Permissions> {
-    let path = ship_dir.join("permissions.jsonc");
-    if !path.exists() {
-        return Ok(Permissions::default());
-    }
-    let s = std::fs::read_to_string(&path)?;
-    Ok(compiler::jsonc::from_jsonc_str::<Permissions>(&s).unwrap_or_default())
-}
-
-/// Load a named permission preset section (e.g. `"ship-standard"`) from
-/// `<ship_dir>/permissions.jsonc`. Returns `None` if the file or section
-/// is absent.
-pub fn load_permission_preset(ship_dir: &Path, preset_name: &str) -> Option<PermissionPreset> {
-    let path = ship_dir.join("permissions.jsonc");
-    if !path.exists() {
-        return None;
-    }
-    let s = std::fs::read_to_string(&path).ok()?;
-    let val: serde_json::Value = compiler::jsonc::from_jsonc_str(&s).ok()?;
-
-    let section = val.get(preset_name)?.as_object()?;
-
-    let get_str_list = |key: &str| -> Vec<String> {
-        section
-            .get(key)
-            .and_then(|v| v.as_array())
-            .map(|a| {
-                a.iter()
-                    .filter_map(|v| v.as_str().map(str::to_string))
-                    .collect()
-            })
-            .unwrap_or_default()
-    };
-    let default_mode = section
-        .get("default_mode")
-        .and_then(|v| v.as_str())
-        .map(str::to_string);
-
-    Some(PermissionPreset {
-        default_mode,
-        tools_allow: get_str_list("tools_allow"),
-        tools_deny: get_str_list("tools_deny"),
-        tools_ask: get_str_list("tools_ask"),
-    })
-}
-
-// ── Hooks ─────────────────────────────────────────────────────────────────────
-
-#[derive(Deserialize, Default)]
-struct HooksFile {
-    #[serde(default)]
-    hooks: Vec<HookEntry>,
-}
-
-#[derive(Deserialize)]
-struct HookEntry {
-    id: String,
-    trigger: String,
-    command: String,
-    #[serde(default)]
-    matcher: Option<String>,
-}
-
-fn load_hooks(ship_dir: &Path) -> Result<Vec<HookConfig>> {
-    let path = ship_dir.join("hooks.jsonc");
-    if !path.exists() {
-        return Ok(vec![]);
-    }
-    let s = std::fs::read_to_string(&path)?;
-    let file: HooksFile = compiler::jsonc::from_jsonc_str(&s)?;
-    Ok(file
-        .hooks
-        .into_iter()
-        .filter_map(|e| {
-            let trigger = match e.trigger.as_str() {
-                "pre_tool_use" | "PreToolUse" => HookTrigger::PreToolUse,
-                "post_tool_use" | "PostToolUse" => HookTrigger::PostToolUse,
-                "notification" | "Notification" => HookTrigger::Notification,
-                "stop" | "Stop" => HookTrigger::Stop,
-                "subagent_stop" | "SubagentStop" => HookTrigger::SubagentStop,
-                "pre_compact" | "PreCompact" => HookTrigger::PreCompact,
-                _ => return None,
-            };
-            Some(HookConfig {
-                id: e.id,
-                trigger,
-                command: e.command,
-                matcher: e.matcher,
-                cursor_event: None,
-            })
-        })
-        .collect())
+/// Look up a named permission preset in the descriptor's
+/// `permissions_presets` map. Replaces the pre-slice-3
+/// `load_permission_preset(ship_dir, name)` that read from
+/// `.ship/permissions.jsonc` — the file died with the dot-ship
+/// close-out, and the preset definitions now live in
+/// `defineConfig({ agents: { permissions: { presets: { ... } } } })`
+/// in `ship.config.ts` (harvested by the resolver into
+/// `ExtensionLibrary::permissions_presets`).
+///
+/// Returns `None` if the map has no entry for `name` — the
+/// consumer ([`super::permissions::apply_agent_permissions`])
+/// treats that as "no preset contribution from the file, fall
+/// through to the built-in presets or the agent's overrides."
+pub fn load_permission_preset(
+    presets: &std::collections::BTreeMap<String, PermissionPreset>,
+    preset_name: &str,
+) -> Option<PermissionPreset> {
+    presets.get(preset_name).cloned()
 }
 
 // ── Rules ─────────────────────────────────────────────────────────────────────

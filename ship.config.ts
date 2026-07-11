@@ -1,8 +1,8 @@
 // Extension entry for the ship repo's own source space — POINTER manifest.
 // Per format-migration Wave 4 (phase A) + Wave 5 + dot-ship close-out slices
-// 2b + 2c: rules, collections, triggers, MCP, pipelines, agents are NOT
-// inlined in this file. The manifest is a directory pointer; each noun's
-// source lives in a per-noun dir beside this file:
+// 2b + 2c + 3 (A3+A4, 2026-07-11): rules, collections, triggers, MCP, pipelines,
+// agents are NOT inlined in this file. The manifest is a directory pointer;
+// each noun's source lives in a per-noun dir beside this file:
 //
 //   agents/<id>.ts         → defineAgent(id)    (7 files)
 //   collections/<id>.ts    → defineCollection(id) (6 files)
@@ -12,16 +12,27 @@
 //                                             defineConfig({ skills_dir }))
 //   rules/<id>.md          → on-disk rule      (7 files, walked from
 //                                             defineConfig({ rules_dir }))
+//   hooks/<event>.<ext>    → on-disk hook      (1 file, walked from
+//                                             defineConfig({ hooks_dir }))
 //
-// MCP server registrations live under `defineConfig({ agents: { mcp: {…} } })`
-// — slice 2c close-out. The per-call `defineMcpServer` form died with this
-// wave; the registration route is the manifest block below. Same fields
-// (`id`, `server_type`, `command`, `args`, `env`, `url`, `scope`), same
-// defaults, same id-collision policy (the first `defineConfig.agents.mcp.<id>`
-// claim wins, mirroring the dead per-call form's merge contract).
+// MCP server registrations live under
+// `defineConfig({ agents: { mcp: {…} } })` — slice 2c close-out.
+// Named permission presets live under
+// `defineConfig({ agents: { permissions: { presets: {…} } } })` —
+// slice 3 close-out (A3+A4), replaces the per-preset sections of the
+// dead `.ship/permissions.jsonc`.
+//
+// The hooks + permissions blocks don't carry per-entry content; the
+// manifest is a pointer manifest, the same way skills + rules are
+// on-disk files detected by the resolver's `walk_hooks_dir` + the
+// `defineConfig.agents.permissions.presets` map harvested by
+// `merge_ts_declarations`. See `data/blueprint/subsystems/ship-stack-format.md`
+// for the manifest-nature contract; see
+// `killmap-dot-ship-closeout.md` A3+A4 + `job-spec-dotship-residue.md`
+// for the cutover that produced this shape.
 //
 // File loaded by the Phase-2 resolver from the space root
-// (`space_loader::read_ship_config_ts`); see also decision-space-scan.md
+// (`space_loader::read_ship_config_ts`); see also `decision-space-scan.md`
 // for the rename from `ship.ts` to `ship.config.ts`.
 import { defineConfig } from "ship";
 
@@ -90,6 +101,89 @@ export default defineConfig({
         env: {},
         url: null,
         scope: "project",
+      },
+    },
+    permissions: {
+      presets: {
+        "ship-readonly": {
+          default_mode: "plan",
+          tools_allow: [
+            "Read",
+            "Glob",
+            "Grep",
+            "Bash(ship *)",
+            "mcp__*__read*",
+            "mcp__*__list*",
+            "mcp__*__search*",
+          ],
+          tools_deny: [
+            "Write(*)",
+            "Edit(*)",
+            "Bash(rm*)",
+            // Platform state protection
+            "Bash(rm */.ship/*)",
+            "Bash(rm -r*/.ship/*)",
+            "Bash(rm -rf*/.ship/*)",
+          ],
+        },
+        "ship-standard": {
+          default_mode: "default",
+          tools_allow: [
+            "Read",
+            "Glob",
+            "Grep",
+            "Bash(ship *)",
+          ],
+          tools_deny: [
+            "Write(apps/**/migrations/**/*.sql)",
+            "Edit(apps/**/migrations/**/*.sql)",
+            // Platform state protection
+            "Bash(rm */.ship/*)",
+            "Bash(rm -r*/.ship/*)",
+            "Bash(rm -rf*/.ship/*)",
+          ],
+        },
+        "ship-autonomous": {
+          // Dispatched specialist agents in worktrees. Zero prompts.
+          // Deny list is a guardrail, not a security boundary. Real security = worktree isolation + gate review.
+          default_mode: "dontAsk",
+          tools_allow: [
+            "Read", "Write", "Edit", "Glob", "Grep",
+            "Bash(*)",
+          ],
+          tools_deny: [
+            "Bash(rm -rf *)",
+            "Bash(git reset --hard*)",
+            "Bash(git push*)",
+            "Bash(cargo publish*)",
+            "Bash(npm publish*)",
+            "Write(apps/**/migrations/**/*.sql)",
+            "Edit(apps/**/migrations/**/*.sql)",
+            // Platform state protection
+            "Bash(rm */.ship/*)",
+            "Bash(rm -r*/.ship/*)",
+            "Bash(rm -rf*/.ship/*)",
+          ],
+        },
+        "ship-elevated": {
+          // Deploy and release agents. Unlocks git push and publish.
+          default_mode: "dontAsk",
+          tools_allow: [
+            "Read", "Write", "Edit", "Glob", "Grep",
+            "Bash(*)",
+          ],
+          tools_deny: [
+            "Bash(rm -rf *)",
+            "Bash(git reset --hard*)",
+            "Bash(git push --force*)",
+            "Write(apps/**/migrations/**/*.sql)",
+            "Edit(apps/**/migrations/**/*.sql)",
+            // Platform state protection
+            "Bash(rm */.ship/*)",
+            "Bash(rm -r*/.ship/*)",
+            "Bash(rm -rf*/.ship/*)",
+          ],
+        },
       },
     },
   },

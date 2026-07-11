@@ -63,17 +63,6 @@ impl ShipRuntime {
         );
         let schemas = Arc::new(ship_collection::projection::SchemaRegistry::new());
         let global_blob_dir = ship_dir.clone();
-        // Permissions reaches into Mcp via the trait for tool_patterns.
-        // Wire the same arc both places so HTTP and trait-to-trait paths
-        // observe the same catalog.
-        let permissions: std::sync::Arc<dyn ship_agents::services::permissions::service::PermissionsService> =
-            std::sync::Arc::new(
-                ship_agents::services::permissions::service::PermissionsServiceImpl::with_roots(
-                    ship_dir.clone(),
-                    None,
-                    mcp.clone(),
-                ),
-            );
         Self {
             config: RuntimeConfig::default(),
             kernel,
@@ -89,7 +78,11 @@ impl ShipRuntime {
             pty_sessions: ship_terminal::SessionRegistry::new(),
             actor_sessions: ship_agents::services::sessions::ActorRegistry::new(),
             rules,
-            permissions,
+            // Slice 3 close-out: the runtime permissions CRUD service
+            // was removed — no live UI consumer invokes it, and the
+            // named-preset layer is now sourced from
+            // `defineConfig.agents.permissions.presets` in
+            // `ship.config.ts`.
             mcp,
             skills,
             agents,

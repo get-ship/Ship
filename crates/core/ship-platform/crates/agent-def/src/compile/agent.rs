@@ -27,10 +27,20 @@ pub fn apply_agent_to_library(
         return Ok(());
     };
 
-    let ship_dir = ship_substrate::ShipHome::project_ship_dir(space_root);
-
-    library.permissions =
-        apply_agent_permissions(library.permissions.clone(), &profile, Some(&ship_dir));
+    // Slice 3 close-out: the permission preset layer is now an
+    // in-memory lookup against `library.permissions_presets`
+    // (populated by the resolver from
+    // `defineConfig.agents.permissions.presets` — the
+    // `ship_dir`-keyed disk read died with `.ship/permissions.jsonc`).
+    // `space_root` stays in the signature because the sibling
+    // team-agent load below still walks a sub-dir of it
+    // (claude/teams/); we don't need it for the permission
+    // resolution.
+    library.permissions = apply_agent_permissions(
+        library.permissions.clone(),
+        &profile,
+        &library.permissions_presets,
+    );
 
     if let Some(inline) = &profile.rules.inline {
         let trimmed = inline.trim();

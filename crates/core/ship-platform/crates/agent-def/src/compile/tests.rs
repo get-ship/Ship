@@ -146,8 +146,11 @@ fn rule_without_frontmatter_uses_full_content() {
 // Migration path: tests that need agents / skills in the compiled
 // output must use `ship.config.ts` and route through the composed
 // descriptor (`compile_project_from_library` /
-// `ship_resolver::roll_up`). The leaf's `load_library` is now
-// disk-shape for permissions / hooks / mcp / rules only.
+// `ship_resolver::roll_up`). Post slice 3, the leaf's `load_library`
+// is disk-shape for mcp + rules only — permissions + hooks +
+// permissions_presets are resolver-sourced (the per-noun walks land
+// in `ExtensionLibrary.{permissions,hooks,permissions_presets}` from
+// `merge_ts_declarations`, not from this fn).
 
 
 // `loads_skill_from_flat_md` retired with format-migration Wave 5. The test exercised
@@ -176,91 +179,54 @@ fn rule_without_frontmatter_uses_full_content() {
 // disk-shape for permissions / hooks / mcp / rules only.
 
 
-#[test]
-fn loads_permissions() {
-    let tmp = TempDir::new().unwrap();
-    let ship_dir = tmp.path().join(".ship");
-    std::fs::create_dir_all(&ship_dir).unwrap();
-    write(
-        &ship_dir,
-        "permissions.jsonc",
-        r#"{ "tools": { "deny": ["Bash(rm -rf *)"] } }"#,
-    );
-    let lib = load_library(&ship_dir).unwrap();
-    assert!(lib.permissions.tools.deny.contains(&"Bash(rm -rf *)".to_string()));
-}
+// `load_permission_preset` retired from disk reads with the slice 3
+// close-out. The function is now an in-memory lookup against
+// `ExtensionLibrary::permissions_presets` (the `BTreeMap` the
+// resolver populates from `defineConfig.agents.permissions.presets`).
+// The unit tests below cover the lookup: present / missing / wrong name.
+// The disk side (parsing `.ship/permissions.jsonc`) moved to the
+// resolver's `merge_ts_declarations` and is exercised through the
+// resolver's own tests.
 
 #[test]
-fn loads_hooks() {
-    let tmp = TempDir::new().unwrap();
-    let ship_dir = tmp.path().join(".ship");
-    std::fs::create_dir_all(&ship_dir).unwrap();
-    write(
-        &ship_dir,
-        "hooks.jsonc",
-        r#"{
-  "hooks": [
-    { "id": "check", "trigger": "pre_tool_use", "command": "ship hooks run", "matcher": "Bash" }
-  ]
-}"#,
+fn load_permission_preset_returns_named_entry() {
+    use std::collections::BTreeMap;
+    let mut presets: BTreeMap<String, PermissionPreset> = BTreeMap::new();
+    presets.insert(
+        "ship-standard".to_string(),
+        PermissionPreset {
+            default_mode: Some("acceptEdits".to_string()),
+            tools_allow: vec![],
+            tools_deny: vec!["Bash(git push --force*)".to_string()],
+            tools_ask: vec!["Bash(rm -rf*)".to_string()],
+            additional_directories: vec![],
+        },
     );
-    let lib = load_library(&ship_dir).unwrap();
-    assert_eq!(lib.hooks.len(), 1);
-    assert_eq!(lib.hooks[0].command, "ship hooks run");
-    assert!(matches!(lib.hooks[0].trigger, HookTrigger::PreToolUse));
-}
-
-#[test]
-fn unknown_hook_trigger_skipped() {
-    let tmp = TempDir::new().unwrap();
-    let ship_dir = tmp.path().join(".ship");
-    std::fs::create_dir_all(&ship_dir).unwrap();
-    write(
-        &ship_dir,
-        "hooks.jsonc",
-        r#"{ "hooks": [{ "id": "bad", "trigger": "unknown_event", "command": "echo hi" }] }"#,
-    );
-    let lib = load_library(&ship_dir).unwrap();
-    assert!(lib.hooks.is_empty(), "unknown trigger must be silently dropped");
-}
-
-#[test]
-fn load_permission_preset_reads_named_section() {
-    let tmp = TempDir::new().unwrap();
-    let ship_dir = tmp.path().join(".ship");
-    std::fs::create_dir_all(&ship_dir).unwrap();
-    write(
-        &ship_dir,
-        "permissions.jsonc",
-        r#"{
-  "ship-standard": {
-    "default_mode": "acceptEdits",
-    "tools_ask": ["Bash(rm -rf*)"],
-    "tools_deny": ["Bash(git push --force*)"]
-  }
-}"#,
-    );
-    let preset = load_permission_preset(&ship_dir, "ship-standard").unwrap();
+    let preset = load_permission_preset(&presets, "ship-standard").unwrap();
     assert_eq!(preset.default_mode.as_deref(), Some("acceptEdits"));
     assert!(preset.tools_ask.contains(&"Bash(rm -rf*)".to_string()));
     assert!(preset.tools_deny.contains(&"Bash(git push --force*)".to_string()));
 }
 
 #[test]
-fn load_permission_preset_missing_section_returns_none() {
-    let tmp = TempDir::new().unwrap();
-    let ship_dir = tmp.path().join(".ship");
-    std::fs::create_dir_all(&ship_dir).unwrap();
-    write(&ship_dir, "permissions.jsonc", r#"{ "ship-elevated": { "default_mode": "dontAsk" } }"#);
-    assert!(load_permission_preset(&ship_dir, "nonexistent").is_none());
+fn load_permission_preset_missing_entry_returns_none() {
+    use std::collections::BTreeMap;
+    let mut presets: BTreeMap<String, PermissionPreset> = BTreeMap::new();
+    presets.insert(
+        "ship-elevated".to_string(),
+        PermissionPreset {
+            default_mode: Some("dontAsk".to_string()),
+            ..Default::default()
+        },
+    );
+    assert!(load_permission_preset(&presets, "nonexistent").is_none());
 }
 
 #[test]
-fn load_permission_preset_missing_file_returns_none() {
-    let tmp = TempDir::new().unwrap();
-    let ship_dir = tmp.path().join(".ship");
-    std::fs::create_dir_all(&ship_dir).unwrap();
-    assert!(load_permission_preset(&ship_dir, "ship-standard").is_none());
+fn load_permission_preset_empty_map_returns_none() {
+    use std::collections::BTreeMap;
+    let presets: BTreeMap<String, PermissionPreset> = BTreeMap::new();
+    assert!(load_permission_preset(&presets, "ship-standard").is_none());
 }
 
 // `loads_agent_profiles_from_agents_dir` retired with format-migration Wave 5. The test exercised

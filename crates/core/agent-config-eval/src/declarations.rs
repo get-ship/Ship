@@ -33,6 +33,17 @@
 //! `into_mcp_server_config` mapping live under `ConfigAgents` now; the
 //! `"mcp_server"` arm of [`harvest`] is gone.
 //!
+//! Slice 3 close-out (A3+A4, 2026-07-11): hooks + permission presets leave
+//! `.ship/hooks.jsonc` + `.ship/permissions.jsonc` (the leaf no longer
+//! reads those files). Hooks arrive as on-disk files at
+//! `<hooks_dir>/<event>.<ext>` (the resolver walks them; the leaf doesn't
+//! touch the on-disk payload). Named permission presets arrive as
+//! `defineConfig({ agents: { permissions: { presets: { ... } } } })` and
+//! the resolver harvests the per-module map into
+//! `ExtensionLibrary::permissions_presets`. No new declare-form kinds
+//! land here — both moves are pure pointer-walk + manifest-block
+//! additions to the existing `defineConfig` shape.
+//!
 //! Every mapped/pass-through noun's hand-written field set is checked
 //! against [`generated_stub`]'s stack-derived fingerprints by
 //! `drift_tests` below — the Rust-side half of the drift gate
@@ -293,6 +304,20 @@ pub struct ConfigDeclare {
     /// (default `"triggers/"`).
     #[serde(default)]
     pub triggers_dir: Option<String>,
+    /// The dir name where on-disk hook payload files live
+    /// (default `"hooks/"`). Each file at
+    /// `<hooks_dir>/<event-stem>.<ext>` becomes a `HookConfig` whose
+    /// `id = <event-stem>`, `trigger = <event>`, and
+    /// `command = "bash <hooks_dir>/<event-stem>.<ext>"`. The resolver
+    /// walks the dir the same way it walks skills + rules. The
+    /// supported `<event-stem>` values mirror the
+    /// [`compiler::HookTrigger`] enum members exactly:
+    /// `pre-tool-use` / `post-tool-use` / `notification` / `stop` /
+    /// `subagent-stop` / `pre-compact`. Slice 3 close-out: the leaf
+    /// no longer reads `.ship/hooks.jsonc` (the file died with this
+    /// slice).
+    #[serde(default)]
+    pub hooks_dir: Option<String>,
     /// Per-namespace config blocks. Slice 2c: the `agents.mcp` block —
     /// the only `agents.*` sub-block today. The shape mirrors
     /// `@ship/stack`'s `ConfigAgents` (which doesn't exist yet — this is
@@ -303,11 +328,15 @@ pub struct ConfigDeclare {
     pub agents: Option<ConfigAgents>,
 }
 
-/// The `defineConfig({ agents: { … } })` block. Today the only sub-block
-/// is `mcp` — the MCP server registration map. `None` defaults to
-/// "no MCP servers contributed from this module's config" (a module
-/// without an `agents.mcp` block contributes nothing to
-/// `ExtensionLibrary::mcp_servers`).
+/// The `defineConfig({ agents: { … } })` block. Sub-blocks:
+/// - `mcp` — the MCP server registration map (slice 2c).
+/// - `permissions` — the named permission preset map (slice 3
+///   close-out, replaces the per-preset sections of the dead
+///   `.ship/permissions.jsonc`).
+/// `None` defaults to "no agents-side config contributed from this
+/// module's config" (a module without an `agents` block contributes
+/// nothing to `ExtensionLibrary::mcp_servers` /
+/// `ExtensionLibrary::permissions_presets`).
 #[derive(Debug, Default, Clone, Deserialize)]
 pub struct ConfigAgents {
     /// MCP server registrations. Keyed by server id (matching the
@@ -318,12 +347,66 @@ pub struct ConfigAgents {
     /// `McpServerDeclare::into_mcp_server_config`.
     #[serde(default)]
     pub mcp: HashMap<String, McpServerDeclare>,
+    /// Named permission presets. Keyed by preset name (e.g.
+    /// `"ship-readonly"` / `"ship-standard"`). Each entry is a
+    /// [`PermissionPresetDeclare`] that the resolver converts
+    /// 1:1 into a [`compiler::PermissionPreset`]
+    /// (same field set — the Declare type exists so the schema can
+    /// keep serde's strict-shape discipline without exposing
+    /// `compiler`'s types in the public harvest API).
+    /// `merge_ts_declarations` walks this map and seeds
+    /// `ExtensionLibrary::permissions_presets` with the same
+    /// id-collision policy as `agents.mcp` (first wins).
+    /// Slice 3 close-out.
+    #[serde(default)]
+    pub permissions: Option<ConfigPermissions>,
+}
+
+/// The `defineConfig({ agents: { permissions: { ... } } })` block. The
+/// only sub-block is `presets` — the named permission preset map
+/// (slice 3 close-out). `None` defaults to "no permission presets
+/// contributed from this module's config" (a module without an
+/// `agents.permissions` block contributes nothing to
+/// `ExtensionLibrary::permissions_presets`).
+#[derive(Debug, Default, Clone, Deserialize)]
+pub struct ConfigPermissions {
+    /// Permission preset definitions. Keyed by preset name. The
+    /// per-preset shape matches `schemas/permissions.schema.json`'s
+    /// `PermissionPreset` (`default_mode`, `tools_allow` /
+    /// `tools_deny` / `tools_ask`, `additional_directories`). The
+    /// resolver converts each entry into a
+    /// `compiler::PermissionPreset` and seeds
+    /// `ExtensionLibrary::permissions_presets`.
+    #[serde(default)]
+    pub presets: HashMap<String, PermissionPresetDeclare>,
+}
+
+/// The `defineConfig({ agents: { permissions: { presets: { <name>: ... } } } })`
+/// per-preset shape. Field-for-field identical to
+/// `compiler::PermissionPreset` (the resolver maps Declare → compiler
+/// type by field-for-field clone). The Declare type exists so the
+/// public harvest API doesn't have to expose the L0 `compiler` types
+/// to `defineConfig` callers — the same precedent
+/// `McpServerDeclare` set with slice 2c.
+#[derive(Debug, Default, Clone, Deserialize)]
+pub struct PermissionPresetDeclare {
+    #[serde(default)]
+    pub default_mode: Option<String>,
+    #[serde(default)]
+    pub tools_allow: Vec<String>,
+    #[serde(default)]
+    pub tools_deny: Vec<String>,
+    #[serde(default)]
+    pub tools_ask: Vec<String>,
+    #[serde(default)]
+    pub additional_directories: Vec<String>,
 }
 
 const CONFIG_DEF_FIELDS: &[&str] = &[
     "agents",
     "agents_dir",
     "collections_dir",
+    "hooks_dir",
     "pipelines_dir",
     "rules_dir",
     "skills_dir",

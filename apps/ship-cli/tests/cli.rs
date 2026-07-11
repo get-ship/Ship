@@ -395,8 +395,11 @@ defineAgent({
 });
 "#,
     );
-    // The MCP block lives in the manifest's defineConfig (slice 2c's
-    // new home for the dead `defineMcpServer` form).
+    // The MCP block + the named permission presets both live in the
+    // manifest's `defineConfig({ agents: { mcp, permissions } })`
+    // block (slice 2c added the MCP block; slice 3 close-out
+    // added the permissions.presets block — the .ship/permissions.jsonc
+    // file died with this slice).
     write_ship_config(
         tmp.path(),
         r#"export default defineConfig({
@@ -412,27 +415,23 @@ defineAgent({
         scope: "project",
       },
     },
+    permissions: {
+      presets: {
+        "ship-autonomous": {
+          default_mode: "dontAsk",
+          tools_allow: ["Read", "Write", "Edit", "Glob", "Grep", "Bash(*)"],
+          tools_deny: [
+            "Bash(rm -rf *)",
+            "Bash(git reset --hard*)",
+            "Bash(git push*)"
+          ]
+        }
+      }
+    },
   },
 });"#,
     );
     write_agent_stub(tmp.path(), "fullstack", "Fullstack Dev");
-
-    // Write permissions.jsonc with ship-autonomous preset
-    write(
-        tmp.path(),
-        ".ship/permissions.jsonc",
-        r#"{
-  "ship-autonomous": {
-    "default_mode": "dontAsk",
-    "tools_allow": ["Read", "Write", "Edit", "Glob", "Grep", "Bash(*)"],
-    "tools_deny": [
-      "Bash(rm -rf *)",
-      "Bash(git reset --hard*)",
-      "Bash(git push*)"
-    ]
-  }
-}"#,
-    );
 
     // ship use <agent> (this compiles with the agent active)
     ship_in(&tmp)
@@ -577,21 +576,29 @@ fn e2e_permission_preset_plus_agent_override() {
     let p = tmp.path().to_str().unwrap();
     scaffold_ship_dir(tmp.path());
 
-    // permissions.jsonc defines ship-autonomous with specific deny list
-    write(
+    // The named permission preset lives in the manifest's
+    // `defineConfig({ agents: { permissions: { presets: { ... } } })`
+    // block (slice 3 close-out, A4 — the .ship/permissions.jsonc file
+    // died with this slice).
+    write_ship_config(
         tmp.path(),
-        ".ship/permissions.jsonc",
-        r#"{
-  "ship-autonomous": {
-    "default_mode": "dontAsk",
-    "tools_allow": ["Read", "Write", "Edit", "Bash(*)"],
-    "tools_deny": [
-      "Bash(rm -rf *)",
-      "Bash(git reset --hard*)",
-      "Bash(git push*)"
-    ]
-  }
-}"#,
+        r#"export default defineConfig({
+  agents: {
+    permissions: {
+      presets: {
+        "ship-autonomous": {
+          default_mode: "dontAsk",
+          tools_allow: ["Read", "Write", "Edit", "Bash(*)"],
+          tools_deny: [
+            "Bash(rm -rf *)",
+            "Bash(git reset --hard*)",
+            "Bash(git push*)"
+          ]
+        }
+      }
+    },
+  },
+});"#,
     );
 
     // Agent uses preset AND adds its own tools_deny entries (on disk
@@ -614,7 +621,6 @@ defineAgent({
 });
 "#,
     );
-    write_ship_config(tmp.path(), "");
     write_agent_stub(tmp.path(), "strict-auto", "Strict Autonomous");
 
     // ship use compiles with the agent active, applying preset + overrides

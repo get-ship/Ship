@@ -135,13 +135,20 @@ pub fn router(state: ApiState) -> axum::Router {
     // artifacts.* is served exclusively by the typed `ship-artifacts` wire mounted
     // below (active-space bound). No OpsImpl ArtifactsService mount — the wire is
     // the sole handler. collections.* is likewise served by the typed CollectionWire.
-    // permissions.* — C2_ELEVATED writes (operator-only via the command gate).
-    // Crate-owned PermissionsWire (ship-agents). Replaces impl PermissionsService for OpsImpl.
-    let permissions_wire = Arc::new(ship_agents::services::permissions::PermissionsWire::new(
-        state.permissions_arc(),
-        gate.clone(),
-    ));
-    let router = ship_ops_rpc::PermissionsServiceExt::register(permissions_wire, router);
+    // permissions.* — Slice 3 close-out: the runtime CRUD service
+    // (`ship_agents::services::permissions::PermissionsWire` +
+    // `PermissionsServiceImpl`) was removed — no live UI consumer
+    // invokes it, and the named-preset layer is now sourced from
+    // `defineConfig.agents.permissions.presets` in `ship.config.ts`
+    // (the resolver's `merge_ts_declarations` populates
+    // `ExtensionLibrary::permissions_presets`). The proto remains
+    // in `ship-contracts/proto/ship/ops/v1/permissions.proto` —
+    // the surface is reserved for the environment-design / space-
+    // model work (operator-enabled runtime overrides) that will
+    // re-introduce the CRUD path when runtime permissions become
+    // a real thing. For now the wire is not mounted: any
+    // `permissions.*` Connect-RPC call 404s, the same posture the
+    // REST surface had after its 0d037516d deletion.
     // mcp.* — external MCP server config CRUD.
     // Crate-owned McpWire (ship-agents). Replaces impl McpService for OpsImpl.
     let mcp_wire = Arc::new(ship_agents::services::mcp::McpWire::new(

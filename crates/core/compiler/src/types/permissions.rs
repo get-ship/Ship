@@ -85,3 +85,31 @@ pub struct Permissions {
 fn allow_all_default() -> Vec<String> {
     vec!["*".to_string()]
 }
+
+/// A named permission preset. Replaces the per-preset section of
+/// `.ship/permissions.jsonc` (which died with the dot-ship close-out
+/// slice 3 — A3+A4). The named-preset layer (`ship-readonly` /
+/// `ship-standard` / etc.) is the SSOT for the four-tier continuum;
+/// presets are authored under
+/// `defineConfig({ agents: { permissions: { presets: { ... } } } })`
+/// in `ship.config.ts` and harvested by the resolver into
+/// `ExtensionLibrary::permissions_presets` for the compile path to
+/// consume.
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq)]
+pub struct PermissionPreset {
+    #[serde(default)]
+    pub default_mode: Option<String>,
+    #[serde(default)]
+    pub tools_allow: Vec<String>,
+    #[serde(default)]
+    pub tools_deny: Vec<String>,
+    #[serde(default)]
+    pub tools_ask: Vec<String>,
+    /// Additional working directories the agent can access outside
+    /// the project root. Compiled to Claude Code's
+    /// `additionalDirectories`. Mirrors
+    /// `schemas/permissions.schema.json::$defs.PermissionPreset`.
+    #[serde(default)]
+    pub additional_directories: Vec<String>,
+}

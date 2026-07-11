@@ -129,9 +129,6 @@ pub struct ShipRuntime {
     /// through this trait so the cloud worker / browser embed / unit
     /// tests can swap implementations without standing up an HTTP server.
     pub(super) rules: std::sync::Arc<dyn ship_agents::services::rules::service::RulesService>,
-    /// `PermissionsService` impl — second mr-02 pilot, includes the
-    /// cross-domain `tool_patterns` composition.
-    pub(super) permissions: std::sync::Arc<dyn ship_agents::services::permissions::service::PermissionsService>,
     /// `McpService` impl — third mr-02 pilot.
     pub(super) mcp: std::sync::Arc<dyn ship_agents::services::mcp::service::McpService>,
     /// `SkillsService` impl — fourth mr-02 migration.

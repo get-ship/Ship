@@ -26,7 +26,7 @@ pub use config::{
 };
 pub use permissions::{
     AgentLimits, CommandPermissions, FsPermissions, NetworkPermissions, NetworkPolicy, Permissions,
-    ToolPermissions,
+    PermissionPreset, ToolPermissions,
 };
 pub use pipeline::{PipelineDef, PipelineGate, PipelineStep, PipelineStepSpec};
 pub use plugin::{PluginEntry, PluginsManifest};

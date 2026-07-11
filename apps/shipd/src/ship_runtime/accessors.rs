@@ -90,13 +90,6 @@ impl ShipRuntime {
         self.mcp.clone()
     }
 
-    /// `PermissionsService` as a cloned `Arc` — for wire mounts.
-    pub fn permissions_arc(
-        &self,
-    ) -> Arc<dyn ship_agents::services::permissions::service::PermissionsService> {
-        self.permissions.clone()
-    }
-
     /// `SkillsService` as a cloned `Arc` — for wire mounts.
     pub fn skills_arc(
         &self,

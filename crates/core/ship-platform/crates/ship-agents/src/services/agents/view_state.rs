@@ -602,33 +602,19 @@ fn list_rule_files(ship_dir: &Path) -> Vec<CatalogEntry> {
         .collect()
 }
 
-/// Enumerate permission presets via PermissionService state. Falls back to
-/// the three canonical tiers when no file exists — so the UI always has
-/// something to pick.
-fn list_permission_presets(ship_dir: &Path) -> Vec<CatalogEntry> {
-    let files = ship_files::files::FilesService::resolve_roots(ship_dir);
-    let entries = crate::services::permissions::state::list(&files);
-    if entries.is_empty() {
-        return fallback_presets();
-    }
-    // Load each preset's doc so we can surface `description` (best-effort).
-    let mut out: Vec<CatalogEntry> = Vec::new();
-    for e in entries {
-        let description = crate::services::permissions::state::load_entry(&files, &e.id, None)
-            .ok()
-            .and_then(|(_, v)| {
-                v.get("description")
-                    .and_then(|d| d.as_str())
-                    .map(String::from)
-            });
-        out.push(CatalogEntry {
-            id: e.id.clone(),
-            name: e.id,
-            description,
-        });
-    }
-    out.sort_by(|a, b| a.id.cmp(&b.id));
-    out
+/// Enumerate permission presets. Slice 3 close-out: the
+/// runtime CRUD service (`ship_agents::services::permissions`) was
+/// removed — no live UI consumer invokes it, and the named-preset
+/// layer is now sourced from
+/// `defineConfig.agents.permissions.presets` in `ship.config.ts`
+/// (the resolver's `merge_ts_declarations` populates
+/// `ExtensionLibrary::permissions_presets`). This catalog helper
+/// always falls through to the three canonical tiers; the
+/// extension's actual presets land in the resolved descriptor
+/// and are surfaced via the agents.* domain's compose path, not
+/// from a per-service read.
+fn list_permission_presets(_ship_dir: &Path) -> Vec<CatalogEntry> {
+    fallback_presets()
 }
 
 fn fallback_presets() -> Vec<CatalogEntry> {

@@ -12,11 +12,25 @@
 //!
 //! Each discovered root is loaded as its own `ExtensionLibrary` (the
 //! per-root loader is [`load_root_library`]). The space-root descriptor
-//! is the SOLE contributor of permissions + hooks (the PIN — an
-//! extension must not grant itself; the fence survives multi-extension).
-//! Every other noun (agents, mcp, rules, skills, pipelines, triggers,
-//! collections, views) flows through `compose_space` and resolves
-//! deterministically: root first, then children lexicographic.
+//! is the SOLE contributor of `permissions` + `hooks` +
+//! `permissions_presets` (the PIN — an extension must not grant itself;
+//! the fence survives multi-extension). Every other noun (agents, mcp,
+//! rules, skills, pipelines, triggers, collections, views, hooks) flows
+//! through `compose_space` and resolves deterministically: root first,
+//! then children lexicographic. The `permissions_presets` map is
+//! included in the PIN's "space-root wins" rule — the root's preset
+//! definitions survive composition; every child-root's preset map is
+//! dropped (same as the existing permissions/hooks zeroing).
+//!
+//! **Slice 3 close-out (A3+A4)**: hooks arrive as on-disk files at
+//! `<hooks_dir>/<event-stem>.<ext>` and are walked by
+//! [`walk_hooks_dir`]; named permission presets arrive via
+//! `defineConfig({ agents: { permissions: { presets: { ... } } } })`
+//! and are harvested by `merge_ts_declarations` (resolver-level, in
+//! `lib.rs`) into `ExtensionLibrary::permissions_presets`. The leaf's
+//! `load_library` is a no-op for these nouns (both files died with
+//! this slice). The on-disk hook walk + the per-module preset map are
+//! the resolver's source of truth.
 //!
 //! ## FsBroker for new code (R1)
 //!
@@ -51,7 +65,7 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use compiler::{ExtensionLibrary, Rule, Skill, SkillSource};
+use compiler::{ExtensionLibrary, HookConfig, HookTrigger, Rule, Skill, SkillSource};
 use ship_substrate::ports::{FsBroker, FsCap, FsError, FsMode, FsRoot, SpaceId};
 
 /// The canonical `.ship` dir name, mirrored from
@@ -203,19 +217,36 @@ pub fn enumerate_extension_roots(space_root: &Path) -> Result<Vec<ExtensionRoot>
 /// Read ONE extension root and return its `ExtensionLibrary` (raw
 /// disk shape; no TS merge).
 ///
-/// The bulk of the read (permissions, hooks, the `skill_paths` field)
-/// is delegated to the leaf's [`compiler::load_library`] at
-/// `<root>/.ship/`. The Phase-2 pieces layered on top:
+/// The bulk of the read (the `skill_paths` field) is delegated to the
+/// leaf's [`compiler::load_library`] at `<root>/.ship/`. The
+/// Phase-2 pieces layered on top:
 ///
 /// 1. Read `ship.config.ts` at the root and append a
 ///    `ModuleDescriptor` to `imported_modules`. No dual filename
 ///    support — the legacy `<.ship>/ship.ts` shape is retired
 ///    (format-migration Wave 4 phase A).
 ///
-/// Permissions + hooks are loaded from disk and returned verbatim —
-/// the PIN is applied one layer up in [`load_space_library`] / the
-/// `roll_up` orchestrator (only the space-root descriptor's
-/// permissions/hooks survive the composition).
+/// **Slice 3 close-out (A3+A4)**: the leaf no longer reads
+/// `.ship/hooks.jsonc` or `.ship/permissions.jsonc` (both files died
+/// with the dot-ship close-out). `permissions` + `hooks` are
+/// populated one layer up in `merge_ts_declarations`:
+/// - `hooks` arrives via the on-disk `<hooks_dir>/<event-stem>.<ext>`
+///   walk (the dir pointer comes from `defineConfig({ hooks_dir })`;
+///   default `"hooks/"`).
+/// - `permissions_presets` arrives via the
+///   `defineConfig({ agents: { permissions: { presets: { ... } } } })`
+///   harvest.
+/// The leaf's `load_library` is now a no-op for these nouns
+/// (`compiler::load_library` returns default `permissions`, empty
+/// `hooks`, empty `permissions_presets`); this fn returns that
+/// default. The PIN is still applied one layer up in
+/// [`load_space_library`] / the `roll_up` orchestrator (only the
+/// space-root descriptor's permissions/hooks survive the
+/// composition) — the zero-out for child roots remains correct
+/// (a child that authors hooks/permissions through the resolver
+/// has its values dropped, the same as a child that authored
+/// `.ship/hooks.jsonc` / `.ship/permissions.jsonc` in the pre-
+/// slice-3 world).
 ///
 /// Skills (per Wave 5) arrive exclusively via `defineSkill`
 /// declare-forms in the space's `ship.config.ts` and land in
@@ -475,6 +506,117 @@ pub(crate) fn walk_rules_dir(
     }
     rules.sort_by(|a, b| a.file_name.cmp(&b.file_name));
     Ok(rules)
+}
+
+/// Map a `<event-stem>.<ext>` filename (e.g. `stop.sh`,
+/// `pre-tool-use.bash`, `notification.py`) to the canonical
+/// `HookTrigger` enum. Returns `None` for unknown stems — the
+/// walk silently drops files whose stem doesn't match a known
+/// event, the same lenient contract `load_hooks` had on the
+/// old `.ship/hooks.jsonc` read.
+///
+/// The supported stems mirror the [`compiler::HookTrigger`] enum
+/// members exactly (slice 3 close-out, A3): `pre-tool-use` /
+/// `post-tool-use` / `notification` / `stop` / `subagent-stop` /
+/// `pre-compact`. Snake-case spellings (`pre_tool_use`, etc.)
+/// are NOT accepted here — the on-disk convention is
+/// kebab-case, the same way the on-disk agent TS files are
+/// `agents/<id>.ts` and the on-disk skill dirs are
+/// `skills/<id>/SKILL.md`. The space_root's `ship.config.ts`
+/// is the canonical authoring surface; this walker is the
+/// resolver-side projection.
+fn hook_trigger_from_stem(stem: &str) -> Option<HookTrigger> {
+    Some(match stem {
+        "pre-tool-use" => HookTrigger::PreToolUse,
+        "post-tool-use" => HookTrigger::PostToolUse,
+        "notification" => HookTrigger::Notification,
+        "stop" => HookTrigger::Stop,
+        "subagent-stop" => HookTrigger::SubagentStop,
+        "pre-compact" => HookTrigger::PreCompact,
+        _ => return None,
+    })
+}
+
+/// Walk one hooks dir and return its `HookConfig` records (one
+/// per file, with `id = <event-stem>` and `command =
+/// "bash <hooks_dir>/<event-stem>.<ext>"`). Missing dir →
+/// empty. Unknown event stems → skip the entry silently (the
+/// lenient contract the old `load_hooks` had).
+///
+/// `space_rel` is the space-relative hooks dir (a value from
+/// `defineConfig({ hooks_dir })` in each extension's
+/// `ship.config.ts`; the per-extension-project authoring surface,
+/// default `"hooks/"`). The cap is rooted at the space root, so
+/// the rel path under the cap is the space-relative path verbatim.
+///
+/// The walk enumerates the dir via `FsBroker::list_dir` (one
+/// `list_dir` call → one batch of rel-paths) and reads each
+/// file with `fs.read` (so the on-disk content is reachable
+/// from the gated door; `R1` new code uses `FsBroker`, not
+/// raw `std::fs`). The read succeeds for any file (the broker
+/// does not gate on `is_executable` — execution is the
+/// harness's call at hook-firing time). Files whose stem does
+/// not match a known event name are silently dropped.
+pub(crate) fn walk_hooks_dir(
+    fs: &dyn FsBroker,
+    cap: &FsCap,
+    space_rel: &str,
+) -> Result<Vec<HookConfig>> {
+    let rel = space_rel.trim_start_matches('/').trim_end_matches('/');
+
+    let entries = match fs.list_dir(cap, &rel) {
+        Ok(e) => e,
+        Err(FsError::NotFound) => return Ok(Vec::new()),
+        Err(e) => return Err(e.into()),
+    };
+
+    let mut hooks = Vec::new();
+    for entry in entries {
+        let path = entry.clone();
+        let Some(filename) = path.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
+        // Filename must be `<event-stem>.<ext>`. Drop files
+        // with no extension or empty stem (the broker returns
+        // every entry — sub-dirs would be ignored here too, but
+        // hook files are flat at the top level). `ext` is
+        // captured to enforce the `<stem>.<ext>` shape but
+        // isn't read after the split — the command below
+        // re-uses the original `filename` so the on-disk
+        // extension is preserved verbatim.
+        let (stem, _ext) = match filename.split_once('.') {
+            Some((s, e)) if !s.is_empty() && !e.is_empty() => (s, e),
+            _ => continue,
+        };
+        let Some(trigger) = hook_trigger_from_stem(stem) else {
+            continue;
+        };
+        // Touch the file via the broker so a missing file
+        // (broker returns NotFound) is silently skipped, the
+        // same way an unknown stem is.
+        let file_rel = format!("{rel}/{filename}");
+        match fs.read(cap, &file_rel) {
+            Ok(_) => {}
+            Err(FsError::NotFound) => continue,
+            Err(e) => return Err(e.into()),
+        }
+        hooks.push(HookConfig {
+            id: stem.to_string(),
+            trigger,
+            // The job spec (A3) is explicit: "command = the
+            // file invocation, relative to extension root".
+            // The extension root = the dir holding
+            // `ship.config.ts`; the hooks dir is a dir name
+            // beside it. So the command is the bash invocation
+            // of the file at `<hooks_dir>/<stem>.<ext>` —
+            // `bash hooks/stop.sh` for the canonical case.
+            command: format!("bash {rel}/{filename}"),
+            matcher: None,
+            cursor_event: None,
+        });
+    }
+    hooks.sort_by(|a, b| a.id.cmp(&b.id));
+    Ok(hooks)
 }
 
 /// Parse a rule `.md` file: strip YAML frontmatter (when present) into
@@ -832,13 +974,29 @@ defineAgent({
     #[tokio::test(flavor = "current_thread")]
     async fn load_space_library_drops_child_hooks() {
         let (_tmp, root) = write_space();
-        // Add a child dir carrying both a manifest AND a hook
-        // grant that must be ignored post-merge.
+        // Slice 3 close-out (A3): hooks arrive as on-disk files at
+        // `<hooks_dir>/<event>.<ext>` (the leaf no longer reads
+        // `.ship/hooks.jsonc` — that file died with this slice).
+        // The leaf's `load_library` is a no-op for hooks now; the
+        // resolver's `merge_ts_declarations` walks the
+        // per-extension-project `hooks/` dir and populates
+        // `ExtensionLibrary::hooks` (see the
+        // `roll_up_hooks_pin_keeps_root_only` test in
+        // `crates/core/ship-resolver/src/lib.rs` for the
+        // roll-up-side exercise of the same intent).
+        //
+        // At the leaf level, `load_space_library` returns empty
+        // `hooks` for any input (the leaf's disk walk is gone).
+        // The PIN (zero-out on child descriptors) still applies
+        // for any future path that reintroduces leaf-side hook
+        // discovery; today both root and child contribute empty
+        // `library.hooks` so the PIN's effect is indistinguishable
+        // from "all empty".
         let child = root.join("child-with-grants");
-        std::fs::create_dir_all(child.join(".ship")).unwrap();
+        std::fs::create_dir_all(child.join("hooks")).unwrap();
         std::fs::write(
-            child.join(".ship").join("hooks.jsonc"),
-            r#"{"hooks": [{"id": "child-hook", "trigger": "PreToolUse", "command": "child-cmd"}]}"#,
+            child.join("hooks").join("pre-tool-use.sh"),
+            "#!/bin/bash\necho child-cmd",
         )
         .unwrap();
         std::fs::write(
@@ -848,30 +1006,28 @@ defineAgent({ agent: { id: "child-agent", name: "Child" } });
 "#,
         )
         .unwrap();
-
-        // Give the space root its own hook so we can assert the
-        // merged library matches the ROOT's value, not the
-        // child's.
-        std::fs::create_dir_all(root.join(".ship")).unwrap();
+        std::fs::create_dir_all(root.join("hooks")).unwrap();
         std::fs::write(
-            root.join(".ship").join("hooks.jsonc"),
-            r#"{"hooks": [{"id": "root-hook", "trigger": "PreToolUse", "command": "root-cmd"}]}"#,
+            root.join("hooks").join("pre-tool-use.sh"),
+            "#!/bin/bash\necho root-cmd",
         )
         .unwrap();
 
         let fs = LocalFsBroker::new();
         let lib = load_space_library(&fs, &root).await.unwrap();
 
-        // Hooks: the child extension's hook is gone, the root's
-        // hook survives.
-        let hook_ids: Vec<&str> = lib.hooks.iter().map(|h| h.id.as_str()).collect();
+        // Post slice-3: the leaf returns empty hooks (the
+        // per-extension on-disk walk is the resolver's job, not
+        // the leaf's). The PIN's effect is the same either way —
+        // both root and child contribute empty `hooks`, and the
+        // merged library carries empty `hooks`. The stronger
+        // test (root wins, child dropped) lives in the roll-up
+        // integration test, which exercises the on-disk walk +
+        // the descriptor's PIN.
         assert!(
-            hook_ids.contains(&"root-hook"),
-            "merged library carries the space root's hooks: {hook_ids:?}"
-        );
-        assert!(
-            !hook_ids.contains(&"child-hook"),
-            "child extension's hooks must be dropped: {hook_ids:?}"
+            lib.hooks.is_empty(),
+            "post-slice-3 leaf returns empty hooks; the walk lives in merge_ts_declarations. lib.hooks={:?}",
+            lib.hooks
         );
         // Permissions: leaf treats `permissions.jsonc` as a
         // presence-only check (it returns `Permissions::default()`

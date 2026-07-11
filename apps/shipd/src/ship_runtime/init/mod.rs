@@ -282,20 +282,15 @@ impl ShipRuntime {
             pty_sessions: ship_terminal::SessionRegistry::new(),
             actor_sessions: ship_agents::services::sessions::ActorRegistry::new(),
             rules: ship_agents::services::rules::service::RulesServiceImpl::arc(global_dir.clone()),
-            permissions: {
-                // PermissionsServiceImpl needs an Arc<dyn McpService> for
-                // tool_patterns; build the same impl the runtime exposes
-                // so HTTP and trait-to-trait paths see one catalog.
-                let mcp_for_perms =
-                    ship_agents::services::mcp::service::McpServiceImpl::arc(global_dir.clone());
-                std::sync::Arc::new(
-                    ship_agents::services::permissions::service::PermissionsServiceImpl::with_roots(
-                        global_dir.clone(),
-                        None,
-                        mcp_for_perms,
-                    ),
-                )
-            },
+            // Slice 3 close-out: the runtime permissions CRUD service
+            // (`ship_agents::services::permissions::PermissionsServiceImpl`)
+            // was removed — no live UI consumer invokes it, and the
+            // named-preset layer is now sourced from
+            // `defineConfig.agents.permissions.presets` in
+            // `ship.config.ts`. The proto remains for the
+            // environment-design / space-model work that will
+            // re-introduce the path when runtime permissions become
+            // a real thing; the wire is not mounted for now.
             mcp: ship_agents::services::mcp::service::McpServiceImpl::arc(global_dir.clone()),
             skills: ship_agents::services::skills::service::SkillsServiceImpl::arc(global_dir.clone()),
             agents: ship_agents::services::agents::service::AgentsServiceImpl::arc(global_dir.clone()),
