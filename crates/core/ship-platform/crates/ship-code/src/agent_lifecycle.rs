@@ -5,7 +5,10 @@ use ship_harnesses::harness_adapter::adapter_for_or_default;
 /// Send the harness's exit command to the agent in a tmux session and wait for clean exit.
 /// Best-effort — skips if tmux isn't available (tests).
 pub async fn graceful_agent_exit(slug: &str, harness: Option<&str>) {
-    let tmux_session = format!("job-{}", slug);
+    // ONE naming source: the executor's `session_name` (`ship-<slug>`).
+    // A local `job-<slug>` format here meant the exit command never
+    // found the session (c-2026-07-05T21-01-59).
+    let tmux_session = crate::executors::tmux_window::session_name(slug);
     // Best-effort: unknown harness → no exit command, force-kill path handles it.
     let exit_cmd = adapter_for_or_default(harness)
         .map(|a| a.exit_command().to_string())
