@@ -1,3 +1,13 @@
+// A2: `McpServerConfig` now lives in `ship_config::crud` (the deleted
+// `ship_config::project::McpServerConfig` legacy view was a wider shape
+// carrying display fields; the runtime CRUD layer keeps those for the
+// slice-2c service RPC surface, the resolved-descriptor view drops them).
+//
+// The tests below were migrated wholesale from the deleted
+// `tests/config_boundaries.rs`/`tests/config_io.rs`; their struct literals
+// were expanded with `..Default::default()` to tolerate the new fields
+// without enumerating them.
+
 use ship_platform::config::{
     McpServerConfig, McpServerType,
     add_mcp_server, list_mcp_servers, remove_mcp_server,
@@ -18,9 +28,7 @@ fn add_and_list_mcp_server() -> anyhow::Result<()> {
         env: HashMap::new(),
         scope: "project".to_string(),
         server_type: McpServerType::Stdio,
-        url: None,
-        disabled: false,
-        timeout_secs: None,
+        ..Default::default()
     };
     add_mcp_server(Some(dir.clone()), server)?;
     let servers = list_mcp_servers(Some(dir))?;
@@ -41,9 +49,7 @@ fn remove_mcp_server_works() -> anyhow::Result<()> {
         env: HashMap::new(),
         scope: "project".to_string(),
         server_type: McpServerType::Stdio,
-        url: None,
-        disabled: false,
-        timeout_secs: None,
+        ..Default::default()
     };
     add_mcp_server(Some(dir.clone()), server)?;
     remove_mcp_server(Some(dir.clone()), "to-remove")?;
@@ -64,9 +70,7 @@ fn duplicate_mcp_server_rejected() -> anyhow::Result<()> {
         env: HashMap::new(),
         scope: "project".to_string(),
         server_type: McpServerType::Stdio,
-        url: None,
-        disabled: false,
-        timeout_secs: None,
+        ..Default::default()
     };
     add_mcp_server(Some(dir.clone()), server.clone())?;
     let result = add_mcp_server(Some(dir), server);
@@ -82,14 +86,10 @@ fn mcp_server_type_serialization_round_trips() -> anyhow::Result<()> {
     let http_server = McpServerConfig {
         id: "http-svc".to_string(),
         name: "HTTP".to_string(),
-        command: String::new(),
-        args: vec![],
-        env: HashMap::new(),
-        scope: "project".to_string(),
-        server_type: McpServerType::Http,
         url: Some("http://localhost:8080".to_string()),
-        disabled: false,
+        server_type: McpServerType::Http,
         timeout_secs: Some(30),
+        ..Default::default()
     };
     add_mcp_server(Some(dir.clone()), http_server)?;
     let servers = list_mcp_servers(Some(dir))?;

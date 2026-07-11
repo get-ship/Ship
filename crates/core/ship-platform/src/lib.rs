@@ -11,32 +11,19 @@
 
 /// Platform config facade — thin re-export shim over `ship-config` (SSOT).
 pub mod config {
-    // Core trait
-
-    // Types (live in ship_config::project, not ::types)
-    pub use ship_config::project::{
-        AgentLayerConfig, HookConfig, HookTrigger, PermissionConfig,
-    };
-    pub use ship_substrate::project::PRIMARY_CONFIG_FILE;
-
-    // Project config
-    pub use ship_config::project::{
-        AgentProfile, HarnessProjectOverrides, McpConfig, McpSection, McpServerConfig,
-        McpServerType, SpaceManifest,
-    };
-
-    // MCP
-    pub use ship_config::project::get_mcp_config;
-
-    // IO
-    pub use ship_config::project::{get_config, save_config};
-
-    // Agent def readers
+    pub use ship_config::error::ConfigError;
+    // `ship_config::project` (SpaceManifest / get_config / save_config /
+    // PRIMARY_CONFIG_FILE) died with the A2 close-out (2026-07-11). The
+    // resolved descriptor (`compiler::ResolvedConfig`) is the one source
+    // of truth post-cutover; the on-disk config surface is dead.
+    pub use compiler::AgentProfile;
+    // Agent def readers (still live — A2 delete only removed the
+    // deprecated `ship_config::project::SpaceManifest`/`get_config`
+    // chain, not these typed agent-def read functions).
     pub use ship_config::agents::{
         read_agent_doc_in, read_agent_docs_in, read_agent_profile, read_agent_profile_at,
         read_agent_profiles, read_agent_profiles_in,
     };
-    // `.ts`-config ingest seam (V8-free ends; eval lives in shipd)
     pub use ship_config::agents_ts::read_agent_ts_sources;
 
     // Agent def index + consumer
@@ -51,6 +38,12 @@ pub mod config {
         };
     }
 
+    // MCP CRUD (slice 2c). The `McpServerConfig` type now lives in
+    // `ship_config::crud` (the deleted `project::` module is gone).
+    pub use ship_config::crud::{
+        McpServerConfig, McpServerType, add_mcp_server, ensure_standard_dirs,
+        list_mcp_servers, remove_mcp_server,
+    };
     // Settings
     pub use ship_config::settings::{
         get_all_settings, get_setting, get_setting_u64_or, resolve_bool, resolve_git_log_limit,
@@ -61,9 +54,6 @@ pub mod config {
     // Settings view-state helpers (display structs for the Settings page).
     // Relocated from shipd::services::settings::view_state (L2 → L1).
     pub mod settings_view;
-
-    // Relocated from platform-internal crud/discover/watcher
-    pub use ship_config::crud::{add_mcp_server, ensure_standard_dirs, list_mcp_servers, remove_mcp_server};
 
     pub use ship_config::watcher::{spawn_config_watcher, ConfigWatcher};
 }

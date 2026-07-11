@@ -15,7 +15,6 @@ pub mod dispatch_intent;
 pub mod emit;
 pub mod file_changed_consumer;
 pub mod guards;
-pub mod harnesses;
 pub mod invocation;
 pub use invocation::InvocationMode;
 pub mod op;

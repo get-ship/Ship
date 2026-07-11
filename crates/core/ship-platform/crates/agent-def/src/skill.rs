@@ -154,12 +154,15 @@ pub fn create_skill(project_dir: &Path, id: &str, name: &str, content: &str) -> 
             content_hash: content_hash_hex(content),
         },
     );
-    // Register in project config so checkout hook includes this skill automatically.
-    let mut config = ship_config::project::get_config(Some(project_dir.to_path_buf()))?;
-    if !config.agent.skills.contains(&id.to_string()) {
-        config.agent.skills.push(id.to_string());
-        ship_config::project::save_config(&config, Some(project_dir.to_path_buf()))?;
-    }
+    // A2: the resolved descriptor (roll_up → ResolvedConfig) is the
+    // one source of truth for skill delivery. The pre-cutover write to
+    // `ship_config::project::save_config`'s `config.agent.skills` array
+    // was a side effect of the dead ship.jsonc manifest model — the
+    // `agent.skills` field died with the dot-ship close-out. Skills
+    // arrive via `defineSkill` declare-forms in `ship.config.ts`; the
+    // roll-up re-materializes the descriptor and the active agent's
+    // `skills.refs` is recomputed from the active-profile merge. No
+    // config write is necessary at create time.
     Ok(skill)
 }
 

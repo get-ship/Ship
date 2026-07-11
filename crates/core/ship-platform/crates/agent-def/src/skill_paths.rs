@@ -40,11 +40,8 @@ mod tests {
         let space_root = tmp.path();
         let ship_dir = ship_substrate::ShipHome::project_ship_dir(space_root);
         fs::create_dir_all(&ship_dir).unwrap();
-        fs::write(
-            ship_dir.join(ship_config::project::PRIMARY_CONFIG_FILE),
-            r#"{"id": "test123"}"#,
-        )
-        .unwrap();
+        fs::write(&ship_dir.join("ship.jsonc"), r#"{"id": "test123"}"#)
+            .unwrap();
         let paths = read_skill_paths(space_root);
         assert_eq!(paths, vec![space_root.join("skills/")]);
     }
@@ -57,7 +54,7 @@ mod tests {
         let ship_dir = ship_substrate::ShipHome::project_ship_dir(space_root);
         fs::create_dir_all(&ship_dir).unwrap();
         fs::write(
-            ship_dir.join(ship_config::project::PRIMARY_CONFIG_FILE),
+            &ship_dir.join("ship.jsonc"),
             r#"{"id": "test123", "space": {}}"#,
         )
         .unwrap();

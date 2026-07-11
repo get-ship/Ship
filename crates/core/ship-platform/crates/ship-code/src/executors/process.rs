@@ -610,23 +610,16 @@ impl SessionExecutor for ProcessExecutor {
         // (HarnessSandbox today). Container/VM strategies need an
         // Isolator lifecycle (prepare/shutdown) that the supervisor
         // doesn't own yet — they fall through with a warning.
-        let ship_dir = ship_substrate::ShipHome::project_ship_dir(&ctx.work_dir);
-        // Per-agent isolation overrides are no longer carried on the agent
-        // definition; the resolved override is always the project/global
-        // default. L1 still owns the config read so L0's `decide()` stays
-        // config-free (closes the ship-isolation→ship-config inversion).
-        let agent_override = ship_config::project::get_config(Some(ship_dir.clone()))
-            .ok()
-            .and_then(|cfg| {
-                cfg.agents
-                    .iter()
-                    .find(|a| a.agent.id == ctx.agent)
-                    .and_then(|_a| {
-                        ship_isolation::decision::parse_agent_override(None)
-                            .ok()
-                            .flatten()
-                    })
-            });
+        let _ship_dir = ship_substrate::ShipHome::project_ship_dir(&ctx.work_dir);
+        // A2: per-agent isolation overrides are no longer carried on the agent
+        // definition (the descriptor has no isolation field), and the
+        // pre-cutover `ship_config::project::get_config` lookup it did was a
+        // dead read — `parse_agent_override(None)` is always `None`. The
+        // resolved override, when one arrives from the descriptor, lives
+        // alongside the `SpawnPolicy`'s role map on the dispatch wire; L0
+        // stays config-free. The decision input is the project/global
+        // default.
+        let agent_override: Option<ship_isolation::tier::IsolationProfile> = None;
         let decision = ship_isolation::decision::decide(agent_override.as_ref(), None);
         let enforce = ship_isolation::decision::enforcement_enabled();
         // Optional sandbox owner — attached to ProcessHandle after spawn

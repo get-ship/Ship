@@ -110,12 +110,19 @@ pub fn start_dispatch_runtime(
         session_registry,
         daemon_base_url: daemon_origin,
     });
-
     let isolation: Arc<dyn IsolationStrategy> = Arc::new(GitWorktreeIsolation);
     let registry_port: Arc<dyn ProcessRegistryPort> = Arc::new(SharedRegistry(registry.clone()));
-    let spawn_policy: Arc<dyn SpawnPolicy> = Arc::new(ConfigSpawnPolicy::new(platform.clone()));
+    // The role surface is descriptor-sourced (post A2) — the descriptor
+    // (roll_up → ResolvedConfig) feeds the static role resolver, not the
+    // legacy `get_config` lookup. Empty until the descriptor courier wires
+    // resolved agent profiles into it.
+    let roles: Arc<dyn ship_pipeline_runtime::ports::spawn_policy::AgentRoleResolver> =
+        Arc::new(ship_pipeline_runtime::ports::spawn_policy::StaticAgentRoleResolver::empty());
+    let spawn_policy: Arc<dyn SpawnPolicy> = Arc::new(ConfigSpawnPolicy::new(
+        platform.clone(),
+        roles,
+    ));
     let projections: Arc<dyn ProjectionReader> = Arc::new(ProjectionsReader);
-
     let agent_ports = Arc::new(AgentPorts {
         // helmd wires no floki closure — third-party harnesses only.
         floki_run_fn: None,

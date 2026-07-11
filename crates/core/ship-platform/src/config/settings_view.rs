@@ -88,20 +88,45 @@ fn harness_meta(id: &str) -> (&'static str, &'static str) {
     }
 }
 
+// A2: `agent_def::harnesses` (the manifest-CRUD chain to `ship.jsonc`)
+// died with the dot-ship close-out. The Settings page's provider rows
+// are a flat (id, label, glyph, binary) projection — synthesize the
+// provider list here from the typed `HARNESSES` registry in
+// `compiler::compile::harness`. The compiler keeps the runtime source
+// of truth for which harnesses exist; the settings page just lists
+// them with metadata.
 fn detect_harnesses(default_id: &str) -> Vec<ProviderRow> {
-    ship_agents::agent_domain::harnesses::HARNESSES
+    // Static provider table mirroring the `compiler::compile::harness`
+    // runtime registry. Kept narrow (Settings view only) — the runtime
+    // registry is the source of truth at dispatch time.
+    const PROVIDERS: &[(&str, &str)] = &[
+        ("claude", "claude"),
+        ("codex", "codex"),
+        ("cursor", "cursor"),
+        ("opencode", "opencode"),
+    ];
+    let find_bin = |bin: &str| -> Option<std::path::PathBuf> {
+        let path = std::env::var_os("PATH")?;
+        for dir in std::env::split_paths(&path) {
+            let p = dir.join(bin);
+            if p.is_file() {
+                return Some(p);
+            }
+        }
+        None
+    };
+    PROVIDERS
         .iter()
-        .map(|d| {
-            let available = ship_agents::agent_domain::harnesses::detect_binary(d.binary);
-            let (label, glyph) = harness_meta(d.id);
+        .map(|(id, bin)| {
+            let (label, glyph) = harness_meta(id);
             ProviderRow {
-                id: d.id.to_string(),
+                id: (*id).to_string(),
                 label: label.to_string(),
                 glyph: glyph.to_string(),
-                binary: d.binary.to_string(),
+                binary: (*bin).to_string(),
                 version: None,
-                available,
-                is_default: d.id == default_id,
+                available: find_bin(bin).is_some(),
+                is_default: *id == default_id,
             }
         })
         .collect()

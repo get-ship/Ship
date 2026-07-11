@@ -83,8 +83,14 @@ pub async fn subscribe_job_events(
         Arc::new(crate::dispatch::adapters::GitWorktreeIsolation);
     let registry_port: Arc<dyn ProcessRegistryPort> =
         Arc::new(SharedRegistry(registry.clone()));
+    // The role surface is descriptor-sourced (post A2). The dispatch wire
+    // supplies a `ResolvedConfig`-backed view; shipd-side, the role map
+    // starts empty (no operator-set agent definitions yet) and grows as
+    // the descriptor courier lands.
+    let roles: Arc<dyn ship_pipeline_runtime::ports::spawn_policy::AgentRoleResolver> =
+        Arc::new(ship_pipeline_runtime::ports::spawn_policy::StaticAgentRoleResolver::empty());
     let spawn_policy: Arc<dyn SpawnPolicy> = Arc::new(
-        ship_pipeline_runtime::ports::spawn_policy::ConfigSpawnPolicy::new(platform.clone()),
+        ship_pipeline_runtime::ports::spawn_policy::ConfigSpawnPolicy::new(platform.clone(), roles),
     );
     let projections: Arc<dyn ship_code::dispatch_ports::ProjectionReader> =
         Arc::new(ship_pipeline_runtime::ports::projection_reader::ProjectionsReader);

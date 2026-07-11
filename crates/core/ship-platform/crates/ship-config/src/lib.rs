@@ -40,7 +40,7 @@ pub mod error;
 pub mod event_registrations;
 pub mod overlay;
 pub mod patch;
-pub mod project;
+
 pub mod service;
 pub mod settings;
 pub mod types;
