@@ -15,3 +15,5 @@ mod integration_cache;
 mod integration_dep_skills;
 #[cfg(test)]
 mod integration_compose;
+#[cfg(test)]
+mod integration_constraint;

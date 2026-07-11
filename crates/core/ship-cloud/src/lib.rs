@@ -1,12 +1,11 @@
-//! Ship Cloud sync transport and thin HTTP client.
+//! Ship Cloud sync transport and service actor.
 //!
 //! Push/pull cursors live in `ship_substrate::db::cursors` (the `cursors`
 //! table in platform.db, alongside per-projection rebuild cursors).
 //!
-//! `client` + `types` are the thin HTTP transport layer. The sync service
-//! actor (the `ServiceHandler` that drives the push cycle and emits `sync.*`
-//! events into the kernel) is being redesigned separately — sync is the
-//! first revenue wedge and gets a purpose-built service.
+//! `client` + `types` are the thin HTTP transport layer. `sync_service`
+//! (behind the `unstable` feature) is the `ServiceHandler` actor that drives
+//! the push cycle and emits `sync.*` events into the kernel.
 //!
 //! Originally nested under `ship-platform/src/sync/`; carved into its own
 //! crate so the cloud integration can evolve independently and so that
@@ -17,6 +16,10 @@
 pub mod client;
 pub mod event_registrations;
 pub mod types;
+#[cfg(feature = "unstable")]
+pub mod sync_service;
 
 pub use client::SyncClient;
 pub use types::{PullResponse, PushRequest, PushResponse};
+#[cfg(feature = "unstable")]
+pub use sync_service::{SyncConfig, SyncServiceHandler};

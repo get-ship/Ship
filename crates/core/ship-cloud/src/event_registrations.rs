@@ -3,10 +3,11 @@
 //! Registers the 4 sync.* events with the global event registry using the
 //! hoisted `register_event!` macro from `ship_types`, making them available
 //! to downstream code that calls `event_registry::registry()`.
+//!
 //! Substrate-cohesion de-bucket (2026-06-11): the CLOUD/SYNC domain owns its
-//! events at L1 in this crate — the sync service task is the sole emitter
-//! of these `sync.*` events. These registrations moved from
-//! `ship_substrate::events::payload_registry` so registrations co-locate
+//! events at L1 in this crate — the sole emitter is
+//! `ship_cloud::sync_service::SyncServiceHandler`. These registrations moved
+//! from `ship_substrate::events::payload_registry` so registrations co-locate
 //! with their domain owner (mirrors the agent-def, ship-auth, ship-space …
 //! registration module pattern from keystone-A Phase A).
 //!
