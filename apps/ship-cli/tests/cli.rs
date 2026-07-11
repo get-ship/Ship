@@ -48,13 +48,11 @@ fn scaffold_ship_dir(root: &Path) {
     );
 }
 
-/// Write a `ship.config.ts` at the space root. Post format-migration Wave 4
-/// phase A + Wave 5, rules/MCP/collections/triggers/agents/skills are
-/// composed into the compile pipeline ONLY as declare-forms here — the raw
-/// `.ship/rules/*.md`, `.ship/mcp.jsonc`, and `.ship/agents/*.jsonc` readers
-/// the compiler/resolver side used were deleted. `.ship/permissions.jsonc`
-/// (preset bodies) and `.ship/ship.jsonc` are untouched by that migration
-/// and still read from disk.
+/// Write a thin POINTER manifest (slice 2c). The body parameter is the
+/// inline content the tests want after the `import { ... }` block —
+/// usually empty (the per-noun source dirs carry the agents / rules /
+/// collections / pipelines / triggers; MCP server registrations go
+/// under `defineConfig({ agents: { mcp: { ... } } })`).
 fn write_ship_config(root: &Path, body: &str) {
     write(
         root,
@@ -62,9 +60,7 @@ fn write_ship_config(root: &Path, body: &str) {
         &format!(
             r#"
 import {{
-  defineAgent,
-  defineMcpServer,
-  defineRule,
+  defineConfig,
 }} from "ship";
 
 {body}
@@ -73,13 +69,48 @@ import {{
     );
 }
 
+/// Write the per-noun source surface slice 2c expects: an on-disk rule
+/// at `rules/<id>.md`, an on-disk agent at `agents/<id>.ts`, and a stub
+/// for the `ship use` activation gate (`.ship/agents/<id>.jsonc`).
+/// The `ship.config.ts` is a thin pointer (`defineConfig({})`).
+fn write_rule_and_agent(
+    root: &Path,
+    rule_id: &str,
+    rule_content: &str,
+    agent_id: &str,
+    agent_name: &str,
+) {
+    std::fs::create_dir_all(root.join("rules")).unwrap();
+    write(
+        root,
+        &format!("rules/{rule_id}.md"),
+        &format!("---\nalwaysApply: true\n---\n{rule_content}"),
+    );
+    std::fs::create_dir_all(root.join("agents")).unwrap();
+    write(
+        root,
+        &format!("agents/{agent_id}.ts"),
+        &format!(
+            r#"
+import {{ defineAgent }} from "ship";
+
+defineAgent({{
+  agent: {{ id: "{agent_id}", name: "{agent_name}" }},
+}});
+"#
+        ),
+    );
+    write_agent_stub(root, agent_id, agent_name);
+    write_ship_config(root, "");
+}
+
 /// `ship use <id>` still gates on a raw `.ship/agents/<id>.jsonc` file
 /// (`apps/ship-cli/src/profile.rs::find_agent_file`/`load_agent_profile`) —
 /// that lookup was never migrated onto the ts-declare-form roll-up the
 /// compile pipeline itself uses. The stub only needs to exist for the
 /// activation gate + plugin-lifecycle read; the agent's real skills/mcp/
 /// rules/permissions effect comes from the matching `defineAgent` in
-/// `ship.config.ts` (composed by `compile_project`'s roll-up).
+/// `agents/<id>.ts` (composed by `compile_project`'s roll-up).
 fn write_agent_stub(root: &Path, id: &str, name: &str) {
     write(
         root,
@@ -95,17 +126,11 @@ fn use_activates_agent_writes_claude_md_and_state() {
     let tmp = TempDir::new().unwrap();
     let p = tmp.path().to_str().unwrap();
     scaffold_ship_dir(tmp.path());
-    write_ship_config(
-        tmp.path(),
-        r#"
-defineRule({ id: "style", content: "Use explicit types.", applyScope: "always" });
-
-defineAgent({
-  agent: { name: "My Agent", id: "my-agent" },
-});
-"#,
-    );
-    write_agent_stub(tmp.path(), "my-agent", "My Agent");
+    // Slice 2c: rule on disk at `rules/style.md`, agent on disk at
+    // `agents/my-agent.ts`, manifest is a thin pointer. The
+    // `.ship/agents/my-agent.jsonc` stub stays for the `ship use`
+    // activation gate.
+    write_rule_and_agent(tmp.path(), "style", "Use explicit types.", "my-agent", "My Agent");
 
     ship_in(&tmp)
         .args(["use", "my-agent", "--path", p])
@@ -124,17 +149,7 @@ fn use_same_agent_twice_is_idempotent() {
     let tmp = TempDir::new().unwrap();
     let p = tmp.path().to_str().unwrap();
     scaffold_ship_dir(tmp.path());
-    write_ship_config(
-        tmp.path(),
-        r#"
-defineRule({ id: "style", content: "Use explicit types.", applyScope: "always" });
-
-defineAgent({
-  agent: { name: "My Agent", id: "my-agent" },
-});
-"#,
-    );
-    write_agent_stub(tmp.path(), "my-agent", "My Agent");
+    write_rule_and_agent(tmp.path(), "style", "Use explicit types.", "my-agent", "My Agent");
 
     let args = ["use", "my-agent", "--path", p];
     ship_in(&tmp).args(args).assert().success();
@@ -170,10 +185,14 @@ fn use_fails_for_unknown_agent() {
 fn compile_writes_claude_md() {
     let tmp = TempDir::new().unwrap();
     scaffold_ship_dir(tmp.path());
-    write_ship_config(
+    // Slice 2c: rule on disk; manifest is a thin pointer.
+    std::fs::create_dir_all(tmp.path().join("rules")).unwrap();
+    write(
         tmp.path(),
-        r#"defineRule({ id: "style", content: "Use explicit types.", applyScope: "always" });"#,
+        "rules/style.md",
+        "---\nalwaysApply: true\n---\nUse explicit types.",
     );
+    write_ship_config(tmp.path(), "");
 
     ship()
         .args([
@@ -194,10 +213,13 @@ fn compile_writes_claude_md() {
 fn compile_dry_run_writes_nothing() {
     let tmp = TempDir::new().unwrap();
     scaffold_ship_dir(tmp.path());
-    write_ship_config(
+    std::fs::create_dir_all(tmp.path().join("rules")).unwrap();
+    write(
         tmp.path(),
-        r#"defineRule({ id: "style", content: "Use explicit types.", applyScope: "always" });"#,
+        "rules/style.md",
+        "---\nalwaysApply: true\n---\nUse explicit types.",
     );
+    write_ship_config(tmp.path(), "");
 
     ship()
         .args([
@@ -235,10 +257,13 @@ fn compile_fails_without_ship_dir() {
 fn compile_harness_codex_writes_agents_md() {
     let tmp = TempDir::new().unwrap();
     scaffold_ship_dir(tmp.path());
-    write_ship_config(
+    std::fs::create_dir_all(tmp.path().join("rules")).unwrap();
+    write(
         tmp.path(),
-        r#"defineRule({ id: "style", content: "Use explicit types.", applyScope: "always" });"#,
+        "rules/style.md",
+        "---\nalwaysApply: true\n---\nUse explicit types.",
     );
+    write_ship_config(tmp.path(), "");
 
     ship()
         .args(["compile", "--harness", "codex"])
@@ -258,10 +283,13 @@ fn compile_harness_codex_writes_agents_md() {
 fn compile_harness_codex_writes_codex_config_toml() {
     let tmp = TempDir::new().unwrap();
     scaffold_ship_dir(tmp.path());
-    write_ship_config(
+    std::fs::create_dir_all(tmp.path().join("rules")).unwrap();
+    write(
         tmp.path(),
-        r#"defineRule({ id: "style", content: "Use explicit types.", applyScope: "always" });"#,
+        "rules/style.md",
+        "---\nalwaysApply: true\n---\nUse explicit types.",
     );
+    write_ship_config(tmp.path(), "");
 
     ship()
         .args(["compile", "--harness", "codex"])
@@ -287,10 +315,13 @@ fn compile_harness_codex_writes_codex_config_toml() {
 fn compile_is_idempotent() {
     let tmp = TempDir::new().unwrap();
     scaffold_ship_dir(tmp.path());
-    write_ship_config(
+    std::fs::create_dir_all(tmp.path().join("rules")).unwrap();
+    write(
         tmp.path(),
-        r#"defineRule({ id: "style", content: "Use explicit types.", applyScope: "always" });"#,
+        "rules/style.md",
+        "---\nalwaysApply: true\n---\nUse explicit types.",
     );
+    write_ship_config(tmp.path(), "");
 
     let args = [
         "compile",
@@ -323,13 +354,25 @@ fn e2e_scaffold_create_agent_use_compile_full_flow() {
     let p = tmp.path().to_str().unwrap();
     scaffold_ship_dir(tmp.path());
 
-    // Write a realistic agent, rule, and MCP server as ship.config.ts
-    // declare-forms (post format-migration Wave 4/5 — the raw
-    // `.ship/agents/*.jsonc`, `.ship/rules/*.md`, `.ship/mcp.jsonc` loaders
-    // were deleted).
-    write_ship_config(
+    // Slice 2c: the rule on disk (`rules/style.md`); the agent on
+    // disk (`agents/fullstack.ts`); the MCP server registration under
+    // `defineConfig({ agents: { mcp: { ... } } })`; the permissions
+    // preset stays in `.ship/permissions.jsonc` (untouched by the
+    // migration).
+    std::fs::create_dir_all(tmp.path().join("rules")).unwrap();
+    write(
         tmp.path(),
+        "rules/style.md",
+        "---\nalwaysApply: true\n---\n\
+         Prefer composition over inheritance. Use explicit return types.",
+    );
+    std::fs::create_dir_all(tmp.path().join("agents")).unwrap();
+    write(
+        tmp.path(),
+        "agents/fullstack.ts",
         r#"
+import { defineAgent } from "ship";
+
 defineAgent({
   agent: {
     id: "fullstack",
@@ -350,23 +393,27 @@ defineAgent({
     { id: "perms-sync", trigger: "Stop", command: "ship permissions sync" },
   ],
 });
-
-defineRule({
-  id: "style",
-  content: "Prefer composition over inheritance. Use explicit return types.",
-  applyScope: "always",
-});
-
-defineMcpServer({
-  id: "github",
-  server_type: "stdio",
-  command: "npx",
-  args: ["-y", "@modelcontextprotocol/server-github"],
-  env: {},
-  url: null,
-  scope: "project",
-});
 "#,
+    );
+    // The MCP block lives in the manifest's defineConfig (slice 2c's
+    // new home for the dead `defineMcpServer` form).
+    write_ship_config(
+        tmp.path(),
+        r#"export default defineConfig({
+  agents: {
+    mcp: {
+      github: {
+        id: "github",
+        server_type: "stdio",
+        command: "npx",
+        args: ["-y", "@modelcontextprotocol/server-github"],
+        env: {},
+        url: null,
+        scope: "project",
+      },
+    },
+  },
+});"#,
     );
     write_agent_stub(tmp.path(), "fullstack", "Fullstack Dev");
 
@@ -446,28 +493,30 @@ fn e2e_cross_harness_same_config() {
     let p = tmp.path().to_str().unwrap();
     scaffold_ship_dir(tmp.path());
 
-    // Set up a realistic space: rules + MCP server as ship.config.ts
-    // declare-forms (post format-migration Wave 4/5); permissions preset
-    // bodies stay in `.ship/permissions.jsonc` (untouched by that migration).
+    // Slice 2c: rule on disk, MCP block in the manifest's defineConfig.
+    std::fs::create_dir_all(tmp.path().join("rules")).unwrap();
+    write(
+        tmp.path(),
+        "rules/architecture.md",
+        "---\nalwaysApply: true\n---\nKeep modules under 300 lines. Prefer pure functions.",
+    );
     write_ship_config(
         tmp.path(),
-        r#"
-defineRule({
-  id: "architecture",
-  content: "Keep modules under 300 lines. Prefer pure functions.",
-  applyScope: "always",
-});
-
-defineMcpServer({
-  id: "test-server",
-  server_type: "stdio",
-  command: "echo",
-  args: ["hello"],
-  env: {},
-  url: null,
-  scope: "project",
-});
-"#,
+        r#"export default defineConfig({
+  agents: {
+    mcp: {
+      "test-server": {
+        id: "test-server",
+        server_type: "stdio",
+        command: "echo",
+        args: ["hello"],
+        env: {},
+        url: null,
+        scope: "project",
+      },
+    },
+  },
+});"#,
     );
 
     write(
@@ -545,10 +594,15 @@ fn e2e_permission_preset_plus_agent_override() {
 }"#,
     );
 
-    // Agent uses preset AND adds its own tools_deny entries
-    write_ship_config(
+    // Agent uses preset AND adds its own tools_deny entries (on disk
+    // at `agents/strict-auto.ts` per slice 2c).
+    std::fs::create_dir_all(tmp.path().join("agents")).unwrap();
+    write(
         tmp.path(),
+        "agents/strict-auto.ts",
         r#"
+import { defineAgent } from "ship";
+
 defineAgent({
   agent: { id: "strict-auto", name: "Strict Autonomous", version: "0.1.0" },
   skills: { refs: [] },
@@ -560,6 +614,7 @@ defineAgent({
 });
 "#,
     );
+    write_ship_config(tmp.path(), "");
     write_agent_stub(tmp.path(), "strict-auto", "Strict Autonomous");
 
     // ship use compiles with the agent active, applying preset + overrides
@@ -638,10 +693,14 @@ fn e2e_compile_with_dependency_skills() {
         ),
     );
 
-    // Agent referencing the dep skill
-    write_ship_config(
+    // Agent referencing the dep skill (on disk at `agents/with-deps.ts`).
+    std::fs::create_dir_all(tmp.path().join("agents")).unwrap();
+    write(
         tmp.path(),
+        "agents/with-deps.ts",
         r#"
+import { defineAgent } from "ship";
+
 defineAgent({
   agent: { id: "with-deps", name: "With Deps", version: "0.1.0" },
   skills: { refs: ["github.com/example/skills-pkg/skills/cool-skill"] },
@@ -649,6 +708,7 @@ defineAgent({
 });
 "#,
     );
+    write_ship_config(tmp.path(), "");
     write_agent_stub(tmp.path(), "with-deps", "With Deps");
 
     // Simulate installed package cache at $HOME/.ship/cache/objects/<hex>/

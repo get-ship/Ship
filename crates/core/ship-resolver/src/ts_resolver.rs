@@ -259,9 +259,12 @@ defineAgent({ agent: { id: "b2", name: "B2" } });
         assert_eq!(ids, vec!["a1", "b1", "b2"]);
     }
 
-    /// Format-migration Wave 3: a `ship.config.ts` using every declare-form
-    /// (agent, mcp server, skill, pipeline, trigger, collection, rule)
-    /// harvests into the matching `Declarations` field.
+    /// Slice 2c: `defineSkill` + `defineRule` + `defineMcpServer` retired
+    /// (skills/rules → on-disk files, MCP → `defineConfig({ agents: { mcp } })`).
+    /// The surviving declare-forms (`defineAgent`, `definePipeline`,
+    /// `defineTrigger`, `defineCollection`, `defineView`, `defineConfig`)
+    /// still harvest into the matching `Declarations` field. This test
+    /// pins that contract end-to-end through `resolve_ts_files`.
     #[tokio::test(flavor = "current_thread")]
     async fn every_declare_form_lands_in_its_noun_field() {
         let module = empty_module(
@@ -269,34 +272,29 @@ defineAgent({ agent: { id: "b2", name: "B2" } });
             r#"
 import {
   defineAgent,
-  defineMcpServer,
-  defineSkill,
   definePipeline,
   defineTrigger,
   defineCollection,
-  defineRule,
   defineView,
+  defineConfig,
 } from "ship";
 
 defineAgent({ agent: { id: "demo", name: "Demo" } });
 
-defineMcpServer({
-  id: "search",
-  server_type: "stdio",
-  command: "search-mcp",
-  args: [],
-  env: null,
-  url: null,
-  scope: "project",
-});
-
-defineSkill({
-  frontmatter: {
-    name: "review-pr",
-    description: "Reviews a pull request.",
+defineConfig({
+  agents: {
+    mcp: {
+      search: {
+        id: "search",
+        server_type: "stdio",
+        command: "search-mcp",
+        args: [],
+        env: null,
+        url: null,
+        scope: "project",
+      },
+    },
   },
-  body: "Do the review.",
-  assets: [],
 });
 
 definePipeline({
@@ -317,12 +315,6 @@ defineCollection({
   fields: [{ name: "title", type: "string", required: true, values: [] }],
 });
 
-defineRule({
-  id: "style",
-  content: "Be terse.",
-  applyScope: "always",
-});
-
 defineView({
   route: "/hello",
   component_ref: "Hello.sui",
@@ -334,11 +326,18 @@ defineView({
         assert_eq!(declarations.agents.len(), 1);
         assert_eq!(declarations.agents[0].agent.id, "demo");
 
-        assert_eq!(declarations.mcp_servers.len(), 1);
-        assert_eq!(declarations.mcp_servers[0].id, "search");
-
-        assert_eq!(declarations.skills.len(), 1);
-        assert_eq!(declarations.skills[0].name, "review-pr");
+        // Slice 2c: mcp servers are NOT in the TS harvest any more.
+        // The `defineConfig({ agents: { mcp } })` block lands in
+        // `declarations.config[0].agents.mcp`; the ship-resolver
+        // `merge_ts_declarations` walks that map and converts each
+        // entry to `McpServerConfig`. The unit-level harvest here
+        // only proves the config shape parsed.
+        assert!(declarations.mcp_servers.is_empty());
+        assert_eq!(declarations.config.len(), 1);
+        let cfg = &declarations.config[0];
+        let agents = cfg.agents.as_ref().expect("agents block in defineConfig");
+        assert_eq!(agents.mcp.len(), 1);
+        assert!(agents.mcp.contains_key("search"));
 
         assert_eq!(declarations.pipelines.len(), 1);
         assert_eq!(declarations.pipelines[0].name, "ci");
@@ -349,9 +348,10 @@ defineView({
         assert_eq!(declarations.collections.len(), 1);
         assert_eq!(declarations.collections[0].id, "notes");
 
-        assert_eq!(declarations.rules.len(), 1);
-        assert_eq!(declarations.rules[0].file_name, "style");
-        assert!(declarations.rules[0].always_apply);
+        // Skills + rules are no longer in the TS harvest; they live
+        // on disk and land via the resolver's on-disk walks.
+        assert!(declarations.skills.is_empty());
+        assert!(declarations.rules.is_empty());
 
         assert_eq!(declarations.views.len(), 1);
         assert_eq!(declarations.views[0].route, "/hello");

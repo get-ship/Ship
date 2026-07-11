@@ -227,6 +227,14 @@ pub fn enumerate_extension_roots(space_root: &Path) -> Result<Vec<ExtensionRoot>
 /// default single entry as metadata (the canonical constant
 /// [`compiler::loader::DEFAULT_SPACE_SKILL_PATH`]) but no consumer
 /// in this crate iterates over it post-cutover.
+/// Slice 2c close-out: the per-noun TS source dirs (agents/collections/
+/// pipelines/triggers) live beside `ship.config.ts`. Each carries one
+/// declare-form per noun. The manifest is a POINTER manifest
+/// (`ship-stack-format.md` §"Manifest nature"): `ship.config.ts` points
+/// at the source dirs; the dirs contain source; the manifest carries no
+/// per-call content. The dir names default to `agents/`, `collections/`,
+/// `pipelines/`, `triggers/` (the `defineConfig` pointer values; the
+/// per-module override path is read in `merge_ts_declarations`).
 pub(crate) async fn load_root_library(
     fs: &dyn FsBroker,
     root: &Path,
@@ -253,8 +261,27 @@ pub(crate) async fn load_root_library(
         library.imported_modules.push(module);
     }
 
+    // 3. Enumerate the per-noun source dirs and append each `.ts` file
+    //    as a `ModuleDescriptor` into `imported_modules`. The fan-out
+    //    (`ts_resolver::resolve_ts_files`) already iterates that vec
+    //    and merges `Declarations` per-module — slice 2c just feeds
+    //    existing machinery (per the job spec: "enumeration feeding
+    //    existing machinery, not new eval code"). The four dirs are
+    //    enumerated in declared order; within each dir entries sort by
+    //    `file_name` so the harvest order is deterministic.
+    for dir in PER_NOUN_SOURCE_DIRS {
+        append_ts_dir_to_imported_modules(fs, &cap.cap, root, dir, &mut library.imported_modules)?;
+    }
+
     Ok(library)
 }
+
+/// Default per-noun source dirs. The values are the slice-2c spec
+/// defaults: each lives beside the `ship.config.ts` at the space
+/// root. Per-extension-project overrides are read from `defineConfig`
+/// (slice 2c), but the space loader reads defaults — the override is a
+/// future plumbing pass; the ship repo's own manifest uses defaults.
+const PER_NOUN_SOURCE_DIRS: &[&str] = &["agents", "collections", "pipelines", "triggers"];
 
 /// Read the space root + the FsBroker, enumerate every extension root
 /// it contains, and return a single merged `ExtensionLibrary`.
@@ -539,6 +566,60 @@ fn extension_library_module_hash(module: &compiler::ModuleDescriptor) -> String 
         let _ = write!(out, "{b:02x}");
     }
     out
+}
+
+/// Enumerate one per-noun source dir (`<root>/<dir>/*.ts`) and append
+/// each `.ts` file as a `ModuleDescriptor` into `imported_modules`.
+/// Missing dir is the common case for projects that don't author a
+/// given noun in TS source form — return `Ok(())` and the dir is
+/// simply absent (the fan-out sees one fewer module; harvest lands
+/// nothing for that noun). A non-`.ts` entry (a stray `.md` or
+/// sub-dir) is skipped via the read-probe pattern (mirrors
+/// `walk_skills_dir`'s `SKILL.md` existence check).
+fn append_ts_dir_to_imported_modules(
+    fs: &dyn FsBroker,
+    cap: &FsCap,
+    _root: &Path,
+    dir: &str,
+    imported_modules: &mut Vec<compiler::ModuleDescriptor>,
+) -> Result<()> {
+    let entries = match fs.list_dir(cap, dir) {
+        Ok(e) => e,
+        Err(FsError::NotFound) => return Ok(()),
+        Err(e) => return Err(e.into()),
+    };
+    let mut stems: Vec<String> = entries
+        .into_iter()
+        .filter_map(|path| {
+            path.file_name()
+                .and_then(|n| n.to_str())
+                .map(|s| s.to_string())
+        })
+        .filter(|stem| stem.ends_with(".ts"))
+        .collect();
+    stems.sort();
+    for stem in stems {
+        let rel = format!("{dir}/{stem}");
+        let bytes = match fs.read(cap, &rel) {
+            Ok(b) => b,
+            // Sub-dir or unreadable entry — skip (the read-probe
+            // mirrors `walk_skills_dir` and stays out of the broker's
+            // stat path; a true read error other than NotFound surfaces
+            // here so a misconfigured perms/perm gate isn't swallowed).
+            Err(FsError::NotFound) => continue,
+            Err(e) => return Err(e.into()),
+        };
+        let source = String::from_utf8_lossy(&bytes).into_owned();
+        let mut module = compiler::ModuleDescriptor {
+            path: PathBuf::from(&rel),
+            source,
+            content_hash: String::new(), // filled in below
+            exports: Vec::new(),
+        };
+        module.content_hash = extension_library_module_hash(&module);
+        imported_modules.push(module);
+    }
+    Ok(())
 }
 
 // ─── Tests ───────────────────────────────────────────────────────────────────

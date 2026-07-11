@@ -5,19 +5,33 @@
 //!
 //! Two harvest strategies, per noun:
 //!
-//! - **Pass-through** (pipelines, triggers): the stack authoring shape and
-//!   `compiler`'s type are identical, so the emitted value deserializes
-//!   directly into `compiler::PipelineDef` / `compiler::TriggerDef`.
-//! - **Mapped** (mcp servers, skills): `compiler`'s type predates the
-//!   stack shape and carries fields the authoring shape doesn't (a
-//!   display `name` distinct from `id`, Codex/Cursor per-server knobs,
-//!   etc.) — a private `*Declare` struct mirrors the stack shape exactly
-//!   and a `into_*` fn maps it onto the compiler type, filling the gap
-//!   with the same defaults a fresh `.jsonc`/`SKILL.md` entry would get.
-//! - **Rules** are neither: per `decision-morning-answers.md` §2, the
-//!   rules declare-form is a thinnest-possible hand-specified shape (id +
-//!   content + apply scope), deliberately NOT stack's richer `RuleDef` —
-//!   see [`RuleDeclare`].
+//! - **Pass-through** (pipelines, triggers, collections): the stack authoring
+//!   shape and `compiler`'s type are identical, so the emitted value
+//!   deserializes directly into `compiler::PipelineDef` /
+//!   `compiler::TriggerDef` / `compiler::CollectionDef`.
+//! - **Mapped** (mcp servers, config): `compiler`'s type predates the
+//!   stack shape and carries fields the authoring shape doesn't — a private
+//!   `*Declare` struct mirrors the stack shape exactly and a `into_*` fn
+//!   maps it onto the compiler type, filling the gap with the same defaults
+//!   a fresh `.jsonc` / `SKILL.md` entry would get.
+//!
+//! Slice 2c close-out: `defineSkill` and `defineRule` declare-forms die —
+//! skills are on-disk `skills/<id>/SKILL.md` files (the resolver walks the
+//! `defineConfig({ skills_dir })` dir), and rules are on-disk
+//! `rules/<id>.md` files (the resolver walks `defineConfig({ rules_dir })`).
+//! The previous `SkillDeclare` / `RuleDeclare` / `SkillFrontmatterDeclare` /
+//! `SkillAssetRefDeclare` / `SkillGrantDeclare` / `SkillRequirementDeclare`
+//! types and their `into_skill` / `into_rule` harvest arms are gone. The
+//! corresponding `"skill"` / `"rule"` cases in [`harvest`] are also gone:
+//! any `__kind` other than the surviving nouns is rejected (the eval is
+//! treated as an error, same contract as before).
+//!
+//! Slice 2c also reshapes MCP server registration: `defineMcpServer`
+//! declare-forms die; MCP server registrations move to
+//! `defineConfig({ agents: { mcp: { <name>: {…} } } })` — same fields the
+//! per-call form carried. The `McpServerDeclare` struct and its
+//! `into_mcp_server_config` mapping live under `ConfigAgents` now; the
+//! `"mcp_server"` arm of [`harvest`] is gone.
 //!
 //! Every mapped/pass-through noun's hand-written field set is checked
 //! against [`generated_stub`]'s stack-derived fingerprints by
@@ -28,8 +42,7 @@ use std::collections::HashMap;
 
 use anyhow::{Context, Result, bail};
 use compiler::{
-    AgentProfile, CollectionDef, McpServerConfig, McpServerType, PipelineDef, Rule, Skill,
-    SkillSource, TriggerDef,
+    AgentProfile, CollectionDef, McpServerConfig, McpServerType, PipelineDef, TriggerDef,
 };
 use compiler::types::ViewDescriptor;
 use serde::Deserialize;
@@ -39,12 +52,21 @@ use serde_json::Value;
 /// in call order. [`crate::resolve_agents_with_globals`] is a thin filter
 /// over `.agents`; `ts_resolver::resolve_ts_files` merges these again
 /// across multiple modules.
+///
+/// Slice 2c: `skills` / `rules` / `mcp_servers` are no longer declared per-
+/// call from a `ship.config.ts`. Skills + rules live on disk
+/// (`skills/<id>/SKILL.md`, `rules/<id>.md`); MCP servers live under
+/// `defineConfig({ agents: { mcp: {…} } })` and are pushed into
+/// `ExtensionLibrary::mcp_servers` by
+/// `ship_resolver::merge_ts_declarations`. The fields stay on the struct
+/// (typed `Vec<…>`) so the canonical-JSON surface remains shape-stable
+/// for the descriptor cache's content hash.
 #[derive(Debug, Clone, Default)]
 pub struct Declarations {
     pub agents: Vec<AgentProfile>,
     pub mcp_servers: Vec<McpServerConfig>,
-    pub skills: Vec<Skill>,
-    pub rules: Vec<Rule>,
+    pub skills: Vec<compiler::Skill>,
+    pub rules: Vec<compiler::Rule>,
     pub pipelines: Vec<PipelineDef>,
     pub triggers: Vec<TriggerDef>,
     pub collections: Vec<CollectionDef>,
@@ -60,8 +82,12 @@ pub struct Declarations {
     /// the same way the other declare-forms do; the user-facing
     /// `export default defineConfig({...})` shape is purely for ecosystem
     /// conformance). The resolver reads `declarations.config` after the
-    /// fan-out and rolls the per-module values into
-    /// `ExtensionLibrary::skill_paths` post-eval.
+    /// fan-out and threads each per-module value into the right
+    /// `ExtensionLibrary` field (skills/rules from the on-disk walk
+    /// override `skill_paths` / `rules_dir`; the `agents.mcp` map seeds
+    /// `mcp_servers`). Slice 2c adds `agents_dir` / `collections_dir` /
+    /// `pipelines_dir` / `triggers_dir` and the `agents.mcp` block to
+    /// the shape.
     pub config: Vec<ConfigDeclare>,
 }
 
@@ -77,6 +103,7 @@ struct Envelope {
 /// `out`. Fails loudly on an unrecognized kind or a value that doesn't
 /// match its noun's expected shape — a declare-form call is either well-
 /// formed or the eval is treated as an error, the same contract
+/// the slice-2c close-out keeps.
 pub fn harvest(out: &mut Declarations, index: usize, raw: Value) -> Result<()> {
     let envelope: Envelope = serde_json::from_value(raw)
         .with_context(|| format!("declare-form call #{index} did not emit a tagged declaration"))?;
@@ -85,21 +112,6 @@ pub fn harvest(out: &mut Declarations, index: usize, raw: Value) -> Result<()> {
             let profile: AgentProfile = serde_json::from_value(envelope.value)
                 .with_context(|| format!("defineAgent call #{index} did not match AgentProfile"))?;
             out.agents.push(profile);
-        }
-        "mcp_server" => {
-            let declared: McpServerDeclare = serde_json::from_value(envelope.value)
-                .with_context(|| format!("defineMcpServer call #{index} did not match McpServerDef"))?;
-            out.mcp_servers.push(declared.into_mcp_server_config());
-        }
-        "skill" => {
-            let declared: SkillDeclare = serde_json::from_value(envelope.value)
-                .with_context(|| format!("defineSkill call #{index} did not match SkillDef"))?;
-            out.skills.push(declared.into_skill());
-        }
-        "rule" => {
-            let declared: RuleDeclare = serde_json::from_value(envelope.value)
-                .with_context(|| format!("defineRule call #{index} did not match the rule shape"))?;
-            out.rules.push(declared.into_rule(index)?);
         }
         "pipeline" => {
             let def: PipelineDef = serde_json::from_value(envelope.value)
@@ -129,36 +141,66 @@ pub fn harvest(out: &mut Declarations, index: usize, raw: Value) -> Result<()> {
         "config" => {
             // The `defineConfig` value carries the per-extension-project
             // `skills_dir` (single dir name, no trailing slash, relative
-            // to the dir containing the `ship.config.ts` declaring it).
+            // to the dir containing the `ship.config.ts` declaring it) +
+            // the slice-2c additions: `rules_dir`, `agents_dir`,
+            // `collections_dir`, `pipelines_dir`, `triggers_dir`, and the
+            // `agents.mcp` block (the MCP server registrations; the
+            // per-call `defineMcpServer` declare-form died with slice 2c).
             // Hand-spec'd (no `@ship/stack` counterpart yet) — the same
             // posture as `defineRule` / `defineView`. The resolver's
             // `merge_ts_declarations` walks `out.config` and threads
-            // the value into `ExtensionLibrary::skill_paths` (scalar
-            // override — the last `defineConfig.skills_dir` wins).
+            // each value into the right `ExtensionLibrary` field.
             let declared: ConfigDeclare = serde_json::from_value(envelope.value)
                 .with_context(|| format!("defineConfig call #{index} did not match the config shape"))?;
             out.config.push(declared);
         }
+        // Slice 2c close-out: the dead declare-form kinds. `defineSkill`
+        // and `defineRule` are gone (skills + rules are on-disk files,
+        // walked from `defineConfig.skills_dir` / `.rules_dir`); the
+        // per-call `defineMcpServer` is gone (MCP registrations live
+        // under `defineConfig.agents.mcp`). Any of these `__kind` values
+        // landing here is a bug — a re-introduction or a stale module
+        // — and the eval is treated as an error, same as an unknown kind.
+        "skill" => bail!(
+            "declare-form call #{index}: `defineSkill` is retired (slice 2c) — author skills \
+             on-disk at `<skills_dir>/<id>/SKILL.md`; the resolver walks the dir"
+        ),
+        "rule" => bail!(
+            "declare-form call #{index}: `defineRule` is retired (slice 2c) — author rules \
+             on-disk at `<rules_dir>/<id>.md`; the resolver walks the dir"
+        ),
+        "mcp_server" => bail!(
+            "declare-form call #{index}: `defineMcpServer` is retired (slice 2c) — author MCP \
+             server registrations under `defineConfig({{ agents: {{ mcp: {{ … }} }} }})`"
+        ),
         other => bail!("declare-form call #{index}: unrecognized kind `{other}`"),
     }
     Ok(())
 }
 
-// ─── MCP servers ──────────────────────────────────────────────────────────────
-
-/// The `McpServerDef` authoring shape (`@ship/stack/mcp-servers.ts`).
-#[derive(Debug, Deserialize)]
-struct McpServerDeclare {
-    id: String,
-    server_type: String,
-    command: Option<String>,
-    args: Option<Vec<String>>,
-    env: Option<HashMap<String, String>>,
-    url: Option<String>,
-    scope: String,
+// ─── MCP server declare shape (slice 2c) ─────────────────────────────────────
+//
+// The `McpServerDef` authoring shape (`@ship/stack/mcp-servers.ts`). Lives
+// here now because the declare-form it belonged to (`defineMcpServer`) died
+// with slice 2c: MCP server registrations move to
+// `defineConfig({ agents: { mcp: { <name>: McpServerDeclare } } })`. The
+// `ConfigAgents::mcp` map is the harvest surface; the resolver walks it
+// (in `ship_resolver::merge_ts_declarations`) and converts each entry via
+// `McpServerDeclare::into_mcp_server_config` (the same mapping the dead
+// per-call form used). Same fields, same defaults — only the route in
+// changed.
+#[derive(Debug, Clone, Deserialize)]
+pub struct McpServerDeclare {
+    pub id: String,
+    pub server_type: String,
+    pub command: Option<String>,
+    pub args: Option<Vec<String>>,
+    pub env: Option<HashMap<String, String>>,
+    pub url: Option<String>,
+    pub scope: String,
 }
 
-const MCP_SERVER_DECLARE_FIELDS: &[&str] =
+pub const MCP_SERVER_DECLARE_FIELDS: &[&str] =
     &["args", "command", "env", "id", "scope", "server_type", "url"];
 
 impl McpServerDeclare {
@@ -168,7 +210,7 @@ impl McpServerDeclare {
     /// `disabled`/`timeout_secs`/the Codex+Cursor per-server fields have
     /// no TS-authored equivalent yet; they default off, same as a fresh
     /// `mcp.jsonc` entry would.
-    fn into_mcp_server_config(self) -> McpServerConfig {
+    pub fn into_mcp_server_config(self) -> McpServerConfig {
         let server_type = match self.server_type.as_str() {
             "http" => McpServerType::Http,
             "sse" => McpServerType::Sse,
@@ -192,192 +234,101 @@ impl McpServerDeclare {
     }
 }
 
-// ─── Skills ───────────────────────────────────────────────────────────────────
-
-#[derive(Debug, Deserialize)]
-struct SkillGrantDeclare {
-    tool: String,
-    #[serde(default)]
-    #[allow(dead_code)]
-    scope: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct SkillRequirementDeclare {
-    id: String,
-    #[serde(default)]
-    #[allow(dead_code)]
-    version: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct SkillAssetRefDeclare {
-    #[allow(dead_code)]
-    kind: String,
-    #[allow(dead_code)]
-    path: String,
-}
-
-const SKILL_ASSET_REF_DECLARE_FIELDS: &[&str] = &["kind", "path"];
-
-#[derive(Debug, Deserialize)]
-struct SkillFrontmatterDeclare {
-    name: String,
-    #[serde(rename = "stable-id")]
-    stable_id: Option<String>,
-    description: String,
-    license: Option<String>,
-    compatibility: Option<Value>,
-    #[serde(rename = "allowed-tools")]
-    allowed_tools: Option<Vec<String>>,
-    artifacts: Option<Vec<String>>,
-    grants: Option<Vec<SkillGrantDeclare>>,
-    requires: Option<Vec<SkillRequirementDeclare>>,
-    metadata: Option<HashMap<String, String>>,
-}
-
-const SKILL_FRONTMATTER_DECLARE_FIELDS: &[&str] = &[
-    "allowed-tools",
-    "artifacts",
-    "compatibility",
-    "description",
-    "grants",
-    "license",
-    "metadata",
-    "name",
-    "requires",
-    "stable-id",
-];
-
-/// The `SkillDef` authoring shape (`@ship/stack/skill-def.ts`).
-#[derive(Debug, Deserialize)]
-struct SkillDeclare {
-    frontmatter: SkillFrontmatterDeclare,
-    body: String,
-    #[serde(default)]
-    #[allow(dead_code)]
-    assets: Vec<SkillAssetRefDeclare>,
-}
-
-const SKILL_DEF_DECLARE_FIELDS: &[&str] = &["assets", "body", "frontmatter"];
-
-impl SkillDeclare {
-    /// Map onto `compiler::Skill`.
-    ///
-    /// KNOWN GAP (flagged, not fixed here): `compiler::Skill` has no
-    /// asset-bundle field yet, so `assets` is harvested (proves the wire
-    /// shape round-trips) but dropped at this boundary — a future wave
-    /// must extend `Skill` before script/reference bundles reach the
-    /// compile pipeline. `grants`/`requires` similarly collapse from
-    /// stack's `{tool/id, scope?/version?}` objects to bare id strings —
-    /// `compiler::Skill`'s grant model has no per-grant scope yet either.
-    fn into_skill(self) -> Skill {
-        let fm = self.frontmatter;
-        let id = fm.stable_id.clone().unwrap_or_else(|| slugify(&fm.name));
-        Skill {
-            id,
-            name: fm.name,
-            stable_id: fm.stable_id,
-            description: Some(fm.description),
-            license: fm.license,
-            compatibility: fm.compatibility.map(|v| v.to_string()),
-            allowed_tools: fm.allowed_tools.unwrap_or_default(),
-            metadata: fm.metadata.unwrap_or_default(),
-            content: self.body,
-            source: SkillSource::Custom,
-            vars: HashMap::new(),
-            artifacts: fm.artifacts.unwrap_or_default(),
-            grants: fm.grants.unwrap_or_default().into_iter().map(|g| g.tool).collect(),
-            requires: fm.requires.unwrap_or_default().into_iter().map(|r| r.id).collect(),
-        }
-    }
-}
-
-/// Mirrors `compiler::skill_parser`'s directory-name normalization: a
-/// skill declared without `stable-id` gets one derived from its display
-/// name the same way a `SKILL.md`'s `name:` frontmatter would.
-fn slugify(name: &str) -> String {
-    name.to_lowercase().replace(' ', "-")
-}
 // ─── Per-extension-project config (defineConfig) ──────────────────────────
 //
-// The `defineConfig({ skills_dir: "..." })` value (a per-extension-project
-// authoring shape, declared as `export default defineConfig({...})` from
-// each extension's `ship.config.ts` for ecosystem conformance). The
-// `skills_dir` value is a SINGLE directory name (no trailing slash)
-// where on-disk skills live — the resolver walks
-// `<extension_dir>/<skills_dir>/<id>/SKILL.md` and produces `Skill`
-// records (the `defineSkill` declare-form + body-materialization is a
-// follow-up job, out of scope here). Hand-spec'd (no `@ship/stack`
-// counterpart yet) — the same posture as `defineRule` / `defineView`.
-// The Rust harvest pushes one entry per `defineConfig` call into
-// `Declarations::config`; the resolver's `merge_ts_declarations`
-// walks that vec and threads the per-module `skills_dir` into
-// `ExtensionLibrary::skill_paths` post-eval.
+// The `defineConfig({ … })` value (a per-extension-project authoring shape,
+// declared as `export default defineConfig({...})` from each extension's
+// `ship.config.ts` for ecosystem conformance). The Rust harvest pushes one
+// entry per `defineConfig` call into `Declarations::config`; the resolver's
+// `merge_ts_declarations` walks that vec and threads each per-module value
+// into the matching `ExtensionLibrary` field.
 //
-// The default (when no `defineConfig` is declared) is the unified
-// `DEFAULT_SPACE_SKILL_PATH` ("skills/") which the compiler leaf
-// already populates into the descriptor. Per-extension-project
-// `defineConfig` overrides that.
-/// The `defineConfig` value — a per-extension-project authoring shape.
-/// Top-level keys: `skills_dir` (the dir name where on-disk skills live;
-/// default `"skills/"`); `rules_dir` (the dir name where on-disk rule
-/// `.md` files live; default `"rules/"`). Both are SINGLE dir names (no
-/// trailing slash). The last `defineConfig` wins (root-last-wins scalar).
-/// An empty `defineConfig({})` is valid (the resolver sees empty
-/// `ConfigDeclare` values and falls through to the unified defaults).
+// Slice 2c additions:
+//   - `agents_dir` / `collections_dir` / `pipelines_dir` / `triggers_dir`:
+//     the per-extension-project dir pointers for the agent / collection /
+//     pipeline / trigger source dirs. The default is the dir name beside
+//     the `ship.config.ts` (`agents/`, `collections/`, `pipelines/`,
+//     `triggers/`). The space_loader enumerates these dirs' `*.ts` files
+//     and appends them as `ModuleDescriptor`s into `imported_modules` —
+//     the resolver's `resolve_ts_files` already iterates the vec, so the
+//     fan-out is "enumeration feeding existing machinery" (the job
+//     spec's framing). Per-extension-project overrides via `defineConfig`
+//     are read here; the spec mandates the pointer exists, but the
+//     ship repo's own manifest uses the defaults (a later job can plumb
+//     the override if a non-default layout ever ships).
+//   - `agents.mcp`: the MCP server registration block. The per-call
+//     `defineMcpServer` declare-form died with slice 2c; registrations
+//     live here as a `name → McpServerDeclare` map. The
+//     `merge_ts_declarations` walk converts each entry via
+//     `McpServerDeclare::into_mcp_server_config` and seeds
+//     `library.mcp_servers` with the same id-collision policy as the
+//     dead per-call form (first wins).
+//
+// All scalar dir values are SINGLE dir names (no trailing slash), relative
+// to the dir containing the `ship.config.ts` declaring them. The last
+// `defineConfig` wins for each scalar (root-last-wins). An empty
+// `defineConfig({})` is valid — the resolver sees an empty `ConfigDeclare`
+// and falls through to the unified defaults.
 #[derive(Debug, Default, Clone, Deserialize)]
 pub struct ConfigDeclare {
+    /// The dir name where on-disk skills live (default `"skills/"`).
     #[serde(default)]
     pub skills_dir: Option<String>,
+    /// The dir name where on-disk rule `.md` files live (default `"rules/"`).
     #[serde(default)]
     pub rules_dir: Option<String>,
+    /// The dir name where on-disk agent source `.ts` files live
+    /// (default `"agents/"`).
+    #[serde(default)]
+    pub agents_dir: Option<String>,
+    /// The dir name where on-disk collection source `.ts` files live
+    /// (default `"collections/"`).
+    #[serde(default)]
+    pub collections_dir: Option<String>,
+    /// The dir name where on-disk pipeline source `.ts` files live
+    /// (default `"pipelines/"`).
+    #[serde(default)]
+    pub pipelines_dir: Option<String>,
+    /// The dir name where on-disk trigger source `.ts` files live
+    /// (default `"triggers/"`).
+    #[serde(default)]
+    pub triggers_dir: Option<String>,
+    /// Per-namespace config blocks. Slice 2c: the `agents.mcp` block —
+    /// the only `agents.*` sub-block today. The shape mirrors
+    /// `@ship/stack`'s `ConfigAgents` (which doesn't exist yet — this is
+    /// the per-extension-project authoring surface, hand-spec'd like
+    /// `defineRule` / `defineView`). A future wave may add
+    /// `agents.defaults`, etc.
+    #[serde(default)]
+    pub agents: Option<ConfigAgents>,
 }
 
-const CONFIG_DEF_FIELDS: &[&str] = &["rules_dir", "skills_dir"];
-// ─── Rules ──────────────────────────────────────────────────────────────────
-
-/// The rules declare-form's shape — deliberately NOT `@ship/stack`'s
-/// `RuleDef` (frontmatter + body). Per `decision-morning-answers.md` §2,
-/// the ruling collapses rules to the thinnest form: id, content, and a
-/// cascade placement ("apply scope") — no markdown indirection, no rich
-/// type. Not derived from stack, hence excluded from `gen_eval_stub`'s
-/// fingerprinting (see that module's doc comment) and from
-/// `drift_tests` below.
-#[derive(Debug, Deserialize)]
-struct RuleDeclare {
-    id: String,
-    content: String,
-    #[serde(rename = "applyScope")]
-    apply_scope: RuleApplyScopeDeclare,
+/// The `defineConfig({ agents: { … } })` block. Today the only sub-block
+/// is `mcp` — the MCP server registration map. `None` defaults to
+/// "no MCP servers contributed from this module's config" (a module
+/// without an `agents.mcp` block contributes nothing to
+/// `ExtensionLibrary::mcp_servers`).
+#[derive(Debug, Default, Clone, Deserialize)]
+pub struct ConfigAgents {
+    /// MCP server registrations. Keyed by server id (matching the
+    /// `McpServerDeclare::id` field — the same identifier the
+    /// per-call `defineMcpServer` form used). `merge_ts_declarations`
+    /// walks this map and pushes each entry into
+    /// `ExtensionLibrary::mcp_servers` via
+    /// `McpServerDeclare::into_mcp_server_config`.
+    #[serde(default)]
+    pub mcp: HashMap<String, McpServerDeclare>,
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
-enum RuleApplyScopeDeclare {
-    Tag(String),
-    Scoped { globs: Vec<String> },
-}
-
-impl RuleDeclare {
-    fn into_rule(self, index: usize) -> Result<Rule> {
-        let (always_apply, globs) = match self.apply_scope {
-            RuleApplyScopeDeclare::Tag(tag) if tag == "always" => (true, Vec::new()),
-            RuleApplyScopeDeclare::Tag(other) => bail!(
-                "defineRule call #{index} (`{}`): applyScope string must be \"always\", got \"{other}\"",
-                self.id
-            ),
-            RuleApplyScopeDeclare::Scoped { globs } => (false, globs),
-        };
-        Ok(Rule {
-            file_name: self.id,
-            content: self.content,
-            always_apply,
-            globs,
-            description: None,
-        })
-    }
-}
+const CONFIG_DEF_FIELDS: &[&str] = &[
+    "agents",
+    "agents_dir",
+    "collections_dir",
+    "pipelines_dir",
+    "rules_dir",
+    "skills_dir",
+    "triggers_dir",
+];
 
 // ─── Pass-through nouns: field expectations ────────────────────────────────────
 // `compiler::{PipelineDef,TriggerDef,...}` deserialize directly — no
@@ -428,17 +379,6 @@ mod drift_tests {
     #[test]
     fn harvest_fields_match_generated_fingerprints() {
         assert_fields_match("McpServerDef", MCP_SERVER_DECLARE_FIELDS, stub::MCP_SERVER_DEF_FIELDS);
-        assert_fields_match("SkillDef", SKILL_DEF_DECLARE_FIELDS, stub::SKILL_DEF_FIELDS);
-        assert_fields_match(
-            "SkillFrontmatter",
-            SKILL_FRONTMATTER_DECLARE_FIELDS,
-            stub::SKILL_FRONTMATTER_FIELDS,
-        );
-        assert_fields_match(
-            "SkillAssetRef",
-            SKILL_ASSET_REF_DECLARE_FIELDS,
-            stub::SKILL_ASSET_REF_FIELDS,
-        );
         assert_fields_match("PipelineDef", PIPELINE_DEF_DECLARE_FIELDS, stub::PIPELINE_DEF_FIELDS);
         assert_fields_match("PipelineStep", PIPELINE_STEP_DECLARE_FIELDS, stub::PIPELINE_STEP_FIELDS);
         assert_fields_match("PipelineGate", PIPELINE_GATE_DECLARE_FIELDS, stub::PIPELINE_GATE_FIELDS);

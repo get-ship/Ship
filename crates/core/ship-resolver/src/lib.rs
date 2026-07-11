@@ -123,7 +123,35 @@ fn merge_ts_declarations(
             library.agents.push(profile);
         }
     }
-    merge_by_key(&mut library.mcp_servers, declarations.mcp_servers, |m| m.id.as_str());
+    // Slice 2c close-out: MCP server registrations move to
+    // `defineConfig({ agents: { mcp: { <name>: {…} } } })`. The per-call
+    // `defineMcpServer` form is gone; the `agents.mcp` map is the only
+    // source for MCP servers in the post-slice-2c surface. Walk
+    // `declarations.config` (root-last-wins, same as `skills_dir` /
+    // `rules_dir` overrides below) and convert each entry via
+    // `McpServerDeclare::into_mcp_server_config`. The id-collision
+    // policy matches the dead per-call form: the existing
+    // `library.mcp_servers` (populated by the leaf's `load_mcp_servers`
+    // for any pre-W4 `.ship/mcp.jsonc` entries) wins, then the FIRST
+    // `defineConfig.agents.mcp.<id>` claim wins — `merge_by_key`'s
+    // "first wins" semantics apply identically to the new path.
+    // Slice 2c close-out determinism: `agents.mcp` is a `HashMap`,
+    // and `HashMap` iteration order is randomized per process (the
+    // default hasher seeds from the OS). The compile output's byte
+    // sequence depends on the `mcp_servers` order in the canonical
+    // `ExtensionLibrary`, so non-deterministic order = non-deterministic
+    // output = parity-capture failures. Sort by `id` (the canonical
+    // key, sorted ascending) before the `merge_by_key` first-wins pass.
+    let mut mcp_from_config: Vec<compiler::McpServerConfig> = Vec::new();
+    for cfg in &declarations.config {
+        if let Some(agents) = &cfg.agents {
+            for declared in agents.mcp.values() {
+                mcp_from_config.push(declared.clone().into_mcp_server_config());
+            }
+        }
+    }
+    mcp_from_config.sort_by(|a, b| a.id.cmp(&b.id));
+    merge_by_key(&mut library.mcp_servers, mcp_from_config, |m| m.id.as_str());
     merge_by_key(&mut library.skills, declarations.skills, |s| s.id.as_str());
     merge_by_key(&mut library.rules, declarations.rules, |r| r.file_name.as_str());
     merge_by_key(&mut library.pipelines, declarations.pipelines, |p| p.name.as_str());

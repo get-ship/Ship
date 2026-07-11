@@ -11,32 +11,44 @@ fn write(dir: &Path, rel: &str, content: &str) {
 }
 
 fn setup_minimal_space(tmp: &TempDir) {
-    // Post format-migration Wave 4 phase A (`3bf8bd82e`), rules + MCP
-    // servers are authored ONLY as `ship.config.ts` declare-forms — the
-    // raw `.ship/rules/*.md` / `.ship/mcp.jsonc` file loaders were
-    // deleted. Mirror the shape `ship_resolver::lib_tests` pins down.
+    // Slice 2c close-out: rules + MCP servers are NOT inlined in
+    // `ship.config.ts` any more. The rule lives on disk at
+    // `rules/style.md`; the MCP registration lives under
+    // `defineConfig({ agents: { mcp: { ... } } })` in the manifest
+    // (the per-extension-project config block — slice 2c's
+    // new home for the per-call `defineMcpServer` form).
     write(
         tmp.path(),
         "ship.config.ts",
         r#"
-import { defineMcpServer, defineRule } from "ship";
+import { defineConfig } from "ship";
 
-defineRule({
-  id: "style",
-  content: "Use explicit types.",
-  applyScope: "always",
-});
-
-defineMcpServer({
-  id: "github",
-  server_type: "stdio",
-  command: "npx",
-  args: ["-y", "@mcp/github"],
-  env: {},
-  url: null,
-  scope: "project",
+export default defineConfig({
+  agents: {
+    mcp: {
+      github: {
+        id: "github",
+        server_type: "stdio",
+        command: "npx",
+        args: ["-y", "@mcp/github"],
+        env: {},
+        url: null,
+        scope: "project",
+      },
+    },
+  },
 });
 "#,
+    );
+    // On-disk rule (slice 2b close-out): the rule body's on-disk
+    // form is the resolver's source (the W3 `defineRule({ id, content,
+    // applyScope })` shape maps onto `rules/<id>.md` with the same
+    // `applyScope: "always"` → `alwaysApply: true` default).
+    std::fs::create_dir_all(tmp.path().join("rules")).unwrap();
+    write(
+        tmp.path(),
+        "rules/style.md",
+        "---\nalwaysApply: true\n---\nUse explicit types.",
     );
 }
 

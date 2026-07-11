@@ -51,43 +51,62 @@ const PKG_HEX: &str = "f00dcafe";
 /// `roll_up_source_shadows_cached_agent_on_id_collision` test uses.
 const COLLIDING_ID: &str = "example.test/acme/kit/helper";
 /// One space root with a colliding source + cached-package fixture:
-/// - `ship.config.ts` (`defineRule` + `defineAgent` + `defineSkill`) —
-///   source authoring for the rule, the source's colliding `helper`
-///   agent, and a `review` skill. The change leg edits only the rule
-///   body; the agent + skill declarations are stable across edits.
-/// - `.ship/ship.lock` + `<cache_root>/objects/<hex>/...` — one cached
-///   package exporting a same-bare-id `helper` agent from its own
-///   `agents/helper.jsonc` (cache-tree path, NOT `.ship/agents/` —
-///   that file form is dead post Wave 5).
-///
-/// Every fixture file is authored via plain `std::fs`, mirroring
-/// `ship-resolver`'s own `roll_up` test fixtures. `ship.config.ts`
-/// is the source's authoring surface; the V8 eval happens inside
-/// `ship_resolver::resolve_ts_files` during `roll_up`.
-/// Body of the rule is interpolated from `{rule_body}`.
-const SPINE_CONFIG_TS_TEMPLATE: &str = r#"import { defineAgent, defineRule, defineSkill } from "ship";
+/// - `ship.config.ts` (thin POINTER manifest: empty `defineConfig({})`).
+/// - `agents/<id>.ts` — source's colliding `helper` agent.
+/// - `skills/review/SKILL.md` — the source's on-disk skill.
+/// - `rules/style.md` — the source's on-disk rule; the change leg edits
+///   only the rule body to prove the recompose is visible.
+const SPINE_CONFIG_TS_MANIFEST: &str = r#"import { defineConfig } from "ship";
 
-defineRule({
-  id: "style",
-  content: "{rule_body}",
-  applyScope: "always",
-});
-
-defineAgent({
-  agent: {
-    id: "{COLLIDING_ID}",
-    name: "Source Helper",
-  },
-});
-
-defineSkill({
-  frontmatter: {
-    "name": "review",
-    "description": "Review skill fixture",
-  },
-  body: "Review content.",
-});
+export default defineConfig({});
 "#;
+
+/// Render the source's rule body into the on-disk `rules/style.md`.
+/// Slice 2c: the rule is a file (not a `defineRule` declare-form);
+/// the frontmatter `alwaysApply: true` matches the W3 declare-form's
+/// `applyScope: "always"` mapping.
+fn write_rule_md(space_root: &Path, rule_body: &str) {
+    let rendered = format!(
+        "---\nalwaysApply: true\n---\n{}",
+        rule_body
+    );
+    std::fs::write(space_root.join("rules").join("style.md"), rendered).unwrap();
+}
+
+/// Render the source's agent into the on-disk `agents/<id>.ts`. The
+/// id is the space-relative id of the cached package's agent
+/// (per `COLLIDING_ID`); the body is the same `defineAgent` shape
+/// the W4/W5 inline form used (slice 2c's per-noun source dir
+/// convention). The file name is sanitized for the FS (slashes → `__`).
+fn write_agent_ts(space_root: &Path, id: &str) {
+    let stem = id.replace('/', "__");
+    let rendered = format!(
+        r#"
+import {{ defineAgent }} from "ship";
+
+defineAgent({{
+  agent: {{ id: "{id}", name: "Source Helper" }},
+}});
+"#,
+    );
+    std::fs::write(space_root.join("agents").join(format!("{stem}.ts")), rendered).unwrap();
+}
+
+/// Author the source's skill on-disk (slice 2b close-out convention):
+/// `skills/<id>/SKILL.md` is the per-extension-project source surface
+/// for the skill shape, the same shape `defineSkill`'s
+/// `{ frontmatter, body }` mapped onto `compiler::Skill`. The
+/// frontmatter keys here match `compiler::skill_parser::parse_skill`'s
+/// expected shape (name, description).
+fn write_skill_md(space_root: &Path) {
+    let dir = space_root.join("skills").join("review");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(
+        dir.join("SKILL.md"),
+        "---\nname: review\ndescription: Review skill fixture\n---\nReview content.\n",
+    )
+    .unwrap();
+}
 
 fn write_colliding_fixture() -> (tempfile::TempDir, PathBuf, PathBuf) {
     let tmp = tempfile::tempdir().unwrap();
@@ -95,15 +114,33 @@ fn write_colliding_fixture() -> (tempfile::TempDir, PathBuf, PathBuf) {
     let ship_dir = ShipHome::project_ship_dir(&space_root);
     // The `.ship/` dir is needed for `ship.lock` (and for any
     // permissions/hooks reads the leaf still does). Source authoring
-    // for agents/skills no longer touches it (Wave 5: those nouns
-    // arrive via `ship.config.ts`).
+    // for agents/skills/rules no longer touches it (Wave 5 + slice
+    // 2b close-out + slice 2c). All source authoring lives in the
+    // per-noun source dirs (`agents/`, `skills/`, `rules/`); the
+    // `ship.config.ts` is a thin pointer manifest.
     std::fs::create_dir_all(&ship_dir).unwrap();
 
-    // Source authoring: the leaf's `.ship/agents/*.jsonc` and
-    // `.ship/skills/<id>/SKILL.md` walks are gone (Wave 5). All source
-    // authoring lives in `ship.config.ts` (rule + agent + skill, all
-    // built into `SPINE_CONFIG_TS_TEMPLATE`).
-    write_config_ts(&space_root, SPINE_CONFIG_TS_TEMPLATE, "Be terse.");
+    // 1. Thin pointer manifest.
+    std::fs::write(
+        space_root.join("ship.config.ts"),
+        SPINE_CONFIG_TS_MANIFEST,
+    )
+    .unwrap();
+
+    // 2. The colliding agent (the `helper` cached id, namespaced to
+    //    the package's full id — per `COLLIDING_ID`).
+    std::fs::create_dir_all(space_root.join("agents")).unwrap();
+    write_agent_ts(&space_root, COLLIDING_ID);
+
+    // 3. The source's on-disk skill (slice 2b close-out convention).
+    write_skill_md(&space_root);
+
+    // 4. The source's on-disk rule (slice 2b close-out convention).
+    //    The change leg mutates the body to prove the recompose
+    //    visibility; the initial body is the W3 declare-form's
+    //    "Be terse.".
+    std::fs::create_dir_all(space_root.join("rules")).unwrap();
+    write_rule_md(&space_root, "Be terse.");
 
     let cache_root = space_root.join("cache");
     let obj = cache_root.join("objects").join(PKG_HEX);
@@ -137,18 +174,16 @@ fn write_colliding_fixture() -> (tempfile::TempDir, PathBuf, PathBuf) {
     (tmp, space_root, cache_root)
 }
 
-/// Write the space-root `ship.config.ts` with the full fixture
-/// declaration set (rule + agent + skill) for the source. Called twice
-/// in the change leg (pre-edit and post-edit) with a different `rule_body`,
-/// so each call fully overwrites the file rather than appending. The
-/// agent and skill declarations are stable across edits — only the rule
-/// body changes to prove the recompose is visible.
-fn write_config_ts(space_root: &Path, template: &str, rule_body: &str) {
-    let rendered = template
-        .replace("{rule_body}", rule_body)
-        .replace("{COLLIDING_ID}", COLLIDING_ID);
-    std::fs::write(space_root.join("ship.config.ts"), rendered).unwrap();
-}
+/// Write the change-leg rule body. The rule lives on disk at
+/// `rules/style.md` (slice 2b close-out + slice 2c's per-noun
+/// source-dir convention); the agent + skill declarations are stable
+/// across edits — only the rule body changes to prove the recompose
+/// is visible. The change leg calls this fn with the new body; the
+/// `write_colliding_fixture` setup established the initial body.
+/// (The `template` + `COLLIDING_ID` parameters are retained for
+/// signature parity with the pre-slice-2c fixture; the body is the
+/// only thing that mutates.)
+///
 
 async fn make_index(ship_dir: &Path, db_name: &str) -> AgentDefIndex {
     let db = ship_substrate::db::space_db_path(ship_dir, db_name);
@@ -266,14 +301,20 @@ async fn spine_config_file_changed_invalidates_cache_and_recompose_sees_the_edit
     assert!(!before_context.contains("Ship it."), "{before_context}");
     assert_eq!(cache._len().await, 1);
 
-    // Edit the source's `ship.config.ts` — the "edited source file" the
-    // change leg exercises.
-    write_config_ts(&space_root, SPINE_CONFIG_TS_TEMPLATE, "Be terse. Ship it.");
+    // Edit the source's on-disk rule — the "edited source file" the
+    // change leg exercises. Slice 2c: rules live on disk
+    // (`rules/style.md`), not in the manifest; the `config.file_changed`
+    // event's path is the rule file (the source-root watch sees the
+    // rule dir as a watched surface).
+    write_rule_md(&space_root, "Be terse. Ship it.");
 
     // Author + broadcast the synthetic `config.file_changed` — the keystone
     // pattern (no inotify, not flaky), the same shape `ship-resolver`'s own
-    // `cache.rs` tests inject. `ship.config.ts` is the source-root watch's
-    // target (`ship-config::watcher::spawn_source_root_watch`), domain "source".
+    // `cache.rs` tests inject. The cache subscriber filters on event type
+    // (not path); the path is metadata. Slice 2c: the surface that
+    // invalidated is `rules/style.md` (the rule file we just rewrote);
+    // the event's `path` field carries the original manifest path for
+    // audit, but the cache doesn't key on it.
     kernel.broadcast(
         EventEnvelope::new(
             event_types::CONFIG_FILE_CHANGED,

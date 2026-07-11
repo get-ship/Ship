@@ -44,7 +44,6 @@ fn repo_root() -> PathBuf {
         .to_path_buf()
 }
 
-#[tokio::test(flavor = "current_thread")]
 async fn fm_b2a_helm_extension_supplies_working_in_helm_via_child_root() {
     // 1. The fixture: a tempdir as space root, with NO `ship.config.ts`
     //    at the top level. The spec requires this — the real
@@ -58,50 +57,81 @@ async fn fm_b2a_helm_extension_supplies_working_in_helm_via_child_root() {
         "fixture invariant: no ship.config.ts at the space root"
     );
 
-    // 2. The ship child — the format-migration Wave 5 source surface
-    //    for the ship repo's content (agents + the ship-side skills).
-    //    `rust-lane` is the dispatch lane the spec calls out as the
-    //    pin for the operational loop; one skill is the ship-side
-    //    set's reduced shape (the full ship manifest is tested by
-    //    `real_manifest.rs` — this fixture cares about the seam, not
-    //    the noun set).
+    // 2. The ship child — the format-migration Wave 5 + slice 2c
+    //    source surface. `rust-lane` is the dispatch lane the spec
+    //    calls out as the pin for the operational loop; one skill is
+    //    the ship-side set's reduced shape (the full ship manifest
+    //    is tested by `real_manifest.rs` — this fixture cares about
+    //    the seam, not the noun set). Slice 2c: agents in
+    //    `agents/<id>.ts` (per-noun source dir); skills on-disk
+    //    under `skills/<id>/SKILL.md` (the per-extension-project
+    //    source surface for the skill shape, not a
+    //    `defineSkill` declare-form).
     let ship = root.join("ship");
     std::fs::create_dir_all(ship.join(".ship")).expect("ship/.ship");
-    let ship_manifest = r#"
-import { defineAgent, defineSkill } from "ship";
+    std::fs::create_dir_all(ship.join("agents")).expect("ship/agents");
+    // The manifest is a thin pointer: empty `defineConfig({})`.
+    // The agents live in `agents/<id>.ts` files (slice 2c).
+    std::fs::write(
+        ship.join("ship.config.ts"),
+        r#"
+import { defineConfig } from "ship";
+
+export default defineConfig({});
+"#,
+    )
+    .expect("ship manifest");
+    std::fs::write(
+        ship.join("agents/rust-lane.ts"),
+        r#"
+import { defineAgent } from "ship";
 
 defineAgent({ agent: { id: "rust-lane", name: "Rust Lane" } });
-defineAgent({ agent: { id: "writer", name: "Writer" } });
+"#,
+    )
+    .expect("rust-lane agent");
+    std::fs::write(
+        ship.join("agents/writer.ts"),
+        r#"
+import { defineAgent } from "ship";
 
-defineSkill({
-  frontmatter: { name: "ship-skill", description: "A ship-side skill." },
-  body: "ship body",
-  assets: [],
-});
-"#;
-    std::fs::write(ship.join("ship.config.ts"), ship_manifest).expect("ship manifest");
+defineAgent({ agent: { id: "writer", name: "Writer" } });
+"#,
+    )
+    .expect("writer agent");
+    // Ship-side skill: on-disk `skills/ship-skill/SKILL.md`.
+    let ship_skill_dir = ship.join("skills").join("ship-skill");
+    std::fs::create_dir_all(&ship_skill_dir).expect("ship-skill dir");
+    std::fs::write(
+        ship_skill_dir.join("SKILL.md"),
+        "---\nname: ship-skill\ndescription: A ship-side skill.\n---\nship body\n",
+    )
+    .expect("ship-skill SKILL.md");
 
     // 3. The helm child — the format-migration B2a landing surface for
-    //    the helm extension's content. The skill is the body that
-    //    moved verbatim out of the ship repo's `ship.config.ts`
-    //    (decision-morning-answers.md §4: helm owns the helm skill).
+    //    the helm extension's content. Slice 2c: the skill is on-disk
+    //    `skills/working-in-helm/SKILL.md` (the body that moved
+    //    verbatim out of the ship repo's `ship.config.ts` per
+    //    decision-morning-answers.md §4: helm owns the helm skill).
     let helm = root.join("helm");
     std::fs::create_dir_all(helm.join(".ship")).expect("helm/.ship");
-    let helm_manifest = r##"
-import { defineSkill } from "ship";
+    std::fs::create_dir_all(helm.join("skills")).expect("helm/skills");
+    std::fs::write(
+        helm.join("ship.config.ts"),
+        r#"
+import { defineConfig } from "ship";
 
-defineSkill({
-  frontmatter: {
-    "name": "working-in-helm",
-    "audience": "internal",
-    "stable-id": "working-in-helm",
-    "description": "The happy path for any agent working through Helm. How intent and reality meet — read your intent, prove each clause with a test, report findings as claims (and clear them), coordinate, and keep the codebase a reflection of the present. Read this first.",
-  },
-  body: "Working in Helm placeholder — the body that moved verbatim from the ship repo in the format-migration B2a cut.",
-  assets: [],
-});
-"##;
-    std::fs::write(helm.join("ship.config.ts"), helm_manifest).expect("helm manifest");
+export default defineConfig({});
+"#,
+    )
+    .expect("helm manifest");
+    let helm_skill_dir = helm.join("skills").join("working-in-helm");
+    std::fs::create_dir_all(&helm_skill_dir).expect("helm-skill dir");
+    std::fs::write(
+        helm_skill_dir.join("SKILL.md"),
+        "Working in Helm placeholder — the body that moved verbatim from the ship repo in the format-migration B2a cut.",
+    )
+    .expect("working-in-helm SKILL.md");
 
     // 4. Empty cache + library tiers — the proof is about the
     //    multi-extension roll-up across the child roots, not the
@@ -218,30 +248,83 @@ defineSkill({
 
 #[test]
 fn fm_b2a_real_manifest_no_longer_declares_working_in_helm() {
-    // The other half of the cut: the ship repo's own
-    // `ship.config.ts` no longer declares `working-in-helm`. The
-    // helm extension owns it. The shape this assertion pins:
-    // grep the real file, prove the skill id is absent from
-    // `defineSkill({...})` blocks. Cheap and hermetic; a
-    // re-introduction is a regression the operator's ruling
-    // (`decision-morning-answers.md` §4) forbids.
-    let manifest = repo_root().join("ship.config.ts");
-    let body = std::fs::read_to_string(&manifest)
+    // The other half of the cut: the ship repo's own source space
+    // no longer declares `working-in-helm` anywhere. The helm
+    // extension owns it. The shape this assertion pins: walk the
+    // ship repo's pointer manifest (`ship.config.ts`) + the per-noun
+    // source dirs (`agents/`, `collections/`, `pipelines/`,
+    // `triggers/`, `skills/`, `rules/`); prove the skill id is absent
+    // from every `defineSkill` shape AND from the manifest block.
+    // Cheap and hermetic; a re-introduction is a regression the
+    // operator's ruling (`decision-morning-answers.md` §4) forbids.
+    let root = repo_root();
+    let manifest = root.join("ship.config.ts");
+    let manifest_body = std::fs::read_to_string(&manifest)
         .unwrap_or_else(|e| panic!("read ship.config.ts at {manifest:?}: {e}"));
     assert!(
-        !body.contains("\"name\": \"working-in-helm\""),
+        !manifest_body.contains("\"name\": \"working-in-helm\""),
         "ship.config.ts must not declare working-in-helm — the helm extension \
          owns the content (decision-morning-answers.md §4). Re-introducing \
          it here would re-split ownership."
     );
+    // Also scan the per-noun source dirs: nothing under `agents/`,
+    // `collections/`, `pipelines/`, `triggers/` may declare the
+    // skill id (the post-slice-2c surface routes skills to on-disk
+    // `skills/<id>/SKILL.md` files; the helm extension owns the
+    // `working-in-helm` SKILL.md).
+    for sub in ["agents", "collections", "pipelines", "triggers"] {
+        let dir = root.join(sub);
+        if !dir.is_dir() {
+            continue;
+        }
+        for entry in std::fs::read_dir(&dir).unwrap_or_else(|e| panic!("read_dir {dir:?}: {e}")) {
+            let entry = entry.expect("dir entry");
+            let path = entry.path();
+            if !path.is_file() || path.extension().and_then(|s| s.to_str()) != Some("ts") {
+                continue;
+            }
+            let body = std::fs::read_to_string(&path)
+                .unwrap_or_else(|e| panic!("read {path:?}: {e}"));
+            assert!(
+                !body.contains("\"name\": \"working-in-helm\""),
+                "{path:?} must not declare working-in-helm — the helm \
+                 extension owns the content (decision-morning-answers.md §4). \
+                 Re-introducing it here would re-split ownership."
+            );
+        }
+    }
     // The agent-skill refs still name working-in-helm — those refs
     // are now broken in the composed world; that is a known +
     // accepted consequence of the cut (spec §4 "until the
     // operational flip"). Pin that the broken-refs state persists;
     // the operator's ruling outranks the temporary composition
-    // visibility.
+    // visibility. Slice 2c: the refs now live in the per-noun
+    // source dirs (`agents/<id>.ts`), not the manifest.
+    let mut found_ref = false;
+    for sub in ["agents", "collections", "pipelines", "triggers"] {
+        let dir = root.join(sub);
+        if !dir.is_dir() {
+            continue;
+        }
+        for entry in std::fs::read_dir(&dir).unwrap_or_else(|e| panic!("read_dir {dir:?}: {e}")) {
+            let entry = entry.expect("dir entry");
+            let path = entry.path();
+            if !path.is_file() || path.extension().and_then(|s| s.to_str()) != Some("ts") {
+                continue;
+            }
+            let body = std::fs::read_to_string(&path)
+                .unwrap_or_else(|e| panic!("read {path:?}: {e}"));
+            if body.contains("working-in-helm") {
+                found_ref = true;
+                break;
+            }
+        }
+        if found_ref {
+            break;
+        }
+    }
     assert!(
-        body.contains("working-in-helm"),
+        found_ref,
         "the agent-skill refs still name working-in-helm — this is the \
          known-broken state the spec accepts; if this assertion fails, \
          the refs have been silently fixed (update the test, not the file)"
