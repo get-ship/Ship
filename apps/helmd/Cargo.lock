@@ -6898,7 +6898,3 @@ dependencies = [
  "cc",
  "pkg-config",
 ]
-
-[[patch.unused]]
-name = "ship-proto"
-version = "0.1.0"
