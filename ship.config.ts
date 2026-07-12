@@ -5,7 +5,6 @@
 // each noun's source lives in a per-noun dir beside this file:
 //
 //   agents/<id>.ts         → defineAgent(id)    (7 files)
-//   collections/<id>.ts    → defineCollection(id) (2 files)
 //   skills/<id>/SKILL.md   → on-disk skill     (14 dirs, walked from
 //                                             defineConfig({ skills_dir }))
 //   rules/<id>.md          → on-disk rule      (7 files, walked from
