@@ -1677,3 +1677,75 @@ defineConfig({
         "custom-dir skill lands in library.skills: {skill_ids:?}"
     );
 }
+
+/// req-res-membership (blueprint: stack-resolver): membership is EXPLICIT —
+/// the caller supplies registered member roots; nothing is scanned; no
+/// member manifest can ship space-active push content.
+#[tokio::test]
+async fn roll_up_members_composes_explicit_roots_without_scanning() {
+    let tmp = tempfile::tempdir().unwrap();
+    let parent = tmp.path();
+    for name in ["a", "b", "c"] {
+        std::fs::create_dir_all(parent.join(name)).unwrap();
+        std::fs::write(
+            parent.join(name).join("ship.config.ts"),
+            "import { defineConfig } from \"ship\";\nexport default defineConfig({});\n",
+        )
+        .unwrap();
+    }
+    // Member A: an agent referencing a skill that lives in member B.
+    std::fs::create_dir_all(parent.join("a/agents")).unwrap();
+    std::fs::write(
+        parent.join("a/agents/probe.ts"),
+        r#"
+import { defineAgent } from "ship";
+
+defineAgent({
+  agent: { id: "probe", name: "Probe", version: "0.1.0", description: "member A agent" },
+  skills: { refs: ["peer-skill"] },
+  mcp: { servers: [] },
+  permissions: {},
+});
+"#,
+    )
+    .unwrap();
+    // Member B: the skill, plus a hook payload (push content — fenced).
+    std::fs::create_dir_all(parent.join("b/skills/peer-skill")).unwrap();
+    std::fs::write(
+        parent.join("b/skills/peer-skill/SKILL.md"),
+        "---\nname: peer-skill\ndescription: member B skill\nstable-id: peer-skill\n---\n# Peer\n",
+    )
+    .unwrap();
+    std::fs::create_dir_all(parent.join("b/hooks")).unwrap();
+    std::fs::write(parent.join("b/hooks/stop.sh"), "#!/bin/sh\nexit 0\n").unwrap();
+    // Bystander C: on disk beside the members, NOT registered.
+    std::fs::create_dir_all(parent.join("c/skills/uninvited")).unwrap();
+    std::fs::write(
+        parent.join("c/skills/uninvited/SKILL.md"),
+        "---\nname: uninvited\ndescription: not registered\nstable-id: uninvited\n---\n# No\n",
+    )
+    .unwrap();
+
+    let cache = tempfile::tempdir().unwrap();
+    let library = tempfile::tempdir().unwrap();
+    let composed = roll_up_members(
+        &[parent.join("a"), parent.join("b")],
+        Some(cache.path()),
+        Some(library.path()),
+    )
+    .await
+    .unwrap();
+
+    let lib = &composed.library;
+    assert!(lib.agent_profiles.iter().any(|a| a.agent.id == "probe"));
+    let skill_ids: Vec<&str> = lib.skills.iter().map(|s| s.id.as_str()).collect();
+    assert!(skill_ids.contains(&"peer-skill"));
+    assert!(
+        !skill_ids.contains(&"uninvited"),
+        "non-member stack composed — membership must be explicit, never scanned"
+    );
+    assert!(
+        lib.hooks.is_empty(),
+        "member hooks survived the push fence — no member manifest may ship space-active push content"
+    );
+}

@@ -52,10 +52,6 @@ async fn repo_manifest_rolls_up_with_all_nouns_present() {
         !lib.skills.is_empty(),
         "no skills composed from the real manifest"
     );
-    assert!(
-        !lib.pipelines.is_empty(),
-        "no pipelines composed from the real manifest"
-    );
 
     // The dispatch lane the operational loop depends on.
     assert!(

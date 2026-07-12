@@ -69,9 +69,12 @@
 //! - F1 decision: `decision-f1-loader.md` (Option A — the superset is the
 //!   architecture, no code moves).
 pub mod cache;
+pub mod members;
 pub mod descriptor;
 pub mod space_loader;
 pub mod ts_resolver;
+
+pub use members::roll_up_members;
 
 use std::collections::HashSet;
 use std::path::Path;
@@ -108,7 +111,7 @@ use ship_substrate::ports::{FsBroker, LocalFsBroker};
 /// legitimate cases, and dedup by anything narrower would silently
 /// drop one. `compose_space`'s `compose_views` is the single source
 /// of truth for view resolution; the merge here just gathers.
-fn merge_ts_declarations(
+pub(crate) fn merge_ts_declarations(
     library: &mut ExtensionLibrary,
     declarations: Declarations,
     fs: &dyn ship_substrate::ports::FsBroker,
