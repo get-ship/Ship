@@ -23,7 +23,7 @@ futures-util = { workspace = true }
 # external repo (NOT worktreed; only `ship` is), so an absolute path resolves from
 # the main checkout AND any helmd worktree depth (relative paths broke at the
 # Ship/worktrees/<n> depth helmd actually provisions).
-ship-js = { path = "/home/madvib/dev/Ship/ship-exec/crates/ship-js", default-features = false }
+ship-js = { git = "https://github.com/get-ship/ship-exec.git", branch = "feat/next", default-features = false }
 
 [dev-dependencies]
 # Only the tests need a runtime (`#[tokio::test]`); the engine itself is

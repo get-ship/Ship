@@ -14,7 +14,7 @@ stack-model = { path = "../stack-model" }
 # worktreed, so a relative path breaks at helmd worktree depth — see floki /
 # durable-execution). `deno` pulls the V8 runtime; the closed-world eval lives
 # behind it.
-ship-js = { path = "/home/madvib/dev/Ship/ship-exec/crates/ship-js", features = ["deno"] }
+ship-js = { git = "https://github.com/get-ship/ship-exec.git", branch = "feat/next", features = ["deno"] }
 # oxc — the one-shot TypeScript type-strip (real `.ts` → JS before eval). Already
 # vendored at 0.133.0 in the workspace lock (transitive via rolldown), so these
 # direct deps reuse the locked copies and pull no new tree. The strip is a pure
