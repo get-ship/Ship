@@ -2,7 +2,7 @@
 
 /// Snapshot of a prior session that the dispatch handler reuses when
 /// `resume: true`. Carries the worktree slug/branch plus the
-/// `.ship/session.json` record needed to build the harness-specific
+/// `.ship-session.json` record needed to build the harness-specific
 /// resume command downstream.
 pub struct ResumeOutcome {
     /// Session id (ULID). Used as slug in the canonical schema (no slug field).
@@ -25,7 +25,7 @@ pub enum ResumeResolveError {
 /// 1. Query `canonical_sessions` for the most recent resumable session for
 ///    `agent_id` (the workspace label is not a real space id — empty default,
 ///    same as `dispatch_core`'s `SessionStarted.space_id`).
-/// 2. Scan `worktrees_root` for a worktree whose `.ship/session.json` matches
+/// 2. Scan `worktrees_root` for a worktree whose `.ship-session.json` matches
 ///    the found `session_id`.
 /// 3. Derive the current branch via `git rev-parse --abbrev-ref HEAD`.
 /// 4. Return `ResumeOutcome { slug: session_id, branch, session }`.
@@ -62,7 +62,7 @@ pub fn resolve_resume(
 
     let session_id = &canonical_session.session_id;
 
-    // 2. Scan worktrees_root for a worktree whose .ship/session.json matches.
+    // 2. Scan worktrees_root for a worktree whose .ship-session.json matches.
     let worktree_dir = find_worktree_for_session(session_id, worktrees_root)?;
 
     // 3. Load + validate the session file (harness check + build_resume_args).
@@ -81,7 +81,7 @@ pub fn resolve_resume(
 }
 
 /// Scan immediate subdirectories of `worktrees_root` for one whose
-/// `.ship/session.json` records `session_id`.
+/// `.ship-session.json` records `session_id`.
 ///
 /// O(worktrees) — acceptable for the cold resume path. A session_id-indexed
 /// worktree registry should be added as a follow-up to avoid scan latency on
@@ -103,7 +103,7 @@ fn find_worktree_for_session(
         if !path.is_dir() {
             continue;
         }
-        // Try to read .ship/session.json; skip any dir that lacks it.
+        // Try to read .ship-session.json; skip any dir that lacks it.
         let sf = ship_harnesses::harnesses::session_file::read_session_file(&path)
             .unwrap_or(None);
         if let Some(sf) = sf {
@@ -117,7 +117,7 @@ fn find_worktree_for_session(
         status: 400,
         message: format!(
             "resume: session `{session_id}` found in projection but no matching \
-             .ship/session.json under `{}`",
+             .ship-session.json under `{}`",
             worktrees_root.display()
         ),
     })
@@ -147,7 +147,7 @@ fn derive_branch(worktree_dir: &std::path::Path) -> Result<String, ResumeResolve
     Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
 }
 
-/// Worktree-local part of the resume resolver: reads `.ship/session.json`,
+/// Worktree-local part of the resume resolver: reads `.ship-session.json`,
 /// checks the harness matches `requested_harness` (when supplied), and
 /// confirms the adapter's `build_resume_args` produces a valid command for
 /// the recorded session id. Returns the parsed session file on success.
@@ -167,7 +167,7 @@ pub fn load_and_validate_session_file(
         .ok_or_else(|| ResumeResolveError::Status {
             status: 400,
             message: format!(
-                "resume: no .ship/session.json in worktree `{}` — the prior run did not capture a harness session id",
+                "resume: no .ship-session.json in worktree `{}` — the prior run did not capture a harness session id",
                 work_dir.display()
             ),
         })?;

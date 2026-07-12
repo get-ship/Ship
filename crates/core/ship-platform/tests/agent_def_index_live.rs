@@ -38,7 +38,7 @@ use ship_types::SpaceId;
 /// FsBroker symlink-escape guard, as in the S1 index proofs).
 fn ship_dir(tmp: &tempfile::TempDir) -> PathBuf {
     let base = std::fs::canonicalize(tmp.path()).unwrap();
-    ShipHome::project_ship_dir(base)
+    base.join(".ship")
 }
 
 /// FsCap rooted at `<ship_dir>/agents` for authoring def files in the test.

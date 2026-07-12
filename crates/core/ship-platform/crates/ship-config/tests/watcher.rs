@@ -33,9 +33,8 @@ async fn setup() -> (tempfile::TempDir, std::path::PathBuf, Arc<KernelLog>) {
     // Canonicalize: `/tmp` is symlinked on WSL/macOS; the FsBroker's symlink-
     // escape guard canonicalizes the deepest existing ancestor and would reject
     // a non-canonical cap root. Production paths are already canonical.
-    let base = std::fs::canonicalize(tmp.path()).unwrap();
-    let ship_dir = ShipHome::project_ship_dir(&base);
-    std::fs::create_dir_all(&ship_dir).unwrap();
+    // Marker cutover: the watch root IS the stack root.
+    let ship_dir = std::fs::canonicalize(tmp.path()).unwrap();
     let kernel = Arc::new(KernelLog::new(new_isolated_for_test(ship_dir.clone()).unwrap()));
     (tmp, ship_dir, kernel)
 }
@@ -237,7 +236,7 @@ async fn watcher_never_authors_durable_agent_def_updated() {
 #[tokio::test(flavor = "multi_thread")]
 async fn ship_ts_edit_authors_exactly_one_config_file_changed() {
     let (_tmp, ship_dir, kernel) = setup().await;
-    let workspace_dir = ship_dir.parent().unwrap().to_path_buf();
+    let workspace_dir = ship_dir.clone(); // the stack root IS the workspace
     std::fs::write(workspace_dir.join("ship.config.ts"), "export const x = 0;").unwrap();
 
     let mut rx = kernel.subscribe();

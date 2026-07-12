@@ -1,5 +1,12 @@
-//! Ship dir discovery: walk ancestors, follow git worktree pointers, redirect
-//! linked worktrees back to the main checkout.
+//! Stack-root discovery: walk ancestors for the `ship.config.ts` marker.
+//!
+//! Deliberately dumb: the nearest ancestor directory containing the manifest
+//! IS the stack root. A worktree carrying its own manifest resolves itself —
+//! correct under the stack model (its compile reads its own branch's config;
+//! registry registration is explicit, never minted by discovery). The old
+//! `.ship`-dirname walk, the git-worktree redirect, `SHIP_RESPECT_WORKTREE`,
+//! and the `.boundary` sentinel died with the marker cutover — worktree
+//! awareness is ship-code's concern, expressed as explicit roots.
 
 use std::env;
 use std::fs;
@@ -7,446 +14,128 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Result, anyhow};
 
-use super::SHIP_DIR_NAME;
-
-/// Resolve the enclosing `.ship` directory from any descendant path.
-pub fn ship_dir_from_path(path: &Path) -> Option<PathBuf> {
-    path.ancestors()
-        .find(|ancestor| {
-            ancestor
-                .file_name()
-                .and_then(|name| name.to_str())
-                .is_some_and(|name| name == SHIP_DIR_NAME)
-        })
-        .map(Path::to_path_buf)
-}
+use super::STACK_CONFIG_FILENAME;
 
 pub(crate) fn canonicalize_lossy(path: &Path) -> PathBuf {
     fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
 }
 
-fn parse_gitdir_pointer(dot_git_file: &Path) -> Option<PathBuf> {
-    let content = fs::read_to_string(dot_git_file).ok()?;
-    let line = content.lines().next()?.trim();
-    let raw = line.strip_prefix("gitdir:")?.trim();
-    if raw.is_empty() {
-        return None;
-    }
-
-    let parsed = PathBuf::from(raw);
-    if parsed.is_absolute() {
-        Some(parsed)
-    } else {
-        let base = dot_git_file.parent()?;
-        Some(base.join(parsed))
-    }
+fn is_stack_root(dir: &Path) -> bool {
+    let marker = dir.join(STACK_CONFIG_FILENAME);
+    marker.exists() && marker.is_file()
 }
 
-fn git_common_dir_from(dot_git_path: &Path) -> Option<PathBuf> {
-    if dot_git_path.is_dir() {
-        return Some(canonicalize_lossy(dot_git_path));
-    }
-
-    let gitdir = canonicalize_lossy(&parse_gitdir_pointer(dot_git_path)?);
-    // Worktree pointers usually target: <main>/.git/worktrees/<name>
-    // In that case, the common git dir is <main>/.git.
-    let worktrees = gitdir.parent()?;
-    let marker = worktrees.file_name()?.to_str()?;
-    if marker == "worktrees" {
-        return worktrees.parent().map(canonicalize_lossy);
-    }
-    Some(gitdir)
+/// The nearest enclosing stack root of `path` (the first ancestor — including
+/// `path` itself — containing `ship.config.ts`). Pure path/fs scan.
+pub fn stack_root_from_path(path: &Path) -> Option<PathBuf> {
+    path.ancestors()
+        .find(|ancestor| is_stack_root(ancestor))
+        .map(|root| canonicalize_lossy(root))
 }
 
-fn ship_dir_from_git_worktree(start_dir: &Path) -> Option<PathBuf> {
-    for ancestor in start_dir.ancestors() {
-        let dot_git = ancestor.join(".git");
-        if !dot_git.exists() {
-            continue;
-        }
-
-        let common_git = git_common_dir_from(&dot_git)?;
-        let main_root = common_git.parent()?;
-        let ship_candidate = main_root.join(SHIP_DIR_NAME);
-        if ship_candidate.exists() && ship_candidate.is_dir() {
-            return Some(canonicalize_lossy(&ship_candidate));
-        }
-    }
-    None
+/// Resolve the stack root by walking up from `start_dir`, without env
+/// overrides. `None` when no ancestor carries the manifest.
+pub fn resolve_stack_root(start_dir: &Path) -> Option<PathBuf> {
+    stack_root_from_path(start_dir)
 }
 
-fn ship_dir_from_git_worktree_pointer(start_dir: &Path) -> Option<PathBuf> {
-    for ancestor in start_dir.ancestors() {
-        let dot_git = ancestor.join(".git");
-        if !dot_git.exists() {
-            continue;
-        }
-
-        if dot_git.is_dir() {
-            return None;
-        }
-
-        let gitdir = canonicalize_lossy(&parse_gitdir_pointer(&dot_git)?);
-        let worktrees = gitdir.parent()?;
-        if worktrees.file_name()?.to_str()? != "worktrees" {
-            return None;
-        }
-        let common_git = canonicalize_lossy(worktrees.parent()?);
-        let main_root = common_git.parent()?;
-        let ship_candidate = main_root.join(SHIP_DIR_NAME);
-        if ship_candidate.exists() && ship_candidate.is_dir() {
-            return Some(canonicalize_lossy(&ship_candidate));
-        }
-        return None;
-    }
-    None
-}
-
-/// Parse `git worktree list --porcelain` output and return the main working
-/// tree root if `current_dir` is a linked worktree, or `None` if it is the
-/// main worktree (or the output is unparseable).
-pub(crate) fn parse_main_worktree_root(porcelain: &str, current_dir: &Path) -> Option<PathBuf> {
-    let dir_canonical = canonicalize_lossy(current_dir);
-    let worktree_paths: Vec<PathBuf> = porcelain
-        .split("\n\n")
-        .filter_map(|block| {
-            let block = block.trim();
-            if block.is_empty() {
-                return None;
-            }
-            let path_str = block
-                .lines()
-                .find(|l| l.starts_with("worktree "))?
-                .strip_prefix("worktree ")?
-                .trim();
-            Some(canonicalize_lossy(PathBuf::from(path_str).as_path()))
-        })
-        .collect();
-
-    let main_path = worktree_paths.first()?.clone();
-
-    // Determine which worktree current_dir lives under.
-    let current_wt = worktree_paths
-        .iter()
-        .find(|wt| dir_canonical.starts_with(wt.as_path()))?;
-
-    if *current_wt == main_path {
-        return None; // already in the main working tree
-    }
-
-    Some(main_path)
-}
-
-/// If `dir` is a linked git worktree, return the main working tree root.
-/// Uses `git worktree list --porcelain` for detection.
-fn main_worktree_root_for(dir: &Path) -> Option<PathBuf> {
-    let output = std::process::Command::new("git")
-        .args(["worktree", "list", "--porcelain"])
-        .current_dir(dir)
-        .output()
-        .ok()?;
-
-    if !output.status.success() {
-        return None;
-    }
-
-    let text = std::str::from_utf8(&output.stdout).ok()?;
-    parse_main_worktree_root(text, dir)
-}
-
-/// Filename of the optional sentinel that pins a directory as a project-root
-/// boundary. When present at `<root>/.ship/.boundary`, the resolver stops the
-/// walk-up at `<root>` and skips the linked-worktree → main redirect.
-pub const BOUNDARY_FILE: &str = ".boundary";
-
-fn resolve_project_dir_from_start(start_dir: &Path) -> Result<Option<PathBuf>> {
-    // 1. Walk up from CWD looking for .ship/ — this finds the current
-    //    worktree's own .ship/ before reaching any parent.
-    let mut current_dir = start_dir.to_path_buf();
-    loop {
-        let ship_path = current_dir.join(SHIP_DIR_NAME);
-        if ship_path.exists() && ship_path.is_dir() {
-            // Boundary sentinel pins the walk: <root>/.ship/.boundary means
-            // "this directory IS the project root, don't redirect to main."
-            // Useful for worktrees that want isolated views / pipelines.
-            if ship_path.join(BOUNDARY_FILE).exists() {
-                return Ok(Some(canonicalize_lossy(&ship_path)));
-            }
-
-            // Worktree dev opt-out: when SHIP_RESPECT_WORKTREE=1 (set by
-            // scripts/dev-daemon.sh and other dev tooling), the worktree's
-            // local .ship/ wins. This lets developers iterate on per-worktree
-            // views/themes/agents without having every edit redirect to the
-            // main checkout. Production / single-worktree dev: leave unset
-            // and the redirect-to-main behavior below stays canonical.
-            let respect_worktree = crate::env::read(crate::env::Var::RespectWorktree)
-                .filter(|v| v == "1" || v.eq_ignore_ascii_case("true"))
-                .is_some();
-            if respect_worktree {
-                return Ok(Some(canonicalize_lossy(&ship_path)));
-            }
-
-            // Default: if this .ship/ lives inside a linked git worktree,
-            // redirect to the main working tree's .ship/ so worktrees never
-            // register as separate projects in ~/.ship/projects/.
-            // Primary detection: git worktree list --porcelain.
-            // Fallback: parse the .git file pointer directly (no subprocess).
-            let redirected = main_worktree_root_for(&current_dir)
-                .and_then(|main_root| {
-                    let s = main_root.join(SHIP_DIR_NAME);
-                    if s.exists() && s.is_dir() {
-                        Some(canonicalize_lossy(&s))
-                    } else {
-                        None
-                    }
-                })
-                .or_else(|| ship_dir_from_git_worktree_pointer(&current_dir));
-
-            if let Some(main_ship) = redirected {
-                return Ok(Some(main_ship));
-            }
-            return Ok(Some(canonicalize_lossy(&ship_path)));
-        }
-
-        if let Some(parent) = current_dir.parent() {
-            current_dir = parent.to_path_buf();
-        } else {
-            break;
-        }
-    }
-
-    // 2. Fallback: if no .ship/ found in ancestors, try resolving via git
-    //    worktree pointer to the main checkout's .ship/.
-    if let Some(ship_path) = ship_dir_from_git_worktree_pointer(start_dir) {
-        return Ok(Some(ship_path));
-    }
-
-    Ok(ship_dir_from_git_worktree(start_dir))
-}
-
-/// Resolve the canonical `.ship` directory for a given path without using env
-/// overrides.
-pub fn resolve_project_ship_dir(start_dir: &Path) -> Option<PathBuf> {
-    resolve_project_dir_from_start(start_dir).ok().flatten()
-}
-
-/// Resolves the `.ship` directory by searching upwards from the given
-/// directory. Supports the `SHIP_DEV_PROJECT_DIR` override (`Var::DevProjectDir`).
-pub fn get_project_dir(start_dir: Option<PathBuf>) -> Result<PathBuf> {
-    // 1. Check for environment variable override.
-    //
-    // Callers of this function expect the `.ship/` directory itself
-    // (the traversal arm below returns `<project>/.ship/`). When the
-    // env override points at a project root that contains a `.ship/`
-    // subdirectory, descend into it so both code paths return the same
-    // shape — this is the path `shipd --workspace <project_root>` takes
-    // in lib.rs::run_network. Paths that don't have a `.ship/` child
-    // are returned as-is for back-compat with tests that pass arbitrary
-    // override dirs.
+/// Resolve the stack root, honoring the `SHIP_DEV_PROJECT_DIR` override
+/// (`Var::DevProjectDir`): when set to an existing directory, that directory
+/// IS the root — explicit beats discovered. Otherwise walk up from
+/// `start_dir` (default: cwd).
+pub fn get_stack_root(start_dir: Option<PathBuf>) -> Result<PathBuf> {
     if let Some(env_path) = crate::env::read(crate::env::Var::DevProjectDir) {
         let path = PathBuf::from(env_path);
         if path.exists() && path.is_dir() {
-            if path.file_name().and_then(|n| n.to_str()) != Some(SHIP_DIR_NAME) {
-                let nested = path.join(SHIP_DIR_NAME);
-                if nested.exists() && nested.is_dir() {
-                    return Ok(nested);
-                }
-            }
-            return Ok(path);
+            return Ok(canonicalize_lossy(&path));
         }
     }
 
-    // 2. Traversal logic — any directory containing a .ship folder is a project.
-    // If none is found, attempt git-worktree resolution back to the main checkout.
-    let start = start_dir.unwrap_or(env::current_dir()?);
-    if let Some(project_dir) = resolve_project_dir_from_start(&start)? {
-        return Ok(project_dir);
-    }
-
-    Err(anyhow!(
-        "Project tracking not initialized in this directory or its parents. Run `ship init` to create a .ship directory."
-    ))
+    let start = match start_dir {
+        Some(dir) => dir,
+        None => env::current_dir()?,
+    };
+    resolve_stack_root(&start).ok_or_else(|| {
+        anyhow!(
+            "no stack found: no ancestor of {} contains {STACK_CONFIG_FILENAME}",
+            start.display()
+        )
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ShipHome;
-    use anyhow::Result;
-    use std::fs;
-    use std::path::{Path, PathBuf};
     use tempfile::tempdir;
 
-    #[test]
-    fn resolve_project_ship_dir_follows_git_worktree_pointer() -> Result<()> {
-        let tmp = tempdir()?;
-        let main_root = tmp.path().join("main");
-        let main_ship = ShipHome::project_ship_dir(&main_root);
-        let common_git = main_root.join(".git");
-        let worktree_git = common_git.join("worktrees").join("feature-auth");
-        let wt_root = tmp.path().join("worktrees").join("feature-auth");
-        let wt_nested = wt_root.join("src").join("app");
-
-        fs::create_dir_all(&main_ship)?;
-        fs::create_dir_all(&worktree_git)?;
-        fs::create_dir_all(&wt_nested)?;
-        fs::write(
-            wt_root.join(".git"),
-            format!("gitdir: {}\n", worktree_git.display()),
-        )?;
-
-        let resolved = resolve_project_ship_dir(&wt_nested).expect("expected .ship resolution");
-        assert_eq!(resolved, canonicalize_lossy(&main_ship));
-        Ok(())
+    fn mk_stack(root: &Path) {
+        fs::create_dir_all(root).unwrap();
+        fs::write(root.join(STACK_CONFIG_FILENAME), "export default {};\n").unwrap();
     }
 
     #[test]
-    fn resolve_project_ship_dir_prefers_main_ship_over_worktree_copy() -> Result<()> {
-        let tmp = tempdir()?;
-        let main_root = tmp.path().join("main");
-        let main_ship = ShipHome::project_ship_dir(&main_root);
-        let common_git = main_root.join(".git");
-        let worktree_git = common_git.join("worktrees").join("feature-auth");
-        let wt_root = tmp.path().join("worktrees").join("feature-auth");
-        let wt_nested = wt_root.join("src").join("app");
-
-        fs::create_dir_all(&main_ship)?;
-        fs::create_dir_all(&worktree_git)?;
-        fs::create_dir_all(ShipHome::project_ship_dir(&wt_root))?;
-        fs::create_dir_all(&wt_nested)?;
-        fs::write(
-            wt_root.join(".git"),
-            format!("gitdir: {}\n", worktree_git.display()),
-        )?;
-
-        let resolved = resolve_project_ship_dir(&wt_nested).expect("expected .ship resolution");
-        assert_eq!(resolved, canonicalize_lossy(&main_ship));
-        Ok(())
-    }
-
-    #[test]
-    fn resolve_project_ship_dir_follows_relative_git_worktree_pointer() -> Result<()> {
-        let tmp = tempdir()?;
-        let main_root = tmp.path().join("main");
-        let main_ship = ShipHome::project_ship_dir(&main_root);
-        let common_git = main_root.join(".git");
-        let worktree_git = common_git.join("worktrees").join("feature-auth");
-        let wt_root = tmp.path().join("worktrees").join("feature-auth");
-        let wt_nested = wt_root.join("src");
-
-        fs::create_dir_all(&main_ship)?;
-        fs::create_dir_all(&worktree_git)?;
-        fs::create_dir_all(&wt_nested)?;
-
-        fs::write(
-            wt_root.join(".git"),
-            "gitdir: ../../main/.git/worktrees/feature-auth\n",
-        )?;
-
-        let resolved = resolve_project_ship_dir(&wt_nested).expect("expected .ship resolution");
-        assert_eq!(resolved, canonicalize_lossy(&main_ship));
-        Ok(())
-    }
-
-    #[test]
-    fn parse_main_worktree_root_returns_none_for_main_checkout() {
-        let porcelain = "worktree /home/user/ship\nHEAD abc123\nbranch refs/heads/main\n\nworktree /home/user/ship-worktrees/fix-auth\nHEAD def456\nbranch refs/heads/fix-auth\n";
-        let result = parse_main_worktree_root(porcelain, Path::new("/home/user/ship"));
-        assert!(result.is_none());
-    }
-
-    #[test]
-    fn parse_main_worktree_root_returns_main_for_linked_worktree() {
-        let porcelain = "worktree /home/user/ship\nHEAD abc123\nbranch refs/heads/main\n\nworktree /home/user/ship-worktrees/fix-auth\nHEAD def456\nbranch refs/heads/fix-auth\n";
-        let result =
-            parse_main_worktree_root(porcelain, Path::new("/home/user/ship-worktrees/fix-auth"));
-        assert_eq!(result, Some(PathBuf::from("/home/user/ship")));
-    }
-
-    #[test]
-    fn parse_main_worktree_root_handles_subdirectory_of_linked_worktree() {
-        let porcelain = "worktree /home/user/ship\nHEAD abc123\nbranch refs/heads/main\n\nworktree /home/user/ship-worktrees/fix-auth\nHEAD def456\nbranch refs/heads/fix-auth\n";
-        let result = parse_main_worktree_root(
-            porcelain,
-            Path::new("/home/user/ship-worktrees/fix-auth/src/app"),
-        );
-        assert_eq!(result, Some(PathBuf::from("/home/user/ship")));
-    }
-
-    #[test]
-    fn parse_main_worktree_root_returns_none_for_unrecognized_dir() {
-        let porcelain = "worktree /home/user/ship\nHEAD abc123\nbranch refs/heads/main\n";
-        let result = parse_main_worktree_root(porcelain, Path::new("/home/other/project"));
-        assert!(result.is_none());
-    }
-
-    #[test]
-    fn resolve_ship_dir_uses_git_worktree_list_for_linked_worktree() -> Result<()> {
-        let tmp = tempdir()?;
-        let main_root = tmp.path().join("main");
-        let wt_root = tmp.path().join("wt");
-
-        fs::create_dir_all(&main_root)?;
-
-        let status = std::process::Command::new("git")
-            .args(["init"])
-            .current_dir(&main_root)
-            .output();
-        if status.is_err() || !status.unwrap().status.success() {
-            return Ok(());
-        }
-
-        for (key, val) in [("user.email", "test@test.com"), ("user.name", "Test")] {
-            std::process::Command::new("git")
-                .args(["config", key, val])
-                .current_dir(&main_root)
-                .output()?;
-        }
-
-        fs::write(main_root.join("README"), "init")?;
-        std::process::Command::new("git")
-            .args(["add", "."])
-            .current_dir(&main_root)
-            .output()?;
-        std::process::Command::new("git")
-            .args(["commit", "-m", "init"])
-            .current_dir(&main_root)
-            .output()?;
-
-        std::process::Command::new("git")
-            .args(["branch", "fix-auth"])
-            .current_dir(&main_root)
-            .output()?;
-
-        let wt_out = std::process::Command::new("git")
-            .args([
-                "worktree",
-                "add",
-                wt_root.to_str().unwrap(),
-                "fix-auth",
-            ])
-            .current_dir(&main_root)
-            .output()?;
-        if !wt_out.status.success() {
-            return Ok(());
-        }
-
-        let main_ship = ShipHome::project_ship_dir(&main_root);
-        fs::create_dir_all(&main_ship)?;
-
-        let wt_ship = ShipHome::project_ship_dir(&wt_root);
-        fs::create_dir_all(&wt_ship)?;
-
-        let wt_nested = wt_root.join("src").join("deep");
-        fs::create_dir_all(&wt_nested)?;
-
-        let resolved =
-            resolve_project_ship_dir(&wt_nested).expect("must resolve to main .ship/");
+    fn nearest_manifest_wins() {
+        let tmp = tempdir().unwrap();
+        let outer = tmp.path().join("outer");
+        let inner = outer.join("packages").join("inner");
+        mk_stack(&outer);
+        mk_stack(&inner);
+        let from = inner.join("src");
+        fs::create_dir_all(&from).unwrap();
         assert_eq!(
-            resolved,
-            canonicalize_lossy(&main_ship),
-            "worktree must resolve to the main repo's .ship/, not the worktree copy"
+            stack_root_from_path(&from).unwrap(),
+            canonicalize_lossy(&inner),
+            "the NEAREST ancestor with a manifest is the root"
         );
-        Ok(())
+    }
+
+    #[test]
+    fn no_manifest_resolves_none() {
+        let tmp = tempdir().unwrap();
+        let dir = tmp.path().join("plain");
+        fs::create_dir_all(&dir).unwrap();
+        assert!(resolve_stack_root(&dir).is_none());
+    }
+
+    #[test]
+    fn a_worktree_with_its_own_manifest_resolves_itself() {
+        // The old redirect sent linked worktrees to the main checkout. Under
+        // the stack model a worktree carrying its own manifest IS a stack
+        // root — its compile must read its own branch's config.
+        let tmp = tempdir().unwrap();
+        let main = tmp.path().join("main");
+        let wt = tmp.path().join("worktrees").join("feature");
+        mk_stack(&main);
+        mk_stack(&wt);
+        fs::write(wt.join(".git"), "gitdir: /nonexistent\n").unwrap();
+        assert_eq!(
+            resolve_stack_root(&wt).unwrap(),
+            canonicalize_lossy(&wt),
+            "no redirect: the worktree's own manifest wins"
+        );
+    }
+
+    #[test]
+    fn env_override_is_the_root_verbatim() {
+        let tmp = tempdir().unwrap();
+        let root = tmp.path().join("explicit");
+        mk_stack(&root);
+        // SAFETY: test-scoped env mutation; the env seam is the supported
+        // override for dev tooling.
+        unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", &root) };
+        let got = get_stack_root(None).unwrap();
+        unsafe { std::env::remove_var("SHIP_DEV_PROJECT_DIR") };
+        assert_eq!(got, canonicalize_lossy(&root));
+    }
+
+    #[test]
+    fn dir_named_ship_config_ts_is_not_a_marker() {
+        let tmp = tempdir().unwrap();
+        let root = tmp.path().join("weird");
+        fs::create_dir_all(root.join(STACK_CONFIG_FILENAME)).unwrap();
+        assert!(
+            resolve_stack_root(&root).is_none(),
+            "the marker is a FILE; a directory with the same name does not count"
+        );
     }
 }

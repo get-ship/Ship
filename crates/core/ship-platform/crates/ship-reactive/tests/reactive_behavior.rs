@@ -22,7 +22,7 @@ use ship_types::envelope::EventEnvelope;
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
 fn make_kernel(tmp: &tempfile::TempDir) -> Arc<KernelLog> {
-    let ship_dir = ShipHome::project_ship_dir(tmp.path());
+    let ship_dir = tmp.path().join(".ship");
     std::fs::create_dir_all(&ship_dir).unwrap();
     let router = new_isolated_for_test(ship_dir).unwrap();
     Arc::new(KernelLog::new(router))

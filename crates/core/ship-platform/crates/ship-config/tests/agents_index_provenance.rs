@@ -33,7 +33,7 @@ use ship_substrate::ports::{
 
 fn ship_dir(tmp: &tempfile::TempDir) -> PathBuf {
     let base = std::fs::canonicalize(tmp.path()).unwrap();
-    ShipHome::project_ship_dir(base)
+    base.join(".ship")
 }
 
 fn agents_cap(ship_dir: &Path) -> (FsCap, PathBuf) {

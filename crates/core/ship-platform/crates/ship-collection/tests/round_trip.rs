@@ -60,7 +60,7 @@ fn make_kernel_and_ctx(
     // process-global OnceLock that other parallel tests may already have set
     // to a now-dropped tempdir; the isolated builder sidesteps the race and
     // mirrors what `tests/behavior.rs::make_kernel` does.
-    let ship_dir = ship_substrate::home::ShipHome::project_ship_dir(tmp.path());
+    let ship_dir = tmp.path().join(".ship");
     std::fs::create_dir_all(&ship_dir).unwrap();
     let router = ship_substrate::events::new_isolated_for_test(ship_dir.clone()).unwrap();
     let kernel = Arc::new(ship_substrate::ports::KernelLog::new(router));

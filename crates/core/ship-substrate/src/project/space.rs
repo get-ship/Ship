@@ -96,8 +96,8 @@ mod tests {
         // NEVER mints (it's a sync lookup, not a creation primitive).
         let tmp = tempdir().unwrap();
         let root = tmp.path().join("proj");
-        let ship_dir = crate::ShipHome::project_ship_dir(&root);
-        fs::create_dir_all(&ship_dir).unwrap();
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join(crate::project::STACK_CONFIG_FILENAME), "export default {};\n").unwrap();
         fs::create_dir_all(root.join("src")).unwrap();
 
         let canonical = fs::canonicalize(&root).unwrap();
@@ -106,7 +106,7 @@ mod tests {
         let got = resolve_active_space(&root.join("src")).expect("opened → Some");
         assert_eq!(got, "identity-id-abc", "id must come from the spaces projection");
         assert!(
-            !ship_dir.join("ship.jsonc").exists(),
+            !root.join("ship.jsonc").exists(),
             "resolution must never write identity into the tree"
         );
     }
@@ -118,10 +118,10 @@ mod tests {
         // an `id` field sits on disk. The tree is not an identity source.
         let tmp = tempdir().unwrap();
         let root = tmp.path().join("proj");
-        let ship_dir = crate::ShipHome::project_ship_dir(&root);
-        fs::create_dir_all(&ship_dir).unwrap();
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join(crate::project::STACK_CONFIG_FILENAME), "export default {};\n").unwrap();
         let jsonc = r#"{"id": "tree-id-must-be-dead"}"#;
-        fs::write(ship_dir.join("ship.jsonc"), jsonc).unwrap();
+        fs::write(root.join("ship.jsonc"), jsonc).unwrap();
 
         assert_eq!(
             resolve_active_space(&root),
@@ -129,7 +129,7 @@ mod tests {
             "unopened root → space-less; ship.jsonc#id is never identity"
         );
         assert_eq!(
-            fs::read_to_string(ship_dir.join("ship.jsonc")).unwrap(),
+            fs::read_to_string(root.join("ship.jsonc")).unwrap(),
             jsonc,
             "resolution must not touch ship.jsonc"
         );
@@ -145,7 +145,8 @@ mod tests {
         // resolves to one space.
         let tmp = tempdir().unwrap();
         let root = tmp.path().join("proj");
-        fs::create_dir_all(crate::ShipHome::project_ship_dir(&root)).unwrap();
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join(crate::project::STACK_CONFIG_FILENAME), "export default {};\n").unwrap();
         fs::create_dir_all(root.join("src")).unwrap();
 
         let canonical = fs::canonicalize(&root).unwrap();

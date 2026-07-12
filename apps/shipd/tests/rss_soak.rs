@@ -311,7 +311,7 @@ async fn daemon_rss_slope_is_flat_under_connection_churn() {
     // ── Isolated temp workspace — never ~/.ship or real data. Dropped at end
     //    of scope (even on panic) so the DB + WAL are cleaned up. ──
     let temp = tempfile::TempDir::new().expect("create temp workspace");
-    let ship_dir = ShipHome::project_ship_dir(temp.path());
+    let ship_dir = temp.path().join(".ship");
     std::fs::create_dir_all(&ship_dir).expect("create ship dir");
 
     // `emit`/`stop_actor` take `&self`/`&mut self`; the loop mutates via &mut.

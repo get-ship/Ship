@@ -64,7 +64,7 @@ fn ev(event_type: &str) -> EventEnvelope {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn studio_visual_message_reaches_agent_mailbox() {
     let tmp = tempdir().unwrap();
-    let mut router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
+    let mut router = KernelRouter::new(tmp.path().join(".ship")).unwrap();
 
     let _studio_mb = router.spawn_actor("studio", studio_config()).unwrap();
     let mut agent_mb = router
@@ -85,7 +85,7 @@ async fn studio_visual_message_reaches_agent_mailbox() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn agent_event_reaches_studio_mailbox() {
     let tmp = tempdir().unwrap();
-    let mut router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
+    let mut router = KernelRouter::new(tmp.path().join(".ship")).unwrap();
 
     let mut studio_mb = router.spawn_actor("studio", studio_config()).unwrap();
     let _agent_mb = router
@@ -107,7 +107,7 @@ async fn agent_event_reaches_studio_mailbox() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn two_agents_cannot_read_each_others_stores() {
     let tmp = tempdir().unwrap();
-    let mut router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
+    let mut router = KernelRouter::new(tmp.path().join(".ship")).unwrap();
 
     let _mb_a = router
         .spawn_actor("agent.alice", agent_config("agent.alice"))
@@ -138,7 +138,7 @@ async fn two_agents_cannot_read_each_others_stores() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn agent_cannot_read_studio_events() {
     let tmp = tempdir().unwrap();
-    let mut router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
+    let mut router = KernelRouter::new(tmp.path().join(".ship")).unwrap();
 
     let _studio_mb = router.spawn_actor("studio", studio_config()).unwrap();
     let _agent_mb = router
@@ -175,7 +175,7 @@ async fn agent_cannot_read_studio_events() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn agent_skill_event_reaches_studio_mailbox() {
     let tmp = tempdir().unwrap();
-    let mut router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
+    let mut router = KernelRouter::new(tmp.path().join(".ship")).unwrap();
 
     // Studio subscribes to its own namespace + agent.* + the canvas skill namespace.
     let studio_cfg = ActorConfig {
@@ -213,7 +213,7 @@ async fn agent_skill_event_reaches_studio_mailbox() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn studio_feedback_reaches_agent_mailbox() {
     let tmp = tempdir().unwrap();
-    let mut router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
+    let mut router = KernelRouter::new(tmp.path().join(".ship")).unwrap();
 
     let _studio_mb = router.spawn_actor("studio", studio_config()).unwrap();
     let mut agent_mb = router
@@ -236,7 +236,7 @@ async fn studio_feedback_reaches_agent_mailbox() {
 async fn kernel_store_records_system_events_for_audit() {
 
     let tmp = tempdir().unwrap();
-    let router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
+    let router = KernelRouter::new(tmp.path().join(".ship")).unwrap();
 
     let event = EventEnvelope::new(
         "actor.created",

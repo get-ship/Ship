@@ -111,14 +111,8 @@ fn write_skill_md(space_root: &Path) {
 fn write_colliding_fixture() -> (tempfile::TempDir, PathBuf, PathBuf) {
     let tmp = tempfile::tempdir().unwrap();
     let space_root = std::fs::canonicalize(tmp.path()).unwrap();
-    let ship_dir = ShipHome::project_ship_dir(&space_root);
-    // The `.ship/` dir is needed for `ship.lock` (and for any
-    // permissions/hooks reads the leaf still does). Source authoring
-    // for agents/skills/rules no longer touches it (Wave 5 + slice
-    // 2b close-out + slice 2c). All source authoring lives in the
-    // per-noun source dirs (`agents/`, `skills/`, `rules/`); the
-    // `ship.config.ts` is a thin pointer manifest.
-    std::fs::create_dir_all(&ship_dir).unwrap();
+    // Marker cutover: no .ship dir — the manifest marks the root and
+    // ship.lock sits beside it.
 
     // 1. Thin pointer manifest.
     std::fs::write(
@@ -160,7 +154,7 @@ fn write_colliding_fixture() -> (tempfile::TempDir, PathBuf, PathBuf) {
     .unwrap();
 
     std::fs::write(
-        ship_dir.join("ship.lock"),
+        space_root.join("ship.lock"),
         format!(
             r#"{{ "version": 1, "packages": [
                  {{ "path": "{PKG_PATH}", "version": "1.0.0",
@@ -211,7 +205,7 @@ async fn resolve_claude_output(
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn spine_roll_up_index_and_view_agree_on_the_collision() {
     let (_tmp, space_root, cache_root) = write_colliding_fixture();
-    let ship_dir = ShipHome::project_ship_dir(&space_root);
+    let ship_dir = &space_root.join(".ship");
 
     // 1+2. `roll_up` composes: source wins, shadow record present.
     let composed = roll_up(&space_root, Some(&cache_root), None).await.unwrap();
@@ -276,7 +270,7 @@ async fn spine_roll_up_index_and_view_agree_on_the_collision() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn spine_config_file_changed_invalidates_cache_and_recompose_sees_the_edit() {
     let (_tmp, space_root, cache_root) = write_colliding_fixture();
-    let ship_dir = ShipHome::project_ship_dir(&space_root);
+    let ship_dir = &space_root.join(".ship");
 
     let kernel = Arc::new(KernelLog::new(new_isolated_for_test(ship_dir.clone()).unwrap()));
     let cache = DescriptorCache::open(space_root.join("resolver-cache"), Some(kernel.clone())).unwrap();

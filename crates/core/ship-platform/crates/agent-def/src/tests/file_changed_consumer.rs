@@ -36,9 +36,8 @@ use crate::file_changed_consumer::spawn_agent_def_consumer;
 
 async fn setup() -> (tempfile::TempDir, PathBuf, Arc<KernelLog>, SpaceId) {
     let tmp = tempfile::tempdir().unwrap();
-    let base = std::fs::canonicalize(tmp.path()).unwrap();
-    let ship_dir = ShipHome::project_ship_dir(&base);
-    std::fs::create_dir_all(&ship_dir).unwrap();
+    // Marker cutover: content anchors at the STACK ROOT.
+    let ship_dir = std::fs::canonicalize(tmp.path()).unwrap();
     let kernel = Arc::new(KernelLog::new(new_isolated_for_test(ship_dir.clone()).unwrap()));
     let space = SpaceId::new("sp-consumer-1");
     (tmp, ship_dir, kernel, space)

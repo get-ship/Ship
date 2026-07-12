@@ -25,7 +25,7 @@ impl TestDaemon {
     /// Create a fully wired TestDaemon with temp dir, DB, kernel, and router.
     pub async fn new() -> Self {
         let temp_dir = TempDir::new().unwrap();
-        let ship_dir = ship_substrate::ShipHome::project_ship_dir(temp_dir.path());
+        let ship_dir = temp_dir.path().join(".ship");
         std::fs::create_dir_all(&ship_dir).unwrap();
 
         let kernel = Arc::new(tokio::sync::Mutex::new(

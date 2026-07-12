@@ -20,10 +20,9 @@ use ship_substrate::ports::{SpaceContext, SpaceId};
 pub async fn mount(router: ConnectRouter) -> anyhow::Result<ConnectRouter> {
     let ship_dir = ship_substrate::ShipHome::from_env().data_dir().to_path_buf();
 
-    let project_ship_dir = ship_substrate::project::get_project_dir(None).ok();
-    let probe = project_ship_dir
-        .as_deref()
-        .and_then(|p| p.parent().map(PathBuf::from))
+    // Marker cutover: discovery returns the STACK ROOT directly.
+    let probe = ship_substrate::project::get_stack_root(None)
+        .ok()
         .or_else(|| std::env::current_dir().ok());
     let Some(space_id) = probe
         .as_deref()

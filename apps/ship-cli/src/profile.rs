@@ -64,8 +64,7 @@ pub fn activate_agent(
     extra_skills: Vec<String>,
     scoped: bool,
 ) -> Result<()> {
-    let ship_dir = ship_substrate::ShipHome::project_ship_dir(space_root);
-    let state = SpaceState::load(&ship_dir);
+    let state = SpaceState::load(space_root); // stack root anchors state
     let id = agent_id
         .map(str::to_string)
         .or_else(|| state.active_agent.clone())
@@ -154,16 +153,17 @@ fn run_plugin_lifecycle(now: &[String], prev: &[String], scope: &str) {
 /// `profiles/`, `presets/`, `modes/` compat paths were retired with the
 /// agent-schema unification.
 pub fn find_agent_file(agent_id: &str, space_root: &Path) -> Option<PathBuf> {
-    let ship = ship_substrate::ShipHome::project_ship_dir(space_root);
     let file = format!("{agent_id}.jsonc");
 
-    let space_path = ship.join("agents").join(&file);
+    // agents/ is a domain dir at the STACK ROOT (marker cutover).
+    let space_path = space_root.join("agents").join(&file);
     if space_path.exists() {
         return Some(space_path);
     }
 
     let home = home::home_dir()?;
-    let global_path = ship_substrate::ShipHome::project_ship_dir(home)
+    // User-global agents live under the legacy home dir shape.
+    let global_path = home.join(".ship")
         .join("agents")
         .join(&file);
     if global_path.exists() {
@@ -203,7 +203,7 @@ pub(crate) fn load_agent_profile(path: &Path) -> Result<AgentProfile> {
 /// List agent IDs available in .ship/agents/ (for error messages). Sourced
 /// through THE agent-def reader (FsBroker) — no raw `std::fs` walk.
 fn list_available_agents(space_root: &Path) -> Vec<String> {
-    let agents_dir = ship_substrate::ShipHome::project_ship_dir(space_root).join("agents");
+    let agents_dir = space_root.join("agents");
     let fs = ship_substrate::ports::LocalFsBroker::new();
     let mut ids: Vec<String> = ship_platform::config::read_agent_docs_in(&fs, &agents_dir)
         .unwrap_or_default()
@@ -228,7 +228,7 @@ mod tests {
     }
 
     fn setup_ship_dir(tmp: &TempDir) -> PathBuf {
-        let ship_dir = ship_substrate::ShipHome::project_ship_dir(tmp.path());
+        let ship_dir = tmp.path().to_path_buf();
         std::fs::create_dir_all(&ship_dir).unwrap();
         std::fs::write(
             ship_dir.join("ship.jsonc"),
@@ -257,7 +257,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         write_file(
             tmp.path(),
-            ".ship/agents/test.jsonc",
+            "agents/test.jsonc",
             r#"{ "agent": { "id": "test", "name": "Test" } }"#,
         );
         let found = find_agent_file("test", tmp.path());

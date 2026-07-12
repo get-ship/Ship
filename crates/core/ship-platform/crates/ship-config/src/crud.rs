@@ -140,7 +140,7 @@ fn write_mcp_file(ship_dir: &Path, servers: &[McpServerConfig]) -> Result<()> {
 /// Replaces the old configurable `namespaces` registry — every project
 /// gets the same baseline tree.
 pub fn ensure_standard_dirs(ship_path: &std::path::Path) -> Result<()> {
-    let base = ship_substrate::project::ship_dir_from_path(ship_path)
+    let base = ship_substrate::project::stack_root_from_path(ship_path)
         .unwrap_or_else(|| ship_path.to_path_buf());
     for sub in ["project", "agents"] {
         std::fs::create_dir_all(base.join(sub))?;

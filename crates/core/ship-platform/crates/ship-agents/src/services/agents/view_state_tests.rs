@@ -234,7 +234,7 @@ async fn index_backed_reads_serve_after_project_file_removed() {
     // Canonicalize: the FsBroker symlink-escape guard needs a canonical root.
     let tmp = tempdir().unwrap();
     let base = std::fs::canonicalize(tmp.path()).unwrap();
-    let ship_dir = ShipHome::project_ship_dir(base);
+    let ship_dir = base.join(".ship");
     let agents_dir = ship_dir.join("agents");
     std::fs::create_dir_all(&agents_dir).unwrap();
     std::fs::write(
@@ -365,7 +365,7 @@ fn space_beats_cached_package() -> compiler::ComposedLibrary {
 async fn composed_row_source_reflects_provenance_and_shadow_is_queryable() {
     let tmp = tempdir().unwrap();
     let base = std::fs::canonicalize(tmp.path()).unwrap();
-    let ship_dir = ShipHome::project_ship_dir(base);
+    let ship_dir = base.join(".ship");
 
     let db = ship_substrate::db::space_db_path(&ship_dir, "vs-idx-shadow-test");
     let svc = DataService::open_at(&db).unwrap();

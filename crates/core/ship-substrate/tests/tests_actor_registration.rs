@@ -10,7 +10,7 @@ use tempfile::TempDir;
 use ship_substrate::events::{ActorConfig, CallerKind, EmitContext, EventEnvelope, KernelRouter};
 
 fn make_kernel(dir: &TempDir) -> KernelRouter {
-    let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
+    let ship_dir = dir.path().join(".ship");
     std::fs::create_dir_all(&ship_dir).unwrap();
     KernelRouter::new(ship_dir).unwrap()
 }

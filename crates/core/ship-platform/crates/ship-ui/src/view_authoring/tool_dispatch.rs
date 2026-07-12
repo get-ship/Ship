@@ -242,7 +242,7 @@ async fn op_collections_schema(
 }
 
 fn op_list_siblings(active_view: &str) -> DispatchResult {
-    let project_root = match ship_substrate::project::get_project_dir(None).ok() {
+    let project_root = match ship_substrate::project::get_stack_root(None).ok() {
         Some(ship_dir) => ship_dir
             .parent()
             .unwrap_or(ship_dir.as_path())

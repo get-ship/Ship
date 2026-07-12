@@ -10,17 +10,16 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
-pub use crate::project::{PRIMARY_CONFIG_FILE, SHIP_DIR_NAME};
+pub use crate::project::STACK_CONFIG_FILENAME;
 
-/// Create a minimal `.ship/` directory under `base_dir` suitable for L0 tests.
-/// Presence-only: an empty `ship.jsonc` config scaffold — identity lives in
-/// the `projects` pointer, never in the tree.
+/// Create a minimal STACK at `base_dir` suitable for L0 tests: a bare
+/// `ship.config.ts` manifest (presence-only; L0 never evals it). Returns
+/// the STACK ROOT. Identity lives in the runtime registry, never the tree.
 pub fn init_project_minimal(base_dir: impl AsRef<Path>) -> Result<PathBuf> {
     let base_dir = base_dir.as_ref();
-    let ship_dir = base_dir.join(SHIP_DIR_NAME);
-    std::fs::create_dir_all(&ship_dir)?;
-    std::fs::write(ship_dir.join(PRIMARY_CONFIG_FILE), "{}\n")?;
-    Ok(ship_dir)
+    std::fs::create_dir_all(base_dir)?;
+    std::fs::write(base_dir.join(STACK_CONFIG_FILENAME), "export default {};\n")?;
+    Ok(base_dir.to_path_buf())
 }
 
 // ── EnvGuard ──────────────────────────────────────────────────────────────

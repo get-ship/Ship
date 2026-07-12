@@ -290,8 +290,8 @@ fn resolve_path(watch: &str, ship_dir: &Path) -> PathBuf {
     if p.is_absolute() {
         p.to_path_buf()
     } else {
-        // Resolve relative to the project root (parent of .ship/).
-        ship_dir.parent().unwrap_or(ship_dir).join(watch)
+        // Resolve relative to the stack root (the anchor itself).
+        ship_dir.join(watch)
     }
 }
 

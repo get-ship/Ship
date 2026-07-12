@@ -18,7 +18,7 @@ fn workspace_root() -> std::path::PathBuf {
     let manifest = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     manifest
         .ancestors()
-        .find(|p| p.join("Cargo.toml").exists() && ship_substrate::ShipHome::project_ship_dir(p).exists())
+        .find(|p| p.join("Cargo.toml").exists() && p.join("ship.config.ts").exists())
         .expect("workspace root not found")
         .to_path_buf()
 }

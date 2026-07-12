@@ -2,6 +2,13 @@
 //!
 //! Split from `install.rs` to stay under the 300-line file cap.
 
+// Fetched LEGACY packages may still carry a `.ship/` tree; this local
+// helper names that historical PACKAGE shape (migrates with the registry
+// story). Our own discovery no longer knows the dirname.
+#[allow(dead_code)]
+fn legacy_package_ship_dir<P: AsRef<std::path::Path>>(root: P) -> std::path::PathBuf {
+    root.as_ref().join(".ship")
+}
 use std::path::Path;
 
 use anyhow::Context;
@@ -33,7 +40,7 @@ pub fn fetch_and_store(
         .with_context(|| format!("fetching {dep_path} @ {commit}"))?;
 
     // Ship-native packages land in tmp/.ship/; root-manifest packages land in tmp/.
-    let ship_dir = ship_substrate::ShipHome::project_ship_dir(tmp.path());
+    let ship_dir = legacy_package_ship_dir(tmp.path());
     let content_dir = if ship_dir.is_dir() {
         ship_dir.as_path()
     } else {

@@ -34,7 +34,9 @@ fn lock_pkg(path: &str, hex: &str) -> LockPackage {
 
 fn write_lock(ship_dir: &Path, pkgs: Vec<LockPackage>) {
     let lock = ShipLock { version: 1, packages: pkgs };
-    lock.write_atomic(&ship_dir.join("ship.lock")).unwrap();
+    // Lockfile at the STACK ROOT (parent of the .ship-shaped anchor).
+    let root = ship_dir.parent().expect("anchor has a parent");
+    lock.write_atomic(&root.join("ship.lock")).unwrap();
 }
 
 // ── depless space: returns ship_dir unchanged ─────────────────────────────────
@@ -173,7 +175,7 @@ fn registry_compose_composed_root_for_empty_lock_returns_ship_dir() {
     fs::create_dir_all(&ship_dir).unwrap();
     // Write a lock with no packages — still depless.
     let lock = ShipLock { version: 1, packages: vec![] };
-    lock.write_atomic(&ship_dir.join("ship.lock")).unwrap();
+    lock.write_atomic(&tmp.path().join("ship.lock")).unwrap(); // lockfile at the stack root
     let result = composed_root_for(&ship_dir);
     assert_eq!(result, ship_dir, "empty lock must return ship_dir unchanged");
 }

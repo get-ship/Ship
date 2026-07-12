@@ -79,15 +79,13 @@ impl HelmAgentsHost {
         let ship_dir = ShipHome::from_env().data_dir().to_path_buf();
 
         // Project scope: the enclosing project's `.ship/` dir (walks ancestors
-        // from cwd, follows worktree pointers). `with_roots` wants the project
-        // `.ship` dir; `workspace_dir()` wants the repo root above it.
-        let project_ship_dir = ship_substrate::project::get_project_dir(None).ok();
-        let workspace_dir = project_ship_dir
-            .as_deref()
-            .and_then(|p| p.parent().map(PathBuf::from));
+        // Marker cutover: discovery returns the STACK ROOT; it is both the
+        // reader anchor and the workspace dir.
+        let stack_root = ship_substrate::project::get_stack_root(None).ok();
+        let workspace_dir = stack_root.clone();
 
         let agents: Arc<dyn AgentsService> =
-            Arc::new(AgentsServiceImpl::with_roots(ship_dir.clone(), project_ship_dir));
+            Arc::new(AgentsServiceImpl::with_roots(ship_dir.clone(), stack_root));
 
         // The core trait REQUIRES a `KernelRouter` even though the read methods
         // never emit. The only public constructor eagerly provisions

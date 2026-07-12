@@ -48,7 +48,7 @@ async fn fixture() -> (tempfile::TempDir, Arc<SpaceContext>, ArtifactService) {
     install_projections();
 
     let tmp = tempfile::tempdir().unwrap();
-    let ship_dir = ship_substrate::ShipHome::project_ship_dir(tmp.path());
+    let ship_dir = tmp.path().join(".ship");
     std::fs::create_dir_all(&ship_dir).unwrap();
     // Event-sourced collections: the projection writes into the per-space
     // `space.db`, so the read store must open that exact file (not the legacy

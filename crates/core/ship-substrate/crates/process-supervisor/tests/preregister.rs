@@ -12,7 +12,7 @@ use process_supervisor::{ProcessKind, ProcessProfile, TransportKind, spawn_proce
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn agent_pre_register_visible_in_kernel_before_mcp() {
     let tmp = tempfile::tempdir().unwrap();
-    let ship_dir = ship_substrate::ShipHome::project_ship_dir(tmp.path());
+    let ship_dir = tmp.path().join(".ship");
     std::fs::create_dir_all(&ship_dir).unwrap();
     init_kernel_router(ship_dir).expect("init kernel router");
 

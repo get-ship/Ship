@@ -610,7 +610,6 @@ impl SessionExecutor for ProcessExecutor {
         // (HarnessSandbox today). Container/VM strategies need an
         // Isolator lifecycle (prepare/shutdown) that the supervisor
         // doesn't own yet — they fall through with a warning.
-        let _ship_dir = ship_substrate::ShipHome::project_ship_dir(&ctx.work_dir);
         // A2: per-agent isolation overrides are no longer carried on the agent
         // definition (the descriptor has no isolation field), and the
         // pre-cutover `ship_config::project::get_config` lookup it did was a
@@ -1392,7 +1391,8 @@ mod tests {
 
     fn setup_kernel() -> (tempfile::TempDir, Arc<TokioMutex<KernelRouter>>, std::path::PathBuf) {
         let dir = tempfile::tempdir().unwrap();
-        let base = ship_substrate::ShipHome::project_ship_dir(dir.path());
+        let base = dir.path().join(".ship"); // test HOME dir (global-home shape, not discovery)
+        std::fs::create_dir_all(&base).unwrap();
         let router = KernelRouter::new(base.clone()).unwrap();
         // process.* is Runtime-scoped → the kernel sink routes it to runtime.db.
         let db = ship_substrate::db::runtime_db_path(&base);

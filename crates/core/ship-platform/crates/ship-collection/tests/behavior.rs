@@ -30,14 +30,14 @@ fn make_kernel(tmp: &tempfile::TempDir) -> Arc<KernelLog> {
     // Ensure CollectionItemProjection is in the extra-projections factory
     // before any SqliteEventStore (and its default_bus) is constructed.
     common::install_collection_projection();
-    let ship_dir = ShipHome::project_ship_dir(tmp.path());
+    let ship_dir = tmp.path().join(".ship");
     std::fs::create_dir_all(&ship_dir).unwrap();
     let router = new_isolated_for_test(ship_dir).unwrap();
     Arc::new(KernelLog::new(router))
 }
 
 fn make_ctx(tmp: &tempfile::TempDir, kernel: Arc<KernelLog>) -> Arc<SpaceContext> {
-    let ship_dir = ShipHome::project_ship_dir(tmp.path());
+    let ship_dir = tmp.path().join(".ship");
     // Collections are event-sourced: bind the data store to the SAME per-scope
     // `spaces/test/space.db` the kernel routes `collection.*` (Space-scoped)
     // events to, so the `CollectionProjection`'s writes are read back here.

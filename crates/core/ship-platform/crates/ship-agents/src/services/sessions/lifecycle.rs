@@ -250,7 +250,7 @@ async fn load_inline_rules(
     }
     // Cold / cross-space fallback: THE agent-def reader (FsBroker, ship-config)
     // is the one file door — `rules.inline` lives on the FULL nested profile.
-    let ship_dir = ship_substrate::ShipHome::project_ship_dir(work_dir);
+    let ship_dir = work_dir.to_path_buf(); // stack root anchors the agent-def reader
     let fs = ship_substrate::ports::LocalFsBroker::new();
     ship_config::agents::read_agent_profile(&fs, &ship_dir, agent_id)
         .ok()

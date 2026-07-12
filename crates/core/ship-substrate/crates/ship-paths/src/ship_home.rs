@@ -59,7 +59,10 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use crate::DaemonFile;
-use crate::project::SHIP_DIR_NAME;
+// The GLOBAL home directory's on-disk name (legacy `~/.ship`-style homes
+// and test fixtures). Distinct from stack discovery — the stack marker is
+// `ship.config.ts`, not a directory name.
+const HOME_DIR_NAME: &str = ".ship";
 use ship_types::{Scope, Vector};
 
 /// On-disk name of the config root subdir under `SHIP_HOME` (or XDG_CONFIG_HOME).
@@ -216,7 +219,7 @@ impl ShipHome {
     /// and use the typed accessors. Per the home-layout ADR, no test
     /// should hand-roll `.ship` paths.
     pub fn for_test(tmp: &Path) -> Self {
-        Self::at(tmp.join(SHIP_DIR_NAME))
+        Self::at(tmp.join(HOME_DIR_NAME))
     }
 }
 
@@ -289,7 +292,7 @@ fn auto_test_ship_home() -> Option<PathBuf> {
                     std::process::id(),
                     thread_suffix
                 ))
-                .join(SHIP_DIR_NAME)
+                .join(HOME_DIR_NAME)
         });
         Some(dir.clone())
     })
@@ -379,8 +382,8 @@ impl ShipHome {
         match scope {
             Scope::User => self.library_dir().join(vector.as_str()),
             Scope::Project => match project_root {
-                Some(root) => root.join(SHIP_DIR_NAME).join(vector.as_str()),
-                None => PathBuf::from(SHIP_DIR_NAME).join(vector.as_str()),
+                Some(root) => root.join(HOME_DIR_NAME).join(vector.as_str()),
+                None => PathBuf::from(HOME_DIR_NAME).join(vector.as_str()),
             },
         }
     }
@@ -428,16 +431,13 @@ impl ShipHome {
     /// that previously did `project_root.join(".ship")` migrates to
     /// this call. Accepts anything path-like (`&Path`, `PathBuf`,
     /// `&PathBuf`).
-    pub fn project_ship_dir<P: AsRef<Path>>(project_root: P) -> PathBuf {
-        project_root.as_ref().join(SHIP_DIR_NAME)
-    }
 
     /// On-disk name of the project ship directory (`.ship`). Exposed so
     /// that path checks like
     /// `path.ends_with(ShipHome::ship_dir_name())` and component scans
     /// don't hard-code the literal.
     pub fn ship_dir_name() -> &'static str {
-        SHIP_DIR_NAME
+        HOME_DIR_NAME
     }
 
     /// `state/device-id` — the stable per-install device identity, minted
@@ -587,7 +587,7 @@ mod tests {
     /// SHIP_HOME-collapsed base for tests that want the four roots to
     /// live under `<tmp>/.ship/{config,data,state,cache}`.
     fn home(tmp: &Path) -> ShipHome {
-        ShipHome::at(tmp.join(SHIP_DIR_NAME))
+        ShipHome::at(tmp.join(HOME_DIR_NAME))
     }
 
     #[test]
@@ -1123,7 +1123,7 @@ mod tests {
 
         // Branch 2: explicit SHIP_HOME pinned to a tmp dir.
         let tmp = tempdir().unwrap();
-        let pinned = tmp.path().join(SHIP_DIR_NAME);
+        let pinned = tmp.path().join(HOME_DIR_NAME);
         unsafe {
             std::env::set_var("SHIP_HOME", &pinned);
         }

@@ -47,7 +47,7 @@ async fn space_context_exposes_data_and_kernel() {
     let tmp = tempfile::tempdir().unwrap();
     let store = test_store(&tmp, "space-1");
     let kernel_arc = new_isolated_for_test(
-        ShipHome::project_ship_dir(tmp.path())
+        tmp.path().join(".ship")
     ).unwrap();
     let kernel_log = Arc::new(KernelLog::new(kernel_arc));
 
@@ -167,7 +167,7 @@ async fn data_store_count_matches_query_len() {
 async fn kernel_log_emit_then_subscribe_receives_event() {
     let tmp = tempfile::tempdir().unwrap();
     let kernel_arc = new_isolated_for_test(
-        ShipHome::project_ship_dir(tmp.path())
+        tmp.path().join(".ship")
     ).unwrap();
     let log = KernelLog::new(kernel_arc);
 
@@ -188,7 +188,7 @@ async fn kernel_log_emit_then_subscribe_receives_event() {
 async fn kernel_log_subscribe_filtered_excludes_nonmatching() {
     let tmp = tempfile::tempdir().unwrap();
     let kernel_arc = new_isolated_for_test(
-        ShipHome::project_ship_dir(tmp.path())
+        tmp.path().join(".ship")
     ).unwrap();
     let log = KernelLog::new(kernel_arc);
 
@@ -293,7 +293,7 @@ async fn data_store_accepts_valid_idents() {
 async fn subscribe_filtered_relay_exits_when_receiver_dropped() {
     let tmp = tempfile::tempdir().unwrap();
     let kernel_arc = new_isolated_for_test(
-        ShipHome::project_ship_dir(tmp.path())
+        tmp.path().join(".ship")
     ).unwrap();
     let log = KernelLog::new(kernel_arc);
 

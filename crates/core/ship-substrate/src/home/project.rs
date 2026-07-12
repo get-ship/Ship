@@ -1,50 +1,27 @@
-//! Typed project-root resolver — see ADR `home-layout-and-scope-convention`
-//! and spec `.artifacts/specs/devx/03-worktree-model.md`.
+//! Typed stack-root resolver.
 //!
-//! `ProjectRoot::discover()` is the canonical answer to "given a cwd, what is
-//! the project root?". It walks ancestors looking for `.git` (file or dir) or
-//! `.ship/`, honoring the `.ship/.boundary` sentinel.
+//! `ProjectRoot::discover()` is the canonical answer to "given a cwd, what
+//! is the stack root?": the nearest ancestor containing `ship.config.ts`.
+//! No git awareness — worktree flows pass explicit roots (ship-code's
+//! concern); the `.boundary` sentinel died with the marker cutover.
 
 use std::path::{Path, PathBuf};
 
-use crate::project::{BOUNDARY_FILE, resolve_project_ship_dir};
+use crate::project::resolve_stack_root;
 
-/// A discovered project root — the directory that contains `.ship/` (and
-/// usually `.git`).
+/// A discovered stack root — the directory containing `ship.config.ts`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProjectRoot(PathBuf);
 
 impl ProjectRoot {
-    /// Walk up from `from` looking for the nearest project root.
-    ///
-    /// A project root is the directory containing `.ship/`. The walk
-    /// honors `.ship/.boundary` and the linked-worktree redirect logic
-    /// implemented in `ship_substrate::project::resolve_project_ship_dir`.
+    /// Walk up from `from` to the nearest stack root.
     pub fn discover(from: &Path) -> Option<Self> {
-        let ship = resolve_project_ship_dir(from)?;
-        let root = ship.parent()?.to_path_buf();
-        Some(Self(root))
+        resolve_stack_root(from).map(Self)
     }
 
-    /// The absolute path to the project root (the parent of `.ship/`).
+    /// The absolute path to the stack root.
     pub fn path(&self) -> &Path {
         &self.0
-    }
-
-    /// The project's `.ship/` directory.
-    pub fn ship_dir(&self) -> PathBuf {
-        crate::ShipHome::project_ship_dir(&self.0)
-    }
-
-    /// True when `.git` is a file (linked worktree) rather than a directory.
-    pub fn is_worktree(&self) -> bool {
-        let dot_git = self.0.join(".git");
-        dot_git.is_file()
-    }
-
-    /// True when this root carries a `.ship/.boundary` sentinel.
-    pub fn has_boundary(&self) -> bool {
-        self.ship_dir().join(BOUNDARY_FILE).exists()
     }
 }
 
@@ -55,56 +32,24 @@ mod tests {
     use tempfile::tempdir;
 
     #[test]
-    fn discover_returns_root_for_plain_checkout() {
+    fn discover_returns_nearest_manifest_root() {
         let tmp = tempdir().unwrap();
         let root = tmp.path().join("proj");
-        fs::create_dir_all(root.join(".ship")).unwrap();
         fs::create_dir_all(root.join("src")).unwrap();
+        fs::write(root.join("ship.config.ts"), "export default {};\n").unwrap();
 
         let got = ProjectRoot::discover(&root.join("src")).unwrap();
         assert_eq!(
             fs::canonicalize(got.path()).unwrap(),
             fs::canonicalize(&root).unwrap()
         );
-        assert!(!got.is_worktree());
-        assert!(!got.has_boundary());
     }
 
     #[test]
-    fn discover_honors_boundary_in_worktree() {
-        // Worktree with .boundary should NOT redirect to main.
+    fn discover_none_without_manifest() {
         let tmp = tempdir().unwrap();
-        let main = tmp.path().join("main");
-        let common_git = main.join(".git");
-        let wt = tmp.path().join("wt");
-        let wt_ship = wt.join(".ship");
-        let wt_src = wt.join("src");
-
-        fs::create_dir_all(main.join(".ship")).unwrap();
-        fs::create_dir_all(common_git.join("worktrees").join("feat")).unwrap();
-        fs::create_dir_all(&wt_ship).unwrap();
-        fs::create_dir_all(&wt_src).unwrap();
-        fs::write(wt_ship.join(BOUNDARY_FILE), "").unwrap();
-        fs::write(
-            wt.join(".git"),
-            format!("gitdir: {}\n", common_git.join("worktrees/feat").display()),
-        )
-        .unwrap();
-
-        let got = ProjectRoot::discover(&wt_src).unwrap();
-        assert_eq!(
-            fs::canonicalize(got.path()).unwrap(),
-            fs::canonicalize(&wt).unwrap(),
-            "boundary must pin the worktree as project root"
-        );
-        assert!(got.has_boundary());
-    }
-
-    #[test]
-    fn discover_returns_none_outside_any_project() {
-        let tmp = tempdir().unwrap();
-        let outside = tmp.path().join("nowhere");
-        fs::create_dir_all(&outside).unwrap();
-        assert!(ProjectRoot::discover(&outside).is_none());
+        let dir = tmp.path().join("plain");
+        fs::create_dir_all(&dir).unwrap();
+        assert!(ProjectRoot::discover(&dir).is_none());
     }
 }

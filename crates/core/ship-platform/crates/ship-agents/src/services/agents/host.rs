@@ -216,13 +216,14 @@ fn build_core<H: AgentsHost>(host: &H, gate: GateFn) -> AgentsWireCoreConfig {
                     let Some(ws) = host.workspace_dir() else {
                         return;
                     };
-                    let project_ship_dir = ShipHome::project_ship_dir(&ws);
-                    // The CONTENT-ID from the `projects` pointer is the
+                    // Marker cutover: agents/ is a domain dir at the STACK
+                    // ROOT — the workspace root itself anchors the reader.
+                    // The CONTENT-ID from the registry pointer is the
                     // space-id, so agent-def events route to the same
                     // spaces/<content-id>/space.db every other path uses.
                     let space = ship_substrate::project::resolve_active_space(&ws)
                         .map(SpaceId::new);
-                    (project_ship_dir, space)
+                    (ws.clone(), space)
                 }
                 Scope::User => (host.ship_dir(), None),
             };

@@ -11,8 +11,8 @@ use tempfile::tempdir;
 /// symlink-escape guard canonicalizes the deepest existing ancestor before
 /// comparing it to the cap root. Production ship dirs are already canonical.
 fn ship_dir(tmp: &tempfile::TempDir) -> PathBuf {
-    let base = std::fs::canonicalize(tmp.path()).unwrap();
-    ship_substrate::home::ShipHome::project_ship_dir(base)
+    // Marker cutover: the reader anchors at the STACK ROOT.
+    std::fs::canonicalize(tmp.path()).unwrap()
 }
 
 /// Author a canonical-shape file through the SAME broker door (no std::fs).

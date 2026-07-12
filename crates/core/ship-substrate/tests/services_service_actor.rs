@@ -29,7 +29,7 @@ fn sync_actor_config() -> ActorConfig {
 
 fn setup_router() -> (tempfile::TempDir, KernelRouter) {
     let tmp = tempdir().unwrap();
-    let base = ship_substrate::ShipHome::project_ship_dir(tmp.path());
+    let base = tmp.path().join(".ship");
     std::fs::create_dir_all(&base).unwrap();
     let router = KernelRouter::new(base).unwrap();
     (tmp, router)

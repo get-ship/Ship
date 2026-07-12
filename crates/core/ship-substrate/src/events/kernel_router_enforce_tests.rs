@@ -55,7 +55,7 @@ fn read_back_scope(
     scope: EventScope,
     space_key: Option<&str>,
 ) -> Option<EventEnvelope> {
-    let root = crate::ShipHome::project_ship_dir(tmp.path());
+    let root = tmp.path().join(".ship");
     let path = match scope {
         EventScope::Runtime => crate::db::runtime_db_path(&root),
         EventScope::Account => crate::db::account_db_path(&root),

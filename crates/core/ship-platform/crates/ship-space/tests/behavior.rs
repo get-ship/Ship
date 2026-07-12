@@ -48,7 +48,7 @@ fn install_spaces_projection() {
 
 fn make_kernel(tmp: &tempfile::TempDir) -> Arc<KernelLog> {
     install_spaces_projection();
-    let ship_dir = ShipHome::project_ship_dir(tmp.path());
+    let ship_dir = tmp.path().join(".ship");
     std::fs::create_dir_all(&ship_dir).unwrap();
     let router = new_isolated_for_test(ship_dir).unwrap();
     Arc::new(KernelLog::new(router))
@@ -253,7 +253,8 @@ async fn resolve_active_space_reads_the_spaces_projection() {
 
     let tmp = tempfile::tempdir().unwrap();
     let root = tmp.path().join("proj");
-    std::fs::create_dir_all(ShipHome::project_ship_dir(&root)).unwrap(); // presence only
+    std::fs::create_dir_all(&root).unwrap();
+    std::fs::write(root.join("ship.config.ts"), "export default {};\n").unwrap(); // the marker
     std::fs::create_dir_all(root.join("src")).unwrap();
 
     // Discoverable but unopened → space-less.
@@ -274,7 +275,7 @@ async fn resolve_active_space_reads_the_spaces_projection() {
         "resolution must read the spaces projection"
     );
     assert!(
-        !ShipHome::project_ship_dir(&root).join("ship.jsonc").exists(),
+        !&root.join(".ship").join("ship.jsonc").exists(),
         "resolution/opening must never write identity into the tree"
     );
 

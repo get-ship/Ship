@@ -52,7 +52,7 @@ const _AGENT_DEF_LINK: fn() -> Option<std::any::TypeId> = || {
 /// existing ancestor, so the cap root must be canonical — production dirs are.
 fn ship_dir(tmp: &tempfile::TempDir) -> PathBuf {
     let base = std::fs::canonicalize(tmp.path()).unwrap();
-    ShipHome::project_ship_dir(base)
+    base.join(".ship")
 }
 
 async fn setup() -> (tempfile::TempDir, PathBuf, Arc<KernelLog>) {

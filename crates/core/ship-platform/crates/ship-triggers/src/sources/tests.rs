@@ -27,7 +27,7 @@ fn trigger_def(json: &str) -> compiler::TriggerDef {
 
 fn tmp_ship_dir() -> (TempDir, std::path::PathBuf) {
     let tmp = tempfile::tempdir().unwrap();
-    let ship_dir = ship_substrate::ShipHome::project_ship_dir(tmp.path());
+    let ship_dir = tmp.path().join(".ship");
     std::fs::create_dir_all(ship_dir.join("triggers")).unwrap();
     std::fs::create_dir_all(ship_dir.join("schemas")).unwrap();
     (tmp, ship_dir)

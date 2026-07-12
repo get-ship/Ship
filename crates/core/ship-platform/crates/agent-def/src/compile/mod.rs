@@ -159,7 +159,7 @@ fn compile_from_library(
     opts: &CompileOptions,
     mut library: compiler::ExtensionLibrary,
 ) -> Result<CompileSummary> {
-    let ship_dir = ship_substrate::ShipHome::project_ship_dir(&opts.space_root);
+    let stack_root = opts.space_root.clone();
     let output_root = opts.output_root.as_deref().unwrap_or(&opts.space_root);
 
     // 2. Apply agent overrides (permissions, inline rules, harness list, plugins)
@@ -172,10 +172,7 @@ fn compile_from_library(
     let all_skill_refs = collect_all_skill_refs(&library);
     if !all_skill_refs.is_empty() {
         // ship.lock: STACK ROOT beside ship.config.ts, one location.
-        let lock_path = ship_dir
-            .parent()
-            .expect("ship_dir must have a parent (the stack root)")
-            .join("ship.lock");
+        let lock_path = stack_root.join("ship.lock");
         let dep_skills = resolve_dep_skills(
             &all_skill_refs,
             &library.skills,
@@ -263,7 +260,7 @@ fn compile_from_library(
             }
         }
         emit_compile_completed(
-            &ship_dir,
+            &stack_root,
             opts.active_agent.as_deref(),
             &harnesses,
             &opts.plugins_installed,
@@ -280,7 +277,7 @@ fn compile_from_library(
 // ── Event emission ────────────────────────────────────────────────────────────
 
 fn emit_compile_completed(
-    ship_dir: &Path,
+    stack_root: &Path,
     active_agent: Option<&str>,
     harnesses: &[String],
     plugins_installed: &[String],
@@ -292,10 +289,9 @@ fn emit_compile_completed(
     // The space id comes from the `projects` pointer. An unregistered project
     // records no compile state (space-less) — the daemon registers its
     // workspace at boot, so the normal flow always resolves.
-    let probe = ship_dir.parent().unwrap_or(ship_dir);
-    let Some(space_id) = ship_substrate::project::resolve_active_space(probe) else {
+    let Some(space_id) = ship_substrate::project::resolve_active_space(stack_root) else {
         tracing::warn!(
-            ship_dir = %ship_dir.display(),
+            stack_root = %stack_root.display(),
             "compile: workspace is not a registered space — compile.completed not recorded"
         );
         return;

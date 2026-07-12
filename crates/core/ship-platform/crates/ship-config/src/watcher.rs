@@ -205,7 +205,8 @@ pub fn spawn_config_watcher(
         .as_deref()
         .and_then(ship_substrate::project::resolve_active_space)
         .map(SpaceId::new);
-    let project_ship_dir = workspace_dir.as_deref().map(ShipHome::project_ship_dir);
+    // Marker cutover: content lives at the stack root — the watch root IS the workspace dir.
+    let project_ship_dir = workspace_dir.clone();
 
     let mut watcher = ConfigWatcher::new();
     let debounce = resolve_watcher_debounce();

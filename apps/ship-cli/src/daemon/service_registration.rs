@@ -170,7 +170,7 @@ fn default_paths() -> Vec<PathBuf> {
             PathBuf::from("/usr/bin/shipd"),
             PathBuf::from("/usr/local/bin/shipd"),
             home::home_dir()
-                .map(|h| ship_substrate::ShipHome::project_ship_dir(h).join("bin").join("shipd"))
+                .map(|h| h.join(".ship").join("bin").join("shipd"))
                 .unwrap_or_default(),
         ]
     }
@@ -180,7 +180,7 @@ fn default_paths() -> Vec<PathBuf> {
             PathBuf::from("/usr/local/bin/shipd"),
             PathBuf::from("/opt/homebrew/bin/shipd"),
             home::home_dir()
-                .map(|h| ship_substrate::ShipHome::project_ship_dir(h).join("bin").join("shipd"))
+                .map(|h| h.join(".ship").join("bin").join("shipd"))
                 .unwrap_or_default(),
         ]
     }
@@ -189,7 +189,7 @@ fn default_paths() -> Vec<PathBuf> {
         vec![
             PathBuf::from(r"C:\Program Files\Ship\shipd.exe"),
             home::home_dir()
-                .map(|h| ship_substrate::ShipHome::project_ship_dir(h).join("bin").join("shipd.exe"))
+                .map(|h| h.join(".ship").join("bin").join("shipd.exe"))
                 .unwrap_or_default(),
         ]
     }

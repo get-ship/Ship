@@ -38,7 +38,7 @@ impl OwnerBinder for RecordingBinder {
 }
 
 fn make_kernel(tmp: &tempfile::TempDir) -> Arc<KernelLog> {
-    let ship_dir = ShipHome::project_ship_dir(tmp.path());
+    let ship_dir = tmp.path().join(".ship");
     std::fs::create_dir_all(&ship_dir).unwrap();
     let router = new_isolated_for_test(ship_dir).unwrap();
     Arc::new(KernelLog::new(router))
@@ -70,7 +70,7 @@ fn make_service_offline(
 
 /// Read all events of a type back from `account.db` (Account scope).
 fn account_events(tmp: &tempfile::TempDir, event_type: &str) -> Vec<ship_substrate::events::EventEnvelope> {
-    let root = ShipHome::project_ship_dir(tmp.path());
+    let root = tmp.path().join(".ship");
     let path = ship_substrate::db::account_db_path(&root);
     if !path.exists() {
         return Vec::new();

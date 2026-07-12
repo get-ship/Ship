@@ -18,7 +18,7 @@ use ship_config::resolve_hooks_max_depth;
 
 pub(super) fn tmp_ship_dir() -> (TempDir, std::path::PathBuf) {
     let tmp = tempfile::tempdir().unwrap();
-    let ship_dir = ship_substrate::ShipHome::project_ship_dir(tmp.path());
+    let ship_dir = tmp.path().join(".ship");
     std::fs::create_dir_all(ship_dir.join("triggers")).unwrap();
     std::fs::create_dir_all(ship_dir.join("schemas")).unwrap();
     ship_substrate::home::ensure_layout(&ship_substrate::ShipHome::at(ship_dir.clone()))

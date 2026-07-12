@@ -117,8 +117,7 @@ pub const SOURCE_GLOBAL: &str = "USER AGENTS";
 /// longer a "global-only, no project" case: the operator-enabled library
 /// tier only reaches a caller THROUGH a space's roll-up).
 pub(crate) fn resolve_space_root() -> Option<PathBuf> {
-    let project_ship = ship_substrate::project::get_project_dir(None).ok()?;
-    project_ship.parent().map(Path::to_path_buf)
+    ship_substrate::project::get_stack_root(None).ok()
 }
 
 /// Compose the project's space root into an [`ExtensionLibrary`][compiler::ExtensionLibrary]

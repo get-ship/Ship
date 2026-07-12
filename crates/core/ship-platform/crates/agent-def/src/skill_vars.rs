@@ -59,7 +59,7 @@ struct VarMeta {
 /// Parse `assets/vars.json` for a skill. Searches all configured skill_paths.
 /// Returns `None` if the file is absent in all paths.
 fn parse_vars_schema(ship_dir: &Path, skill_id: &str) -> Option<HashMap<String, VarMeta>> {
-    let space_root = ship_dir.parent().unwrap_or(ship_dir);
+    let space_root = ship_dir; // marker cutover: the anchor IS the root
     let content = crate::skill_paths::read_skill_paths(space_root)
         .into_iter()
         .map(|dir| dir.join(skill_id).join("assets").join("vars.json"))
@@ -197,7 +197,7 @@ pub fn reset_skill_vars(ship_dir: &Path, skill_id: &str) -> Result<bool> {
 pub fn list_skill_vars(ship_dir: &Path) -> Result<Vec<(String, HashMap<String, Value>)>> {
     let mut seen = std::collections::HashSet::new();
     let mut result = Vec::new();
-    let space_root = ship_dir.parent().unwrap_or(ship_dir);
+    let space_root = ship_dir; // marker cutover: the anchor IS the root
     for skills_path in crate::skill_paths::read_skill_paths(space_root) {
         if !skills_path.exists() {
             continue;
@@ -244,7 +244,7 @@ mod tests {
         // dot-ship close-out). The fixture still takes the ship_dir
         // path the public API expects — derive the space root as its
         // parent.
-        let space_root = ship_dir.parent().unwrap_or(ship_dir);
+        let space_root = ship_dir; // marker cutover: the anchor IS the root
         let assets = space_root.join("skills").join(skill_id).join("assets");
         std::fs::create_dir_all(&assets).unwrap();
         std::fs::write(assets.join("vars.json"), content).unwrap();
@@ -280,7 +280,7 @@ mod tests {
     #[test]
     fn get_skill_vars_returns_none_without_vars_json() {
         let (_tmp, ship_dir) = setup();
-        let space_root = ship_dir.parent().unwrap_or(&ship_dir);
+        let space_root = &ship_dir; // marker cutover: the anchor IS the root
         std::fs::create_dir_all(space_root.join("skills/no-vars")).unwrap();
         assert!(get_skill_vars(&ship_dir, "no-vars").unwrap().is_none());
     }
@@ -364,7 +364,7 @@ mod tests {
     fn list_skill_vars_returns_skills_with_vars_json() {
         let (_tmp, ship_dir) = setup();
         write_vars_json(&ship_dir, "commit", VARS_JSON);
-        let space_root = ship_dir.parent().unwrap_or(&ship_dir);
+        let space_root = &ship_dir; // marker cutover: the anchor IS the root
         std::fs::create_dir_all(space_root.join("skills/no-vars")).unwrap();
         let list = list_skill_vars(&ship_dir).unwrap();
         assert_eq!(list.len(), 1);

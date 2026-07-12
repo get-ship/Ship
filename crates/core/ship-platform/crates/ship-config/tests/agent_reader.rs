@@ -26,8 +26,8 @@ use ship_substrate::ports::{FsBroker, FsCap, FsMode, FsRoot, LocalFsBroker, Spac
 /// WSL/macOS and the FsBroker's symlink-escape guard canonicalizes the deepest
 /// existing ancestor, so the cap root must be canonical — production dirs are.
 fn ship_dir(tmp: &tempfile::TempDir) -> PathBuf {
-    let base = std::fs::canonicalize(tmp.path()).unwrap();
-    ship_substrate::home::ShipHome::project_ship_dir(base)
+    // Marker cutover: the reader anchors at the STACK ROOT.
+    std::fs::canonicalize(tmp.path()).unwrap()
 }
 
 /// Author a def file through the broker (no std::fs writes of content). Roots

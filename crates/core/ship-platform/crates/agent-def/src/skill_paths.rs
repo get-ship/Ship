@@ -38,7 +38,7 @@ mod tests {
         // `space.skill_paths` is the same as no ship.jsonc at all.
         let tmp = tempdir().unwrap();
         let space_root = tmp.path();
-        let ship_dir = ship_substrate::ShipHome::project_ship_dir(space_root);
+        let ship_dir = space_root.join(".ship");
         fs::create_dir_all(&ship_dir).unwrap();
         fs::write(&ship_dir.join("ship.jsonc"), r#"{"id": "test123"}"#)
             .unwrap();
@@ -51,7 +51,7 @@ mod tests {
         // The same for a manifest that simply omits the field.
         let tmp = tempdir().unwrap();
         let space_root = tmp.path();
-        let ship_dir = ship_substrate::ShipHome::project_ship_dir(space_root);
+        let ship_dir = space_root.join(".ship");
         fs::create_dir_all(&ship_dir).unwrap();
         fs::write(
             &ship_dir.join("ship.jsonc"),

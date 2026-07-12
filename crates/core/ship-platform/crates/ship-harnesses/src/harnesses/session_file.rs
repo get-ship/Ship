@@ -22,7 +22,10 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
-pub const SESSION_FILE_REL: &str = ".ship/session.json";
+// Runtime state as a DOTFILE beside the manifest (the .ship dir died with
+// the marker cutover; execution state stays machine-local per the scope
+// model — this per-workdir pointer is the resume seam).
+pub const SESSION_FILE_REL: &str = ".ship-session.json";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct SessionFile {
@@ -43,9 +46,8 @@ pub fn write_session_file(
     session_id: &str,
     agent: &str,
 ) -> std::io::Result<std::path::PathBuf> {
-    let ship_dir = ship_substrate::ShipHome::project_ship_dir(work_dir);
-    std::fs::create_dir_all(&ship_dir)?;
-    let path = ship_dir.join("session.json");
+    std::fs::create_dir_all(work_dir)?;
+    let path = work_dir.join(SESSION_FILE_REL);
     let file = SessionFile {
         harness: harness.to_string(),
         session_id: session_id.to_string(),
@@ -81,7 +83,7 @@ mod tests {
     fn write_then_read_round_trip() {
         let tmp = TempDir::new().unwrap();
         let path = write_session_file(tmp.path(), "claude", "sess-1", "rust-lane").unwrap();
-        assert!(path.ends_with(".ship/session.json"));
+        assert!(path.ends_with(".ship-session.json"));
 
         let read = read_session_file(tmp.path()).unwrap().unwrap();
         assert_eq!(read.harness, "claude");
@@ -99,7 +101,7 @@ mod tests {
     #[test]
     fn read_errors_on_malformed_file() {
         let tmp = TempDir::new().unwrap();
-        std::fs::create_dir_all(ship_substrate::ShipHome::project_ship_dir(tmp.path())).unwrap();
+        std::fs::create_dir_all(tmp.path()).unwrap();
         std::fs::write(tmp.path().join(SESSION_FILE_REL), "not json {").unwrap();
         let err = read_session_file(tmp.path()).unwrap_err();
         assert!(err.to_string().contains("malformed"), "got: {err}");

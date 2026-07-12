@@ -33,18 +33,10 @@ fn write(dir: &Path, rel: &str, content: &str) {
 
 /// Bare-minimum `.ship/` scaffold for tests that need to exercise `ship use`.
 fn scaffold_ship_dir(root: &Path) {
+    write(root, "ship.config.ts", "export default {};\n");
     write(
         root,
-        ".ship/ship.jsonc",
-        r#"{
-  "$schema": "../schemas/ship.schema.json",
-  "project": { "harnesses": ["claude"] },
-}
-"#,
-    );
-    write(
-        root,
-        ".ship/agents/dev.jsonc",
+        "agents/dev.jsonc",
         r#"{
   "$schema": "https://raw.githubusercontent.com/<ship-repo-org>/ship/main/schemas/agent.schema.json",
   "agent": {
@@ -69,7 +61,7 @@ fn use_nonexistent_agent_names_agent_and_suggests_fix() {
 
     write(
         tmp.path(),
-        ".ship/agents/valid-agent.jsonc",
+        "agents/valid-agent.jsonc",
         r#"{ "agent": { "name": "Valid", "id": "valid-agent", "harnesses": ["claude"] } }"#,
     );
 
@@ -83,7 +75,7 @@ fn use_nonexistent_agent_names_agent_and_suggests_fix() {
     // Names the agent
     assert!(stderr.contains("does-not-exist"), "must name the agent: {stderr}");
     // Points to .ship/agents/
-    assert!(stderr.contains(".ship/agents/"), "must mention location: {stderr}");
+    assert!(stderr.contains("agents/"), "must mention location: {stderr}");
     // Lists available agents as a remediation hint
     assert!(
         stderr.contains("valid-agent"),
@@ -96,7 +88,7 @@ fn use_nonexistent_agent_with_no_agents_dir_suggests_create() {
     let tmp = TempDir::new().unwrap();
     scaffold_ship_dir(tmp.path());
     // Remove agents dir to simulate empty source directory
-    let _ = fs::remove_dir_all(ship_substrate::ShipHome::project_ship_dir(tmp.path()).join("agents"));
+    let _ = fs::remove_dir_all(tmp.path().join("agents"));
 
     let output = ship_in(&tmp)
         .args(["use", "anything", "--path", tmp.path().to_str().unwrap()])
@@ -107,7 +99,7 @@ fn use_nonexistent_agent_with_no_agents_dir_suggests_create() {
     assert!(!output.status.success());
     // When no agents exist at all, should suggest creating one
     assert!(
-        stderr.contains(".ship/agents/") || stderr.contains("ship docs agents"),
+        stderr.contains("agents/") || stderr.contains("ship docs agents"),
         "must point user to agents dir or docs: {stderr}"
     );
 }
@@ -128,7 +120,8 @@ fn use_nonexistent_agent_with_no_agents_dir_suggests_create() {
 #[test]
 fn success_exits_zero() {
     let tmp = TempDir::new().unwrap();
-    write(tmp.path(), ".ship/rules/style.md", "Use types.");
+    write(tmp.path(), "ship.config.ts", "export default {};\n");
+    write(tmp.path(), "rules/style.md", "Use types.");
     ship()
         .args(["compile", "--harness", "claude", "--path", tmp.path().to_str().unwrap()])
         .assert()
@@ -164,7 +157,7 @@ fn compile_error_has_no_raw_backtrace() {
 fn use_error_has_no_raw_serde_trace() {
     let tmp = TempDir::new().unwrap();
     scaffold_ship_dir(tmp.path());
-    write(tmp.path(), ".ship/agents/bad-agent.jsonc", "{ not valid json at all }}}");
+    write(tmp.path(), "agents/bad-agent.jsonc", "{ not valid json at all }}}");
 
     let output = ship_in(&tmp)
         .args(["use", "bad-agent", "--path", tmp.path().to_str().unwrap()])

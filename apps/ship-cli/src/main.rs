@@ -196,27 +196,19 @@ fn run_use(agent_id: Option<&str>, path: Option<PathBuf>, extra_skills: Vec<Stri
     try_init_kernel_router();
     let ship_dir = match path {
         Some(ref p) => {
-            let sd = ship_substrate::ShipHome::project_ship_dir(std::fs::canonicalize(p)?);
+            let sd = std::fs::canonicalize(p)?;
             anyhow::ensure!(
-                sd.exists(),
-                ".ship/ not found in {}. Run `ship use` from a source directory with .ship/ scaffolded.",
+                sd.join(ship_substrate::project::STACK_CONFIG_FILENAME).exists(),
+                "no ship.config.ts found in {} — not a stack root.",
                 p.display()
             );
             sd
         }
         None => paths::space_ship_dir_required()?,
     };
-    let space_root = ship_dir.parent().unwrap().to_path_buf();
-
-    // When --path is not given and space_root was resolved via worktree pointer,
-    // the cwd (worktree) differs from space_root (main repo). Compiled output
-    // (CLAUDE.md, .claude/settings.json) must go to the cwd, not the main repo.
-    let output_root = if path.is_none() {
-        let cwd = std::env::current_dir()?;
-        if cwd != space_root { Some(cwd) } else { None }
-    } else {
-        None
-    };
+    // Marker cutover: discovery returns the STACK ROOT itself.
+    let space_root = ship_dir;
+    let output_root: Option<PathBuf> = None;
 
     profile::activate_agent(agent_id, &space_root, output_root.as_deref(), extra_skills, scoped)
 }
@@ -230,11 +222,11 @@ fn run_compile_cmd(harness: Option<&str>, dry_run: bool, path: Option<PathBuf>) 
         .transpose()?
         .unwrap_or_else(|| std::env::current_dir().unwrap());
 
-    if !ship_substrate::ShipHome::project_ship_dir(&space_root).exists() {
-        anyhow::bail!(".ship/ not found. Run `ship use <agent>` from a source directory with .ship/ scaffolded.");
+    if !space_root.join(ship_substrate::project::STACK_CONFIG_FILENAME).exists() {
+        anyhow::bail!("no ship.config.ts found in {} — not a stack root.", space_root.display());
     }
 
-    let state = profile::SpaceState::load(&ship_substrate::ShipHome::project_ship_dir(&space_root));
+    let state = profile::SpaceState::load(&space_root);
     compile::run_compile(compile::CompileOptions {
         space_root: &space_root,
         output_root: None,

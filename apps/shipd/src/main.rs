@@ -133,7 +133,7 @@ fn extract_str_arg(args: &[String], flag: &str) -> Option<String> {
 /// root (the dir containing `.ship/`), not `.ship/` itself.
 fn discover_workspace() -> Option<std::path::PathBuf> {
     let cwd = std::env::current_dir().ok()?;
-    let ship_dir = ship_substrate::project::resolve_project_ship_dir(&cwd)?;
+    let ship_dir = ship_substrate::project::resolve_stack_root(&cwd)?;
     ship_dir.parent().map(std::path::Path::to_path_buf)
 }
 

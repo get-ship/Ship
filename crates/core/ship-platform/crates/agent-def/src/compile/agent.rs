@@ -103,10 +103,8 @@ pub fn apply_agent_to_library(
 // ── Team agents ──────────────────────────────────────────────────────────────
 
 fn load_team_agents(space_root: &Path, harness_id: &str) -> Vec<(String, String)> {
-    let teams_dir = ship_substrate::ShipHome::project_ship_dir(space_root)
-        .join("agents")
-        .join("teams")
-        .join(harness_id);
+    // agents/ is a DOMAIN DIR at the stack root (marker cutover).
+    let teams_dir = space_root.join("agents").join("teams").join(harness_id);
     if !teams_dir.exists() {
         return vec![];
     }

@@ -45,7 +45,7 @@ pub fn run(check: bool) -> Result<()> {
         .to_path_buf();
     let out_dir = repo_root.join(MANIFESTS_DIR);
 
-    let project = ship_substrate::ShipHome::project_ship_dir(&repo_root);
+    let project = repo_root.clone(); // domain dirs live at the stack root
     let outputs = build_outputs(&repo_root, &project)?;
 
     if check {

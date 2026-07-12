@@ -85,7 +85,7 @@ fn one_dep_pipeline_namespaced_locals_untouched() {
     write_file(&obj, "pipelines/dep-pipe.jsonc", r#"{ "id": "dep-pipe" }"#);
 
     let lock = lock_with(vec![pkg("github.com/x/y", hex)]);
-    lock.write_atomic(&ship_dir.join("ship.lock")).unwrap();
+    lock.write_atomic(&tmp.path().join("ship.lock")).unwrap(); // lockfile at the stack root
 
     let composed = materialize_space(&ship_dir, Some(&cache_root)).unwrap();
 
@@ -126,7 +126,7 @@ fn one_dep_component_namespaced_resolvable_source() {
 
     std::fs::create_dir_all(&ship_dir).unwrap();
     let lock = lock_with(vec![pkg("github.com/acme/agents", hex)]);
-    lock.write_atomic(&ship_dir.join("ship.lock")).unwrap();
+    lock.write_atomic(&tmp.path().join("ship.lock")).unwrap(); // lockfile at the stack root
 
     let composed = materialize_space(&ship_dir, Some(&cache_root)).unwrap();
 
@@ -195,7 +195,7 @@ fn collection_schema_collision_errors() {
         pkg("github.com/a/one", hex_a),
         pkg("github.com/b/two", hex_b),
     ]);
-    lock.write_atomic(&ship_dir.join("ship.lock")).unwrap();
+    lock.write_atomic(&tmp.path().join("ship.lock")).unwrap(); // lockfile at the stack root
 
     let err = materialize_space(&ship_dir, Some(&cache_root)).unwrap_err();
     let msg = format!("{err:#}");

@@ -37,16 +37,8 @@ use crate::error::ConfigError;
 /// still confining to `.ship/agents`. When `ship_dir` has no parent, the cap
 /// roots at `ship_dir` with rel `agents`.
 fn cap_root_and_dir(ship_dir: &Path) -> (PathBuf, String) {
-    let ship_name = ship_dir
-        .file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_else(|| ship_substrate::home::ShipHome::ship_dir_name().to_string());
-    match ship_dir.parent() {
-        Some(parent) if !parent.as_os_str().is_empty() => {
-            (parent.to_path_buf(), format!("{ship_name}/agents"))
-        }
-        _ => (ship_dir.to_path_buf(), "agents".to_string()),
-    }
+    // Marker cutover: the anchor IS the stack root; agents/ is its domain dir.
+    (ship_dir.to_path_buf(), "agents".to_string())
 }
 
 /// Resolve the cap root + rel path for an explicit `agents` directory (the

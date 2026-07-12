@@ -1,3 +1,10 @@
+// Fetched LEGACY packages may still carry a `.ship/` tree; this local
+// helper names that historical PACKAGE shape (migrates with the registry
+// story). Our own discovery no longer knows the dirname.
+#[allow(dead_code)]
+fn legacy_package_ship_dir<P: AsRef<std::path::Path>>(root: P) -> std::path::PathBuf {
+    root.as_ref().join(".ship")
+}
 use std::path::Path;
 use std::process::Command;
 
@@ -242,12 +249,12 @@ fn try_sparse_checkout(git_url: &str, commit: &str, dest: &Path) -> anyhow::Resu
         anyhow::bail!("git checkout failed during sparse checkout");
     }
 
-    let ship_dir = ship_substrate::ShipHome::project_ship_dir(work);
+    let ship_dir = legacy_package_ship_dir(work);
     if !ship_dir.is_dir() {
         anyhow::bail!("no .ship/ directory after sparse checkout");
     }
 
-    copy_dir_recursive(&ship_dir, &ship_substrate::ShipHome::project_ship_dir(dest))
+    copy_dir_recursive(&ship_dir, &legacy_package_ship_dir(dest))
         .context("copying .ship/ from sparse checkout")?;
 
     Ok(())
@@ -300,12 +307,12 @@ fn clone_and_extract(git_url: &str, commit: &str, dest: &Path) -> anyhow::Result
     }
 
     // Detect package shape from cloned content.
-    let ship_dir = ship_substrate::ShipHome::project_ship_dir(&clone_dir);
+    let ship_dir = legacy_package_ship_dir(&clone_dir);
     let root_manifest = clone_dir.join("ship.jsonc");
 
     if ship_dir.join("ship.jsonc").exists() {
         // Ship-native: copy only .ship/.
-        copy_dir_recursive(&ship_dir, &ship_substrate::ShipHome::project_ship_dir(dest)).context("copying .ship/ from clone")?;
+        copy_dir_recursive(&ship_dir, &legacy_package_ship_dir(dest)).context("copying .ship/ from clone")?;
     } else if root_manifest.exists() {
         // Root-manifest: copy everything except .git/.
         copy_dir_recursive_excluding(&clone_dir, dest, &[".git"])

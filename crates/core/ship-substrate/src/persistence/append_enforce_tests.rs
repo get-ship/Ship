@@ -39,7 +39,7 @@ fn spaceless_binding() -> ScopeBinding {
 /// A Space-scoped store for `space` rooted under a temp ship-home. The same
 /// db `append_enforced` lands in is the one the reader queries back.
 fn space_store(tmp: &tempfile::TempDir, space: &str) -> SqliteEventStore {
-    let root = crate::ShipHome::project_ship_dir(tmp.path());
+    let root = tmp.path().join(".ship");
     SqliteEventStore::new_for_scope(&root, EventScope::Space, Some(space)).unwrap()
 }
 

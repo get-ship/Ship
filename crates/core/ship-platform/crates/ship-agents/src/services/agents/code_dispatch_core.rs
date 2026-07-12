@@ -267,9 +267,8 @@ pub async fn dispatch_code_session_core(
 /// is not compiled.
 #[cfg(feature = "ship-code")]
 fn resolve_project_head_sha() -> Option<String> {
-    let project_ship = ship_substrate::project::get_project_dir(None).ok()?;
-    let project_root = project_ship.parent()?;
-    ship_git::read::resolve_head_sha(project_root)
+    let stack_root = ship_substrate::project::get_stack_root(None).ok()?;
+    ship_git::read::resolve_head_sha(&stack_root)
 }
 
 /// Normalize a per-call string option: `Some("")` collapses to `None` so

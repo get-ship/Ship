@@ -31,28 +31,13 @@ fn write(dir: &Path, rel: &str, content: &str) {
     fs::write(p, content).unwrap();
 }
 
-/// Manually scaffold the bare-minimum `.ship/` tree that `ship use` and
-/// `ship compile` need. Mirrors what the (now-removed) `ship init` produced
-/// for a fresh source directory.
+/// Scaffold the bare-minimum STACK that `ship use` and `ship compile`
+/// need: the manifest marker. Agents ride `agents/<id>.jsonc` (written by
+/// each test as needed).
 fn scaffold_ship_dir(root: &Path) {
-    write(
-        root,
-        ".ship/ship.jsonc",
-        r#"{
-  "$schema": "../schemas/ship.schema.json",
-  "project": {
-    "harnesses": ["claude"],
-  },
-}
-"#,
-    );
+    write_ship_config(root, "");
 }
 
-/// Write a thin POINTER manifest (slice 2c). The body parameter is the
-/// inline content the tests want after the `import { ... }` block —
-/// usually empty (the per-noun source dirs carry the agents / rules /
-/// collections / pipelines / triggers; MCP server registrations go
-/// under `defineConfig({ agents: { mcp: { ... } } })`).
 fn write_ship_config(root: &Path, body: &str) {
     write(
         root,
@@ -114,7 +99,7 @@ defineAgent({{
 fn write_agent_stub(root: &Path, id: &str, name: &str) {
     write(
         root,
-        &format!(".ship/agents/{id}.jsonc"),
+        &format!("agents/{id}.jsonc"),
         &format!(r#"{{ "agent": {{ "id": "{id}", "name": "{name}" }} }}"#),
     );
 }
@@ -164,7 +149,7 @@ fn use_fails_without_ship_dir() {
         .args(["use", "my-profile", "--path", tmp.path().to_str().unwrap()])
         .assert()
         .failure()
-        .stderr(predicate::str::contains(".ship/ not found"));
+        .stderr(predicate::str::contains("no ship.config.ts found"));
 }
 
 #[test]
@@ -248,7 +233,7 @@ fn compile_fails_without_ship_dir() {
         .args(["compile", "--path", tmp.path().to_str().unwrap()])
         .assert()
         .failure()
-        .stderr(predicate::str::contains(".ship/ not found"));
+        .stderr(predicate::str::contains("no ship.config.ts found"));
 }
 
 // ── ship compile --harness ───────────────────────────────────────────────────

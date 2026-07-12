@@ -78,7 +78,7 @@ pub fn is_agent_config(path: &std::path::Path) -> bool {
 /// Returns the absolute path to `.ship/` for the current space, or errors.
 /// Uses git-worktree-aware traversal so this works from subdirs and worktrees.
 pub fn space_ship_dir_required() -> anyhow::Result<std::path::PathBuf> {
-    ship_substrate::project::get_project_dir(None)
+    ship_substrate::project::get_stack_root(None)
 }
 
 pub fn ensure_space_dirs() -> anyhow::Result<()> {
@@ -104,7 +104,7 @@ mod tests {
         // not end in `.ship`. Pin the env to a deterministic value for the
         // duration of this assertion (the guard restores on drop).
         let tmp = tempfile::tempdir().unwrap();
-        let ship_home = ShipHome::project_ship_dir(tmp.path());
+        let ship_home = tmp.path().join(".ship"); // test HOME shape
         let _guard = crate::test_env::isolated_ship_home(&ship_home);
         let g = global_dir();
         assert!(g.to_string_lossy().ends_with(".ship"));

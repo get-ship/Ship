@@ -116,7 +116,7 @@ fn scaffold_view_sync(
         .join("scaffolds")
         .join(shape);
     let mut scaffold_src: Option<std::path::PathBuf> = None;
-    if let Ok(d) = ship_substrate::project::get_project_dir(None) {
+    if let Ok(d) = ship_substrate::project::get_stack_root(None) {
         let p = d.join(&scaffold_rel);
         if p.is_dir() { scaffold_src = Some(p); }
     }

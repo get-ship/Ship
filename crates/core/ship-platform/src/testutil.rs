@@ -11,19 +11,13 @@ use std::path::{Path, PathBuf};
 pub fn init_project(base_dir: impl AsRef<Path>) -> Result<PathBuf> {
     crate::install_defaults();
     let base_dir = base_dir.as_ref();
-    let ship_dir = ship_substrate::ShipHome::project_ship_dir(base_dir);
-    std::fs::create_dir_all(&ship_dir)?;
-    std::fs::write(ship_dir.join("ship.jsonc"), "{}\n")?;
-    for rel in [
-        "project/adrs",
-        "project/specs",
-        "project/features",
-        "project/releases",
-        "project/notes",
-        "skills",
-        "rules",
-    ] {
-        std::fs::create_dir_all(ship_dir.join(rel))?;
+    std::fs::create_dir_all(base_dir)?;
+    std::fs::write(
+        base_dir.join(ship_substrate::project::STACK_CONFIG_FILENAME),
+        "export default {};\n",
+    )?;
+    for rel in ["skills", "rules", "agents"] {
+        std::fs::create_dir_all(base_dir.join(rel))?;
     }
-    Ok(ship_dir)
+    Ok(base_dir.to_path_buf())
 }

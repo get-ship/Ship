@@ -171,12 +171,11 @@ impl ShipRuntime {
             return;
         }
         // `template_file` on a `collection.insert` action resolves relative to
-        // the trigger's own space — the project `.ship/` when a workspace is
-        // attached, the daemon's home root otherwise (matches
-        // `start_agent_def_index`'s `project_ship_dir` derivation).
+        // the trigger's own space — the STACK ROOT when a workspace is
+        // attached, the daemon's home root otherwise.
         let (hook_ship_dir, triggers) = match &self.workspace_dir {
             Some(workspace) => {
-                let project_ship_dir = ship_substrate::ShipHome::project_ship_dir(workspace);
+                let project_ship_dir = workspace.clone();
                 let triggers = match ship_resolver::roll_up(workspace, None, None).await {
                     Ok(composed) => composed.library.triggers,
                     Err(e) => {
@@ -250,7 +249,7 @@ impl ShipRuntime {
             tracing::info!("agent-def index: no workspace — skipping live mount");
             return;
         };
-        let project_ship_dir = ship_substrate::ShipHome::project_ship_dir(&workspace);
+        let project_ship_dir = workspace.clone(); // stack root anchors the index
         // Served-space identity = the mint-once `space_id` the runtime
         // assigned at boot through `ship_space::identity::ensure_identity_for_root`.
         // Space-less workspace → no index; the daemon owns no home space

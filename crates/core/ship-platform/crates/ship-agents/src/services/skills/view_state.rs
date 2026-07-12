@@ -1,6 +1,6 @@
 //! Skill discovery for the `skills` view. Scans global + project scopes,
 //! deduplicates by id (project wins). Callers pass the daemon's global
-//! ship_dir; project scope resolved via `ship_substrate::project::get_project_dir`.
+//! ship_dir; project scope resolved via `ship_substrate::project::get_stack_root`.
 
 use serde::Serialize;
 use std::collections::HashSet;
@@ -111,22 +111,25 @@ pub(crate) struct SkillScopes {
 }
 
 fn resolve_scopes(ship_dir: &Path) -> SkillScopes {
-    let project_ship = ship_substrate::project::get_project_dir(None)
+    let project_root = ship_substrate::project::get_stack_root(None)
         .ok()
         .filter(|p| p != ship_dir);
-    scopes_from(ship_dir, project_ship.as_deref())
+    scopes_from(ship_dir, project_root.as_deref())
 }
 
 pub(crate) fn scopes_from(
     ship_dir: &Path,
     project_ship_dir: Option<&Path>,
 ) -> SkillScopes {
+    // LEGACY-COMPETITOR nuance (pending the catalog fold): the global tier
+    // still derives parent-of-home — the shape this scanner always had and
+    // its tests encode. The catalog work replaces this scanner wholesale.
     let space_root = ship_dir.parent().unwrap_or(ship_dir);
     let global_dirs = crate::agent_domain::skill_paths::read_skill_paths(space_root);
 
     let project_dirs = match project_ship_dir {
-        Some(project_ship) if project_ship != ship_dir => {
-            let project_root = project_ship.parent().unwrap_or(project_ship);
+        Some(project_root) if project_root != ship_dir => {
+            // Marker cutover: the resolved value IS the stack root.
             crate::agent_domain::skill_paths::read_skill_paths(project_root)
         }
         _ => Vec::new(),
