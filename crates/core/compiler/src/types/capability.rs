@@ -37,7 +37,12 @@ pub enum BlastRadius {
     #[default]
     #[serde(rename = "C0", alias = "C0_SAFE", alias = "C0_READ", alias = "C0Read")]
     C0Read,
-    #[serde(rename = "C1", alias = "C1_WORKSPACE", alias = "C1_SPACE", alias = "C1Space")]
+    #[serde(
+        rename = "C1",
+        alias = "C1_WORKSPACE",
+        alias = "C1_SPACE",
+        alias = "C1Space"
+    )]
     C1Space,
     #[serde(rename = "C2", alias = "C2_ELEVATED", alias = "C2Elevated")]
     C2Elevated,
@@ -119,7 +124,10 @@ mod tests {
 
     #[test]
     fn blast_serde_uses_short_codes() {
-        assert_eq!(serde_json::to_string(&BlastRadius::C0Read).unwrap(), "\"C0\"");
+        assert_eq!(
+            serde_json::to_string(&BlastRadius::C0Read).unwrap(),
+            "\"C0\""
+        );
         assert_eq!(
             serde_json::to_string(&BlastRadius::C2Elevated).unwrap(),
             "\"C2\""

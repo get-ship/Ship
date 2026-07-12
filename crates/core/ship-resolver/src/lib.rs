@@ -68,20 +68,22 @@
 //! - Census: `census-phase2-resolver.md` Part 4 + Part 5 J3.
 //! - F1 decision: `decision-f1-loader.md` (Option A — the superset is the
 //!   architecture, no code moves).
+pub mod cache;
 pub mod descriptor;
 pub mod space_loader;
 pub mod ts_resolver;
-pub mod cache;
 
 use std::collections::HashSet;
 use std::path::Path;
 
 use agent_config_eval::Declarations;
 use anyhow::{Context, Result};
-use compiler::{ComposedLibrary, ExtensionDescriptor, ExtSource, ExtensionLibrary, ResolvedConfig, RollupInputs};
+use compiler::{
+    ComposedLibrary, ExtSource, ExtensionDescriptor, ExtensionLibrary, ResolvedConfig, RollupInputs,
+};
 use serde_json::Value;
-use ship_substrate::ports::{FsBroker, LocalFsBroker};
 use ship_substrate::ShipHome;
+use ship_substrate::ports::{FsBroker, LocalFsBroker};
 
 /// Merge one eval's harvested [`Declarations`] into `library`'s noun
 /// collections — the shared merge both [`resolve_space_with_broker`] and
@@ -113,8 +115,11 @@ fn merge_ts_declarations(
     space_root: &Path,
 ) {
     if !declarations.agents.is_empty() {
-        let mut seen: HashSet<String> =
-            library.agent_profiles.iter().map(|a| a.agent.id.clone()).collect();
+        let mut seen: HashSet<String> = library
+            .agent_profiles
+            .iter()
+            .map(|a| a.agent.id.clone())
+            .collect();
         for profile in declarations.agents {
             if !seen.insert(profile.agent.id.clone()) {
                 continue;
@@ -153,10 +158,18 @@ fn merge_ts_declarations(
     mcp_from_config.sort_by(|a, b| a.id.cmp(&b.id));
     merge_by_key(&mut library.mcp_servers, mcp_from_config, |m| m.id.as_str());
     merge_by_key(&mut library.skills, declarations.skills, |s| s.id.as_str());
-    merge_by_key(&mut library.rules, declarations.rules, |r| r.file_name.as_str());
-    merge_by_key(&mut library.pipelines, declarations.pipelines, |p| p.name.as_str());
-    merge_by_key(&mut library.triggers, declarations.triggers, |t| t.id.as_str());
-    merge_by_key(&mut library.collections, declarations.collections, |c| c.id.as_str());
+    merge_by_key(&mut library.rules, declarations.rules, |r| {
+        r.file_name.as_str()
+    });
+    merge_by_key(&mut library.pipelines, declarations.pipelines, |p| {
+        p.name.as_str()
+    });
+    merge_by_key(&mut library.triggers, declarations.triggers, |t| {
+        t.id.as_str()
+    });
+    merge_by_key(&mut library.collections, declarations.collections, |c| {
+        c.id.as_str()
+    });
     library.views.extend(declarations.views);
 
     // Per-extension-project on-disk skills + rules walks (the
@@ -205,7 +218,7 @@ fn merge_ts_declarations(
         .config
         .iter()
         .filter_map(|c| c.skills_dir.clone())
-        .last()
+        .next_back()
         .or_else(|| library.skill_paths.first().cloned())
         .unwrap_or_else(|| compiler::loader::DEFAULT_SPACE_SKILL_PATH.to_string());
     // Keep `library.skill_paths` tracking the resolved path (single
@@ -214,8 +227,7 @@ fn merge_ts_declarations(
     // `defineConfig({ skills_dir })`) REPLACES that single entry).
     library.skill_paths = vec![resolved_skills_dir.clone()];
     {
-        let mut seen: HashSet<String> =
-            library.skills.iter().map(|s| s.id.clone()).collect();
+        let mut seen: HashSet<String> = library.skills.iter().map(|s| s.id.clone()).collect();
         let mut added_skills: Vec<String> = Vec::new();
         match space_loader::walk_skills_dir(fs, &cap, &resolved_skills_dir) {
             Ok(found) => {
@@ -251,12 +263,11 @@ fn merge_ts_declarations(
         .config
         .iter()
         .filter_map(|c| c.rules_dir.clone())
-        .last()
+        .next_back()
         .map(|s| s.trim_end_matches('/').to_string())
         .unwrap_or_else(|| "rules".to_string());
     {
-        let mut seen: HashSet<String> =
-            library.rules.iter().map(|r| r.file_name.clone()).collect();
+        let mut seen: HashSet<String> = library.rules.iter().map(|r| r.file_name.clone()).collect();
         let mut added_rules: Vec<String> = Vec::new();
         match space_loader::walk_rules_dir(fs, &cap, &resolved_rules_dir) {
             Ok(found) => {
@@ -302,7 +313,7 @@ fn merge_ts_declarations(
         .config
         .iter()
         .filter_map(|c| c.hooks_dir.clone())
-        .last()
+        .next_back()
         .map(|s| s.trim_end_matches('/').to_string())
         .unwrap_or_else(|| "hooks".to_string());
     // Track the resolved dir on the descriptor (`library.hooks_dir`)
@@ -312,8 +323,7 @@ fn merge_ts_declarations(
     // so we always set it after the resolution step.
     library.hooks_dir = Some(resolved_hooks_dir.clone());
     {
-        let mut seen: HashSet<String> =
-            library.hooks.iter().map(|h| h.id.clone()).collect();
+        let mut seen: HashSet<String> = library.hooks.iter().map(|h| h.id.clone()).collect();
         let mut added_hooks: Vec<String> = Vec::new();
         match space_loader::walk_hooks_dir(fs, &cap, &resolved_hooks_dir) {
             Ok(found) => {
@@ -363,22 +373,25 @@ fn merge_ts_declarations(
     // directly. See `agent_def::compile::permissions::apply_agent_permissions`.
     for cfg in &declarations.config {
         let Some(agents) = &cfg.agents else { continue };
-        let Some(perms) = &agents.permissions else { continue };
+        let Some(perms) = &agents.permissions else {
+            continue;
+        };
         for (name, declared) in &perms.presets {
             // First-wins: the entry already in the map (from a
             // prior `defineConfig` call in declared order) wins.
             // `BTreeMap::entry()` gives us the same semantics in
             // one call: `or_insert_with` is no-op when the key is
             // already present.
-            library.permissions_presets.entry(name.clone()).or_insert_with(|| {
-                compiler::PermissionPreset {
+            library
+                .permissions_presets
+                .entry(name.clone())
+                .or_insert_with(|| compiler::PermissionPreset {
                     default_mode: declared.default_mode.clone(),
                     tools_allow: declared.tools_allow.clone(),
                     tools_deny: declared.tools_deny.clone(),
                     tools_ask: declared.tools_ask.clone(),
                     additional_directories: declared.additional_directories.clone(),
-                }
-            });
+                });
         }
     }
 }
@@ -453,9 +466,7 @@ pub async fn resolve_space_with_broker(
     //    `imported_modules` from `ship.config.ts`.
     let mut library = space_loader::load_space_library(fs, space_root)
         .await
-        .with_context(|| {
-            format!("resolver: space load failed for {}", space_root.display())
-        })?;
+        .with_context(|| format!("resolver: space load failed for {}", space_root.display()))?;
 
     // 2. TS eval fan-out — every declare-form roll-up per module (Wave 3:
     //    agents, mcp servers, skills, rules, pipelines, triggers,
@@ -483,9 +494,7 @@ pub async fn resolve_space_with_broker(
 /// TS eval). Useful for callers that need the raw space shape (the
 /// descriptor cache in J5, for instance — the cache key is the
 /// `ExtensionLibrary`'s content hash, not the resolved config's).
-pub async fn load_space_library(
-    space_root: &Path,
-) -> Result<ExtensionLibrary> {
+pub async fn load_space_library(space_root: &Path) -> Result<ExtensionLibrary> {
     let fs = LocalFsBroker::new();
     space_loader::load_space_library(&fs, space_root).await
 }
@@ -563,8 +572,7 @@ pub async fn roll_up(
     //    and merges; the merged `Declarations` lands in
     //    `source_library` below (the merged source shape that
     //    `compose_space` consumes).
-    let mut per_root_descriptors: Vec<ExtensionDescriptor> =
-        Vec::with_capacity(roots.len());
+    let mut per_root_descriptors: Vec<ExtensionDescriptor> = Vec::with_capacity(roots.len());
     let mut space_root_descriptor: Option<ExtensionDescriptor> = None;
     for root in &roots {
         let mut per_root = space_loader::load_root_library(&fs, &root.path)
@@ -580,16 +588,15 @@ pub async fn roll_up(
         // library. The `imported_modules` is consumed in the process —
         // the per-root descriptor carries the merged library
         // (declare-forms as if they were file-borne).
-        let declarations =
-            ts_resolver::resolve_ts_files(&per_root.imported_modules, &Value::Null)
-                .await
-                .with_context(|| {
-                    format!(
-                        "roll_up: TS eval for root {} ({})",
-                        root.path.display(),
-                        root.identity
-                    )
-                })?;
+        let declarations = ts_resolver::resolve_ts_files(&per_root.imported_modules, &Value::Null)
+            .await
+            .with_context(|| {
+                format!(
+                    "roll_up: TS eval for root {} ({})",
+                    root.path.display(),
+                    root.identity
+                )
+            })?;
         merge_ts_declarations(&mut per_root, declarations, &fs, &root.path);
         // Drain the now-consumed modules so they don't double-eval
         // via the merged `source_library` below.
@@ -597,10 +604,7 @@ pub async fn roll_up(
 
         let per_root_content_hash = descriptor::extension_library_content_hash(&per_root)
             .with_context(|| {
-                format!(
-                    "roll_up: per-root content hash for {}",
-                    root.path.display()
-                )
+                format!("roll_up: per-root content hash for {}", root.path.display())
             })?;
 
         if root.identity == space_loader::SPACE_ROOT_IDENTITY {
@@ -670,11 +674,9 @@ pub async fn roll_up(
             &default_cache_root
         }
     };
-    let bundles = ship_store::dep_skills::load_cached_extensions(
-        &lock_path,
-        Some(resolved_cache_root),
-    )
-    .with_context(|| format!("roll_up: cached extensions for {}", lock_path.display()))?;
+    let bundles =
+        ship_store::dep_skills::load_cached_extensions(&lock_path, Some(resolved_cache_root))
+            .with_context(|| format!("roll_up: cached extensions for {}", lock_path.display()))?;
 
     // 4b. Load the enabled tier: extensions the operator enabled globally,
     // via `ShipHome::library_dir()` (`data/library/{agents,skills,rules,...}`
@@ -710,19 +712,20 @@ pub async fn roll_up(
     let mut extensions: Vec<ExtensionDescriptor> =
         Vec::with_capacity(bundles.len() + 2 + per_root_descriptors.len());
     for bundle in &bundles {
-        let mut descriptor = ExtensionLibrary::default();
-        descriptor.agent_profiles = bundle.agent_profiles.clone();
-        descriptor.skills = bundle.skills.clone();
-        // Dep views: each bundle's `views` are already prefixed with
-        // `pkg_path` by `load_cached_extensions`, so they're ready for
-        // `compose_views`'s namespace-prefix merge. An empty vec is the
-        // common case (no view exports in this package) — composing an
-        // empty collection is a no-op, not an error.
-        descriptor.views = bundle.views.clone();
         extensions.push(ExtensionDescriptor {
             source: ExtSource::Cache,
             space_root: space_root.to_path_buf(),
-            descriptor,
+            descriptor: ExtensionLibrary {
+                agent_profiles: bundle.agent_profiles.clone(),
+                skills: bundle.skills.clone(),
+                // Dep views: each bundle's `views` are already prefixed with
+                // `pkg_path` by `load_cached_extensions`, so they're ready for
+                // `compose_views`'s namespace-prefix merge. An empty vec is
+                // the common case (no view exports in this package) —
+                // composing an empty collection is a no-op, not an error.
+                views: bundle.views.clone(),
+                ..Default::default()
+            },
             content_hash: bundle.content_hash.clone(),
         });
     }
@@ -745,8 +748,7 @@ pub async fn roll_up(
 
     // 7. Compose. Pure; the law is the only thing that mutates the
     //    library's noun collections.
-    let mut composed = compiler::compose_space(&rollup_inputs)
-        .context("roll_up: compose_space")?;
+    let mut composed = compiler::compose_space(&rollup_inputs).context("roll_up: compose_space")?;
 
     // 8. Annotate the composed library with the inputs so consumers (J3
     //    index, J4 view) can audit the roll-up. The `rollup_inputs` field

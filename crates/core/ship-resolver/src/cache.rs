@@ -67,9 +67,9 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use compiler::CompileOutput;
 use ship_substrate::ports::{FsBroker, FsCap, FsMode, FsRoot, KernelLog, LocalFsBroker, SpaceId};
+use ship_types::event_types;
 use tokio::sync::Mutex;
 use tokio::sync::broadcast;
-use ship_types::event_types;
 use tracing::warn;
 
 /// The descriptor cache. Holds an in-memory index of (space, hash, harness)
@@ -191,10 +191,7 @@ impl DescriptorCache {
         // space prefix is part of the rel so `create_dir_all`
         // walks the whole path and creates the space subdir
         // atomically with the file write).
-        let rel = format!(
-            "{}/{}__{}.json",
-            key.space, key.content_hash, key.harness
-        );
+        let rel = format!("{}/{}__{}.json", key.space, key.content_hash, key.harness);
         // Spawn the disk write. We clone the broker, the
         // `Arc<CompileOutput>`, and the `cache_root`/`space` so
         // the spawn doesn't borrow `self`.
@@ -204,7 +201,9 @@ impl DescriptorCache {
         let key_for_log = key.clone();
         let payload_for_write = payload.clone();
         tokio::spawn(async move {
-            if let Err(e) = write_entry(&*broker, &cache_root, &space, &rel, &payload_for_write).await {
+            if let Err(e) =
+                write_entry(&*broker, &cache_root, &space, &rel, &payload_for_write).await
+            {
                 warn!(
                     "descriptor cache: write failed for {key_for_log:?}: {e} \
                      (next read will miss and re-load)"
@@ -221,9 +220,7 @@ impl DescriptorCache {
     pub async fn invalidate(&self, space_id: &SpaceId) {
         let mut state = self.inner.lock().await;
         let before = state.entries.len();
-        state
-            .entries
-            .retain(|k, _| k.space != space_id.as_str());
+        state.entries.retain(|k, _| k.space != space_id.as_str());
         let after = state.entries.len();
         if before != after {
             tracing::debug!(
@@ -373,8 +370,10 @@ mod tests {
     fn sample_output(label: &str) -> CompileOutput {
         let mut out = CompileOutput::default();
         out.context_content = Some(format!("// {label}\n"));
-        out.skill_files
-            .insert(format!(".claude/skills/{label}/SKILL.md"), "body".to_string());
+        out.skill_files.insert(
+            format!(".claude/skills/{label}/SKILL.md"),
+            "body".to_string(),
+        );
         out.mcp_servers = json!({ "mcpServers": { label: { "command": "echo" } } });
         out
     }
@@ -656,9 +655,7 @@ mod tests {
 
         // 1. Pre-populate.
         let pre = cache
-            .get_or_load(&space, hash, harness, || async {
-                Ok(sample_output("pre"))
-            })
+            .get_or_load(&space, hash, harness, || async { Ok(sample_output("pre")) })
             .await
             .unwrap();
         assert_eq!(pre.context_content.as_deref(), Some("// pre\n"));

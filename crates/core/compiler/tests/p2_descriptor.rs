@@ -22,8 +22,7 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use compiler::{
-    load_library, ExtensionDescriptor, ExtSource, ModuleDescriptor,
-    ExtensionLibrary, RollupInputs,
+    ExtSource, ExtensionDescriptor, ExtensionLibrary, ModuleDescriptor, RollupInputs, load_library,
 };
 use serde_json::json;
 
@@ -81,7 +80,10 @@ fn fixture_round_trips_byte_unchanged() {
     // died with the dot-ship close-out, so no extras walk exists.
     assert!(lib.skills_dir.is_none());
     assert!(lib.rules_dir.is_none());
-    assert_eq!(lib.skill_paths, vec![compiler::loader::DEFAULT_SPACE_SKILL_PATH.to_string()]);
+    assert_eq!(
+        lib.skill_paths,
+        vec![compiler::loader::DEFAULT_SPACE_SKILL_PATH.to_string()]
+    );
     assert!(lib.per_agent_skills.is_empty());
     assert!(lib.imported_modules.is_empty());
     assert!(lib.globals.is_null());
@@ -118,10 +120,7 @@ fn rules_dir_round_trips() {
 #[test]
 fn skill_paths_round_trips() {
     let mut lib = ExtensionLibrary::default();
-    lib.skill_paths = vec![
-        "skills/".to_string(),
-        "vendor/sui/skills/".to_string(),
-    ];
+    lib.skill_paths = vec!["skills/".to_string(), "vendor/sui/skills/".to_string()];
     assert_byte_identical(&lib, "ExtensionLibrary::skill_paths");
 }
 

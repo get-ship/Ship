@@ -333,8 +333,7 @@ mod tests {
     #[test]
     fn format_skill_file_runtime_agents_injected() {
         let mut skill = base_skill();
-        skill.content =
-            "{% for a in runtime.agents %}- {{ a.id }}\n{% endfor %}".to_string();
+        skill.content = "{% for a in runtime.agents %}- {{ a.id }}\n{% endfor %}".to_string();
         let runtime = serde_json::json!({
             "agents": [
                 {"id": "rust-compiler", "name": "Rust Compiler", "description": null},

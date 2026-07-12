@@ -192,7 +192,10 @@ mod tests {
         assert_eq!(profile.agent.id, "code-reviewer");
         assert_eq!(profile.agent.role.as_deref(), Some("worker"));
         assert_eq!(profile.agent.tags, vec!["review", "testing"]);
-        assert_eq!(profile.skills.refs, vec!["review-pr", "lint-fix", "test-runner"]);
+        assert_eq!(
+            profile.skills.refs,
+            vec!["review-pr", "lint-fix", "test-runner"]
+        );
         assert_eq!(profile.mcp.servers, vec!["github", "linear"]);
         assert_eq!(profile.permissions.preset.as_deref(), Some("ship-standard"));
         assert_eq!(profile.hooks.len(), 1);

@@ -30,9 +30,8 @@
 //! slice — see the spec's SPEC CHANGE rule 4 for the deferral note).
 
 use anyhow::Result;
-use compiler::{Skill, SkillSource};
-use include_dir::include_dir;
-use std::collections::{HashMap, HashSet};
+use compiler::Skill;
+use std::collections::HashMap;
 use std::path::Path;
 
 /// SMELL: the `include_dir!` macro below pointed at the in-tree
@@ -98,6 +97,7 @@ pub use compiler::skill_parser::parse_skill;
 
 // ── Vars loading ─────────────────────────────────────────────────────────────
 
+#[allow(dead_code)]
 fn load_skill_vars(
     ship_dir: &Path,
     state_key: &str,
@@ -146,6 +146,7 @@ fn load_skill_vars(
 #[cfg(test)]
 mod sdk_skill_tests {
     use super::*;
+    use compiler::SkillSource;
 
     #[test]
     #[ignore = "embedded SDK skills disabled until ship-contracts publishes a ship-sdk-skills crate; see embedded_capability_skills() and the commented include_dir!"]

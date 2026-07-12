@@ -49,11 +49,23 @@ fn lifecycle_hooks_are_pod_and_host_hybrid() {
     // Pod branch: curl the daemon's hook endpoint with the scoped bearer.
     // The daemon mounts hooks at /hooks/* (router.rs), NOT under /api/v1 —
     // the old prefix 404'd in every sandboxed pod.
-    assert!(cmd.contains("$SHIP_DAEMON_URL/hooks/before-tool"), "got: {cmd}");
-    assert!(cmd.contains("Authorization: Bearer $SHIP_TOKEN"), "got: {cmd}");
-    assert!(cmd.contains("--data-binary @-"), "raw stdin forwarded: {cmd}");
+    assert!(
+        cmd.contains("$SHIP_DAEMON_URL/hooks/before-tool"),
+        "got: {cmd}"
+    );
+    assert!(
+        cmd.contains("Authorization: Bearer $SHIP_TOKEN"),
+        "got: {cmd}"
+    );
+    assert!(
+        cmd.contains("--data-binary @-"),
+        "raw stdin forwarded: {cmd}"
+    );
     // Host fallback: the CLI when $SHIP_DAEMON_URL is unset.
-    assert!(cmd.contains("else true; fi"), "host fallback must be a no-op: {cmd}");
+    assert!(
+        cmd.contains("else true; fi"),
+        "host fallback must be a no-op: {cmd}"
+    );
 }
 
 /// Explicit deny-only is safe: it only restricts what the user asked to restrict.

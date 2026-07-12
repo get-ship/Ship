@@ -116,9 +116,13 @@ pub fn compose_space(inputs: &RollupInputs) -> anyhow::Result<ComposedLibrary> {
         .unwrap_or_default();
 
     let mut shadows = Vec::new();
-    library.agents = compose_noun(&ordered, &mut shadows, NounKind::Agent, |d| &d.agents, |a| {
-        a.agent.id.as_str()
-    });
+    library.agents = compose_noun(
+        &ordered,
+        &mut shadows,
+        NounKind::Agent,
+        |d| &d.agents,
+        |a| a.agent.id.as_str(),
+    );
     library.agent_profiles = compose_noun(
         &ordered,
         &mut shadows,
@@ -126,12 +130,20 @@ pub fn compose_space(inputs: &RollupInputs) -> anyhow::Result<ComposedLibrary> {
         |d| &d.agent_profiles,
         |a| a.agent.id.as_str(),
     );
-    library.skills = compose_noun(&ordered, &mut shadows, NounKind::Skill, |d| &d.skills, |s| {
-        s.id.as_str()
-    });
-    library.rules = compose_noun(&ordered, &mut shadows, NounKind::Rule, |d| &d.rules, |r| {
-        r.file_name.as_str()
-    });
+    library.skills = compose_noun(
+        &ordered,
+        &mut shadows,
+        NounKind::Skill,
+        |d| &d.skills,
+        |s| s.id.as_str(),
+    );
+    library.rules = compose_noun(
+        &ordered,
+        &mut shadows,
+        NounKind::Rule,
+        |d| &d.rules,
+        |r| r.file_name.as_str(),
+    );
     library.mcp_servers = compose_noun(
         &ordered,
         &mut shadows,
@@ -146,7 +158,11 @@ pub fn compose_space(inputs: &RollupInputs) -> anyhow::Result<ComposedLibrary> {
     // tree" view; `compose_route_tree` is the documented J3 law.
     let route_tree = compose_route_tree(&library.views);
 
-    Ok(ComposedLibrary { library, shadows, route_tree })
+    Ok(ComposedLibrary {
+        library,
+        shadows,
+        route_tree,
+    })
 }
 
 /// Compose ONE noun collection across the rank-ordered tiers. First
@@ -196,8 +212,8 @@ fn compose_noun<'a, T: Clone + 'a>(
 /// prefixes claims two distinct slots and both survive. Only a genuine
 /// same-prefix collision replaces in place and records a [`ShadowRecord`],
 /// same resolution order (rank, then declared order) as every other noun.
-fn compose_views<'a>(
-    ordered: &[(u32, &'a ExtensionDescriptor)],
+fn compose_views(
+    ordered: &[(u32, &ExtensionDescriptor)],
     shadows: &mut Vec<ShadowRecord>,
 ) -> Vec<ViewDescriptor> {
     let mut out: Vec<ViewDescriptor> = Vec::new();

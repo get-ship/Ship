@@ -83,10 +83,7 @@ fn opencode_agent_output() {
 
 #[test]
 fn multiple_profiles() {
-    let profiles = vec![
-        make_profile("alpha", "Alpha"),
-        make_profile("beta", "Beta"),
-    ];
+    let profiles = vec![make_profile("alpha", "Alpha"), make_profile("beta", "Beta")];
     let files = compile_agent_profiles(&profiles, "claude");
     assert_eq!(files.len(), 2);
     assert!(files.contains_key(".claude/agents/alpha.md"));

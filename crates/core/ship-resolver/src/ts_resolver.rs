@@ -133,7 +133,9 @@ async fn eval_one_module(module: &ModuleDescriptor, globals: &Value) -> Result<D
             .enable_all()
             .build()
             .context("ts_resolver: failed to build current-thread runtime for V8 eval")?;
-        rt.block_on(agent_config_eval::resolve_declarations_with_globals(&source, globals))
+        rt.block_on(agent_config_eval::resolve_declarations_with_globals(
+            &source, globals,
+        ))
     })
     .await
     .context("ts_resolver: V8 eval task join failed (panic?)")??;
@@ -206,7 +208,11 @@ for (const id of ["a", "b", "c"]) {
 "#,
         );
         let declarations = resolve_ts_files(&[module], &Value::Null).await.unwrap();
-        let ids: Vec<&str> = declarations.agents.iter().map(|p| p.agent.id.as_str()).collect();
+        let ids: Vec<&str> = declarations
+            .agents
+            .iter()
+            .map(|p| p.agent.id.as_str())
+            .collect();
         assert_eq!(ids, vec!["a", "b", "c"]);
     }
 
@@ -255,7 +261,11 @@ defineAgent({ agent: { id: "b2", name: "B2" } });
 "#,
         );
         let declarations = resolve_ts_files(&[m1, m2], &Value::Null).await.unwrap();
-        let ids: Vec<&str> = declarations.agents.iter().map(|p| p.agent.id.as_str()).collect();
+        let ids: Vec<&str> = declarations
+            .agents
+            .iter()
+            .map(|p| p.agent.id.as_str())
+            .collect();
         assert_eq!(ids, vec!["a1", "b1", "b2"]);
     }
 
@@ -282,6 +292,9 @@ import {
 defineAgent({ agent: { id: "demo", name: "Demo" } });
 
 defineConfig({
+  dependencies: {
+    "github.com/better-auth/skills": "main",
+  },
   agents: {
     mcp: {
       search: {
@@ -338,6 +351,16 @@ defineView({
         let agents = cfg.agents.as_ref().expect("agents block in defineConfig");
         assert_eq!(agents.mcp.len(), 1);
         assert!(agents.mcp.contains_key("search"));
+        let dep = cfg
+            .dependencies
+            .get("github.com/better-auth/skills")
+            .expect("defineConfig dependencies harvested");
+        match dep {
+            compiler::manifest::ManifestDepValue::Version(version) => assert_eq!(version, "main"),
+            compiler::manifest::ManifestDepValue::Full(_) => {
+                panic!("expected shorthand dependency")
+            }
+        }
 
         assert_eq!(declarations.pipelines.len(), 1);
         assert_eq!(declarations.pipelines[0].name, "ci");

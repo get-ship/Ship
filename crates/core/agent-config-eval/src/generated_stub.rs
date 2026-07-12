@@ -16,7 +16,8 @@
 // `declarations.rs::drift_tests`.
 
 pub const SDK_STUB: &str = r#"
-
+// --- determinism guard: config eval must be pure -------------------------
+// Runs at SDK-module load, before the entry module's body (ES modules evaluate
 // imports first), so authored config never observes an un-guarded clock/RNG.
 const __block = (what) => () => {
   throw new Error(what + " is blocked in ship config eval — config must be deterministic");
@@ -46,6 +47,7 @@ function __emit(kind, value) {
   Deno.core.ops.op_emit({ __kind: kind, value });
   return value;
 }
+
 export function defineAgent(config) {
   return __emit("agent", config);
 }
@@ -65,6 +67,7 @@ export function defineView(config) {
 // Per-extension-project options, declared as a default export from each
 // extension's `ship.config.ts`:
 //   export default defineConfig({
+//     dependencies: { "github.com/owner/package": "main" },
 //     agents_dir: "agents", skills_dir: "skills", rules_dir: "rules",
 //     hooks_dir: "hooks", triggers_dir: "triggers", ...
 //     agents: { mcp: {…}, permissions: { presets: { ... } } },
@@ -94,16 +97,55 @@ export function defineConfig(config) {
 /// stack noun shape at generation time. See the file header: a unit test
 /// in `ts_resolver.rs` asserts its hand-written harvest structs declare
 /// the same field sets.
-pub const MCP_SERVER_DEF_FIELDS: &[&str] = &["args", "command", "env", "id", "scope", "server_type", "url"];
+#[allow(dead_code)]
+pub const MCP_SERVER_DEF_FIELDS: &[&str] = &[
+    "args",
+    "command",
+    "env",
+    "id",
+    "scope",
+    "server_type",
+    "url",
+];
+#[allow(dead_code)]
 pub const PIPELINE_DEF_FIELDS: &[&str] = &["auto_merge", "name", "steps"];
+#[allow(dead_code)]
 pub const PIPELINE_STEP_FIELDS: &[&str] = &["after", "gate", "id", "step_specs"];
+#[allow(dead_code)]
 pub const PIPELINE_GATE_FIELDS: &[&str] = &["forbid_changed", "require_changed"];
+#[allow(dead_code)]
 pub const PIPELINE_STEP_SPEC_FIELDS: &[&str] = &["agent", "harness", "id", "prompt"];
+#[allow(dead_code)]
 pub const TRIGGER_DEF_FIELDS: &[&str] = &["actions", "id", "source", "trigger"];
+#[allow(dead_code)]
 pub const TRIGGER_EVENT_MATCH_FIELDS: &[&str] = &["event"];
+#[allow(dead_code)]
 pub const TRIGGER_ACTION_FIELDS: &[&str] = &["type"];
+#[allow(dead_code)]
 pub const TRIGGER_SOURCE_WEBHOOK_FIELDS: &[&str] = &["kind", "path", "secret"];
+#[allow(dead_code)]
 pub const TRIGGER_SOURCE_FILE_FIELDS: &[&str] = &["glob", "kind"];
+#[allow(dead_code)]
 pub const TRIGGER_SOURCE_CRON_FIELDS: &[&str] = &["kind", "schedule"];
-pub const COLLECTION_FIELD_DEF_FIELDS: &[&str] = &["default", "filterable", "name", "required", "sortable", "type", "values"];
-pub const CONFIG_DEF_FIELDS: &[&str] = &["agents", "agents_dir", "collections_dir", "hooks_dir", "pipelines_dir", "rules_dir", "skills_dir", "triggers_dir"];
+#[allow(dead_code)]
+pub const COLLECTION_FIELD_DEF_FIELDS: &[&str] = &[
+    "default",
+    "filterable",
+    "name",
+    "required",
+    "sortable",
+    "type",
+    "values",
+];
+#[allow(dead_code)]
+pub const CONFIG_DEF_FIELDS: &[&str] = &[
+    "agents",
+    "agents_dir",
+    "collections_dir",
+    "dependencies",
+    "hooks_dir",
+    "pipelines_dir",
+    "rules_dir",
+    "skills_dir",
+    "triggers_dir",
+];

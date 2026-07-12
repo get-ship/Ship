@@ -7,8 +7,7 @@ use serde_json::json;
 use tempfile::TempDir;
 
 use crate::decompile::{
-    decompile_claude, decompile_codex, decompile_opencode,
-    test_helpers::write_file,
+    decompile_claude, decompile_codex, decompile_opencode, test_helpers::write_file,
 };
 use crate::resolve::ExtensionLibrary;
 use crate::types::{
@@ -186,7 +185,6 @@ fn codex_roundtrip_preserves_model_and_mcp() {
     assert!(decompiled.mcp_servers.iter().any(|s| s.id == "ship"));
     assert!(!decompiled.rules.is_empty());
 }
-
 
 // ── OpenCode round-trip ──────────────────────────────────────────────────────
 

@@ -145,4 +145,3 @@ impl Default for SpaceManifest {
 fn default_version() -> String {
     "1".to_string()
 }
-

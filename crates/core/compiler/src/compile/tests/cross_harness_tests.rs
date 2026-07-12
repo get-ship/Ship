@@ -81,7 +81,11 @@ fn conformance_config() -> ResolvedConfig {
             globs: vec![],
             description: None,
         }],
-        hooks: vec![make_hook(HookTrigger::PreToolUse, "ship check", Some("Bash"))],
+        hooks: vec![make_hook(
+            HookTrigger::PreToolUse,
+            "ship check",
+            Some("Bash"),
+        )],
         permissions: Permissions {
             tools: ToolPermissions {
                 deny: vec!["Bash(rm -rf *)".into()],

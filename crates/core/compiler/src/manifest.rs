@@ -154,14 +154,12 @@ pub struct ShipManifest {
 }
 
 impl ShipManifest {
-
     /// Validate a raw manifest and produce a [`ShipManifest`].
     fn from_raw(raw: RawShipManifest) -> anyhow::Result<Self> {
         let module = if let Some(raw_module) = raw.module {
-            let name = raw_module
-                .name
-                .filter(|n| !n.is_empty())
-                .ok_or_else(|| anyhow::anyhow!("[module].name is required when module section is present"))?;
+            let name = raw_module.name.filter(|n| !n.is_empty()).ok_or_else(|| {
+                anyhow::anyhow!("[module].name is required when module section is present")
+            })?;
 
             if !is_valid_package_name(&name) {
                 anyhow::bail!(
@@ -174,7 +172,9 @@ impl ShipManifest {
             let version = raw_module
                 .version
                 .filter(|v| !v.is_empty())
-                .ok_or_else(|| anyhow::anyhow!("[module].version is required when module section is present"))?;
+                .ok_or_else(|| {
+                    anyhow::anyhow!("[module].version is required when module section is present")
+                })?;
 
             let ver_str = version.trim_start_matches('v');
             semver::Version::parse(ver_str).map_err(|e| {

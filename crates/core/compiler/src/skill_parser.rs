@@ -17,7 +17,7 @@
 //! forms. Block continuations are tracked via `in_*` section flags so the
 //! first indented `- …` line gets attached to the previous key.
 
-use crate::types::{is_valid_skill_name, Skill, SkillSource};
+use crate::types::{Skill, SkillSource, is_valid_skill_name};
 use std::collections::HashMap;
 
 /// Which list-key section we're inside, if any. Tracks block-form
@@ -103,7 +103,10 @@ pub fn parse_skill(id: &str, raw: &str) -> Skill {
                 if is_valid_skill_name(&sid) {
                     stable_id = Some(sid);
                 } else {
-                    eprintln!("warning: skill '{}': invalid stable-id '{}' ignored", id, sid);
+                    eprintln!(
+                        "warning: skill '{}': invalid stable-id '{}' ignored",
+                        id, sid
+                    );
                 }
             } else if let Some(v) = line.strip_prefix("description:") {
                 description = Some(v.trim().to_string());
@@ -269,7 +272,8 @@ mod tests {
 
     #[test]
     fn parses_allowed_tools_space_delimited() {
-        let raw = "---\nname: my-skill\ndescription: x\nallowed-tools: Read Edit Grep\n---\n\nContent.";
+        let raw =
+            "---\nname: my-skill\ndescription: x\nallowed-tools: Read Edit Grep\n---\n\nContent.";
         let skill = parse_skill("my-skill", raw);
         assert_eq!(skill.allowed_tools, vec!["Read", "Edit", "Grep"]);
     }
@@ -278,15 +282,28 @@ mod tests {
     fn parses_metadata_block() {
         let raw = "---\nname: my-skill\ndescription: x\nmetadata:\n  team: infra\n  priority: high\n---\n\nContent.";
         let skill = parse_skill("my-skill", raw);
-        assert_eq!(skill.metadata.get("team").map(String::as_str), Some("infra"));
-        assert_eq!(skill.metadata.get("priority").map(String::as_str), Some("high"));
+        assert_eq!(
+            skill.metadata.get("team").map(String::as_str),
+            Some("infra")
+        );
+        assert_eq!(
+            skill.metadata.get("priority").map(String::as_str),
+            Some("high")
+        );
     }
 
     #[test]
     fn folds_legacy_version_author_into_metadata() {
-        let raw = "---\nname: my-skill\ndescription: x\nversion: 1.2.3\nauthor: alice\n---\n\nContent.";
+        let raw =
+            "---\nname: my-skill\ndescription: x\nversion: 1.2.3\nauthor: alice\n---\n\nContent.";
         let skill = parse_skill("my-skill", raw);
-        assert_eq!(skill.metadata.get("version").map(String::as_str), Some("1.2.3"));
-        assert_eq!(skill.metadata.get("author").map(String::as_str), Some("alice"));
+        assert_eq!(
+            skill.metadata.get("version").map(String::as_str),
+            Some("1.2.3")
+        );
+        assert_eq!(
+            skill.metadata.get("author").map(String::as_str),
+            Some("alice")
+        );
     }
 }

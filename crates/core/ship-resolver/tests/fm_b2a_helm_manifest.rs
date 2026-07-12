@@ -171,8 +171,14 @@ export default defineConfig({});
         .iter()
         .map(|a| a.agent.id.as_str())
         .collect();
-    assert!(agent_ids.contains("rust-lane"), "rust-lane missing: {agent_ids:?}");
-    assert!(agent_ids.contains("writer"), "writer missing: {agent_ids:?}");
+    assert!(
+        agent_ids.contains("rust-lane"),
+        "rust-lane missing: {agent_ids:?}"
+    );
+    assert!(
+        agent_ids.contains("writer"),
+        "writer missing: {agent_ids:?}"
+    );
 
     // 7. The ship-side skill arrived via the ship child, distinct from
     //    the helm-side skill. The composed library holds BOTH —
@@ -220,16 +226,26 @@ export default defineConfig({});
          absent from the descriptor set); got identities = {:?}",
         space_descriptors
             .iter()
-            .map(|e| e.space_root.file_name().and_then(|n| n.to_str()).unwrap_or("?"))
+            .map(|e| e
+                .space_root
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("?"))
             .collect::<Vec<_>>()
     );
     assert_eq!(
-        space_descriptors[0].space_root.file_name().and_then(|n| n.to_str()),
+        space_descriptors[0]
+            .space_root
+            .file_name()
+            .and_then(|n| n.to_str()),
         Some("helm"),
         "first Space descriptor: helm (lexicographic)"
     );
     assert_eq!(
-        space_descriptors[1].space_root.file_name().and_then(|n| n.to_str()),
+        space_descriptors[1]
+            .space_root
+            .file_name()
+            .and_then(|n| n.to_str()),
         Some("ship"),
         "second Space descriptor: ship (lexicographic)"
     );
@@ -283,8 +299,8 @@ fn fm_b2a_real_manifest_no_longer_declares_working_in_helm() {
             if !path.is_file() || path.extension().and_then(|s| s.to_str()) != Some("ts") {
                 continue;
             }
-            let body = std::fs::read_to_string(&path)
-                .unwrap_or_else(|e| panic!("read {path:?}: {e}"));
+            let body =
+                std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {path:?}: {e}"));
             assert!(
                 !body.contains("\"name\": \"working-in-helm\""),
                 "{path:?} must not declare working-in-helm — the helm \
@@ -312,8 +328,8 @@ fn fm_b2a_real_manifest_no_longer_declares_working_in_helm() {
             if !path.is_file() || path.extension().and_then(|s| s.to_str()) != Some("ts") {
                 continue;
             }
-            let body = std::fs::read_to_string(&path)
-                .unwrap_or_else(|e| panic!("read {path:?}: {e}"));
+            let body =
+                std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {path:?}: {e}"));
             if body.contains("working-in-helm") {
                 found_ref = true;
                 break;

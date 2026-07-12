@@ -97,7 +97,8 @@ pub fn strip_types(source: &str) -> anyhow::Result<String> {
     // still reach the loader), only erase `import type`.
     options.typescript.only_remove_type_imports = true;
 
-    let ret = Transformer::new(&allocator, path, &options).build_with_scoping(scoping, &mut program);
+    let ret =
+        Transformer::new(&allocator, path, &options).build_with_scoping(scoping, &mut program);
     if !ret.errors.is_empty() {
         let msg = ret
             .errors
@@ -161,7 +162,9 @@ pub async fn resolve_agents_with_globals(
     source: &str,
     globals: serde_json::Value,
 ) -> anyhow::Result<Vec<AgentProfile>> {
-    Ok(resolve_declarations_with_globals(source, globals).await?.agents)
+    Ok(resolve_declarations_with_globals(source, globals)
+        .await?
+        .agents)
 }
 
 /// Evaluate a `ship.config.ts` config module and harvest every declare-form call

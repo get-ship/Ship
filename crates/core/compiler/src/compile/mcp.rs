@@ -4,10 +4,7 @@ use crate::types::{McpServerConfig, McpServerType};
 
 use super::harness::HarnessDescriptor;
 
-pub(super) fn build_mcp_servers(
-    desc: &HarnessDescriptor,
-    servers: &[McpServerConfig],
-) -> Json {
+pub(super) fn build_mcp_servers(desc: &HarnessDescriptor, servers: &[McpServerConfig]) -> Json {
     let mut map = serde_json::Map::new();
 
     for s in servers {

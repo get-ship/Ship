@@ -59,7 +59,10 @@ pub(super) fn parse_opencode_agent(name: &str, entry: &Json) -> Option<AgentProf
         mcp: McpRefs::default(),
         plugins: PluginRefs::default(),
         permissions,
-        rules: ProfileRules { inline: prompt, refs: vec![] },
+        rules: ProfileRules {
+            inline: prompt,
+            refs: vec![],
+        },
         hooks: Default::default(),
         target_agents: Vec::new(),
         apps: Default::default(),
@@ -134,4 +137,3 @@ fn push_permission(perms: &mut ProfilePermissions, tool: &str, action: &str) {
         _ => {}
     }
 }
-

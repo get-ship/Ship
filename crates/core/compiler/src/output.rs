@@ -11,8 +11,7 @@ use crate::compile::{CompileOutput, get_harness};
 /// user-authored entries that don't carry `_ship.managed: true`, then writes
 /// Ship-managed entries with the marker. All other files are written directly.
 pub fn write_output(root: &Path, harness_id: &str, output: &CompileOutput) -> Result<()> {
-    let desc = get_harness(harness_id)
-        .ok_or_else(|| anyhow!("unknown harness: {}", harness_id))?;
+    let desc = get_harness(harness_id).ok_or_else(|| anyhow!("unknown harness: {}", harness_id))?;
 
     // Context file (CLAUDE.md, AGENTS.md)
     if let (Some(content), Some(file_name)) =
@@ -89,7 +88,10 @@ pub fn write_output(root: &Path, harness_id: &str, output: &CompileOutput) -> Re
 
     // OpenCode config → opencode.json
     if let Some(patch) = &output.opencode_config_patch {
-        std::fs::write(root.join("opencode.json"), serde_json::to_string_pretty(patch)?)?;
+        std::fs::write(
+            root.join("opencode.json"),
+            serde_json::to_string_pretty(patch)?,
+        )?;
     }
 
     Ok(())
@@ -108,8 +110,7 @@ fn write_mcp_preserving_user_entries(
     ship_servers: &serde_json::Value,
 ) -> Result<()> {
     let mut root: serde_json::Value = if path.exists() {
-        serde_json::from_str(&std::fs::read_to_string(path)?)
-            .unwrap_or(serde_json::json!({}))
+        serde_json::from_str(&std::fs::read_to_string(path)?).unwrap_or(serde_json::json!({}))
     } else {
         serde_json::json!({})
     };
@@ -135,10 +136,7 @@ fn write_mcp_preserving_user_entries(
         for (id, entry) in servers {
             let mut tagged = entry.clone();
             if let Some(obj) = tagged.as_object_mut() {
-                obj.insert(
-                    "_ship".to_string(),
-                    serde_json::json!({ "managed": true }),
-                );
+                obj.insert("_ship".to_string(), serde_json::json!({ "managed": true }));
             }
             merged.insert(id.clone(), tagged);
         }

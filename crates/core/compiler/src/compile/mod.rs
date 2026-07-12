@@ -30,7 +30,7 @@ use crate::types::PluginsManifest;
 
 pub use claude::build_claude_settings_patch;
 pub use harness::{
-    AgentsDir, ContextFile, McpKey, HarnessDescriptor, ProviderFeatureFlags, SkillsDir,
+    AgentsDir, ContextFile, HarnessDescriptor, McpKey, ProviderFeatureFlags, SkillsDir,
     get_harness, list_harnesses,
 };
 

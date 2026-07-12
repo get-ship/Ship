@@ -160,5 +160,8 @@ async fn globals_eval_is_deterministic() {
     // Same (source, globals) → byte-identical output.
     let a = serde_json::to_string(&first).expect("serialize first");
     let b = serde_json::to_string(&second).expect("serialize second");
-    assert_eq!(a, b, "two evals of the same source + globals must be identical");
+    assert_eq!(
+        a, b,
+        "two evals of the same source + globals must be identical"
+    );
 }

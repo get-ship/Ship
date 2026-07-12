@@ -8,9 +8,7 @@
 //! tiers.
 
 use compiler::compose::{ComposedLibrary, NounKind, compose_space};
-use compiler::resolve::{
-    ExtSource, ExtensionDescriptor, ExtensionLibrary, RollupInputs,
-};
+use compiler::resolve::{ExtSource, ExtensionDescriptor, ExtensionLibrary, RollupInputs};
 use compiler::types::{
     AgentProfile, HookConfig, McpServerConfig, Permissions, ProfileMeta, Rule, Skill,
 };
@@ -18,7 +16,11 @@ use serde_json::json;
 
 fn agent(id: &str, name: &str) -> AgentProfile {
     AgentProfile {
-        agent: ProfileMeta { id: id.to_string(), name: name.to_string(), ..Default::default() },
+        agent: ProfileMeta {
+            id: id.to_string(),
+            name: name.to_string(),
+            ..Default::default()
+        },
         ..Default::default()
     }
 }
@@ -49,7 +51,10 @@ fn ext(source: ExtSource, hash: &str, descriptor: ExtensionLibrary) -> Extension
 }
 
 fn inputs(extensions: Vec<ExtensionDescriptor>) -> RollupInputs {
-    RollupInputs { extensions, precedence: RollupInputs::default_precedence() }
+    RollupInputs {
+        extensions,
+        precedence: RollupInputs::default_precedence(),
+    }
 }
 
 fn compose(extensions: Vec<ExtensionDescriptor>) -> ComposedLibrary {
@@ -61,7 +66,10 @@ fn compose(extensions: Vec<ExtensionDescriptor>) -> ComposedLibrary {
 #[test]
 fn space_shadows_user_global_on_id_collision() {
     let user = ExtensionLibrary {
-        agents: vec![agent("writer", "User Writer"), agent("planner", "User Planner")],
+        agents: vec![
+            agent("writer", "User Writer"),
+            agent("planner", "User Planner"),
+        ],
         ..Default::default()
     };
     let space = ExtensionLibrary {
@@ -81,7 +89,10 @@ fn space_shadows_user_global_on_id_collision() {
         .iter()
         .map(|a| (a.agent.id.as_str(), a.agent.name.as_str()))
         .collect();
-    assert_eq!(names, vec![("writer", "Space Writer"), ("planner", "User Planner")]);
+    assert_eq!(
+        names,
+        vec![("writer", "Space Writer"), ("planner", "User Planner")]
+    );
 
     // The loser is retained as provenance, not dropped.
     assert_eq!(composed.shadows.len(), 1);
@@ -121,10 +132,18 @@ fn full_tier_stack_shadows_cache_then_user_global_then_space() {
     // cached < enabled (user-global) < space < agent overlay — every tier
     // declares the same id; the law resolves strictly by rank, and the
     // shadow chain records each step in resolution order.
-    let cache = ExtensionLibrary { skills: vec![skill("lint", "cache lint")], ..Default::default() };
-    let user_global =
-        ExtensionLibrary { skills: vec![skill("lint", "enabled lint")], ..Default::default() };
-    let space = ExtensionLibrary { skills: vec![skill("lint", "space lint")], ..Default::default() };
+    let cache = ExtensionLibrary {
+        skills: vec![skill("lint", "cache lint")],
+        ..Default::default()
+    };
+    let user_global = ExtensionLibrary {
+        skills: vec![skill("lint", "enabled lint")],
+        ..Default::default()
+    };
+    let space = ExtensionLibrary {
+        skills: vec![skill("lint", "space lint")],
+        ..Default::default()
+    };
     let composed = compose(vec![
         ext(ExtSource::Cache, "hash-cache", cache),
         ext(ExtSource::UserGlobal, "hash-enabled", user_global),
@@ -142,10 +161,18 @@ fn full_tier_stack_shadows_cache_then_user_global_then_space() {
 
 #[test]
 fn agent_overlay_wins_over_space_and_user_global() {
-    let user = ExtensionLibrary { skills: vec![skill("lint", "user lint")], ..Default::default() };
-    let space = ExtensionLibrary { skills: vec![skill("lint", "space lint")], ..Default::default() };
-    let overlay =
-        ExtensionLibrary { skills: vec![skill("lint", "overlay lint")], ..Default::default() };
+    let user = ExtensionLibrary {
+        skills: vec![skill("lint", "user lint")],
+        ..Default::default()
+    };
+    let space = ExtensionLibrary {
+        skills: vec![skill("lint", "space lint")],
+        ..Default::default()
+    };
+    let overlay = ExtensionLibrary {
+        skills: vec![skill("lint", "overlay lint")],
+        ..Default::default()
+    };
     let composed = compose(vec![
         // Declared order deliberately scrambled — rank decides, not position.
         ext(ExtSource::Agent("writer".into()), "hash-overlay", overlay),
@@ -157,7 +184,10 @@ fn agent_overlay_wins_over_space_and_user_global() {
     assert_eq!(composed.library.skills[0].name, "overlay lint");
     // Two collisions resolved: user→space, space→overlay.
     assert_eq!(composed.shadows.len(), 2);
-    assert_eq!(composed.shadows[1].winning_source, ExtSource::Agent("writer".into()));
+    assert_eq!(
+        composed.shadows[1].winning_source,
+        ExtSource::Agent("writer".into())
+    );
 }
 
 #[test]

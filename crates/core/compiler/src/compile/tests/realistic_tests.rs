@@ -171,11 +171,8 @@ fn realistic_agent_all_harnesses_have_context_with_rules() {
 #[test]
 fn realistic_agent_all_harnesses_have_skill_files() {
     let r = full_agent();
-    let paths: HashMap<&str, &str> = [
-        ("claude", ".claude/skills"),
-        ("codex", ".agents/skills"),
-    ]
-    .into();
+    let paths: HashMap<&str, &str> =
+        [("claude", ".claude/skills"), ("codex", ".agents/skills")].into();
     for (harness, base) in &paths {
         let out = compile(&r, harness).unwrap();
         for id in &["code-review", "test-generator"] {
@@ -293,4 +290,3 @@ fn both_stop_hooks_emit_to_claude_settings() {
     let sub_inner = sub[0]["hooks"].as_array().unwrap();
     assert_eq!(sub_inner[0]["command"], "ship log 'subagent done'");
 }
-

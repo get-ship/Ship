@@ -419,7 +419,9 @@ fn claude_typed_effort_none_omits_effort_level() {
         ..resolved(vec![])
     };
     let out = compile(&r, "claude").unwrap();
-    let patch = out.claude_settings_patch.expect("patch must exist (autoMemoryEnabled)");
+    let patch = out
+        .claude_settings_patch
+        .expect("patch must exist (autoMemoryEnabled)");
     assert!(
         patch.get("effortLevel").is_none(),
         "effortLevel must be omitted when typed effort is None; got: {patch}"
@@ -447,4 +449,3 @@ fn claude_harness_settings_extra_overrides_typed_effort() {
         "per-agent harness_settings.claude.effortLevel must override the typed default"
     );
 }
-

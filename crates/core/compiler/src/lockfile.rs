@@ -139,18 +139,29 @@ fn strip_jsonc(input: &str) -> String {
     while let Some(c) = chars.next() {
         if in_string {
             stage.push(c);
-            if escape { escape = false; }
-            else if c == '\\' { escape = true; }
-            else if c == '"' { in_string = false; }
+            if escape {
+                escape = false;
+            } else if c == '\\' {
+                escape = true;
+            } else if c == '"' {
+                in_string = false;
+            }
             continue;
         }
-        if c == '"' { in_string = true; stage.push(c); continue; }
+        if c == '"' {
+            in_string = true;
+            stage.push(c);
+            continue;
+        }
         if c == '/' {
             match chars.peek() {
                 Some('/') => {
                     while let Some(&nc) = chars.peek() {
                         chars.next();
-                        if nc == '\n' { stage.push('\n'); break; }
+                        if nc == '\n' {
+                            stage.push('\n');
+                            break;
+                        }
                     }
                     continue;
                 }
@@ -180,16 +191,27 @@ fn strip_jsonc(input: &str) -> String {
         let b = src[i];
         if in_str {
             out.push(b);
-            if esc { esc = false; }
-            else if b == b'\\' { esc = true; }
-            else if b == b'"' { in_str = false; }
+            if esc {
+                esc = false;
+            } else if b == b'\\' {
+                esc = true;
+            } else if b == b'"' {
+                in_str = false;
+            }
             i += 1;
             continue;
         }
-        if b == b'"' { in_str = true; out.push(b); i += 1; continue; }
+        if b == b'"' {
+            in_str = true;
+            out.push(b);
+            i += 1;
+            continue;
+        }
         if b == b',' {
             let mut j = i + 1;
-            while j < src.len() && (src[j] as char).is_whitespace() { j += 1; }
+            while j < src.len() && (src[j] as char).is_whitespace() {
+                j += 1;
+            }
             if j < src.len() && (src[j] == b']' || src[j] == b'}') {
                 i = j;
                 continue;
@@ -251,7 +273,10 @@ mod tests {
     #[test]
     fn to_json_string_deterministic() {
         let lock = sample_lock();
-        assert_eq!(lock.to_json_string().unwrap(), lock.to_json_string().unwrap());
+        assert_eq!(
+            lock.to_json_string().unwrap(),
+            lock.to_json_string().unwrap()
+        );
     }
 
     #[test]

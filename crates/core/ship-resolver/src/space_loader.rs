@@ -266,10 +266,7 @@ pub fn enumerate_extension_roots(space_root: &Path) -> Result<Vec<ExtensionRoot>
 /// per-call content. The dir names default to `agents/`, `collections/`,
 /// `pipelines/`, `triggers/` (the `defineConfig` pointer values; the
 /// per-module override path is read in `merge_ts_declarations`).
-pub(crate) async fn load_root_library(
-    fs: &dyn FsBroker,
-    root: &Path,
-) -> Result<ExtensionLibrary> {
+pub(crate) async fn load_root_library(fs: &dyn FsBroker, root: &Path) -> Result<ExtensionLibrary> {
     // 1. Delegate to the leaf for the bulk of the read. The leaf is
     //    sync `std::fs`; it's the canonical phase-0 surface and ships
     //    on its own contract (`compiler::load_library`).
@@ -329,10 +326,7 @@ const PER_NOUN_SOURCE_DIRS: &[&str] = &["agents", "collections", "pipelines", "t
 /// contribution; child descriptors' `permissions` / `hooks` are
 /// dropped before the merge so the composed library carries only the
 /// space-root grants.
-pub async fn load_space_library(
-    fs: &dyn FsBroker,
-    space_root: &Path,
-) -> Result<ExtensionLibrary> {
+pub async fn load_space_library(fs: &dyn FsBroker, space_root: &Path) -> Result<ExtensionLibrary> {
     let roots = enumerate_extension_roots(space_root)
         .with_context(|| format!("enumerate extension roots for {}", space_root.display()))?;
 
@@ -355,7 +349,11 @@ pub async fn load_space_library(
     let mut merged = ExtensionLibrary::default();
     for (idx, root) in roots.iter().enumerate() {
         let mut lib = load_root_library(fs, &root.path).await.with_context(|| {
-            format!("load root library for {} ({})", root.path.display(), root.identity)
+            format!(
+                "load root library for {} ({})",
+                root.path.display(),
+                root.identity
+            )
         })?;
         let is_space_root = idx == 0;
         // Defense-in-depth: even though `is_space_root` is what gates
@@ -471,11 +469,7 @@ pub(crate) fn walk_skills_dir(
 /// the per-extension-project authoring surface, default `"rules/"`).
 /// The cap is rooted at the space root, so the rel path under the cap
 /// is the space-relative path verbatim.
-pub(crate) fn walk_rules_dir(
-    fs: &dyn FsBroker,
-    cap: &FsCap,
-    space_rel: &str,
-) -> Result<Vec<Rule>> {
+pub(crate) fn walk_rules_dir(fs: &dyn FsBroker, cap: &FsCap, space_rel: &str) -> Result<Vec<Rule>> {
     let rel = space_rel.trim_start_matches('/').trim_end_matches('/');
 
     let entries = match fs.list_dir(cap, &rel) {
@@ -829,10 +823,7 @@ defineAgent({
         // skill_paths carries the single default entry the leaf
         // populates — no extras walk, no extras field, no
         // `space.skill_paths` field either.
-        assert_eq!(
-            lib.skill_paths,
-            vec!["skills/".to_string()],
-        );
+        assert_eq!(lib.skill_paths, vec!["skills/".to_string()],);
         // ship.config.ts: one module, content hash non-empty.
         assert_eq!(lib.imported_modules.len(), 1);
         let module = &lib.imported_modules[0];
@@ -922,8 +913,14 @@ defineAgent({
         // Add two child dirs in NON-lexicographic write order to
         // prove the sort dominates `read_dir`'s native order.
         for (name, body) in [
-            ("zeta", "import { defineAgent } from \"ship\";\ndefineAgent({ agent: { id: \"zeta-agent\", name: \"Zeta\" } });\n"),
-            ("alpha", "import { defineAgent } from \"ship\";\ndefineAgent({ agent: { id: \"alpha-agent\", name: \"Alpha\" } });\n"),
+            (
+                "zeta",
+                "import { defineAgent } from \"ship\";\ndefineAgent({ agent: { id: \"zeta-agent\", name: \"Zeta\" } });\n",
+            ),
+            (
+                "alpha",
+                "import { defineAgent } from \"ship\";\ndefineAgent({ agent: { id: \"alpha-agent\", name: \"Alpha\" } });\n",
+            ),
         ] {
             let child = root.join(name);
             std::fs::create_dir_all(child.join(".ship")).unwrap();

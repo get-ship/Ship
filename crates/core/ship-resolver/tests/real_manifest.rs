@@ -48,8 +48,14 @@ async fn repo_manifest_rolls_up_with_all_nouns_present() {
         "no agents composed — the manifest module was dropped by the eval \
          (check helmd/shipd logs for `ts_resolver: eval failed`)"
     );
-    assert!(!lib.skills.is_empty(), "no skills composed from the real manifest");
-    assert!(!lib.pipelines.is_empty(), "no pipelines composed from the real manifest");
+    assert!(
+        !lib.skills.is_empty(),
+        "no skills composed from the real manifest"
+    );
+    assert!(
+        !lib.pipelines.is_empty(),
+        "no pipelines composed from the real manifest"
+    );
 
     // The dispatch lane the operational loop depends on.
     assert!(

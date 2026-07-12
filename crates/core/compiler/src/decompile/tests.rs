@@ -6,8 +6,8 @@ use tempfile::TempDir;
 use super::claude::decompile_claude;
 use super::codex::decompile_codex;
 use super::opencode::decompile_opencode;
-use super::{decompile_all, detect_harnesses};
 use super::test_helpers::write_file;
+use super::{decompile_all, detect_harnesses};
 use crate::types::HookTrigger;
 
 // ── detect_harnesses ─────────────────────────────────────────────────────────

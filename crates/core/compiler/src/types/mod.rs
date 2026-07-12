@@ -21,12 +21,12 @@ pub use catalog::{
 };
 pub use collection::{CollectionDef, CollectionFieldDef, CollectionFieldType};
 pub use config::{
-    AgentLayerConfig, HookConfig, HookTrigger, McpServerConfig,
-    McpServerType, NamespaceConfig, SpaceManifest,
+    AgentLayerConfig, HookConfig, HookTrigger, McpServerConfig, McpServerType, NamespaceConfig,
+    SpaceManifest,
 };
 pub use permissions::{
-    AgentLimits, CommandPermissions, FsPermissions, NetworkPermissions, NetworkPolicy, Permissions,
-    PermissionPreset, ToolPermissions,
+    AgentLimits, CommandPermissions, FsPermissions, NetworkPermissions, NetworkPolicy,
+    PermissionPreset, Permissions, ToolPermissions,
 };
 pub use pipeline::{PipelineDef, PipelineGate, PipelineStep, PipelineStepSpec};
 pub use plugin::{PluginEntry, PluginsManifest};

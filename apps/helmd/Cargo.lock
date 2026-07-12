@@ -4898,6 +4898,7 @@ dependencies = [
 name = "ship-store"
 version = "0.1.0"
 dependencies = [
+ "agent-config-eval",
  "anyhow",
  "base64",
  "compiler",
@@ -4915,6 +4916,7 @@ dependencies = [
  "ship-substrate",
  "tar",
  "tempfile",
+ "tokio",
  "tracing",
  "walkdir",
 ]

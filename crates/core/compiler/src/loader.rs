@@ -153,18 +153,30 @@ mod tests {
         let lib: ExtensionLibrary =
             load_library(&ship_dir).expect("load_library on a fresh .ship/ must succeed");
 
-        assert!(lib.agent_profiles.is_empty(),
-            "agent_profiles must be empty — the leaf no longer reads .ship/agents/*.jsonc (Wave 5)");
-        assert!(lib.mcp_servers.is_empty(),
-            "mcp_servers must be empty — the leaf no longer reads .ship/mcp.jsonc (Wave 4)");
-        assert!(lib.rules.is_empty(),
-            "rules must be empty — the leaf no longer reads .ship/rules/*.md (Wave 4)");
-        assert!(lib.skills.is_empty(),
-            "skills must be empty — the leaf no longer reads .ship/skills/<id>/SKILL.md (Wave 5)");
-        assert!(lib.hooks.is_empty(),
-            "hooks must be empty — the leaf no longer reads .ship/hooks.jsonc (slice 3)");
-        assert!(lib.permissions_presets.is_empty(),
-            "permissions_presets must be empty — the leaf no longer reads .ship/permissions.jsonc (slice 3)");
+        assert!(
+            lib.agent_profiles.is_empty(),
+            "agent_profiles must be empty — the leaf no longer reads .ship/agents/*.jsonc (Wave 5)"
+        );
+        assert!(
+            lib.mcp_servers.is_empty(),
+            "mcp_servers must be empty — the leaf no longer reads .ship/mcp.jsonc (Wave 4)"
+        );
+        assert!(
+            lib.rules.is_empty(),
+            "rules must be empty — the leaf no longer reads .ship/rules/*.md (Wave 4)"
+        );
+        assert!(
+            lib.skills.is_empty(),
+            "skills must be empty — the leaf no longer reads .ship/skills/<id>/SKILL.md (Wave 5)"
+        );
+        assert!(
+            lib.hooks.is_empty(),
+            "hooks must be empty — the leaf no longer reads .ship/hooks.jsonc (slice 3)"
+        );
+        assert!(
+            lib.permissions_presets.is_empty(),
+            "permissions_presets must be empty — the leaf no longer reads .ship/permissions.jsonc (slice 3)"
+        );
     }
 
     #[test]

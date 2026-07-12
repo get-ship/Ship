@@ -44,7 +44,10 @@ fn parse_full_manifest() {
         }
     }"#;
     let m = ShipManifest::from_jsonc_str(jsonc).unwrap();
-    assert_eq!(m.module.as_ref().unwrap().description.as_deref(), Some("A great library"));
+    assert_eq!(
+        m.module.as_ref().unwrap().description.as_deref(),
+        Some("A great library")
+    );
     assert_eq!(m.module.as_ref().unwrap().license.as_deref(), Some("MIT"));
     assert_eq!(m.dependencies.len(), 2);
 
@@ -97,8 +100,6 @@ fn missing_module_section_is_valid() {
     assert!(m.module.is_none());
     assert_eq!(m.dependencies.len(), 1);
 }
-
-
 
 #[test]
 fn invalid_semver_is_error() {
@@ -248,7 +249,10 @@ fn license_accepts_compound_expression() {
         }
     }"#;
     let m = ShipManifest::from_jsonc_str(jsonc).unwrap();
-    assert_eq!(m.module.as_ref().unwrap().license.as_deref(), Some("MIT OR Apache-2.0"));
+    assert_eq!(
+        m.module.as_ref().unwrap().license.as_deref(),
+        Some("MIT OR Apache-2.0")
+    );
 }
 
 #[test]
@@ -275,7 +279,10 @@ fn authors_field_parses() {
     }"#;
     let m = ShipManifest::from_jsonc_str(jsonc).unwrap();
     assert_eq!(m.module.as_ref().unwrap().authors.len(), 2);
-    assert_eq!(m.module.as_ref().unwrap().authors[0], "Alice <alice@example.com>");
+    assert_eq!(
+        m.module.as_ref().unwrap().authors[0],
+        "Alice <alice@example.com>"
+    );
 }
 
 #[test]
@@ -324,7 +331,10 @@ fn parse_jsonc_manifest() {
     let m = ShipManifest::from_jsonc_str(jsonc).unwrap();
     assert_eq!(m.module.as_ref().unwrap().name, "github.com/owner/repo");
     assert_eq!(m.module.as_ref().unwrap().version, "1.0.0");
-    assert_eq!(m.module.as_ref().unwrap().description.as_deref(), Some("A library"));
+    assert_eq!(
+        m.module.as_ref().unwrap().description.as_deref(),
+        Some("A library")
+    );
     assert_eq!(m.dependencies.len(), 1);
 }
 

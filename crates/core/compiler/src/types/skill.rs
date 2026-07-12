@@ -83,8 +83,10 @@ pub fn grants_from_skills(skills: &[Skill]) -> Vec<String> {
 /// dependencies. Empty == every `requires:` is covered by some skill's `grants:`.
 /// A non-empty result is a compile error: the agent can't run its skills.
 pub fn unmet_requirements(skills: &[Skill]) -> Vec<String> {
-    let granted: std::collections::BTreeSet<&str> =
-        skills.iter().flat_map(|s| s.grants.iter().map(String::as_str)).collect();
+    let granted: std::collections::BTreeSet<&str> = skills
+        .iter()
+        .flat_map(|s| s.grants.iter().map(String::as_str))
+        .collect();
     let mut unmet = std::collections::BTreeSet::new();
     for skill in skills {
         for req in &skill.requires {

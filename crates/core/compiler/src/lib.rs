@@ -31,34 +31,33 @@ pub use loader::load_library;
 pub use output::{ensure_parent, merge_json, merge_json_file, write_output};
 
 pub use compile::{
-    AgentsDir, CompileOutput, ContextFile, McpKey, HarnessDescriptor,
-    ProviderFeatureFlags, SkillsDir, agents::compile_agent_profiles, build_claude_settings_patch,
-    compile, get_harness, list_harnesses,
+    AgentsDir, CompileOutput, ContextFile, HarnessDescriptor, McpKey, ProviderFeatureFlags,
+    SkillsDir, agents::compile_agent_profiles, build_claude_settings_patch, compile, get_harness,
+    list_harnesses,
 };
 
 pub use compose::{ComposedLibrary, NounKind, ShadowRecord, compose_space};
-pub use route_tree::{RouteNode, RouteTree, compose_route_tree};
-pub use resolve::{
-    ExtensionDescriptor, ExtSource, ExtSourceKind, ModuleDescriptor, PrecedenceRow, ExtensionLibrary,
-    ResolvedConfig, RollupInputs, WorkspaceOverrides, resolve, resolve_library,
-};
 pub use decompile::{
-    DetectedProviders, decompile_all, decompile_claude, decompile_codex,
-    decompile_opencode, detect_harnesses,
+    DetectedProviders, decompile_all, decompile_claude, decompile_codex, decompile_opencode,
+    detect_harnesses,
 };
+pub use resolve::{
+    ExtSource, ExtSourceKind, ExtensionDescriptor, ExtensionLibrary, ModuleDescriptor,
+    PrecedenceRow, ResolvedConfig, RollupInputs, WorkspaceOverrides, resolve, resolve_library,
+};
+pub use route_tree::{RouteNode, RouteTree, compose_route_tree};
 pub use schemas::{HARNESS_MANAGED_KEYS, HARNESS_SCHEMAS, managed_keys, schema_url};
 pub use types::{
-    AgentBundle, AgentLayerConfig, AgentLimits, AgentProfile, ArtifactType, BlastRadius, Capability,
-    CatalogCategory, CatalogEntry, CatalogKind, CollectionDef, CollectionFieldDef,
-    CollectionFieldType, CommandPermissions, FsPermissions,
-    HookConfig, HookTrigger, ListAgentsResponse, McpRefs, McpServerConfig, McpServerType,
-    NamespaceConfig, NetworkPermissions, NetworkPolicy, Permissions, PermissionPreset,
-    PipelineDef, PipelineGate, PipelineStep, PipelineStepSpec,
-    PluginEntry, PluginRefs, PluginsManifest, ProfileMeta, ProfilePermissions, ProfileRules,
-    SpaceManifest, PullAgent, PullMcpServer, PullProfile, PullResponse, PullRule, PullSkill, Rule,
-    Skill, SkillBundle, SkillRefs, SkillSource, ToolPermissions, TransferBundle,
-    TriggerAction, TriggerDef, TriggerEventMatch, TriggerSourceDef,
-    list_catalog, list_catalog_by_kind, search_catalog,
+    AgentBundle, AgentLayerConfig, AgentLimits, AgentProfile, ArtifactType, BlastRadius,
+    Capability, CatalogCategory, CatalogEntry, CatalogKind, CollectionDef, CollectionFieldDef,
+    CollectionFieldType, CommandPermissions, FsPermissions, HookConfig, HookTrigger,
+    ListAgentsResponse, McpRefs, McpServerConfig, McpServerType, NamespaceConfig,
+    NetworkPermissions, NetworkPolicy, PermissionPreset, Permissions, PipelineDef, PipelineGate,
+    PipelineStep, PipelineStepSpec, PluginEntry, PluginRefs, PluginsManifest, ProfileMeta,
+    ProfilePermissions, ProfileRules, PullAgent, PullMcpServer, PullProfile, PullResponse,
+    PullRule, PullSkill, Rule, Skill, SkillBundle, SkillRefs, SkillSource, SpaceManifest,
+    ToolPermissions, TransferBundle, TriggerAction, TriggerDef, TriggerEventMatch,
+    TriggerSourceDef, list_catalog, list_catalog_by_kind, search_catalog,
 };
 
 /// Generate a nanoid using Ship's 56-character alphabet (no ambiguous chars).

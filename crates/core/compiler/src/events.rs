@@ -101,7 +101,13 @@ mod tests {
     fn builtin_names_has_all_five() {
         let names = builtin_event_names().unwrap();
         assert_eq!(names.len(), 5);
-        for expected in &["annotation", "feedback", "selection", "artifact_created", "artifact_deleted"] {
+        for expected in &[
+            "annotation",
+            "feedback",
+            "selection",
+            "artifact_created",
+            "artifact_deleted",
+        ] {
             assert!(names.contains(&expected.to_string()), "missing: {expected}");
         }
     }

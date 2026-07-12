@@ -4,8 +4,9 @@
 /// No `proptest`/`quickcheck` in Cargo.toml, so these are deterministic
 /// parameterised tests as permitted by the job spec.
 use compiler::{
-    AgentProfile, McpServerConfig, ProfileMeta, ExtensionLibrary, Rule, Skill, SkillRefs, McpRefs,
-    PluginRefs, ProfilePermissions, ProfileRules, compile, list_harnesses, resolve_library,
+    AgentProfile, ExtensionLibrary, McpRefs, McpServerConfig, PluginRefs, ProfileMeta,
+    ProfilePermissions, ProfileRules, Rule, Skill, SkillRefs, compile, list_harnesses,
+    resolve_library,
 };
 
 // ─── Fixture helpers ──────────────────────────────────────────────────────────
@@ -396,11 +397,7 @@ fn runtime_skills_injected_into_skill_template() {
     };
 
     let library = ExtensionLibrary {
-        skills: vec![
-            meta_skill,
-            make_skill("deploy"),
-            make_skill("review"),
-        ],
+        skills: vec![meta_skill, make_skill("deploy"), make_skill("review")],
         ..Default::default()
     };
 

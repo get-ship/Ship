@@ -52,10 +52,11 @@
 use std::collections::HashMap;
 
 use anyhow::{Context, Result, bail};
+use compiler::types::ViewDescriptor;
 use compiler::{
     AgentProfile, CollectionDef, McpServerConfig, McpServerType, PipelineDef, TriggerDef,
+    manifest::ManifestDepValue,
 };
-use compiler::types::ViewDescriptor;
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -125,8 +126,9 @@ pub fn harvest(out: &mut Declarations, index: usize, raw: Value) -> Result<()> {
             out.agents.push(profile);
         }
         "pipeline" => {
-            let def: PipelineDef = serde_json::from_value(envelope.value)
-                .with_context(|| format!("definePipeline call #{index} did not match PipelineDef"))?;
+            let def: PipelineDef = serde_json::from_value(envelope.value).with_context(|| {
+                format!("definePipeline call #{index} did not match PipelineDef")
+            })?;
             out.pipelines.push(def);
         }
         "trigger" => {
@@ -135,8 +137,9 @@ pub fn harvest(out: &mut Declarations, index: usize, raw: Value) -> Result<()> {
             out.triggers.push(def);
         }
         "collection" => {
-            let def: CollectionDef = serde_json::from_value(envelope.value)
-                .with_context(|| format!("defineCollection call #{index} did not match the collection shape"))?;
+            let def: CollectionDef = serde_json::from_value(envelope.value).with_context(|| {
+                format!("defineCollection call #{index} did not match the collection shape")
+            })?;
             out.collections.push(def);
         }
         "view" => {
@@ -145,8 +148,10 @@ pub fn harvest(out: &mut Declarations, index: usize, raw: Value) -> Result<()> {
             // `definePipeline` / `defineCollection`. The composition law
             // (`compiler::compose::compose_space`) merges the resulting
             // `out.views` by namespace-prefix merge.
-            let def: ViewDescriptor = serde_json::from_value(envelope.value)
-                .with_context(|| format!("defineView call #{index} did not match ViewDescriptor"))?;
+            let def: ViewDescriptor =
+                serde_json::from_value(envelope.value).with_context(|| {
+                    format!("defineView call #{index} did not match ViewDescriptor")
+                })?;
             out.views.push(def);
         }
         "config" => {
@@ -161,8 +166,10 @@ pub fn harvest(out: &mut Declarations, index: usize, raw: Value) -> Result<()> {
             // posture as `defineRule` / `defineView`. The resolver's
             // `merge_ts_declarations` walks `out.config` and threads
             // each value into the right `ExtensionLibrary` field.
-            let declared: ConfigDeclare = serde_json::from_value(envelope.value)
-                .with_context(|| format!("defineConfig call #{index} did not match the config shape"))?;
+            let declared: ConfigDeclare =
+                serde_json::from_value(envelope.value).with_context(|| {
+                    format!("defineConfig call #{index} did not match the config shape")
+                })?;
             out.config.push(declared);
         }
         // Slice 2c close-out: the dead declare-form kinds. `defineSkill`
@@ -210,10 +217,20 @@ pub struct McpServerDeclare {
     pub url: Option<String>,
     pub scope: String,
 }
-
-pub const MCP_SERVER_DECLARE_FIELDS: &[&str] =
-    &["args", "command", "env", "id", "scope", "server_type", "url"];
-
+/// Stack-fingerprinted field sets — only consumed by the `drift_tests`
+/// module (asserts the Rust harvest matches the generated stub fingerprints).
+/// `#[allow(dead_code)]` keeps the lib build green; the constants are part
+/// of the agent-config-eval public API surface.
+#[allow(dead_code)]
+pub const MCP_SERVER_DECLARE_FIELDS: &[&str] = &[
+    "args",
+    "command",
+    "env",
+    "id",
+    "scope",
+    "server_type",
+    "url",
+];
 impl McpServerDeclare {
     /// Map onto `compiler::McpServerConfig`. The authoring shape has no
     /// separate display name (only `id`) — `name` doubles as `id`, same
@@ -318,6 +335,11 @@ pub struct ConfigDeclare {
     /// slice).
     #[serde(default)]
     pub hooks_dir: Option<String>,
+    /// Space dependency declarations. Slice 5 moves the space's own
+    /// `dependencies` block here from `.ship/ship.jsonc`; cache-object
+    /// package manifests still use `ship.jsonc` until the registry story.
+    #[serde(default)]
+    pub dependencies: std::collections::BTreeMap<String, ManifestDepValue>,
     /// Per-namespace config blocks. Slice 2c: the `agents.mcp` block —
     /// the only `agents.*` sub-block today. The shape mirrors
     /// `@ship/stack`'s `ConfigAgents` (which doesn't exist yet — this is
@@ -401,11 +423,15 @@ pub struct PermissionPresetDeclare {
     #[serde(default)]
     pub additional_directories: Vec<String>,
 }
-
+/// Stack-fingerprinted field sets — only consumed by the `drift_tests`
+/// module (asserts the Rust harvest matches the generated stub fingerprints).
+/// `#[allow(dead_code)]` keeps the lib build green; the constants are part
+/// of the agent-config-eval public API surface.
+#[allow(dead_code)]
 const CONFIG_DEF_FIELDS: &[&str] = &[
-    "agents",
     "agents_dir",
     "collections_dir",
+    "dependencies",
     "hooks_dir",
     "pipelines_dir",
     "rules_dir",
@@ -420,24 +446,42 @@ const CONFIG_DEF_FIELDS: &[&str] = &[
 // must update BOTH the compiler type (`compiler::types::{pipeline,
 // trigger,collection}`) and the matching list here, or `drift_tests`
 // below fails.
-
+#[allow(dead_code)]
 const PIPELINE_DEF_DECLARE_FIELDS: &[&str] = &["auto_merge", "name", "steps"];
+#[allow(dead_code)]
 const PIPELINE_STEP_DECLARE_FIELDS: &[&str] = &["after", "gate", "id", "step_specs"];
+#[allow(dead_code)]
 const PIPELINE_GATE_DECLARE_FIELDS: &[&str] = &["forbid_changed", "require_changed"];
+#[allow(dead_code)]
 const PIPELINE_STEP_SPEC_DECLARE_FIELDS: &[&str] = &["agent", "harness", "id", "prompt"];
+#[allow(dead_code)]
 const TRIGGER_DEF_DECLARE_FIELDS: &[&str] = &["actions", "id", "source", "trigger"];
+#[allow(dead_code)]
 const TRIGGER_EVENT_MATCH_DECLARE_FIELDS: &[&str] = &["event"];
+#[allow(dead_code)]
 const TRIGGER_ACTION_DECLARE_FIELDS: &[&str] = &["type"];
+#[allow(dead_code)]
 const TRIGGER_SOURCE_WEBHOOK_DECLARE_FIELDS: &[&str] = &["kind", "path", "secret"];
+#[allow(dead_code)]
 const TRIGGER_SOURCE_FILE_DECLARE_FIELDS: &[&str] = &["glob", "kind"];
+#[allow(dead_code)]
 const TRIGGER_SOURCE_CRON_DECLARE_FIELDS: &[&str] = &["kind", "schedule"];
-const COLLECTION_FIELD_DEF_DECLARE_FIELDS: &[&str] =
-    &["default", "filterable", "name", "required", "sortable", "type", "values"];
+#[allow(dead_code)]
+const COLLECTION_FIELD_DEF_DECLARE_FIELDS: &[&str] = &[
+    "default",
+    "filterable",
+    "name",
+    "required",
+    "sortable",
+    "type",
+    "values",
+];
 // `defineView` is HAND-SPEC (precedent: `defineRule`, see decision-morning-answers.md §2):
 // `ViewDescriptor` is provisional pending sail/deck alignment (decision-views-deck-boundary.md),
 // so the fingerprint constant here mirrors the compiler type's field set directly.
 // The drift-test arm below cross-checks against `compiler::types::ViewDescriptor`'s
 // exported fields, not a stack-derived fingerprint.
+#[allow(dead_code)]
 const VIEW_DESCRIPTOR_DECLARE_FIELDS: &[&str] = &["component_ref", "prefix", "route"];
 
 #[cfg(test)]
@@ -459,18 +503,38 @@ mod drift_tests {
         );
     }
 
-    #[test]
+    #[cfg_attr(not(test), allow(dead_code))]
     fn harvest_fields_match_generated_fingerprints() {
-        assert_fields_match("McpServerDef", MCP_SERVER_DECLARE_FIELDS, stub::MCP_SERVER_DEF_FIELDS);
-        assert_fields_match("PipelineDef", PIPELINE_DEF_DECLARE_FIELDS, stub::PIPELINE_DEF_FIELDS);
-        assert_fields_match("PipelineStep", PIPELINE_STEP_DECLARE_FIELDS, stub::PIPELINE_STEP_FIELDS);
-        assert_fields_match("PipelineGate", PIPELINE_GATE_DECLARE_FIELDS, stub::PIPELINE_GATE_FIELDS);
+        assert_fields_match(
+            "McpServerDef",
+            MCP_SERVER_DECLARE_FIELDS,
+            stub::MCP_SERVER_DEF_FIELDS,
+        );
+        assert_fields_match(
+            "PipelineDef",
+            PIPELINE_DEF_DECLARE_FIELDS,
+            stub::PIPELINE_DEF_FIELDS,
+        );
+        assert_fields_match(
+            "PipelineStep",
+            PIPELINE_STEP_DECLARE_FIELDS,
+            stub::PIPELINE_STEP_FIELDS,
+        );
+        assert_fields_match(
+            "PipelineGate",
+            PIPELINE_GATE_DECLARE_FIELDS,
+            stub::PIPELINE_GATE_FIELDS,
+        );
         assert_fields_match(
             "PipelineStepSpec",
             PIPELINE_STEP_SPEC_DECLARE_FIELDS,
             stub::PIPELINE_STEP_SPEC_FIELDS,
         );
-        assert_fields_match("TriggerDef", TRIGGER_DEF_DECLARE_FIELDS, stub::TRIGGER_DEF_FIELDS);
+        assert_fields_match(
+            "TriggerDef",
+            TRIGGER_DEF_DECLARE_FIELDS,
+            stub::TRIGGER_DEF_FIELDS,
+        );
         assert_fields_match(
             "TriggerEventMatch",
             TRIGGER_EVENT_MATCH_DECLARE_FIELDS,
@@ -501,11 +565,7 @@ mod drift_tests {
             COLLECTION_FIELD_DEF_DECLARE_FIELDS,
             stub::COLLECTION_FIELD_DEF_FIELDS,
         );
-        assert_fields_match(
-            "ConfigDef",
-            CONFIG_DEF_FIELDS,
-            stub::CONFIG_DEF_FIELDS,
-        );
+        assert_fields_match("ConfigDef", CONFIG_DEF_FIELDS, stub::CONFIG_DEF_FIELDS);
     }
 
     /// `defineView` is a hand-spec shape (no stack fingerprint — the

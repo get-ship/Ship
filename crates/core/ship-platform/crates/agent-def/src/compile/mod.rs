@@ -214,7 +214,7 @@ fn compile_from_library(
     if library.claude_effort.is_none() {
         library.claude_effort = opts.default_effort.clone();
     }
-    let mut resolved =
+    let resolved =
         compiler::resolve_library(&library, None, opts.active_agent.as_deref());
     let requested_grants = resolved.requested_grants.clone();
 

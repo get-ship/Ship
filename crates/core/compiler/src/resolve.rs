@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use crate::types::{
     AgentProfile, CollectionDef, HookConfig, McpServerConfig, PermissionPreset, Permissions,
-    PipelineDef, PluginsManifest, SpaceManifest, Rule, Skill, TriggerDef, ViewDescriptor,
+    PipelineDef, PluginsManifest, Rule, Skill, SpaceManifest, TriggerDef, ViewDescriptor,
 };
 
 // ─── Phase-2 descriptor types ────────────────────────────────────────────────
@@ -45,10 +45,22 @@ impl RollupInputs {
     /// without renumbering.
     pub fn default_precedence() -> Vec<PrecedenceRow> {
         vec![
-            PrecedenceRow { kind: ExtSourceKind::Cache, rank: 0 },
-            PrecedenceRow { kind: ExtSourceKind::UserGlobal, rank: 500 },
-            PrecedenceRow { kind: ExtSourceKind::Space, rank: 1000 },
-            PrecedenceRow { kind: ExtSourceKind::Agent, rank: 2000 },
+            PrecedenceRow {
+                kind: ExtSourceKind::Cache,
+                rank: 0,
+            },
+            PrecedenceRow {
+                kind: ExtSourceKind::UserGlobal,
+                rank: 500,
+            },
+            PrecedenceRow {
+                kind: ExtSourceKind::Space,
+                rank: 1000,
+            },
+            PrecedenceRow {
+                kind: ExtSourceKind::Agent,
+                rank: 2000,
+            },
         ]
     }
 }
@@ -71,19 +83,14 @@ pub struct ExtensionDescriptor {
 /// Wave 2 census (Part 3.4) so cached packages and globally-enabled
 /// extensions rank distinctly instead of sharing a tier.
 #[cfg_attr(feature = "specta", derive(specta::Type))]
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ExtSource {
     Cache,
     UserGlobal,
+    #[default]
     Space,
     Agent(String),
-}
-
-impl Default for ExtSource {
-    fn default() -> Self {
-        ExtSource::Space
-    }
 }
 
 impl ExtSource {
@@ -284,8 +291,8 @@ pub struct ExtensionLibrary {
     /// Plugin install intent from the active preset's `[plugins]` section.
     #[serde(default)]
     pub plugins: PluginsManifest,
-    /// Project-level harness defaults from `project.harness_defaults` in `ship.jsonc`.
-    /// Merged as base under agent-level `*_settings_extra` during resolution.
+    /// Project-level harness defaults. Historical space manifests loaded this
+    /// from `project.harness_defaults`; new spaces source it via agent profiles.
     #[serde(default, skip_serializing_if = "std::collections::HashMap::is_empty")]
     pub harness_defaults: std::collections::HashMap<String, serde_json::Value>,
     /// Pass-through from `[harness_settings.claude]` in the active preset.
@@ -572,8 +579,12 @@ pub fn resolve(
     if let Some(m) = agent
         && !m.rules.refs.is_empty()
     {
-        let allowed: HashSet<String> =
-            m.rules.refs.iter().map(|id| normalize_rule_id(id)).collect();
+        let allowed: HashSet<String> = m
+            .rules
+            .refs
+            .iter()
+            .map(|id| normalize_rule_id(id))
+            .collect();
         resolved_rules.retain(|rule| allowed.contains(&normalize_rule_id(&rule.file_name)));
     }
 
@@ -619,10 +630,14 @@ pub fn resolve(
 fn include_capability_skills(resolved: &mut Vec<Skill>, pool: &[Skill]) {
     use std::collections::BTreeSet;
     let mut included: BTreeSet<String> = resolved.iter().map(|s| s.id.clone()).collect();
-    let mut granted: BTreeSet<String> =
-        resolved.iter().flat_map(|s| s.grants.iter().cloned()).collect();
-    let required: BTreeSet<String> =
-        resolved.iter().flat_map(|s| s.requires.iter().cloned()).collect();
+    let mut granted: BTreeSet<String> = resolved
+        .iter()
+        .flat_map(|s| s.grants.iter().cloned())
+        .collect();
+    let required: BTreeSet<String> = resolved
+        .iter()
+        .flat_map(|s| s.requires.iter().cloned())
+        .collect();
     for cap in required.difference(&granted.clone()) {
         if let Some(skill) = pool
             .iter()
@@ -647,10 +662,7 @@ fn normalize_harnesses(ids: &[String]) -> Vec<String> {
         if id.is_empty() {
             continue;
         }
-        if !matches!(
-            id.as_str(),
-            "claude" | "codex" | "opencode" | "pi"
-        ) {
+        if !matches!(id.as_str(), "claude" | "codex" | "opencode" | "pi") {
             continue;
         }
         if seen.insert(id.clone()) {
@@ -824,7 +836,9 @@ mod tests {
                     name: "Lead".to_string(),
                     ..Default::default()
                 },
-                skills: SkillRefs { refs: vec!["workflow".to_string()] },
+                skills: SkillRefs {
+                    refs: vec!["workflow".to_string()],
+                },
                 ..Default::default()
             }],
             ..Default::default()
@@ -866,7 +880,9 @@ mod tests {
                     name: "Lead".to_string(),
                     ..Default::default()
                 },
-                skills: SkillRefs { refs: vec!["workflow".to_string()] },
+                skills: SkillRefs {
+                    refs: vec!["workflow".to_string()],
+                },
                 ..Default::default()
             }],
             ..Default::default()
@@ -938,8 +954,12 @@ mod tests {
                     name: "Planning".to_string(),
                     ..Default::default()
                 },
-                mcp: McpRefs { servers: vec!["github".to_string()] },
-                skills: SkillRefs { refs: vec!["alpha".to_string()] },
+                mcp: McpRefs {
+                    servers: vec!["github".to_string()],
+                },
+                skills: SkillRefs {
+                    refs: vec!["alpha".to_string()],
+                },
                 ..Default::default()
             }],
             ..Default::default()
@@ -1037,7 +1057,15 @@ mod tests {
             }],
             ..Default::default()
         };
-        let resolved = resolve(&config, &[], &[], &Permissions::default(), &[], None, Some("any-agent"));
+        let resolved = resolve(
+            &config,
+            &[],
+            &[],
+            &Permissions::default(),
+            &[],
+            None,
+            Some("any-agent"),
+        );
         assert_eq!(resolved.harnesses, vec!["codex"]);
     }
 
@@ -1052,7 +1080,10 @@ mod tests {
                     name: "Strict".to_string(),
                     ..Default::default()
                 },
-                rules: ProfileRules { refs: vec!["style".to_string()], ..Default::default() },
+                rules: ProfileRules {
+                    refs: vec!["style".to_string()],
+                    ..Default::default()
+                },
                 ..Default::default()
             }],
             ..Default::default()
@@ -1195,7 +1226,10 @@ mod tests {
                 // All filter arrays empty — should not restrict anything
                 mcp: McpRefs { servers: vec![] },
                 skills: SkillRefs { refs: vec![] },
-                rules: ProfileRules { refs: vec![], ..Default::default() },
+                rules: ProfileRules {
+                    refs: vec![],
+                    ..Default::default()
+                },
                 ..Default::default()
             }],
             ..Default::default()
@@ -1230,7 +1264,9 @@ mod tests {
                     name: "Planning".to_string(),
                     ..Default::default()
                 },
-                skills: SkillRefs { refs: vec!["plan-skill".to_string()] },
+                skills: SkillRefs {
+                    refs: vec!["plan-skill".to_string()],
+                },
                 ..Default::default()
             }],
             ..Default::default()
@@ -1320,7 +1356,9 @@ mod tests {
                         name: "Planning".to_string(),
                         ..Default::default()
                     },
-                    skills: SkillRefs { refs: vec!["plan-skill".to_string()] },
+                    skills: SkillRefs {
+                        refs: vec!["plan-skill".to_string()],
+                    },
                     ..Default::default()
                 },
                 AgentProfile {
@@ -1329,7 +1367,9 @@ mod tests {
                         name: "Code".to_string(),
                         ..Default::default()
                     },
-                    skills: SkillRefs { refs: vec!["code-skill".to_string()] },
+                    skills: SkillRefs {
+                        refs: vec!["code-skill".to_string()],
+                    },
                     ..Default::default()
                 },
             ],

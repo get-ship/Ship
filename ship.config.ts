@@ -37,6 +37,9 @@
 import { defineConfig } from "ship";
 
 export default defineConfig({
+  dependencies: {
+    "github.com/better-auth/skills": "main",
+  },
   agents: {
     mcp: {
       antigravity: {

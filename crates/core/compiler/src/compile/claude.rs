@@ -177,9 +177,7 @@ pub fn inject_ship_lifecycle_hooks(patch: &mut Json) {
     let Some(obj) = patch.as_object_mut() else {
         return;
     };
-    let hooks_obj = obj
-        .entry("hooks")
-        .or_insert_with(|| serde_json::json!({}));
+    let hooks_obj = obj.entry("hooks").or_insert_with(|| serde_json::json!({}));
 
     // Claude Code hook events used by Ship's lifecycle wiring:
     // - SessionStart: fires when Claude opens a session. Drives the
@@ -227,7 +225,10 @@ pub fn inject_ship_lifecycle_hooks(patch: &mut Json) {
             })
         })
         .collect();
-    if let Some(arr) = hooks_obj.get_mut("SessionStart").and_then(|v| v.as_array_mut()) {
+    if let Some(arr) = hooks_obj
+        .get_mut("SessionStart")
+        .and_then(|v| v.as_array_mut())
+    {
         arr.extend(session_start_entries);
     } else {
         hooks_obj["SessionStart"] = serde_json::json!(session_start_entries);
@@ -296,7 +297,6 @@ pub(super) fn build_settings(
         }
     }
 }
-
 
 /// Claude's typed settings delta from the Ship agent.
 #[derive(Debug, Clone, Default)]

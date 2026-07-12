@@ -28,7 +28,10 @@ fn ext(source: ExtSource, hash: &str, descriptor: ExtensionLibrary) -> Extension
 }
 
 fn inputs(extensions: Vec<ExtensionDescriptor>) -> RollupInputs {
-    RollupInputs { extensions, precedence: RollupInputs::default_precedence() }
+    RollupInputs {
+        extensions,
+        precedence: RollupInputs::default_precedence(),
+    }
 }
 
 fn compose(extensions: Vec<ExtensionDescriptor>) -> ComposedLibrary {
@@ -56,7 +59,13 @@ fn same_local_route_from_two_extensions_coexists_under_distinct_prefixes() {
         .library
         .views
         .iter()
-        .map(|v| (v.prefix.as_str(), v.route.as_str(), v.component_ref.as_str()))
+        .map(|v| {
+            (
+                v.prefix.as_str(),
+                v.route.as_str(),
+                v.component_ref.as_str(),
+            )
+        })
         .collect();
     assert_eq!(
         mounted,

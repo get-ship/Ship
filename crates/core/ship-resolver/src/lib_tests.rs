@@ -66,7 +66,11 @@ async fn resolve_space_with_no_globals_yields_resolved_config() {
     let (_tmp, root) = write_minimal_space();
     let resolved = resolve_space(&root).await.unwrap();
     // The TS-defined agent lands in the resolved config's agent list.
-    let ids: Vec<&str> = resolved.agent_profiles.iter().map(|a| a.agent.id.as_str()).collect();
+    let ids: Vec<&str> = resolved
+        .agent_profiles
+        .iter()
+        .map(|a| a.agent.id.as_str())
+        .collect();
     // Phase-2 contract: TS agents appear in the active-agent-shaped
     // list (the leaf's resolve step pulls from `library.agents`).
     // The .ts path populates that list via this crate's merge step.
@@ -117,10 +121,7 @@ async fn resolve_space_is_deterministic_across_two_runs() {
     let b = load_space_library(&root).await.unwrap();
     let a_bytes = descriptor::extension_library_canonical(&a).unwrap();
     let b_bytes = descriptor::extension_library_canonical(&b).unwrap();
-    assert_eq!(
-        a_bytes, b_bytes,
-        "two space loads must be byte-identical"
-    );
+    assert_eq!(a_bytes, b_bytes, "two space loads must be byte-identical");
     // The content hash is the same across two runs of the same input.
     let a_hash = descriptor::extension_library_content_hash(&a).unwrap();
     let b_hash = descriptor::extension_library_content_hash(&b).unwrap();
@@ -167,10 +168,15 @@ async fn roll_up_without_lockfile_is_source_only_identity() {
     std::fs::create_dir_all(&cache_root).unwrap();
     let library_root = root.join("empty_library");
 
-    let composed = roll_up(&root, Some(&cache_root), Some(&library_root)).await.unwrap();
+    let composed = roll_up(&root, Some(&cache_root), Some(&library_root))
+        .await
+        .unwrap();
 
     // No shadows (no collision possible — the enabled tier is empty).
-    assert!(composed.shadows.is_empty(), "no shadows for a single populated extension");
+    assert!(
+        composed.shadows.is_empty(),
+        "no shadows for a single populated extension"
+    );
 
     // The composed library is the source's library.
     let lib = &composed.library;
@@ -189,8 +195,15 @@ async fn roll_up_without_lockfile_is_source_only_identity() {
         2,
         "source + the always-present (here empty) enabled tier"
     );
-    assert_eq!(rollup.precedence.len(), RollupInputs::default_precedence().len());
-    for (got, want) in rollup.precedence.iter().zip(RollupInputs::default_precedence().iter()) {
+    assert_eq!(
+        rollup.precedence.len(),
+        RollupInputs::default_precedence().len()
+    );
+    for (got, want) in rollup
+        .precedence
+        .iter()
+        .zip(RollupInputs::default_precedence().iter())
+    {
         assert_eq!(got.kind, want.kind);
         assert_eq!(got.rank, want.rank);
     }
@@ -265,7 +278,9 @@ defineAgent({
     .unwrap();
 
     let library_root = root.join("empty_library");
-    let composed = roll_up(&root, Some(&cache_root), Some(&library_root)).await.unwrap();
+    let composed = roll_up(&root, Some(&cache_root), Some(&library_root))
+        .await
+        .unwrap();
 
     // The source's `github.com/x/y/writer` wins (Space rank 1000 >
     // Cache rank 0). The cached package's namespaced agent is
@@ -276,7 +291,10 @@ defineAgent({
         .iter()
         .find(|a| a.agent.id == "github.com/x/y/writer")
         .expect("source's `github.com/x/y/writer` agent must win");
-    assert_eq!(gh_writer.agent.name, "Source Mirror", "source wins on collision");
+    assert_eq!(
+        gh_writer.agent.name, "Source Mirror",
+        "source wins on collision"
+    );
 
     // The shadow record identifies the cached package by its
     // content_hash (the lockfile's sha256 hex, stripped of prefix).
@@ -284,7 +302,10 @@ defineAgent({
     let shadow = &composed.shadows[0];
     assert_eq!(shadow.losing_source, ExtSource::Cache);
     assert_eq!(shadow.winning_source, ExtSource::Space);
-    assert_eq!(shadow.losing_tier_hash, hex, "loser identified by cache content hash");
+    assert_eq!(
+        shadow.losing_tier_hash, hex,
+        "loser identified by cache content hash"
+    );
 }
 
 /// Empty cache (cache dir exists but no `ship.lock` in the space) →
@@ -297,7 +318,9 @@ async fn roll_up_with_empty_cache_is_source_only() {
     // No ship.lock → `load_cached_extensions` returns `vec![]` early.
     let library_root = root.join("empty_library");
 
-    let composed = roll_up(&root, Some(&cache_root), Some(&library_root)).await.unwrap();
+    let composed = roll_up(&root, Some(&cache_root), Some(&library_root))
+        .await
+        .unwrap();
     assert!(composed.shadows.is_empty());
     let rollup = composed.library.rollup_inputs.as_ref().unwrap();
     assert_eq!(
@@ -305,7 +328,11 @@ async fn roll_up_with_empty_cache_is_source_only() {
         2,
         "no cached packages, but the enabled tier is always present"
     );
-    assert_eq!(rollup.extensions[0].source, ExtSource::UserGlobal, "the (empty) enabled tier");
+    assert_eq!(
+        rollup.extensions[0].source,
+        ExtSource::UserGlobal,
+        "the (empty) enabled tier"
+    );
     assert_eq!(rollup.extensions[1].source, ExtSource::Space);
 }
 
@@ -351,8 +378,12 @@ async fn roll_up_is_deterministic_across_two_runs() {
     .unwrap();
 
     let library_root = root.join("empty_library");
-    let a = roll_up(&root, Some(&cache_root), Some(&library_root)).await.unwrap();
-    let b = roll_up(&root, Some(&cache_root), Some(&library_root)).await.unwrap();
+    let a = roll_up(&root, Some(&cache_root), Some(&library_root))
+        .await
+        .unwrap();
+    let b = roll_up(&root, Some(&cache_root), Some(&library_root))
+        .await
+        .unwrap();
 
     // The composed library's canonical form is byte-identical.
     let a_bytes = descriptor::extension_library_canonical(&a.library).unwrap();
@@ -405,7 +436,9 @@ async fn roll_up_content_hash_changes_with_cached_package() {
 
     let library_root = root.join("empty_library");
     // Roll-up 1: baseline.
-    let a = roll_up(&root, Some(&cache_root), Some(&library_root)).await.unwrap();
+    let a = roll_up(&root, Some(&cache_root), Some(&library_root))
+        .await
+        .unwrap();
     let a_hash = descriptor::extension_library_content_hash(&a.library).unwrap();
 
     // Mutate the cached package's content. The `load_cached_extensions`
@@ -417,7 +450,9 @@ async fn roll_up_content_hash_changes_with_cached_package() {
     )
     .unwrap();
 
-    let b = roll_up(&root, Some(&cache_root), Some(&library_root)).await.unwrap();
+    let b = roll_up(&root, Some(&cache_root), Some(&library_root))
+        .await
+        .unwrap();
     let b_hash = descriptor::extension_library_content_hash(&b.library).unwrap();
 
     assert_ne!(
@@ -469,7 +504,9 @@ async fn roll_up_tear_test_full_composition() {
     .unwrap();
 
     let library_root = root.join("empty_library");
-    let composed = roll_up(&root, Some(&cache_root), Some(&library_root)).await.unwrap();
+    let composed = roll_up(&root, Some(&cache_root), Some(&library_root))
+        .await
+        .unwrap();
 
     // Both the source's `demo` and the cached `github.com/d/b/cached`
     // are present (no collision → both win).
@@ -501,11 +538,81 @@ async fn roll_up_tear_test_full_composition() {
     // The roll-up audit carries all three extensions: source, cached
     // package, and the (empty) enabled tier.
     let rollup = lib.rollup_inputs.as_ref().unwrap();
-    assert_eq!(rollup.extensions.len(), 3, "source + one cached package + the enabled tier");
+    assert_eq!(
+        rollup.extensions.len(),
+        3,
+        "source + one cached package + the enabled tier"
+    );
     let sources: Vec<_> = rollup.extensions.iter().map(|e| e.source.clone()).collect();
     assert!(sources.iter().any(|s| matches!(s, ExtSource::Cache)));
     assert!(sources.iter().any(|s| matches!(s, ExtSource::UserGlobal)));
     assert!(sources.iter().any(|s| matches!(s, ExtSource::Space)));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn define_config_dependencies_do_not_change_cached_dep_descriptor() {
+    let (_tmp, root) = write_minimal_space();
+    let cache_root = root.join("cache");
+    let hex = "depdeclared";
+    let obj = cache_root.join("objects").join(hex);
+    std::fs::create_dir_all(obj.join("skills").join("lint")).unwrap();
+    std::fs::write(
+        obj.join("ship.jsonc"),
+        r#"{ "module": { "name": "github.com/d/b", "version": "0.1.0" },
+             "exports": { "skills": ["skills/lint"], "agents": [] } }"#,
+    )
+    .unwrap();
+    std::fs::write(
+        obj.join("skills/lint/SKILL.md"),
+        "---\nname: Lint\n---\nLint content.",
+    )
+    .unwrap();
+    std::fs::write(
+        root.join(".ship").join("ship.lock"),
+        format!(
+            r#"{{ "version": 1, "packages": [
+                 {{ "path": "github.com/d/b", "version": "0.1.0",
+                    "commit": "{}", "hash": "sha256:{}" }}
+             ] }}"#,
+            "d".repeat(40),
+            hex,
+        ),
+    )
+    .unwrap();
+
+    let library_root = root.join("empty_library");
+    let baseline = roll_up(&root, Some(&cache_root), Some(&library_root))
+        .await
+        .unwrap();
+    let baseline_descriptor = descriptor::extension_library_canonical(&baseline.library).unwrap();
+
+    std::fs::write(
+        root.join("ship.config.ts"),
+        r#"
+import { defineConfig } from "ship";
+
+export default defineConfig({
+  dependencies: { "github.com/d/b": "0.1.0" },
+});
+"#,
+    )
+    .unwrap();
+
+    let after = roll_up(&root, Some(&cache_root), Some(&library_root))
+        .await
+        .unwrap();
+    let after_descriptor = descriptor::extension_library_canonical(&after.library).unwrap();
+    assert_eq!(
+        baseline_descriptor, after_descriptor,
+        "dependency declarations are install input, not descriptor content"
+    );
+
+    let skill_ids: std::collections::HashSet<&str> =
+        after.library.skills.iter().map(|s| s.id.as_str()).collect();
+    assert!(
+        skill_ids.contains("github.com/d/b/skills/lint"),
+        "cached dep skill still composes when dependency is declared in defineConfig: {skill_ids:?}"
+    );
 }
 
 // ── enabled tier (library_dir) tests ────────────────────────────────
@@ -543,8 +650,16 @@ async fn roll_up_missing_library_dir_is_empty_not_error() {
     // Deliberately do NOT create this dir.
     let library_root = root.join("does_not_exist_library");
 
-    let composed = roll_up(&root, Some(&cache_root), Some(&library_root)).await.unwrap();
-    assert!(composed.library.agent_profiles.iter().any(|a| a.agent.id == "demo"));
+    let composed = roll_up(&root, Some(&cache_root), Some(&library_root))
+        .await
+        .unwrap();
+    assert!(
+        composed
+            .library
+            .agent_profiles
+            .iter()
+            .any(|a| a.agent.id == "demo")
+    );
     let rollup = composed.library.rollup_inputs.as_ref().unwrap();
     let enabled = rollup
         .extensions
@@ -620,7 +735,9 @@ async fn roll_up_covers_every_case_resolve_dep_agents_covers() {
     // Case 1: populated lock + cache — the namespaced id the flat merge
     // used to produce must also appear in `roll_up`'s composed result.
     let library_root = root.join("empty_library");
-    let composed = roll_up(&root, Some(&cache_root), Some(&library_root)).await.unwrap();
+    let composed = roll_up(&root, Some(&cache_root), Some(&library_root))
+        .await
+        .unwrap();
     let composed_ids: std::collections::HashSet<&str> = composed
         .library
         .agent_profiles
@@ -636,7 +753,9 @@ async fn roll_up_covers_every_case_resolve_dep_agents_covers() {
     // — `roll_up` must degenerate the same way (no cached agents at
     // all), not error.
     let (_tmp2, root2) = write_minimal_space();
-    let composed_empty = roll_up(&root2, Some(&cache_root), Some(&library_root)).await.unwrap();
+    let composed_empty = roll_up(&root2, Some(&cache_root), Some(&library_root))
+        .await
+        .unwrap();
     let source_ids: std::collections::HashSet<&str> = composed_empty
         .library
         .agent_profiles
@@ -779,13 +898,20 @@ defineCollection({
     std::fs::create_dir_all(&cache_root).unwrap();
     let library_root = root.join("empty_library");
 
-    let a = roll_up(&root, Some(&cache_root), Some(&library_root)).await.unwrap();
-    let b = roll_up(&root, Some(&cache_root), Some(&library_root)).await.unwrap();
+    let a = roll_up(&root, Some(&cache_root), Some(&library_root))
+        .await
+        .unwrap();
+    let b = roll_up(&root, Some(&cache_root), Some(&library_root))
+        .await
+        .unwrap();
 
     // Determinism: byte-identical canonical form + content hash.
     let a_bytes = descriptor::extension_library_canonical(&a.library).unwrap();
     let b_bytes = descriptor::extension_library_canonical(&b.library).unwrap();
-    assert_eq!(a_bytes, b_bytes, "two roll-ups of every declare-form must be byte-identical");
+    assert_eq!(
+        a_bytes, b_bytes,
+        "two roll-ups of every declare-form must be byte-identical"
+    );
     let a_hash = descriptor::extension_library_content_hash(&a.library).unwrap();
     let b_hash = descriptor::extension_library_content_hash(&b.library).unwrap();
     assert_eq!(a_hash, b_hash);
@@ -808,7 +934,6 @@ defineCollection({
     assert_eq!(lib.rules[0].file_name, "style");
     assert!(lib.rules[0].always_apply);
 }
-
 
 // ── Phase-4 J2: view source change invalidates the roll-up's cache key ─────────
 
@@ -861,7 +986,9 @@ async fn roll_up_content_hash_changes_when_a_dep_view_source_changes() {
     // Roll-up 1: baseline. The view lands with `prefix =
     // github.com/d/views-pkg` (per `load_cached_extensions`) so the
     // composed library's `views` carries exactly that one descriptor.
-    let a = roll_up(&root, Some(&cache_root), Some(&library_root)).await.unwrap();
+    let a = roll_up(&root, Some(&cache_root), Some(&library_root))
+        .await
+        .unwrap();
     let a_hash = descriptor::composed_library_content_hash(&a).unwrap();
     assert_eq!(a.library.views.len(), 1);
     assert_eq!(a.library.views[0].prefix, "github.com/d/views-pkg");
@@ -877,7 +1004,9 @@ async fn roll_up_content_hash_changes_when_a_dep_view_source_changes() {
     )
     .unwrap();
 
-    let b = roll_up(&root, Some(&cache_root), Some(&library_root)).await.unwrap();
+    let b = roll_up(&root, Some(&cache_root), Some(&library_root))
+        .await
+        .unwrap();
     let b_hash = descriptor::composed_library_content_hash(&b).unwrap();
 
     assert_ne!(
@@ -925,7 +1054,9 @@ async fn roll_up_content_hash_changes_when_a_dep_view_is_added() {
     .unwrap();
 
     let library_root = root.join("empty_library");
-    let a = roll_up(&root, Some(&cache_root), Some(&library_root)).await.unwrap();
+    let a = roll_up(&root, Some(&cache_root), Some(&library_root))
+        .await
+        .unwrap();
     let a_hash = descriptor::composed_library_content_hash(&a).unwrap();
     assert_eq!(a.library.views.len(), 1);
 
@@ -946,7 +1077,9 @@ async fn roll_up_content_hash_changes_when_a_dep_view_is_added() {
     )
     .unwrap();
 
-    let b = roll_up(&root, Some(&cache_root), Some(&library_root)).await.unwrap();
+    let b = roll_up(&root, Some(&cache_root), Some(&library_root))
+        .await
+        .unwrap();
     let b_hash = descriptor::composed_library_content_hash(&b).unwrap();
 
     assert_ne!(a_hash, b_hash, "adding a view must change the cache key");
@@ -996,12 +1129,16 @@ defineView({
     let cache_root = tmp.path().join("empty_cache");
     std::fs::create_dir_all(&cache_root).unwrap();
     let library_root = tmp.path().join("empty_library");
-    let a = roll_up(&root, Some(&cache_root), Some(&library_root)).await.unwrap();
+    let a = roll_up(&root, Some(&cache_root), Some(&library_root))
+        .await
+        .unwrap();
     let a_hash = descriptor::composed_library_content_hash(&a).unwrap();
     let a_view_routes: std::collections::HashSet<String> =
         a.library.views.iter().map(|v| v.route.clone()).collect();
-    assert!(a_view_routes.contains("/alpha"),
-        "the source's /alpha view must be in the composed library: {a_view_routes:?}");
+    assert!(
+        a_view_routes.contains("/alpha"),
+        "the source's /alpha view must be in the composed library: {a_view_routes:?}"
+    );
 
     // Mutate `ship.ts` — change `/alpha` to `/beta`. The on-disk
     // source descriptor's content hash moves; the composed
@@ -1023,7 +1160,9 @@ defineView({
     )
     .unwrap();
 
-    let b = roll_up(&root, Some(&cache_root), Some(&library_root)).await.unwrap();
+    let b = roll_up(&root, Some(&cache_root), Some(&library_root))
+        .await
+        .unwrap();
     let b_hash = descriptor::composed_library_content_hash(&b).unwrap();
 
     assert_ne!(
@@ -1033,7 +1172,10 @@ defineView({
     let b_view_routes: std::collections::HashSet<String> =
         b.library.views.iter().map(|v| v.route.clone()).collect();
     assert!(b_view_routes.contains("/beta"));
-    assert!(!b_view_routes.contains("/alpha"), "/alpha gone, /beta present");
+    assert!(
+        !b_view_routes.contains("/alpha"),
+        "/alpha gone, /beta present"
+    );
 }
 
 /// R-series acceptance: two extensions' views compose deterministically —
@@ -1089,7 +1231,10 @@ async fn roll_up_two_extensions_views_compose_deterministically_under_distinct_p
                  {{ "path": "github.com/b/views", "version": "0.1.0",
                     "commit": "{}", "hash": "sha256:{}" }}
              ] }}"#,
-            "a".repeat(40), hex_a, "b".repeat(40), hex_b,
+            "a".repeat(40),
+            hex_a,
+            "b".repeat(40),
+            hex_b,
         ),
     )
     .unwrap();
@@ -1099,11 +1244,18 @@ async fn roll_up_two_extensions_views_compose_deterministically_under_distinct_p
     // Two roll-ups, same input — the composed descriptor must be
     // byte-identical (the cache key invariant) and contain BOTH views
     // under their distinct prefixes.
-    let a = roll_up(&root, Some(&cache_root), Some(&library_root)).await.unwrap();
-    let b = roll_up(&root, Some(&cache_root), Some(&library_root)).await.unwrap();
+    let a = roll_up(&root, Some(&cache_root), Some(&library_root))
+        .await
+        .unwrap();
+    let b = roll_up(&root, Some(&cache_root), Some(&library_root))
+        .await
+        .unwrap();
     let a_bytes = descriptor::extension_library_canonical(&a.library).unwrap();
     let b_bytes = descriptor::extension_library_canonical(&b.library).unwrap();
-    assert_eq!(a_bytes, b_bytes, "two roll-ups of two views must be byte-identical");
+    assert_eq!(
+        a_bytes, b_bytes,
+        "two roll-ups of two views must be byte-identical"
+    );
 
     let a_hash = descriptor::composed_library_content_hash(&a).unwrap();
     let b_hash = descriptor::composed_library_content_hash(&b).unwrap();
@@ -1111,12 +1263,17 @@ async fn roll_up_two_extensions_views_compose_deterministically_under_distinct_p
 
     // Both views survive the namespace-prefix merge — `prefix`
     // distinguishes the slot, `route` is the local under-prefix path.
-    let routes: std::collections::HashSet<(String, String)> = a.library
+    let routes: std::collections::HashSet<(String, String)> = a
+        .library
         .views
         .iter()
         .map(|v| (v.prefix.clone(), v.route.clone()))
         .collect();
-    assert_eq!(a.library.views.len(), 2, "two distinct-prefix views coexist");
+    assert_eq!(
+        a.library.views.len(),
+        2,
+        "two distinct-prefix views coexist"
+    );
     assert!(routes.contains(&("github.com/a/views".into(), "/dashboard".into())));
     assert!(routes.contains(&("github.com/b/views".into(), "/dashboard".into())));
 
@@ -1125,7 +1282,11 @@ async fn roll_up_two_extensions_views_compose_deterministically_under_distinct_p
     // like any other path — `github.com/a/views` and `github.com/b/views`
     // share the `github.com` ancestor and diverge at `a` / `b`, each
     // reaching its own `/dashboard` mount under `views`.
-    assert_eq!(a.route_tree.root.children.len(), 1, "shared `github.com` ancestor");
+    assert_eq!(
+        a.route_tree.root.children.len(),
+        1,
+        "shared `github.com` ancestor"
+    );
     let github = &a.route_tree.root.children[0];
     assert_eq!(github.segment, "github.com");
     let mut owners: Vec<String> = github.children.iter().map(|c| c.segment.clone()).collect();
@@ -1139,7 +1300,10 @@ async fn roll_up_two_extensions_views_compose_deterministically_under_distinct_p
         assert_eq!(views_node.children.len(), 1);
         let dashboard = &views_node.children[0];
         assert_eq!(dashboard.segment, "dashboard");
-        assert!(dashboard.view.is_some(), "the `dashboard` node mounts the view");
+        assert!(
+            dashboard.view.is_some(),
+            "the `dashboard` node mounts the view"
+        );
     }
 }
 
@@ -1169,7 +1333,9 @@ defineView({
     std::fs::create_dir_all(&cache_root).unwrap();
     let library_root = tmp.path().join("empty_library");
 
-    let composed = roll_up(&root, Some(&cache_root), Some(&library_root)).await.unwrap();
+    let composed = roll_up(&root, Some(&cache_root), Some(&library_root))
+        .await
+        .unwrap();
 
     // One view, three path segments after prefix-stripping: the route
     // is `/a/b` so the composed tree under the source's prefix
@@ -1184,7 +1350,10 @@ defineView({
     assert_eq!(composed.route_tree.root.children.len(), 1);
     let a = &composed.route_tree.root.children[0];
     assert_eq!(a.segment, "a");
-    assert!(a.view.is_none(), "the `a` node is a path segment, not a view");
+    assert!(
+        a.view.is_none(),
+        "the `a` node is a path segment, not a view"
+    );
     assert_eq!(a.children.len(), 1);
     let b = &a.children[0];
     assert_eq!(b.segment, "b");
@@ -1455,7 +1624,7 @@ async fn defineConfig_custom_skill_paths_walk_finds_on_disk_skill() {
     // (the space root here).
     std::fs::write(
         root.join("ship.config.ts"),
-r#"
+        r#"
 import { defineConfig, defineAgent } from "ship";
 
 defineAgent({

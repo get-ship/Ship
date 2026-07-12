@@ -194,7 +194,6 @@ fn merge_into(target: &mut ExtensionLibrary, source: ExtensionLibrary, harness_i
         target.codex_shell_env_policy = source.codex_shell_env_policy;
         target.codex_notify = source.codex_notify;
     }
-
 }
 
 /// Merge source permissions into target. Appends tool lists rather than replacing.

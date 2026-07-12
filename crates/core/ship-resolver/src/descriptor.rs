@@ -30,9 +30,9 @@
 //! in `ts_resolver::resolve_ts_files`; by the time values reach THIS module
 //! they are plain data.
 
-use compiler::{ComposedLibrary, ExtensionLibrary};
 #[cfg(test)]
 use compiler::RollupInputs;
+use compiler::{ComposedLibrary, ExtensionLibrary};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
@@ -84,9 +84,7 @@ pub fn extension_library_content_hash(library: &ExtensionLibrary) -> serde_json:
 ///
 /// This is the roll-up's cache key — the spec's "Cache key extends
 /// over the cache tier's content hashes" acceptance is this fn.
-pub fn composed_library_content_hash(
-    composed: &ComposedLibrary,
-) -> serde_json::Result<String> {
+pub fn composed_library_content_hash(composed: &ComposedLibrary) -> serde_json::Result<String> {
     extension_library_content_hash(&composed.library)
 }
 
