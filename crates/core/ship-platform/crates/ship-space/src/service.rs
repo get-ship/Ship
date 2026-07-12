@@ -102,6 +102,60 @@ impl SpaceService {
         identity::ensure_identity_for_root(self.ctx.kernel(), path, name).await
     }
 
+    // ── stack membership ───────────────────────────────────────────────────
+
+    /// Register `root_path` as a member stack of the space. Membership is
+    /// REGISTRATION — the composed space is exactly the registered set. The
+    /// root must carry the stack marker (`ship.config.ts`); registration is
+    /// idempotent (re-registering bumps `registered_at`).
+    pub async fn register_stack(
+        &self,
+        space_id: &str,
+        root_path: &std::path::Path,
+    ) -> Result<ship_types::payload::StackRegistered, SpaceError> {
+        let resolved = resolve_space_id(self.ctx.space_id().as_str(), space_id)?;
+        if !root_path.is_absolute() {
+            return Err(SpaceError::BadArgs(format!(
+                "root_path must be an absolute path: {}",
+                root_path.display()
+            )));
+        }
+        let marker = root_path.join(ship_substrate::project::STACK_CONFIG_FILENAME);
+        if !marker.is_file() {
+            return Err(SpaceError::BadArgs(format!(
+                "not a stack root: no ship.config.ts in {}",
+                root_path.display()
+            )));
+        }
+        let canonical = std::fs::canonicalize(root_path)
+            .map_err(|e| SpaceError::BadArgs(format!("root_path: {e}")))?;
+        let payload = ship_types::payload::StackRegistered {
+            root_path: canonical.to_string_lossy().into_owned(),
+            registered_at: crate::helpers::now_rfc3339(),
+        };
+        let envelope = ship_types::envelope::EventEnvelope::new(
+            ship_types::event_types::STACK_REGISTERED,
+            &resolved,
+            &payload,
+        )
+        .map_err(|e| SpaceError::Internal(e.to_string()))?;
+        self.ctx
+            .kernel()
+            .emit(envelope, &crate::helpers::runtime_emit_ctx())
+            .await
+            .map_err(|e| SpaceError::Internal(e.to_string()))?;
+        Ok(payload)
+    }
+
+    /// The stacks registered as members of the space, in registration order.
+    pub fn list_stacks(
+        &self,
+        space_id: &str,
+    ) -> Result<Vec<ship_substrate::db::spaces::StackRow>, SpaceError> {
+        let resolved = resolve_space_id(self.ctx.space_id().as_str(), space_id)?;
+        crate::spaces::list_stacks(self.ctx.kernel(), &resolved)
+    }
+
     // ── snapshot ────────────────────────────────────────────────────────────
     //
     // Resolves `space_id` (the request's explicit id, or the served space's

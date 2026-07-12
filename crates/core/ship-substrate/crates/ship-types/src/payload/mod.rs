@@ -56,7 +56,7 @@ pub use sync::{SyncPushCompleted, SyncPushFailed, SyncStarted, SyncStopped};
 pub use watcher::{
     AgentChanged, AgentDefUpdated, PipelineChanged, RuleChanged, SkillChanged, ViewChanged,
 };
-pub use space::{SpaceOpened, SpaceSeen};
+pub use space::{SpaceOpened, SpaceSeen, StackRegistered};
 pub use process::ProcessOrphaned;
 
 

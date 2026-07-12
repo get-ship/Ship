@@ -28,8 +28,10 @@ pub mod identity;
 pub mod service;
 pub mod spaces;
 pub mod spaces_projection;
+pub mod stacks_projection;
 pub mod types;
 pub mod wire;
 
 pub use spaces_projection::SpacesProjection;
+pub use stacks_projection::SpaceStacksProjection;
 pub use wire::SpaceWire;

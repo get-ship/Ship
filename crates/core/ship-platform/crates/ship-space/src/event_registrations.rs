@@ -18,6 +18,9 @@ use ship_types::register_event;
 // syncs — location facts belong to the device, not to portable history).
 register_event!("space.opened", [EventScope::Runtime], Retention::Durable, Stability::Stable, "SpaceOpened", ship_types::payload::SpaceOpened);
 register_event!("space.seen", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "SpaceSeen", ship_types::payload::SpaceSeen);
+// Stack membership (`entity_id` = space_id). Runtime-scoped: rows carry
+// paths, and location facts belong to the device.
+register_event!("stack.registered", [EventScope::Runtime], Retention::Durable, Stability::Stable, "StackRegistered", ship_types::payload::StackRegistered);
 
 // Space-scoped settings changes ride the unified `settings.changed` event
 // (SettingsService.Set, EventScope::Space). Per-space settings are read +

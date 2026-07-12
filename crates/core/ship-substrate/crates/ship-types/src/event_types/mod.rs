@@ -76,6 +76,12 @@ pub const SPACE_OPENED: &str = "space.opened";
 /// emits this on every boot of a previously-opened space. Payload:
 /// `SpaceSeen`.
 pub const SPACE_SEEN: &str = "space.seen";
+/// Stack membership — a stack root registered as a member of a space
+/// (`entity_id` = the space's id). Membership is REGISTRATION: the composed
+/// space is exactly the registered set; the runtime never scans directories
+/// for members. Folds into the Runtime-scoped `space_stacks` projection.
+/// Payload: `StackRegistered`.
+pub const STACK_REGISTERED: &str = "stack.registered";
 
 /// Auth — a daemon session (CLI / MCP / Studio-local) was issued.
 /// `entity_id` is the session token. The auth_sessions projection

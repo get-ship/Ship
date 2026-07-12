@@ -34,7 +34,10 @@ fn install_spaces_projection() {
     static ONCE: std::sync::Once = std::sync::Once::new();
     ONCE.call_once(|| {
         ship_substrate::projections::install_extra_projections_factory(Box::new(|| {
-            vec![Box::new(ship_space::SpacesProjection)]
+            vec![
+                Box::new(ship_space::SpacesProjection),
+                Box::new(ship_space::SpaceStacksProjection),
+            ]
         }));
     });
 }
@@ -337,4 +340,49 @@ async fn space_opened_event_is_visible_in_both_async_and_sync_reads() {
         "sync SQL read (find_by_path_at) must see the registered space"
     );
     assert_eq!(sync_by_path.unwrap().space_id, record.space_id);
+}
+
+// ── stack membership ──────────────────────────────────────────────────────────
+
+/// Membership is REGISTRATION: the composed set is exactly the registered
+/// rows — a stack sitting on disk beside a member never appears, a non-stack
+/// dir is rejected at the marker, and rows are per-space.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn stack_membership_is_registration_not_scanning() {
+    let tmp = tempfile::tempdir().unwrap();
+    let kernel = make_kernel(&tmp);
+    let svc = global_service(&tmp, kernel);
+
+    let mk = |name: &str, marker: bool| {
+        let d = tmp.path().join(name);
+        std::fs::create_dir_all(&d).unwrap();
+        if marker {
+            std::fs::write(d.join("ship.config.ts"), "export default {}\n").unwrap();
+        }
+        d
+    };
+    let a = mk("a", true);
+    let b = mk("b", true);
+    let _bystander_on_disk = mk("c", true);
+    let not_a_stack = mk("d", false);
+
+    svc.register_stack("sp-1", &a).await.unwrap();
+    tokio::time::sleep(Duration::from_millis(10)).await;
+    svc.register_stack("sp-1", &b).await.unwrap();
+
+    let err = svc.register_stack("sp-1", &not_a_stack).await.unwrap_err();
+    assert!(
+        format!("{err:?}").contains("not a stack root"),
+        "non-stack dir must be rejected at the marker: {err:?}"
+    );
+
+    let rows = svc.list_stacks("sp-1").unwrap();
+    assert_eq!(rows.len(), 2, "exactly the registered set — c never composes");
+    assert!(rows[0].root_path.ends_with("/a"));
+    assert!(rows[1].root_path.ends_with("/b"));
+
+    assert!(
+        svc.list_stacks("sp-2").unwrap().is_empty(),
+        "membership rows are per-space"
+    );
 }

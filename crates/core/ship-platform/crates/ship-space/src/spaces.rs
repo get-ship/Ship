@@ -63,3 +63,14 @@ pub fn find_by_path(kernel: &KernelLog, path: &Path) -> Result<Option<SpaceRecor
         .map(|opt| opt.map(SpaceRecord::from))
         .map_err(err)
 }
+
+/// The stacks registered as members of `space_id`, in registration order.
+pub fn list_stacks(
+    kernel: &KernelLog,
+    space_id: &str,
+) -> Result<Vec<db::spaces::StackRow>, SpaceError> {
+    let Some(dir) = ship_dir(kernel) else {
+        return Ok(Vec::new());
+    };
+    db::spaces::list_stacks_at(&dir, space_id).map_err(err)
+}

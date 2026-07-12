@@ -120,6 +120,46 @@ where
         Ok(Response::new(record_to_proto(record)))
     }
 
+    async fn register_stack(
+        &self,
+        ctx: RequestContext,
+        request: ship_ops_rpc::OwnedRegisterStackReqView,
+    ) -> ServiceResult<ship_ops_rpc::StackRegistration> {
+        let svc = self.make_svc(&ctx)?;
+        let root = std::path::Path::new(request.root_path);
+        let reg = svc
+            .register_stack(request.space_id, root)
+            .await
+            .map_err(ConnectError::from)?;
+        Ok(Response::new(ship_ops_rpc::StackRegistration {
+            space_id: request.space_id.to_string(),
+            root_path: reg.root_path,
+            registered_at: reg.registered_at,
+            ..Default::default()
+        }))
+    }
+
+    async fn list_stacks(
+        &self,
+        ctx: RequestContext,
+        request: ship_ops_rpc::OwnedListStacksReqView,
+    ) -> ServiceResult<ship_ops_rpc::StackList> {
+        let svc = self.make_svc(&ctx)?;
+        let rows = svc.list_stacks(request.space_id).map_err(ConnectError::from)?;
+        Ok(Response::new(ship_ops_rpc::StackList {
+            stacks: rows
+                .into_iter()
+                .map(|r| ship_ops_rpc::StackRegistration {
+                    space_id: r.space_id,
+                    root_path: r.root_path,
+                    registered_at: r.registered_at,
+                    ..Default::default()
+                })
+                .collect(),
+            ..Default::default()
+        }))
+    }
+
     /// Backup a space's db + content blobs to a target directory.
     ///
     /// `request.space_id` empty = the served/served space; non-empty = an

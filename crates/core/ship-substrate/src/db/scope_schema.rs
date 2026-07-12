@@ -234,6 +234,17 @@ END"#,
 )"#,
     "CREATE INDEX IF NOT EXISTS idx_spaces_last_seen ON spaces(last_seen_at DESC)",
     "CREATE INDEX IF NOT EXISTS idx_spaces_path      ON spaces(path)",
+    // ── space_stacks ────────────────────────────────────────────────────────────
+    // Stack membership: the composed space is exactly the registered set —
+    // the runtime never scans directories for members. Device-local (rows
+    // carry paths). Folded from `stack.registered` by SpaceStacksProjection.
+    r#"CREATE TABLE IF NOT EXISTS space_stacks (
+  space_id       TEXT NOT NULL,
+  root_path      TEXT NOT NULL,
+  registered_at  TEXT NOT NULL,
+  PRIMARY KEY (space_id, root_path)
+)"#,
+    "CREATE INDEX IF NOT EXISTS idx_space_stacks_space ON space_stacks(space_id)",
     // ── canonical_sessions ──────────────────────────────────────────────────────
     // The agent-session ledger. Special case: it aggregates BOTH Space-scoped
     // session.* AND Runtime-scoped session.turn.* events, so CanonicalSessionProjection
@@ -352,6 +363,7 @@ pub fn static_tables(scope: EventScope) -> &'static [&'static str] {
             "daemon_settings",
             "durable_journals",
             "spaces",
+            "space_stacks",
             "canonical_sessions",
         ],
         EventScope::Account => &[
@@ -404,6 +416,7 @@ mod tests {
             "daemon_settings",
             "durable_journals",
             "spaces",
+            "space_stacks",
             "canonical_sessions",
         ] {
             assert!(tables.contains(&expected.to_string()), "runtime missing {expected}; got {tables:?}");

@@ -93,6 +93,7 @@ fn install_defaults_inner() {
             // table. Identity is owned by the space, never derived from the
             // path — see `ship_space::identity::ensure_identity_for_root`.
             Box::new(ship_space::SpacesProjection),
+            Box::new(ship_space::SpaceStacksProjection),
             Box::new(ship_auth::AuthSessionsProjection),
             // Single-row daemon-owner projection — folds `daemon.owner.*`
             // events into the `daemon_owner` table `current_owner()` reads.

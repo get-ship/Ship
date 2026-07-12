@@ -29,3 +29,12 @@ pub struct SpaceSeen {
     /// RFC3339 timestamp of the re-open.
     pub seen_at: String,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct StackRegistered {
+    /// Absolute stack root on this device — the directory whose
+    /// `ship.config.ts` marks it. A location, not an identity.
+    pub root_path: String,
+    /// RFC3339 timestamp of registration.
+    pub registered_at: String,
+}

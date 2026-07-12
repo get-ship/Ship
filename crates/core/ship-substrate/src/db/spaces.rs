@@ -169,3 +169,37 @@ pub fn find_by_path_at(ship_dir: &Path, path: &str) -> Result<Option<SpaceRecord
     })?;
     Ok(row.as_ref().map(row_to_record))
 }
+
+/// A stack registered as a member of a space (device-local row).
+#[derive(Debug, Clone)]
+pub struct StackRow {
+    pub space_id: String,
+    pub root_path: String,
+    pub registered_at: String,
+}
+
+/// List the stacks registered as members of `space_id` under `ship_dir`,
+/// in registration order (the composition order).
+pub fn list_stacks_at(ship_dir: &Path, space_id: &str) -> Result<Vec<StackRow>> {
+    let mut conn = open_runtime_conn_at(ship_dir)?;
+    let rows = block_on(async {
+        sqlx::query(
+            "SELECT space_id, root_path, registered_at \
+             FROM space_stacks WHERE space_id = ? ORDER BY registered_at, root_path",
+        )
+        .bind(space_id)
+        .fetch_all(&mut conn)
+        .await
+    })?;
+    Ok(rows
+        .iter()
+        .map(|r| {
+            use sqlx::Row as _;
+            StackRow {
+                space_id: r.get("space_id"),
+                root_path: r.get("root_path"),
+                registered_at: r.get("registered_at"),
+            }
+        })
+        .collect())
+}

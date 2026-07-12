@@ -43,6 +43,7 @@ fn type_validators() -> BTreeMap<&'static str, fn(&Value) -> Result<()>> {
         // S4: the four typed control results.
         v!(DispatchResult), v!(StopResult), v!(SteerResult), v!(GrantResult),
         v!(AnalyticsSessionsResponse), v!(AnalyticsSessionResponse),
+        v!(StackRegistration), v!(StackList),
         v!(AnalyticsToolUsageResponse), v!(AnalyticsSessionTurnsResponse),
         v!(ArtifactsListResponse), v!(ArtifactRecord),
         v!(CollectionItem),
