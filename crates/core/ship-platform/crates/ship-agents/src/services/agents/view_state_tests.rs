@@ -165,7 +165,7 @@ defineAgent({ agent: { id: "lean", name: "Lean" } });
 // retired with the format-migration Wave 5 follow-up: they pinned the
 // two-scope (`<ship>/library/agents/`, `<project>/.ship/agents/`) directory
 // scan-and-merge precedence. That precedence law is now
-// `compiler::compose_space`'s (Space > UserGlobal > Cache, `RollupInputs::
+// `stack_model::compose_space`'s (Space > UserGlobal > Cache, `RollupInputs::
 // default_precedence`) — already covered by `ship-resolver`'s own roll-up
 // tests (out of this job's file fence) and by
 // `composed_row_source_reflects_provenance_and_shadow_is_queryable` below,
@@ -308,11 +308,11 @@ fn source_from_provenance_falls_back_when_no_provenance() {
 // carries the WINNER as the active row (what list/detail serve) and the
 // LOSER as a separate shadow row (`AgentDefIndex::query`, the audit surface
 // `ship-config` already exposes — no new read path added here). Built
-// directly via `compiler::compose_space`, the same fixture shape
+// directly via `stack_model::compose_space`, the same fixture shape
 // `ship-config`'s `agents_index_provenance.rs` uses (ship-resolver is out of
 // this job's file fence).
 
-use compiler::{
+use stack_model::{
     compose_space, AgentProfile, ExtSource, ExtensionDescriptor, ExtensionLibrary, ProfileMeta,
     RollupInputs,
 };
@@ -340,7 +340,7 @@ fn ext_descriptor(
 /// A cached-package agent (`UserGlobal`, rank 0) colliding by id with the
 /// space's own same-id agent (`Space`, rank 1000) — the space wins per
 /// `RollupInputs::default_precedence`.
-fn space_beats_cached_package() -> compiler::ComposedLibrary {
+fn space_beats_cached_package() -> stack_model::ComposedLibrary {
     let cached = ExtensionLibrary {
         agent_profiles: vec![agent_profile("reviewer", "Cached Reviewer")],
         ..Default::default()

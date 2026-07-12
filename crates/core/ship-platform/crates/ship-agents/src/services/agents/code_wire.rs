@@ -14,7 +14,7 @@
 //!     `dispatch.requested` event the in-process path emits, with
 //!     driver-edge fields populated.
 //!   * `Harnesses` — list the harnesses this install registers
-//!     (compiled-in `compiler::HARNESSES` table, mirrored in the
+//!     (compiled-in `stack_model::HARNESSES` table, mirrored in the
 //!     internal `HarnessService.ListHarnesses`).
 //!
 //! Mount split (2026-07-10): shipd gates the mount on `--features
@@ -194,14 +194,14 @@ impl CodeServiceTrait for CodeWire {
         _request: OwnedListHarnessesRequestView,
     ) -> ServiceResult<ListHarnessesResponse> {
         // Enumerate the harnesses the install registers. The
-        // `compiler::HARNESSES` table is the single source of truth
+        // `stack_model::HARNESSES` table is the single source of truth
         // — the same list the internal `HarnessService.ListHarnesses`
         // surface returns, projected to id strings only. R-A: the
         // registry is what the install provides; the absence of a
         // harness is structural, not an error (a coding agent naming
         // an unprovided harness fails ordinary validation upstream
         // and is not listed).
-        let items: Vec<String> = compiler::compile::harness::list_harnesses()
+        let items: Vec<String> = harness_adaptors::compile::harness::list_harnesses()
             .iter()
             .map(|d| d.id.to_string())
             .collect();

@@ -1,7 +1,7 @@
 //! Registry manifest types used by the install/resolve pipeline.
 //!
 //! The lock-file types (`ShipLock`, `LockPackage`) are owned by
-//! `compiler::lockfile`. This module previously kept a parallel pair —
+//! `stack_model::lockfile`. This module previously kept a parallel pair —
 //! that was the source of a real bug in P19 where the two sides
 //! disagreed on the on-disk JSON field name (`package` vs `packages`).
 //! Both reads and writes now go through the compiler crate.
@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 
 /// A single dependency entry in ship.jsonc `dependencies`.
 ///
-/// Distinct from `compiler::manifest::ManifestDependency` — the install
+/// Distinct from `stack_model::manifest::ManifestDependency` — the install
 /// pipeline only needs version + grants and avoids the full manifest schema.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Dependency {
@@ -24,7 +24,7 @@ pub struct Dependency {
 
 /// Minimal ship.jsonc manifest projection for install/resolve.
 ///
-/// Distinct from `compiler::manifest::ShipManifest` — that one carries the
+/// Distinct from `stack_model::manifest::ShipManifest` — that one carries the
 /// `[module]` section and richer metadata that install doesn't need.
 #[derive(Debug, Clone, Default)]
 pub struct ShipManifest {
@@ -55,7 +55,7 @@ impl SyncStatus {
 /// not in manifest.
 pub fn diff_manifest_against_lock(
     manifest: &ShipManifest,
-    lock: &compiler::lockfile::ShipLock,
+    lock: &stack_model::lockfile::ShipLock,
 ) -> SyncStatus {
     let lock_paths: std::collections::HashSet<&str> =
         lock.packages.iter().map(|p| p.path.as_str()).collect();
@@ -76,7 +76,7 @@ pub fn diff_manifest_against_lock(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use compiler::lockfile::{LockPackage, ShipLock};
+    use stack_model::lockfile::{LockPackage, ShipLock};
 
     #[test]
     fn diff_in_sync() {

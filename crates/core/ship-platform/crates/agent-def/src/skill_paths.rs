@@ -2,14 +2,14 @@
 //!
 //! By default, skills live in `<space_root>/skills/` (the space root being
 //! the directory that contains `ship.config.ts`). The constant
-//! [`compiler::loader::DEFAULT_SPACE_SKILL_PATH`] is the single source of
+//! [`stack_model::loader::DEFAULT_SPACE_SKILL_PATH`] is the single source of
 //! truth — this module imports it. The pre-cutover `space.skill_paths`
 //! ship.jsonc field died with the dot-ship close-out: nobody set it, and
 //! custom skill paths are now a declare-form problem in `ship.config.ts`.
 
 use std::path::{Path, PathBuf};
 
-use compiler::loader::DEFAULT_SPACE_SKILL_PATH;
+use stack_model::loader::DEFAULT_SPACE_SKILL_PATH;
 
 /// Resolve the on-disk skill dirs for one space. Returns the single
 /// default entry — there is no extras walk (the `space.skill_paths`

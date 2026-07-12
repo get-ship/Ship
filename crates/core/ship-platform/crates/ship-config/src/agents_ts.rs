@@ -8,7 +8,7 @@
 //! - [`read_agent_ts_sources`] — surface the raw `.ts` source text for the ingest
 //!   layer to evaluate (through the same [`FsBroker`] door the `.jsonc` reader
 //!   uses).
-//! - [`source_from_profile`] — project an already-resolved [`compiler::AgentProfile`]
+//! - [`source_from_profile`] — project an already-resolved [`stack_model::AgentProfile`]
 //!   back into the index summary, through the SAME [`crate::agents::to_source`]
 //!   projection the `.jsonc` reader uses, so a `.ts`-authored agent indexes
 //!   identically to a `.jsonc` one.
@@ -25,7 +25,7 @@ use crate::error::ConfigError;
 ///
 /// The `.ts` SOURCE is returned verbatim; EVALUATION (V8, via `agent-config-eval`)
 /// happens at the ingest layer, which turns each source into
-/// [`compiler::AgentProfile`]s and feeds them back through [`source_from_profile`].
+/// [`stack_model::AgentProfile`]s and feeds them back through [`source_from_profile`].
 pub fn read_agent_ts_sources(
     fs: &dyn FsBroker,
     ship_dir: &Path,
@@ -51,14 +51,14 @@ pub fn read_agent_ts_sources(
     Ok(out)
 }
 
-/// Project a resolved [`compiler::AgentProfile`] (the `.ts`-config eval output)
+/// Project a resolved [`stack_model::AgentProfile`] (the `.ts`-config eval output)
 /// into the index summary, through the SAME [`to_source`] projection the `.jsonc`
 /// reader uses. The profile is re-serialized to the canonical doc value +
 /// content-hashed over those bytes. Identity is the agent id: the rel path is
 /// `<id>.ts`, so one `.ts` module emitting N agents yields N distinct rows.
 /// `harness` comes from the profile's `target_agents` — the `.ts` model's
 /// harness-target list.
-pub fn source_from_profile(profile: &compiler::AgentProfile) -> AgentDefSource {
+pub fn source_from_profile(profile: &stack_model::AgentProfile) -> AgentDefSource {
     let value = serde_json::to_value(profile).unwrap_or(serde_json::Value::Null);
     let raw = serde_json::to_vec(&value).unwrap_or_default();
     let mut src = to_source(&DefDoc { stem: profile.agent.id.clone(), raw, value });

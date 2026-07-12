@@ -4,7 +4,7 @@
 //! native compile one shared home so the daemon can run it in-process.
 //!
 //! The compiler crate (transform) stays WASM-safe and has no platform deps.
-//! This module owns the native-only loader (disk → `compiler::ExtensionLibrary`)
+//! This module owns the native-only loader (disk → `stack_model::ExtensionLibrary`)
 //! and the full compile pipeline (library → written harness files).
 
 pub mod agent;
@@ -32,7 +32,7 @@ pub use permissions::PermissionPreset;
 pub use projection::{CompileStateProjection, ProjectCompileState};
 
 use anyhow::{Context, Result};
-use compiler::CompileOutput;
+use harness_adaptors::CompileOutput;
 use std::path::{Path, PathBuf};
 
 /// Deliver each included sdk-skill's `references/docs/*.mdoc` pages beside the
@@ -139,8 +139,8 @@ pub fn compile_project(opts: &CompileOptions) -> Result<CompileSummary> {
     compile_project_from_library(opts, composed.library)
 }
 
-/// Compile from an already-composed [`compiler::ExtensionLibrary`] — the
-/// Phase-3 roll-up path (`ship_resolver::roll_up` / `compiler::compose_space`)
+/// Compile from an already-composed [`stack_model::ExtensionLibrary`] — the
+/// Phase-3 roll-up path (`ship_resolver::roll_up` / `stack_model::compose_space`)
 /// already merged the cache tier, the operator-enabled library tier, and the
 /// space's own source under the precedence law, so the `#122` flat merge
 /// ([`resolve_dep_agents`]) is skipped here — running it again would
@@ -150,14 +150,14 @@ pub fn compile_project(opts: &CompileOptions) -> Result<CompileSummary> {
 /// [`compile_project`] loads.
 pub fn compile_project_from_library(
     opts: &CompileOptions,
-    library: compiler::ExtensionLibrary,
+    library: stack_model::ExtensionLibrary,
 ) -> Result<CompileSummary> {
     compile_from_library(opts, library)
 }
 
 fn compile_from_library(
     opts: &CompileOptions,
-    mut library: compiler::ExtensionLibrary,
+    mut library: stack_model::ExtensionLibrary,
 ) -> Result<CompileSummary> {
     let stack_root = opts.space_root.clone();
     let output_root = opts.output_root.as_deref().unwrap_or(&opts.space_root);
@@ -216,7 +216,7 @@ fn compile_from_library(
         library.claude_effort = opts.default_effort.clone();
     }
     let resolved =
-        compiler::resolve_library(&library, None, opts.active_agent.as_deref());
+        stack_model::resolve_library(&library, None, opts.active_agent.as_deref());
     let requested_grants = resolved.requested_grants.clone();
 
     // 6. Determine harnesses
@@ -236,7 +236,7 @@ fn compile_from_library(
     // 7. Compile per harness
     let mut outputs = Vec::new();
     for harness_id in &harnesses {
-        let Some(mut output) = compiler::compile(&resolved, harness_id) else {
+        let Some(mut output) = harness_adaptors::compile(&resolved, harness_id) else {
             eprintln!("warning: unknown harness '{}', skipping", harness_id);
             continue;
         };
@@ -247,7 +247,7 @@ fn compile_from_library(
     // 8. Write + post-compile steps (skipped in dry-run mode)
     if !opts.dry_run {
         for (harness_id, output) in &outputs {
-            compiler::write_output(output_root, harness_id, output)
+            harness_adaptors::write_output(output_root, harness_id, output)
                 .with_context(|| format!("failed to write {} output", harness_id))?;
         }
         for harness_id in &harnesses {

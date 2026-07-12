@@ -8,7 +8,7 @@
 //! - [`resolver::resolve_version`] — git tag → exact commit resolution.
 //! - [`hash::compute_tree_hash`] / [`hash::compute_file_hash`] — deterministic SHA-256 hashing.
 //! - [`types`] — minimal `ShipManifest`/`Dependency` view for the install
-//!   pipeline; the full lockfile types live in `compiler::lockfile`.
+//!   pipeline; the full lockfile types live in `stack_model::lockfile`.
 
 pub mod bundle_sig;
 pub mod cache;
@@ -38,9 +38,9 @@ pub use init_deps::{
 pub use install::{InstallOptions, InstallResult, resolve_and_fetch};
 pub use resolver::{ResolvedVersion, resolve_alias, resolve_version};
 pub use types::{Dependency, ShipManifest, SyncStatus, diff_manifest_against_lock};
-// Canonical lockfile types live in `compiler::lockfile`; re-export the names
+// Canonical lockfile types live in `stack_model::lockfile`; re-export the names
 // callers expect at this crate path.
-pub use compiler::lockfile::{LockPackage, ShipLock};
+pub use stack_model::lockfile::{LockPackage, ShipLock};
 
 #[cfg(test)]
 mod tests;

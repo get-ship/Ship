@@ -1,5 +1,5 @@
 //! Phase-3 roll-up provenance (F4, `census-phase3-agents.md`): ingests a
-//! `compiler::compose_space` result, upserting every winning profile as the
+//! `stack_model::compose_space` result, upserting every winning profile as the
 //! ACTIVE row and every `AgentProfile`-noun `ShadowRecord` as a SEPARATE
 //! shadow row — so the index can answer both "where did this def come from"
 //! and "why is it not active" without a second write path. Split out of
@@ -16,7 +16,7 @@ use crate::error::ConfigError;
 /// Where an [`super::AgentDefRecord`] row's content came from within a
 /// Phase-3 extension roll-up ([`AgentDefIndex::upsert_composed`]). Carries
 /// the SAME `ExtSource` JSON + content hash the law's own
-/// `compiler::ExtensionDescriptor` carries — the index re-derives provenance
+/// `stack_model::ExtensionDescriptor` carries — the index re-derives provenance
 /// from `rollup_inputs`, it does not invent a parallel vocabulary (the wire
 /// scope strings `project`/`user` are a separate, untouched concern).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -36,7 +36,7 @@ impl AgentDefIndex {
     async fn upsert_shadow(
         &self,
         scope: &str,
-        profile: &compiler::AgentProfile,
+        profile: &stack_model::AgentProfile,
         provenance: &DefProvenance,
     ) -> Result<(), ConfigError> {
         let src = crate::agents_ts::source_from_profile(profile);
@@ -44,10 +44,10 @@ impl AgentDefIndex {
         self.upsert(key, scope, &src, Some(provenance)).await
     }
 
-    /// Ingest a Phase-3 composed roll-up (`compiler::compose_space`'s
+    /// Ingest a Phase-3 composed roll-up (`stack_model::compose_space`'s
     /// output, Phase-2 J2's `ship_resolver::roll_up`): upsert every winning
-    /// [`compiler::AgentProfile`] as the ACTIVE row, plus one row per
-    /// `AgentProfile`-noun `compiler::ShadowRecord` the law recorded as a
+    /// [`stack_model::AgentProfile`] as the ACTIVE row, plus one row per
+    /// `AgentProfile`-noun `stack_model::ShadowRecord` the law recorded as a
     /// SHADOW row.
     ///
     /// A winner's provenance is derived by re-applying the SAME
@@ -59,7 +59,7 @@ impl AgentDefIndex {
     /// that same `(source, content_hash)` pair. Best-effort: a single
     /// profile's upsert failure is logged and skipped, never aborts the
     /// ingest.
-    pub async fn upsert_composed(&self, scope: &str, composed: &compiler::ComposedLibrary) {
+    pub async fn upsert_composed(&self, scope: &str, composed: &stack_model::ComposedLibrary) {
         let rollup = composed.library.rollup_inputs.as_ref();
         let owners = rollup.map(agent_profile_owners).unwrap_or_default();
 
@@ -76,7 +76,7 @@ impl AgentDefIndex {
         }
 
         for shadow in &composed.shadows {
-            if shadow.noun != compiler::NounKind::AgentProfile {
+            if shadow.noun != stack_model::NounKind::AgentProfile {
                 continue;
             }
             let Some(profile) = find_shadowed_profile(rollup, shadow) else {
@@ -101,20 +101,20 @@ fn shadow_row_key(scope: &str, stem: &str, tier_hash: &str) -> String {
     format!("{scope}:{stem}#shadow:{tier_hash}")
 }
 
-/// Serialize a `compiler::ExtSource` EXACTLY as the roll-up law emits it —
+/// Serialize a `stack_model::ExtSource` EXACTLY as the roll-up law emits it —
 /// the vocabulary pass is fenced; this must never hand-roll a label.
-fn ext_source_json(source: &compiler::ExtSource) -> String {
+fn ext_source_json(source: &stack_model::ExtSource) -> String {
     serde_json::to_string(source).unwrap_or_default()
 }
 
 /// For each agent-profile id in a Phase-3 roll-up, the extension tier that
 /// currently owns it — re-applying the SAME rank-then-declared-order rule
-/// `compiler::compose_space` uses, so a winner's provenance matches the
+/// `stack_model::compose_space` uses, so a winner's provenance matches the
 /// law's own resolution with no duplicated judgment call.
 fn agent_profile_owners(
-    rollup: &compiler::RollupInputs,
-) -> HashMap<String, (compiler::ExtSource, String)> {
-    let mut ranked: Vec<(u32, &compiler::ExtensionDescriptor)> = rollup
+    rollup: &stack_model::RollupInputs,
+) -> HashMap<String, (stack_model::ExtSource, String)> {
+    let mut ranked: Vec<(u32, &stack_model::ExtensionDescriptor)> = rollup
         .extensions
         .iter()
         .filter_map(|ext| {
@@ -133,15 +133,15 @@ fn agent_profile_owners(
     owners
 }
 
-/// Look up the LOSING `AgentProfile` a `compiler::ShadowRecord` names, by
+/// Look up the LOSING `AgentProfile` a `stack_model::ShadowRecord` names, by
 /// matching its `(losing_source, losing_tier_hash)` back to the extension
 /// that contributed it. `None` when `rollup_inputs` is absent or the id
 /// can't be found (defensive — should not happen for a shadow the SAME
 /// roll-up produced).
 fn find_shadowed_profile<'a>(
-    rollup: Option<&'a compiler::RollupInputs>,
-    shadow: &compiler::ShadowRecord,
-) -> Option<&'a compiler::AgentProfile> {
+    rollup: Option<&'a stack_model::RollupInputs>,
+    shadow: &stack_model::ShadowRecord,
+) -> Option<&'a stack_model::AgentProfile> {
     let rollup = rollup?;
     rollup
         .extensions

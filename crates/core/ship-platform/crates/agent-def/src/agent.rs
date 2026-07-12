@@ -2,7 +2,7 @@
 //!
 //! The ONE keystone both runtimes read: Floki (embedded code-mode) and ship-code
 //! (third-party-harness drivers). It is the harness-facing projection of the
-//! single agent-definition type ([`compiler::AgentProfile`]).
+//! single agent-definition type ([`stack_model::AgentProfile`]).
 //!
 //! ```text
 //! Agent {
@@ -26,11 +26,11 @@
 //! `BlastRadius` / `Capability` are re-exported from the `compiler` crate, which
 //! owns the single canonical definition (so the file-format profile, the flat
 //! config, and this keystone all share one type). See
-//! `compiler::types::capability`.
+//! `stack_model::types::capability`.
 
 use serde::{Deserialize, Serialize};
 
-pub use compiler::{BlastRadius, Capability};
+pub use stack_model::{BlastRadius, Capability};
 
 /// 0 · Harness — the runtime discriminant + its open pass-through settings.
 ///
@@ -200,7 +200,7 @@ impl Agent {
         Ok(())
     }
 
-    /// Project the legacy nested file-format [`compiler::AgentProfile`] onto the
+    /// Project the legacy nested file-format [`stack_model::AgentProfile`] onto the
     /// unified shape for a single target harness.
     ///
     /// Additive + lossless w.r.t. the keystone's own fields: identity, rules,
@@ -213,7 +213,7 @@ impl Agent {
     /// / active_tools / permissions / plugins / hooks / apps) are left on the
     /// profile; this is a projection, not a destructive migration. The profile
     /// itself is untouched.
-    pub fn from_profile(profile: &compiler::AgentProfile, harness_id: &str) -> Self {
+    pub fn from_profile(profile: &stack_model::AgentProfile, harness_id: &str) -> Self {
         let settings = profile
             .harness_settings
             .get(harness_id)
@@ -368,7 +368,7 @@ mod tests {
                 "claude": { "model": "opus", "temperature": 0.3, "max_turns": 12, "theme": "dark" }
             }
         }"#;
-        let profile: compiler::AgentProfile = serde_json::from_str(src).expect("parse profile");
+        let profile: stack_model::AgentProfile = serde_json::from_str(src).expect("parse profile");
         let agent = Agent::from_profile(&profile, "claude");
 
         assert_eq!(agent.harness.id, "claude");
@@ -396,7 +396,7 @@ mod tests {
     #[test]
     fn to_nested_json_round_trips_via_profile() {
         // Build an Agent programmatically, emit canonical nested JSON, parse as
-        // compiler::AgentProfile, project back via from_profile — all fields
+        // stack_model::AgentProfile, project back via from_profile — all fields
         // carried by Agent must survive unchanged.
         let mut hs = serde_json::Map::new();
         hs.insert("model".into(), serde_json::json!("opus"));
@@ -426,8 +426,8 @@ mod tests {
         let json_val = agent.to_nested_json();
         let json_str = serde_json::to_string(&json_val).expect("serialize");
 
-        // The canonical JSON must parse as compiler::AgentProfile (the file format).
-        let profile: compiler::AgentProfile =
+        // The canonical JSON must parse as stack_model::AgentProfile (the file format).
+        let profile: stack_model::AgentProfile =
             serde_json::from_str(&json_str).expect("must parse as AgentProfile");
 
         // Project back to Agent using the harness we emitted.
@@ -489,7 +489,7 @@ mod tests {
     #[test]
     fn from_profile_missing_harness_block_is_clean() {
         let src = r#"{ "agent": { "id": "x", "name": "X" } }"#;
-        let profile: compiler::AgentProfile = serde_json::from_str(src).expect("parse");
+        let profile: stack_model::AgentProfile = serde_json::from_str(src).expect("parse");
         let agent = Agent::from_profile(&profile, "floki");
         assert_eq!(agent.harness.id, "floki");
         assert!(agent.harness.settings.is_empty());

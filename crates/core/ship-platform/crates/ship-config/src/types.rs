@@ -1,6 +1,6 @@
 //! Types the config crate owns at its boundary.
 //!
-//! The agent-definition type is the single `compiler::AgentProfile` (the
+//! The agent-definition type is the single `stack_model::AgentProfile` (the
 //! file-canonical nested schema); this module no longer projects a separate
 //! flat view. The dependency direction is crate → compiler.
 
@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 // Re-export the canonical agent-definition type + Capability so callers depend
 // on `ship_config` without pulling in the compiler crate directly.
-pub use compiler::{AgentProfile, Capability};
+pub use stack_model::{AgentProfile, Capability};
 
 /// Project-level overrides for the two identity-shaped launch keys.
 ///

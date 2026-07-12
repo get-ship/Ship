@@ -29,7 +29,7 @@
 //! retired: its only consumers were the migrated paths (this module's
 //! `summary_from_value` / `detail_from_value`).
 
-use compiler::{ComposedLibrary, ExtSource};
+use stack_model::{ComposedLibrary, ExtSource};
 use serde::Serialize;
 use ship_config::agents_index::AgentDefIndex;
 use std::path::{Path, PathBuf};
@@ -120,7 +120,7 @@ pub(crate) fn resolve_space_root() -> Option<PathBuf> {
     ship_substrate::project::get_stack_root(None).ok()
 }
 
-/// Compose the project's space root into an [`ExtensionLibrary`][compiler::ExtensionLibrary]
+/// Compose the project's space root into an [`ExtensionLibrary`][stack_model::ExtensionLibrary]
 /// snapshot — the same `ship_resolver::roll_up_blocking` call `compile_project`
 /// makes (format-migration W5). This IS the no-index fallback's read: no
 /// `.ship/agents/*.jsonc` directory scan survives it. `None` on a roll-up
@@ -133,7 +133,7 @@ pub(crate) fn compose_space_library(space_root: &Path) -> Option<ComposedLibrary
 }
 
 /// The rail's `source` label for `id` within a composed roll-up: re-applies
-/// the SAME rank-then-declared-order rule `compiler::compose_space` used to
+/// the SAME rank-then-declared-order rule `stack_model::compose_space` used to
 /// pick the winner (mirrors `ship_config::agents_index::provenance`'s
 /// `agent_profile_owners`, which does the identical re-derivation for the
 /// DataStore-backed index — no parallel precedence law invented here, just
@@ -236,7 +236,7 @@ fn resolve_array_field(
 /// Project a raw agent-def value into a summary. The ONE projection shared by
 /// the composed roll-up read and the index-backed read — the def value has
 /// the same canonical shape whether it comes off a `serde_json::to_value`'d
-/// [`compiler::AgentProfile`] or out of the index snapshot. `None` when the
+/// [`stack_model::AgentProfile`] or out of the index snapshot. `None` when the
 /// value lacks the top-level `agent` block.
 fn summary_from_value(
     id: String,
@@ -484,7 +484,7 @@ pub async fn agent_id_exists_in_index(index: &AgentDefIndex, id: &str) -> bool {
 //
 // Served ENTIRELY from the `AgentDefIndex` DataStore snapshot — no re-read of
 // `.ship/agents/*.jsonc` or `~/.ship/library/agents/*.jsonc` per call.
-// `list_docs`'s "project" scope IS `compiler::compose_space`'s composed
+// `list_docs`'s "project" scope IS `stack_model::compose_space`'s composed
 // answer (`AgentDefIndex::upsert_composed`): a same-id loser is already
 // excluded there, so no precedence law is re-derived here — id set and
 // ranking are entirely the index's. `ship_dir` stays a parameter (unused)

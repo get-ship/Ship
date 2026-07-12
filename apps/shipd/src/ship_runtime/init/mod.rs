@@ -196,7 +196,7 @@ impl ShipRuntime {
         // Post format-migration Wave 4 phase A: collections arrive via
         // `defineCollection` declare-forms in the space's `ship.config.ts`
         // and land in the descriptor's `library.collections` (a
-        // `Vec<compiler::CollectionDef>`). `hydrate_registry` converts
+        // `Vec<stack_model::CollectionDef>`). `hydrate_registry` converts
         // those to `SchemaDoc` and registers them; the previous
         // `.ship/collections/*.jsonc` file walk is gone — see
         // `census-format-migration.md` Section 4 row 3.

@@ -20,7 +20,7 @@ use std::sync::Arc;
 use ship_config::agents_index::{AgentDefIndex, AgentDefQuery};
 use ship_config::agents_write::{notify_agent_def_saved, save_agents_config};
 use ship_config::types::AgentProfile;
-use compiler::ProfileMeta;
+use stack_model::ProfileMeta;
 use ship_platform::config::agent_index::{apply_def_updated, build_def_index, spawn_def_index_consumer};
 use ship_substrate::data::DataService;
 use ship_substrate::events::new_isolated_for_test;

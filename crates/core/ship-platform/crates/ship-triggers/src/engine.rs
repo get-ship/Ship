@@ -99,7 +99,7 @@ impl HookEngine {
     /// definitions. Invalid entries are logged and skipped — one bad
     /// trigger never discards the rest (mirrors the retired JSONC loader's
     /// error-tolerant behavior).
-    pub async fn reload(&self, triggers: &[compiler::TriggerDef]) {
+    pub async fn reload(&self, triggers: &[stack_model::TriggerDef]) {
         let mut map = HashMap::with_capacity(triggers.len());
         let mut errors = 0usize;
         for def in triggers {
@@ -280,7 +280,7 @@ pub async fn spawn_hook_service(
     kernel: Arc<Mutex<KernelRouter>>,
     ship_dir: PathBuf,
     schemas: Arc<ship_collection::projection::SchemaRegistry>,
-    triggers: Vec<compiler::TriggerDef>,
+    triggers: Vec<stack_model::TriggerDef>,
 ) -> Result<Arc<HookEngine>> {
     let source_mgr = Arc::new(SourceManager::new(ship_dir.clone()));
     source_mgr.start_all(kernel.clone());

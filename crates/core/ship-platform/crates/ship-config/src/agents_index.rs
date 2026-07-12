@@ -129,7 +129,7 @@ pub struct AgentDefRecord {
     /// Target harnesses (canonical `agent.harnesses`).
     pub harness: Vec<String>,
     pub tags: Vec<String>,
-    /// The extension that supplied this row, as [`compiler::compose_space`]
+    /// The extension that supplied this row, as [`stack_model::compose_space`]
     /// emits it (JSON `ExtSource`, verbatim — never a hand-rolled label).
     /// `None` for a row from the plain per-scope `.jsonc`/`.ts` reindex.
     pub ext_source: Option<String>,
@@ -197,14 +197,14 @@ impl AgentDefIndex {
     }
 
     /// Upsert one agent def resolved from a `.ts` config (a compiler
-    /// [`compiler::AgentProfile`]), through the SAME row projection the
+    /// [`stack_model::AgentProfile`]), through the SAME row projection the
     /// `.jsonc` reader uses. `provenance` is `Some` only for a Phase-3
     /// roll-up winner ([`Self::upsert_composed`]); plain ingest passes `None`
     /// (no behavior change there).
     pub async fn upsert_profile(
         &self,
         scope: &str,
-        profile: &compiler::AgentProfile,
+        profile: &stack_model::AgentProfile,
         provenance: Option<&DefProvenance>,
     ) -> Result<(), ConfigError> {
         let src = crate::agents_ts::source_from_profile(profile);

@@ -652,7 +652,7 @@ fn map_repo_status(status: ship_git::state::RepoStatus) -> RepoStatusResponse {
 pub struct HarnessImpl;
 
 impl HarnessService for HarnessImpl {
-    // ListHarnesses — REAL, leaf-clean: a pure read off `compiler::list_harnesses()`
+    // ListHarnesses — REAL, leaf-clean: a pure read off `harness_adaptors::list_harnesses()`
     // (the static HARNESSES table). No `.ship/` load, no filesystem. This is the
     // proof op: the harness compiler is reachable as a dev-RPC op on helmd while
     // helmd stays leaf-clean (mirrors GitService.Overview).
@@ -662,7 +662,7 @@ impl HarnessService for HarnessImpl {
         _ctx: RequestContext,
         _req: OwnedListHarnessesRequestView,
     ) -> ServiceResult<ListHarnessesResponse> {
-        let harnesses = compiler::list_harnesses()
+        let harnesses = harness_adaptors::list_harnesses()
             .iter()
             .map(|h| Harness {
                 id: h.id.to_string(),
@@ -686,13 +686,13 @@ impl HarnessService for HarnessImpl {
     //
     // Pipeline (mirrors `ListHarnesses`'s use of the `compiler` leaf):
     //   1. Validate `repo_path` (the absolute path to the project tree).
-    //   2. `compiler::load_library(ship_dir)` — the leaf,
+    //   2. `stack_model::load_library(ship_dir)` — the leaf,
     //      substrate-free loader added in this carve. Returns a
     //      `ExtensionLibrary` (agents, mcp, skills, rules, permissions, hooks).
-    //   3. `compiler::resolve_library(&lib, None, active_agent)` — turns
+    //   3. `stack_model::resolve_library(&lib, None, active_agent)` — turns
     //      the library into the resolved runtime config.
     //   4. For each requested harness (or the resolved config's selected
-    //      harnesses), call `compiler::compile(&resolved, harness_id)` to
+    //      harnesses), call `harness_adaptors::compile(&resolved, harness_id)` to
     //      produce a `CompileOutput`, then flatten into `CompiledFile` rows.
     //   5. When `dry_run` is false, write the files to `repo_path` (the
     //      same set the CLI's `ship compile` would lay down).
@@ -719,7 +719,7 @@ impl HarnessService for HarnessImpl {
         // The V8 TS eval inside `roll_up_blocking` merges every declare-form
         // (mcp server, rule, collection, trigger, pipeline) into the
         // `ExtensionLibrary` the compile pipeline consumes — the leaf
-        // `compiler::load_library` no longer reads `.ship/mcp.jsonc` or
+        // `stack_model::load_library` no longer reads `.ship/mcp.jsonc` or
         // `.ship/rules/*.md` (format-migration Wave 4 phase A).
         let lib = ship_resolver::roll_up_blocking(&repo, None, None)
             .map(|composed| composed.library)
@@ -735,7 +735,7 @@ impl HarnessService for HarnessImpl {
         } else {
             Some(req.active_agent.to_string())
         };
-        let resolved = compiler::resolve_library(&lib, None, active_agent_override.as_deref());
+        let resolved = stack_model::resolve_library(&lib, None, active_agent_override.as_deref());
 
         // Step 3: pick harnesses. The request may pin a single harness; if
         // not, use the resolved config's selected harnesses (default: claude).
@@ -752,7 +752,7 @@ impl HarnessService for HarnessImpl {
         // Step 4: compile each harness + flatten to CompiledFile rows.
         let mut files: Vec<CompiledFile> = Vec::new();
         for h in &harnesses {
-            let Some(out) = compiler::compile(&resolved, h) else {
+            let Some(out) = harness_adaptors::compile(&resolved, h) else {
                 // Unknown harness id — skip with no-files. Caller still
                 // sees the id in `harnesses` and can disambiguate.
                 continue;
@@ -787,12 +787,12 @@ impl HarnessService for HarnessImpl {
     }
 }
 
-/// Flatten a `compiler::CompileOutput` into the per-file rows the wire
+/// Flatten a `harness_adaptors::CompileOutput` into the per-file rows the wire
 /// carries (each `CompiledFile` is `harness_id + project-relative path +
 /// full content`). Mirrors the CLI's `ship compile` file layout.
 fn flatten_compile_output(
     harness_id: &str,
-    out: &compiler::CompileOutput,
+    out: &harness_adaptors::CompileOutput,
     files: &mut Vec<CompiledFile>,
 ) {
     // MCP server config (standalone file, not merged into settings).

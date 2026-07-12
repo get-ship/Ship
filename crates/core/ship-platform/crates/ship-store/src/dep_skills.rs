@@ -12,8 +12,8 @@
 //!             → expand to all leaf skills within
 
 use anyhow::{Context, Result};
-use compiler::lockfile::{LockPackage, ShipLock};
-use compiler::{Skill, SkillSource};
+use stack_model::lockfile::{LockPackage, ShipLock};
+use stack_model::{Skill, SkillSource};
 use std::path::{Path, PathBuf};
 
 // ── Dep ref detection ─────────────────────────────────────────────────────────
@@ -164,14 +164,14 @@ pub fn resolve_dep_skill(ref_str: &str, lock: &ShipLock, cache_root: &Path) -> R
 
 /// Parse a SKILL.md from a dep package, using `dep_ref` as the skill id.
 ///
-/// Delegates to the canonical [`compiler::skill_parser::parse_skill`] — one
+/// Delegates to the canonical [`stack_model::skill_parser::parse_skill`] — one
 /// parser for compile-path, dep-skill cache, and any future consumer. The
 /// earlier hand-rolled parser only handled block-form `grants:` / `requires:`
 /// and silently DROPPED inline `grants: [..]` / `requires: [..]` declarations,
 /// so dep-loaded agents were missing half their declared capability surface
 /// (#106). The canonical parser accepts BOTH forms.
 fn parse_dep_skill(dep_ref: &str, raw: &str) -> Skill {
-    let mut skill = compiler::skill_parser::parse_skill(dep_ref, raw);
+    let mut skill = stack_model::skill_parser::parse_skill(dep_ref, raw);
     // Mark dep-loaded skills as Community so downstream consumers (the gate,
     // the SDK generator) can distinguish them from authored/builtin skills.
     skill.source = SkillSource::Community;
@@ -341,7 +341,7 @@ pub fn transitive_capabilities(
         if !manifest_path.exists() {
             continue;
         }
-        let manifest = match compiler::manifest::ShipManifest::from_file(&manifest_path) {
+        let manifest = match stack_model::manifest::ShipManifest::from_file(&manifest_path) {
             Ok(m) => m,
             Err(e) => {
                 tracing::warn!("transitive caps: skipping {} — manifest: {e}", pkg.path);
@@ -378,7 +378,7 @@ pub fn transitive_capabilities(
 
 /// One locked package's contribution to the extension roll-up, loaded from the
 /// content-addressed cache. Each `CachedExtension` is a self-contained bundle
-/// the resolver turns into a single [`compiler::ExtensionDescriptor`].
+/// the resolver turns into a single [`stack_model::ExtensionDescriptor`].
 ///
 /// The Phase-3 roll-up wants per-package data (each package becomes its own
 /// extension descriptor so the shadow records can identify which package lost
@@ -407,14 +407,14 @@ pub struct CachedExtension {
     /// Agent profiles from the package's `exports.agents`, namespaced by
     /// `pkg_path` so dep agents never collide with the on-disk source or
     /// with other packages.
-    pub agent_profiles: Vec<compiler::AgentProfile>,
+    pub agent_profiles: Vec<stack_model::AgentProfile>,
     /// Skills from the package's `exports.skills`, namespaced by `pkg_path`.
-    pub skills: Vec<compiler::Skill>,
+    pub skills: Vec<stack_model::Skill>,
     /// Views from the package's `exports.views`, each `prefix` set to
     /// `pkg_path`. The per-view data (`route`, `component_ref`) reads from
     /// `<view_dir>/view.jsonc` (the dep sidecar; absent → silently
     /// skipped, the same lenient contract the other noun loaders have).
-    pub views: Vec<compiler::types::ViewDescriptor>,
+    pub views: Vec<stack_model::types::ViewDescriptor>,
 }
 
 /// Load every locked package's exports as a per-package bundle, suitable for
@@ -458,7 +458,7 @@ pub fn load_cached_extensions(
             // follow-on `ship install` fills the gap.
             continue;
         }
-        let manifest = match compiler::manifest::ShipManifest::from_file(&manifest_path) {
+        let manifest = match stack_model::manifest::ShipManifest::from_file(&manifest_path) {
             Ok(m) => m,
             Err(e) => {
                 tracing::warn!(
@@ -482,7 +482,7 @@ pub fn load_cached_extensions(
                     continue;
                 }
             };
-            match compiler::jsonc::from_jsonc_str::<compiler::AgentProfile>(&content) {
+            match stack_model::jsonc::from_jsonc_str::<stack_model::AgentProfile>(&content) {
                 Ok(mut profile) => {
                     profile.agent.id = format!("{}/{}", pkg.path, profile.agent.id);
                     agent_profiles.push(profile);
@@ -527,9 +527,9 @@ pub fn load_cached_extensions(
                     continue;
                 }
             };
-            match compiler::jsonc::from_jsonc_str::<ViewSidecar>(&content) {
+            match stack_model::jsonc::from_jsonc_str::<ViewSidecar>(&content) {
                 Ok(sidecar) => {
-                    views.push(compiler::types::ViewDescriptor {
+                    views.push(stack_model::types::ViewDescriptor {
                         prefix: pkg.path.clone(),
                         route: sidecar.route,
                         component_ref: sidecar.component_ref,

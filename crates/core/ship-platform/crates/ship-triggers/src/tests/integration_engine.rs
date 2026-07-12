@@ -38,12 +38,12 @@ pub(super) fn test_kernel(ship_dir: &Path) -> Arc<Mutex<KernelRouter>> {
     Arc::new(Mutex::new(kr))
 }
 
-/// Parse a `compiler::TriggerDef` from its JSON authoring shape (the
+/// Parse a `stack_model::TriggerDef` from its JSON authoring shape (the
 /// `defineTrigger` declare-form's serialized form — `id`/`trigger`/`source`/
 /// `actions`). Replaces the old `write_hook` JSONC-file helper post
 /// format-migration Wave 4 phase A: triggers are descriptor values now, not
 /// files.
-pub(super) fn trigger_def(json: &str) -> compiler::TriggerDef {
+pub(super) fn trigger_def(json: &str) -> stack_model::TriggerDef {
     serde_json::from_str(json).unwrap_or_else(|e| panic!("invalid trigger def json: {e}\n{json}"))
 }
 
@@ -78,32 +78,32 @@ fn run_failed_envelope() -> EventEnvelope {
     .with_scope(EventScope::Space, Some(TEST_SPACE))
 }
 
-fn tasks_collection_def(id: &str) -> compiler::CollectionDef {
-    compiler::CollectionDef {
+fn tasks_collection_def(id: &str) -> stack_model::CollectionDef {
+    stack_model::CollectionDef {
         id: id.to_string(),
         name: None,
         fields: vec![
-            compiler::types::CollectionFieldDef {
+            stack_model::types::CollectionFieldDef {
                 name: "title".to_string(),
-                field_type: compiler::types::CollectionFieldType::String,
+                field_type: stack_model::types::CollectionFieldType::String,
                 required: false,
                 values: vec![],
                 default: None,
                 filterable: None,
                 sortable: None,
             },
-            compiler::types::CollectionFieldDef {
+            stack_model::types::CollectionFieldDef {
                 name: "body".to_string(),
-                field_type: compiler::types::CollectionFieldType::Markdown,
+                field_type: stack_model::types::CollectionFieldType::Markdown,
                 required: false,
                 values: vec![],
                 default: None,
                 filterable: None,
                 sortable: None,
             },
-            compiler::types::CollectionFieldDef {
+            stack_model::types::CollectionFieldDef {
                 name: "status".to_string(),
-                field_type: compiler::types::CollectionFieldType::String,
+                field_type: stack_model::types::CollectionFieldType::String,
                 required: false,
                 values: vec![],
                 default: None,
@@ -165,7 +165,7 @@ async fn triggers_engine_dispatch_matching_hook_fires() {
 }
 
 // `triggers_engine_dispatch_filter_excludes_non_matching_payload` (the
-// descriptor-driven filter-exclusion case) is retired: `compiler::TriggerDef`
+// descriptor-driven filter-exclusion case) is retired: `stack_model::TriggerDef`
 // has no TS shape for the dot-path payload filter yet (def.rs's
 // `convert_trigger_match` always emits `filter: None`), so there is no
 // descriptor input left to build it from. `filter::matches`'s own dot-path

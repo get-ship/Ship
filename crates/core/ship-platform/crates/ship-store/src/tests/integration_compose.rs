@@ -8,7 +8,7 @@ use std::fs;
 use std::path::Path;
 use tempfile::tempdir;
 
-use compiler::lockfile::{LockPackage, ShipLock};
+use stack_model::lockfile::{LockPackage, ShipLock};
 
 use crate::compose::{composed_root_for, materialize_space};
 

@@ -25,7 +25,8 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use compiler::{ExtSource, compile, resolve_library};
+use harness_adaptors::compile;
+use stack_model::{ExtSource, resolve_library};
 use ship_agents::services::agents::view_state::{list_agents_from_index, load_agent_from_index};
 use ship_config::agents_index::{AgentDefIndex, AgentDefQuery};
 use ship_resolver::cache::DescriptorCache;
@@ -95,8 +96,8 @@ defineAgent({{
 /// Author the source's skill on-disk (slice 2b close-out convention):
 /// `skills/<id>/SKILL.md` is the per-extension-project source surface
 /// for the skill shape, the same shape `defineSkill`'s
-/// `{ frontmatter, body }` mapped onto `compiler::Skill`. The
-/// frontmatter keys here match `compiler::skill_parser::parse_skill`'s
+/// `{ frontmatter, body }` mapped onto `stack_model::Skill`. The
+/// frontmatter keys here match `stack_model::skill_parser::parse_skill`'s
 /// expected shape (name, description).
 fn write_skill_md(space_root: &Path) {
     let dir = space_root.join("skills").join("review");
@@ -194,7 +195,7 @@ async fn make_index(ship_dir: &Path, db_name: &str) -> AgentDefIndex {
 async fn resolve_claude_output(
     space_root: &Path,
     cache_root: &Path,
-) -> anyhow::Result<compiler::CompileOutput> {
+) -> anyhow::Result<harness_adaptors::CompileOutput> {
     let composed = roll_up(space_root, Some(cache_root), None).await?;
     let resolved = resolve_library(&composed.library, None, None);
     compile(&resolved, "claude").ok_or_else(|| anyhow::anyhow!("compile: no output for claude"))

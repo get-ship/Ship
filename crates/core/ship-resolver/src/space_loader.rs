@@ -65,7 +65,7 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use compiler::{ExtensionLibrary, HookConfig, HookTrigger, Rule, Skill, SkillSource};
+use stack_model::{ExtensionLibrary, HookConfig, HookTrigger, Rule, Skill, SkillSource};
 use ship_substrate::ports::{FsBroker, FsCap, FsError, FsMode, FsRoot, SpaceId};
 
 /// The canonical `.ship` dir name, mirrored from
@@ -218,7 +218,7 @@ pub fn enumerate_extension_roots(space_root: &Path) -> Result<Vec<ExtensionRoot>
 /// disk shape; no TS merge).
 ///
 /// The bulk of the read (the `skill_paths` field) is delegated to the
-/// leaf's [`compiler::load_library`] at `<root>/.ship/`. The
+/// leaf's [`stack_model::load_library`] at `<root>/.ship/`. The
 /// Phase-2 pieces layered on top:
 ///
 /// 1. Read `ship.config.ts` at the root and append a
@@ -237,7 +237,7 @@ pub fn enumerate_extension_roots(space_root: &Path) -> Result<Vec<ExtensionRoot>
 ///   `defineConfig({ agents: { permissions: { presets: { ... } } } })`
 ///   harvest.
 /// The leaf's `load_library` is now a no-op for these nouns
-/// (`compiler::load_library` returns default `permissions`, empty
+/// (`stack_model::load_library` returns default `permissions`, empty
 /// `hooks`, empty `permissions_presets`); this fn returns that
 /// default. The PIN is still applied one layer up in
 /// [`load_space_library`] / the `roll_up` orchestrator (only the
@@ -256,7 +256,7 @@ pub fn enumerate_extension_roots(space_root: &Path) -> Result<Vec<ExtensionRoot>
 /// `space.skill_paths` ship.jsonc field is gone, so this fn does not
 /// walk an extras dir either. `library.skill_paths` carries the
 /// default single entry as metadata (the canonical constant
-/// [`compiler::loader::DEFAULT_SPACE_SKILL_PATH`]) but no consumer
+/// [`stack_model::loader::DEFAULT_SPACE_SKILL_PATH`]) but no consumer
 /// in this crate iterates over it post-cutover.
 /// Slice 2c close-out: the per-noun TS source dirs (agents/collections/
 /// pipelines/triggers) live beside `ship.config.ts`. Each carries one
@@ -269,10 +269,10 @@ pub fn enumerate_extension_roots(space_root: &Path) -> Result<Vec<ExtensionRoot>
 pub(crate) async fn load_root_library(fs: &dyn FsBroker, root: &Path) -> Result<ExtensionLibrary> {
     // 1. Delegate to the leaf for the bulk of the read. The leaf is
     //    sync `std::fs`; it's the canonical phase-0 surface and ships
-    //    on its own contract (`compiler::load_library`).
+    //    on its own contract (`stack_model::load_library`).
     let ship_dir = root.join(SHIP_DIR_NAME);
-    let mut library = compiler::load_library(&ship_dir)
-        .with_context(|| format!("compiler::load_library failed for {}", ship_dir.display()))?;
+    let mut library = stack_model::load_library(&ship_dir)
+        .with_context(|| format!("stack_model::load_library failed for {}", ship_dir.display()))?;
 
     // 2. Read the TS manifest. W4 phase A retired the legacy
     //    `<.ship>/ship.ts` shape — `ship.config.ts` at the root is
@@ -364,7 +364,7 @@ pub async fn load_space_library(fs: &dyn FsBroker, space_root: &Path) -> Result<
         // where the per-root identity is known, not just inferred
         // by `is_space_root` later.
         if !is_space_root {
-            lib.permissions = compiler::Permissions::default();
+            lib.permissions = stack_model::Permissions::default();
             lib.hooks = Vec::new();
         }
         merge_root_into(&mut merged, lib, is_space_root);
@@ -375,7 +375,7 @@ pub async fn load_space_library(fs: &dyn FsBroker, space_root: &Path) -> Result<
 /// Append one root's `ExtensionLibrary` into the merged accumulator.
 ///
 /// Noun vectors concatenate; duplicate ids are tolerated here and
-/// resolved one layer up by [`crate::roll_up`] → [`compiler::compose_space`]
+/// resolved one layer up by [`crate::roll_up`] → [`stack_model::compose_space`]
 /// (the law's job). `imported_modules` concatenate in declared order
 /// so the TS-eval fan-out (`ts_resolver::resolve_ts_files`) iterates
 /// root-first, children-next. `skill_paths` concatenate (each root
@@ -419,7 +419,7 @@ fn merge_root_into(merged: &mut ExtensionLibrary, lib: ExtensionLibrary, is_spac
 /// at the space root, so the rel path under the cap is the
 /// space-relative path verbatim. `extra-skills/` lands at
 /// `<root>/extra-skills/`; the default `skills/` (a `defineConfig`
-/// value matching [`compiler::loader::DEFAULT_SPACE_SKILL_PATH`])
+/// value matching [`stack_model::loader::DEFAULT_SPACE_SKILL_PATH`])
 /// is filtered out upstream so this fn walks the extras only.
 pub(crate) fn walk_skills_dir(
     fs: &dyn FsBroker,
@@ -451,7 +451,7 @@ pub(crate) fn walk_skills_dir(
             Err(e) => return Err(e.into()),
         };
         let raw_str = String::from_utf8_lossy(&raw);
-        let mut skill = compiler::skill_parser::parse_skill(stem, &raw_str);
+        let mut skill = stack_model::skill_parser::parse_skill(stem, &raw_str);
         skill.source = SkillSource::Custom;
         skills.push(skill);
     }
@@ -509,7 +509,7 @@ pub(crate) fn walk_rules_dir(fs: &dyn FsBroker, cap: &FsCap, space_rel: &str) ->
 /// event, the same lenient contract `load_hooks` had on the
 /// old `.ship/hooks.jsonc` read.
 ///
-/// The supported stems mirror the [`compiler::HookTrigger`] enum
+/// The supported stems mirror the [`stack_model::HookTrigger`] enum
 /// members exactly (slice 3 close-out, A3): `pre-tool-use` /
 /// `post-tool-use` / `notification` / `stop` / `subagent-stop` /
 /// `pre-compact`. Snake-case spellings (`pre_tool_use`, etc.)
@@ -672,11 +672,11 @@ fn read_ship_config_ts(
     fs: &dyn FsBroker,
     cap: &FsCap,
     _space_root: &Path,
-) -> Result<Option<compiler::ModuleDescriptor>> {
+) -> Result<Option<stack_model::ModuleDescriptor>> {
     match fs.read(cap, SHIP_CONFIG_FILENAME) {
         Ok(bytes) => {
             let source = String::from_utf8_lossy(&bytes).into_owned();
-            Ok(Some(compiler::ModuleDescriptor {
+            Ok(Some(stack_model::ModuleDescriptor {
                 path: PathBuf::from(SHIP_CONFIG_FILENAME),
                 source,
                 content_hash: String::new(), // filled in by caller
@@ -691,7 +691,7 @@ fn read_ship_config_ts(
 /// SHA-256 hex of a `ModuleDescriptor`'s raw source. Standalone so the
 /// resolver can store it on the descriptor (the cache key) without
 /// re-reading the file.
-fn extension_library_module_hash(module: &compiler::ModuleDescriptor) -> String {
+fn extension_library_module_hash(module: &stack_model::ModuleDescriptor) -> String {
     use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(module.source.as_bytes());
@@ -717,7 +717,7 @@ fn append_ts_dir_to_imported_modules(
     cap: &FsCap,
     _root: &Path,
     dir: &str,
-    imported_modules: &mut Vec<compiler::ModuleDescriptor>,
+    imported_modules: &mut Vec<stack_model::ModuleDescriptor>,
 ) -> Result<()> {
     let entries = match fs.list_dir(cap, dir) {
         Ok(e) => e,
@@ -746,7 +746,7 @@ fn append_ts_dir_to_imported_modules(
             Err(e) => return Err(e.into()),
         };
         let source = String::from_utf8_lossy(&bytes).into_owned();
-        let mut module = compiler::ModuleDescriptor {
+        let mut module = stack_model::ModuleDescriptor {
             path: PathBuf::from(&rel),
             source,
             content_hash: String::new(), // filled in below

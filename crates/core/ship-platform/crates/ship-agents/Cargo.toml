@@ -33,7 +33,8 @@ ship-terminal = { path = "../ship-terminal" }
 #   ship-auth — per-process scoped token mint/drop on the spawn path.
 ship-auth = { path = "../ship-auth" }
 # compiler crate (the engine; services/compile is only the wrapper)
-compiler = { path = "../../../compiler", features = ["specta"] }
+stack-model = { path = "../../../stack-model", features = ["specta"] }
+harness-adaptors = { path = "../../../harness-adaptors", features = ["specta"] }
 # Phase-3 space roll-up — the no-index agent read composes through the SAME
 # world `compile_project`/dispatch-compile do (format-migration W5 follow-up).
 ship-resolver = { path = "../../../ship-resolver" }

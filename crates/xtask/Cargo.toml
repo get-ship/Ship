@@ -10,7 +10,7 @@ name = "xtask"
 path = "src/main.rs"
 
 [dependencies]
-compiler = { path = "../core/compiler", features = ["specta"] }
+stack-model = { path = "../core/stack-model", features = ["specta"] }
 ship-substrate = { path = "../core/ship-substrate" }
 # Account value types (AccountState / MeView) for the deck SDK TS codegen.
 ship-account = { path = "../core/ship-platform/crates/ship-account", features = ["specta"] }

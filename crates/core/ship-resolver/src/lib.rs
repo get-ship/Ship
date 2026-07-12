@@ -5,8 +5,8 @@
 //! Generalizes the Phase-0 resolver (compiler leaf + agent-config-eval) from
 //! single-manifest to **space shape**: a `ship.config.ts` at the space root, a
 //! `skills/` + `rules/` directory convention, the on-disk permissions +
-//! hooks reads. The result is a fully-populated [`compiler::ExtensionLibrary`]
-//! (disk state) and a [`compiler::ResolvedConfig`] (resolved state) — the
+//! hooks reads. The result is a fully-populated [`stack_model::ExtensionLibrary`]
+//! (disk state) and a [`stack_model::ResolvedConfig`] (resolved state) — the
 //! canonical descriptors the rest of the platform compiles and runs against.
 //!
 //! ## The seam
@@ -40,7 +40,7 @@
 //! - **Phase-3 composition lives here.** [`roll_up`] composes the on-disk
 //!   source + every locked cached package + the operator-enabled library
 //!   tier (`ShipHome::library_dir()`) into a single
-//!   [`compiler::ComposedLibrary`]. The composed library carries
+//!   [`stack_model::ComposedLibrary`]. The composed library carries
 //!   `rollup_inputs: Some(...)` so J3 (def index) + J4 (view) can audit
 //!   what composed into the result. Cached packages are tagged
 //!   `ExtSource::Cache` (rank 0), the enabled library tier
@@ -81,7 +81,7 @@ use std::path::Path;
 
 use agent_config_eval::Declarations;
 use anyhow::{Context, Result};
-use compiler::{
+use stack_model::{
     ComposedLibrary, ExtSource, ExtensionDescriptor, ExtensionLibrary, ResolvedConfig, RollupInputs,
 };
 use serde_json::Value;
@@ -150,7 +150,7 @@ pub(crate) fn merge_ts_declarations(
     // `ExtensionLibrary`, so non-deterministic order = non-deterministic
     // output = parity-capture failures. Sort by `id` (the canonical
     // key, sorted ascending) before the `merge_by_key` first-wins pass.
-    let mut mcp_from_config: Vec<compiler::McpServerConfig> = Vec::new();
+    let mut mcp_from_config: Vec<stack_model::McpServerConfig> = Vec::new();
     for cfg in &declarations.config {
         if let Some(agents) = &cfg.agents {
             for declared in agents.mcp.values() {
@@ -223,7 +223,7 @@ pub(crate) fn merge_ts_declarations(
         .filter_map(|c| c.skills_dir.clone())
         .next_back()
         .or_else(|| library.skill_paths.first().cloned())
-        .unwrap_or_else(|| compiler::loader::DEFAULT_SPACE_SKILL_PATH.to_string());
+        .unwrap_or_else(|| stack_model::loader::DEFAULT_SPACE_SKILL_PATH.to_string());
     // Keep `library.skill_paths` tracking the resolved path (single
     // entry — the leaf populates it with the unified default; the
     // resolver-level override (per-extension-project
@@ -236,7 +236,7 @@ pub(crate) fn merge_ts_declarations(
             Ok(found) => {
                 for mut skill in found {
                     if seen.insert(skill.id.clone()) {
-                        skill.source = compiler::SkillSource::Custom;
+                        skill.source = stack_model::SkillSource::Custom;
                         added_skills.push(skill.id.clone());
                         library.skills.push(skill);
                     }
@@ -363,7 +363,7 @@ pub(crate) fn merge_ts_declarations(
     // in `ship.config.ts`. The per-module map is harvested by walking
     // `declarations.config` (root-last-wins, same as the skills/rules
     // dir overrides), converting each `PermissionPresetDeclare` into
-    // a `compiler::PermissionPreset` via field-for-field clone, and
+    // a `stack_model::PermissionPreset` via field-for-field clone, and
     // inserting into the `BTreeMap`-keyed library field. First-wins
     // on id collision (two extensions declaring the same preset name
     // → the first one in declared order wins, mirroring the
@@ -388,7 +388,7 @@ pub(crate) fn merge_ts_declarations(
             library
                 .permissions_presets
                 .entry(name.clone())
-                .or_insert_with(|| compiler::PermissionPreset {
+                .or_insert_with(|| stack_model::PermissionPreset {
                     default_mode: declared.default_mode.clone(),
                     tools_allow: declared.tools_allow.clone(),
                     tools_deny: declared.tools_deny.clone(),
@@ -489,7 +489,7 @@ pub async fn resolve_space_with_broker(
 
     // 4. Pure transform: `ExtensionLibrary` → `ResolvedConfig`. No fs,
     //    no async. The leaf's `resolve_library` is the canonical impl.
-    let resolved = compiler::resolve_library(&library, None, None);
+    let resolved = stack_model::resolve_library(&library, None, None);
     Ok(resolved)
 }
 
@@ -506,9 +506,9 @@ pub async fn load_space_library(space_root: &Path) -> Result<ExtensionLibrary> {
 
 /// Compose the space's extension roll-up: the discovered extension roots
 /// (one per `ship.config.ts`-bearing directory under the space root) +
-/// every locked cached package, fed through [`compiler::compose_space`].
+/// every locked cached package, fed through [`stack_model::compose_space`].
 ///
-/// The output is a [`compiler::ComposedLibrary`] whose `library` is the
+/// The output is a [`stack_model::ComposedLibrary`] whose `library` is the
 /// composed result of every extension's noun collections under the
 /// precedence law. `shadows` carries one `ShadowRecord` per id
 /// collision the law resolved. The composed `library.rollup_inputs`
@@ -626,7 +626,7 @@ pub async fn roll_up(
             // at the per-root identity source — a child that
             // misconfigures its `.ship/permissions.jsonc` cannot
             // escalate the space's effective grants.
-            per_root.permissions = compiler::Permissions::default();
+            per_root.permissions = stack_model::Permissions::default();
             per_root.hooks = Vec::new();
             per_root_descriptors.push(ExtensionDescriptor {
                 source: ExtSource::Space,
@@ -685,7 +685,7 @@ pub async fn roll_up(
 
     // 4b. Load the enabled tier: extensions the operator enabled globally,
     // via `ShipHome::library_dir()` (`data/library/{agents,skills,rules,...}`
-    // — the same flat layout `compiler::load_library` reads for a space's
+    // — the same flat layout `stack_model::load_library` reads for a space's
     // `.ship/`). A missing or empty library dir composes to an empty tier,
     // not an error — every sub-loader already treats a missing dir as empty.
     let default_library_root;
@@ -696,7 +696,7 @@ pub async fn roll_up(
             &default_library_root
         }
     };
-    let enabled_library = compiler::load_library(resolved_library_root).with_context(|| {
+    let enabled_library = stack_model::load_library(resolved_library_root).with_context(|| {
         format!(
             "roll_up: enabled-tier load failed for {}",
             resolved_library_root.display()
@@ -753,7 +753,7 @@ pub async fn roll_up(
 
     // 7. Compose. Pure; the law is the only thing that mutates the
     //    library's noun collections.
-    let mut composed = compiler::compose_space(&rollup_inputs).context("roll_up: compose_space")?;
+    let mut composed = stack_model::compose_space(&rollup_inputs).context("roll_up: compose_space")?;
 
     // 8. Annotate the composed library with the inputs so consumers (J3
     //    index, J4 view) can audit the roll-up. The `rollup_inputs` field

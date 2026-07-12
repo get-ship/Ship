@@ -97,7 +97,7 @@ async fn triggers_reload_empty_dir_clears_all_triggers() {
     let engine = HookEngine::new(kernel.clone(), ship_dir.clone());
 
     // Load three triggers.
-    let defs: Vec<compiler::TriggerDef> = ["t1", "t2", "t3"]
+    let defs: Vec<stack_model::TriggerDef> = ["t1", "t2", "t3"]
         .iter()
         .map(|name| {
             trigger_def(&format!(

@@ -623,7 +623,7 @@ export default defineConfig({
 // authored under `library_root/agents/<id>.jsonc`. Post Wave 5:
 //   - `.ship/agents/*.jsonc` authoring is gone (the leaf no longer
 //     reads them; the source authoring surface is `ship.config.ts`).
-//   - The enabled library tier's `compiler::load_library` call
+//   - The enabled library tier's `stack_model::load_library` call
 //     (`ship-resolver/src/lib.rs`) does NOT route through the
 //     `space_loader` TS-eval seam — it calls the leaf directly, and
 //     the leaf never read `ship.config.ts` (that's the resolver's
@@ -631,7 +631,7 @@ export default defineConfig({
 //     post Wave 5: `.jsonc` is dead, `ship.config.ts` is unwired.
 // The operator-enabled library tier's authoring surface is a
 // separate piece of work (it predates Wave 5: the existing tier was
-// `roll_up` -> `compiler::load_library(library_root)`, which would
+// `roll_up` -> `stack_model::load_library(library_root)`, which would
 // need to switch to `space_loader::load_space_library(library_root)`
 // to gain the TS-eval path). Wave 5's scope is the source authoring
 // cut; the operator-enabled library tier is left as a follow-on (the
@@ -674,13 +674,13 @@ async fn roll_up_missing_library_dir_is_empty_not_error() {
 // to `ship.config.ts` declare-forms (the source's `writer` agent
 // would land via `defineAgent` in the space root), but the
 // enabled-library tier's `library_root` is loaded via
-// `compiler::load_library(library_root)` in `roll_up` — a direct leaf
+// `stack_model::load_library(library_root)` in `roll_up` — a direct leaf
 // call that doesn't route through the TS-eval seam (the
 // `space_loader` path that harvests `ship.config.ts`). The
 // enabled-tier's `ship.config.ts` is therefore unwired post Wave 5;
 // the operator-enabled library tier needs a follow-on wiring
 // (`roll_up` -> `space_loader::load_space_library(library_root)`
-// instead of `compiler::load_library(library_root)`) to gain the
+// instead of `stack_model::load_library(library_root)`) to gain the
 // TS-eval path. Marked retired; the test's precedence law is still
 // pinned by the cached-package equivalent
 // (`roll_up_source_shadows_cached_agent_on_id_collision`),
@@ -1514,7 +1514,7 @@ defineAgent({ agent: { id: "shared", name: "Child Shared" } });
     );
     // The space root is the first Space descriptor (root-first
     // ordering), the child is the second.
-    let space_descriptors: Vec<&compiler::ExtensionDescriptor> = rollup
+    let space_descriptors: Vec<&stack_model::ExtensionDescriptor> = rollup
         .extensions
         .iter()
         .filter(|e| e.source == ExtSource::Space)

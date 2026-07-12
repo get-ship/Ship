@@ -23,7 +23,7 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use compiler::{ComposedLibrary, ExtSource, ExtensionDescriptor, RollupInputs};
+use stack_model::{ComposedLibrary, ExtSource, ExtensionDescriptor, RollupInputs};
 use serde_json::Value;
 use ship_substrate::ShipHome;
 use ship_substrate::ports::LocalFsBroker;
@@ -55,7 +55,7 @@ pub async fn roll_up_members(
         merge_ts_declarations(&mut lib, declarations, &fs, root);
         lib.imported_modules.clear();
 
-        lib.permissions = compiler::Permissions::default();
+        lib.permissions = stack_model::Permissions::default();
         lib.hooks = Vec::new();
 
         let content_hash = descriptor::extension_library_content_hash(&lib)
@@ -89,7 +89,7 @@ pub async fn roll_up_members(
             extensions.push(ExtensionDescriptor {
                 source: ExtSource::Cache,
                 space_root: root.clone(),
-                descriptor: compiler::ExtensionLibrary {
+                descriptor: stack_model::ExtensionLibrary {
                     agent_profiles: bundle.agent_profiles.clone(),
                     skills: bundle.skills.clone(),
                     views: bundle.views.clone(),
@@ -109,7 +109,7 @@ pub async fn roll_up_members(
             &default_library_root
         }
     };
-    let enabled_library = compiler::load_library(resolved_library_root).with_context(|| {
+    let enabled_library = stack_model::load_library(resolved_library_root).with_context(|| {
         format!(
             "roll_up_members: enabled-tier load failed for {}",
             resolved_library_root.display()
@@ -132,7 +132,7 @@ pub async fn roll_up_members(
         precedence: RollupInputs::default_precedence(),
     };
     let mut composed =
-        compiler::compose_space(&rollup_inputs).context("roll_up_members: compose_space")?;
+        stack_model::compose_space(&rollup_inputs).context("roll_up_members: compose_space")?;
     composed.library.rollup_inputs = Some(rollup_inputs);
     Ok(composed)
 }

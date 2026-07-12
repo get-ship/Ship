@@ -1,8 +1,8 @@
 use std::path::Path;
 
 use super::*;
-use compiler::lockfile::{LockPackage, ShipLock};
-use compiler::{Skill, SkillSource};
+use stack_model::lockfile::{LockPackage, ShipLock};
+use stack_model::{Skill, SkillSource};
 use tempfile::TempDir;
 
 // `resolve_dep_agents` retired with format-migration Wave 5. The
@@ -187,7 +187,7 @@ fn transitive_capabilities_unions_requires_and_grants() {
 /// hand-rolled `parse_dep_skill` only recognized block lists and silently
 /// DROPPED inline declarations — agents loaded from a dep package were
 /// missing half their declared capability surface. The canonical parser
-/// (`compiler::skill_parser::parse_skill`) accepts both forms; this pins
+/// (`stack_model::skill_parser::parse_skill`) accepts both forms; this pins
 /// the dep-skill path's contract so a future parser regression is caught
 /// at the install surface, not at runtime when an agent discovers it
 /// can't perform its declared op.

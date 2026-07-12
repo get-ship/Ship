@@ -12,7 +12,7 @@
 //! - `ship_platform::*`  (L1)
 //! - `ship_substrate::*` (L0)
 //! - `ship_kernel::*`    (L0)
-//! - `compiler::*`       (L0 — the `compiler` crate, not `sui_compiler`)
+//! - `stack_model::*`       (L0 — the `compiler` crate, not `sui_compiler`)
 //!
 //! L0 crates (`ship-substrate`, `ship-kernel`, `ship-substrate-host`, `compiler`) may NOT import:
 //! - `ship_platform::*`  (L1)

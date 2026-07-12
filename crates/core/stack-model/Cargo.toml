@@ -1,0 +1,29 @@
+[package]
+name = "stack-model"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "The stack model — manifest, lockfile, skills, compose law, library types (standard; shared by floki and ship-code)"
+
+[features]
+default = []
+# Derive specta::Type on all public types — used by the Tauri bridge.
+specta = ["dep:specta"]
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true, features = ["preserve_order"] }
+toml = { workspace = true, features = ["preserve_order"] }
+anyhow = { workspace = true }
+minijinja = { workspace = true }
+nanoid = { workspace = true }
+indexmap = { workspace = true, features = ["serde"] }
+semver = { workspace = true }
+specta = { workspace = true, features = ["serde_json"], optional = true }
+
+[dev-dependencies]
+serde_json = { workspace = true, features = ["preserve_order"] }
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

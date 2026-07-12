@@ -19,7 +19,7 @@ use std::sync::Arc;
 
 use ship_config::agents_write::{notify_agent_def_saved, save_agents_config};
 use ship_config::types::AgentProfile;
-use compiler::ProfileMeta;
+use stack_model::ProfileMeta;
 
 /// A minimal profile with just an id + name.
 fn profile(id: &str, name: &str) -> AgentProfile {

@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use super::*;
-use compiler::lockfile::{LockPackage, ShipLock};
+use stack_model::lockfile::{LockPackage, ShipLock};
 use std::collections::BTreeMap;
 use tempfile::TempDir;
 
@@ -38,7 +38,7 @@ fn local_only_mirrors_traveling_dirs() {
     let cache_root = tmp.path().join("cache");
 
     // `views/` is intentionally NOT in COMPOSED_TYPES — the resolver owns
-    // view composition (`compiler::compose::compose_space` /
+    // view composition (`stack_model::compose::compose_space` /
     // `ComposedLibrary::route_tree`), not this file materializer. So
     // this test exercises one of the OTHER traveling dirs (pipelines) and
     // confirms a local `views/` is NOT mirrored into the composed overlay.

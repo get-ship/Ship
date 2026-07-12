@@ -30,7 +30,8 @@ ship-store = { path = "../ship-store" }
 # the only door for those nouns; `compile_project` has to walk it.
 ship-resolver = { path = "../../../ship-resolver" }
 # the compiler engine — services/compile is the wrapper
-compiler = { path = "../../../compiler", features = ["specta"] }
+stack-model = { path = "../../../stack-model", features = ["specta"] }
+harness-adaptors = { path = "../../../harness-adaptors", features = ["specta"] }
 inventory = { workspace = true }
 include_dir = "0.7"
 sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio-rustls", "migrate", "macros"] }

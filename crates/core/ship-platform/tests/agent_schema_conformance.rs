@@ -1,4 +1,4 @@
-//! Conformance gate: `schemas/agent.schema.json` ⟷ `compiler::AgentProfile`.
+//! Conformance gate: `schemas/agent.schema.json` ⟷ `stack_model::AgentProfile`.
 //!
 //! Premise (agents-arc E2): agent config is file-truth; the SCHEMA is the
 //! authority for shape; the Rust parse-target must conform to it. This test
@@ -9,7 +9,7 @@
 //! harness-enum and isolation-enum cross-checks need `harness_adapter`'s
 //! REGISTRY (via `capabilities()`) and `ship_isolation`, which the compiler
 //! crate (leaf / pure-transform) cannot import. So the full gate lives here
-//! in `ship-platform`, which sees `compiler::AgentProfile`, the harness
+//! in `ship-platform`, which sees `stack_model::AgentProfile`, the harness
 //! REGISTRY, and `ship_isolation`.
 //!
 //! Two seams are deliberate and NOT diffed structurally:
@@ -18,17 +18,17 @@
 //!     Rust REGISTRY (not hardcoded), nothing about inner harness shapes.
 //!   - `isolation` — schema-only by design (resolved at platform runtime; it
 //!     lives as `Option<Value>` on `config::AgentProfile`, deliberately absent
-//!     from `compiler::AgentProfile`). We assert its tier/strategy enums equal
+//!     from `stack_model::AgentProfile`). We assert its tier/strategy enums equal
 //!     the `ship_isolation` enum variant ids.
 
 use std::collections::BTreeSet;
 
-use compiler::types::agent_profile::{
+use stack_model::types::agent_profile::{
     AgentProfile, McpRefs, PluginRefs, ProfileApps, ProfileMeta,
     ProfilePermissions, ProfileRules, SkillRefs,
 };
-use compiler::types::capability::{BlastRadius, Capability};
-use compiler::{HookConfig, HookTrigger};
+use stack_model::types::capability::{BlastRadius, Capability};
+use stack_model::{HookConfig, HookTrigger};
 use serde_json::Value;
 use ship_isolation::{IsolationStrategy, IsolationTier};
 use ship_harnesses::harness_adapter::capabilities;
@@ -146,7 +146,7 @@ fn top_level_key_parity() {
     let profile = serde_json::to_value(full_profile()).expect("serialize profile");
 
     let struct_keys = serialized_keys(&profile);
-    // Schema-side-only keys with no `compiler::AgentProfile` counterpart by
+    // Schema-side-only keys with no `stack_model::AgentProfile` counterpart by
     // design: `$schema`/`schema_version` are editor/migration metadata;
     // `isolation` is resolved at platform runtime (lives on
     // `config::AgentProfile`, not the compiler struct) and is cross-checked

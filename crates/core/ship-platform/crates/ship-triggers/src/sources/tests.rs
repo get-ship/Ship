@@ -16,10 +16,10 @@ use crate::def::{
 };
 use crate::engine::HookEngine;
 
-/// Parse a `compiler::TriggerDef` from its JSON authoring shape — replaces
+/// Parse a `stack_model::TriggerDef` from its JSON authoring shape — replaces
 /// the retired JSONC-loader helpers (`parse_hook`/`validate_hook`) post
 /// format-migration Wave 4 phase A.
-fn trigger_def(json: &str) -> compiler::TriggerDef {
+fn trigger_def(json: &str) -> stack_model::TriggerDef {
     serde_json::from_str(json).unwrap_or_else(|e| panic!("invalid trigger def json: {e}\n{json}"))
 }
 
@@ -63,7 +63,7 @@ fn diff(before: &[EventEnvelope], after: &[EventEnvelope]) -> Vec<EventEnvelope>
 
 // ── Conversion-time validation ────────────────────────────────────────────────
 //
-// `compiler::TriggerDef`'s `trigger.event` is a required string (no TS shape
+// `stack_model::TriggerDef`'s `trigger.event` is a required string (no TS shape
 // for a source-only trigger — def.rs's `convert_trigger_match` doc comment),
 // so "both set"/"neither set" can't arise the way the retired JSONC loader's
 // `reject_both_event_and_source`/`reject_neither_event_nor_source` tested;

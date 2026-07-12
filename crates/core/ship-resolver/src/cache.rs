@@ -65,7 +65,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use compiler::CompileOutput;
+use harness_adaptors::CompileOutput;
 use ship_substrate::ports::{FsBroker, FsCap, FsMode, FsRoot, KernelLog, LocalFsBroker, SpaceId};
 use ship_types::event_types;
 use tokio::sync::Mutex;

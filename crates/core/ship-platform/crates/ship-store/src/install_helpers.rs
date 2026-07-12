@@ -12,7 +12,7 @@ fn legacy_package_ship_dir<P: AsRef<std::path::Path>>(root: P) -> std::path::Pat
 use std::path::Path;
 
 use anyhow::Context;
-use compiler::lockfile::ShipLock;
+use stack_model::lockfile::ShipLock;
 
 use super::cache::{CachedPackage, PackageCache};
 use super::fetch::fetch_package_content;

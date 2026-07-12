@@ -8,7 +8,7 @@
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 
-use compiler::AgentProfile;
+use stack_model::AgentProfile;
 use crate::compile::{CompileOptions, run_compile};
 
 // ── SpaceState ────────────────────────────────────────────────────────────────
@@ -175,11 +175,11 @@ pub fn find_agent_file(agent_id: &str, space_root: &Path) -> Option<PathBuf> {
 
 /// Load an agent profile from a single file. JSONC only — TOML has been
 /// retired. The schema matches `schemas/agent.schema.json` and is
-/// expressed by [`compiler::AgentProfile`]. Reads through THE agent-def reader
+/// expressed by [`stack_model::AgentProfile`]. Reads through THE agent-def reader
 /// (FsBroker, ship-config via ship-platform) — never raw `std::fs`.
 /// Load an agent profile from a single file. JSONC only — TOML has been
 /// retired. The schema matches `schemas/agent.schema.json` and is
-/// expressed by [`compiler::AgentProfile`]. Reads through THE agent-def reader
+/// expressed by [`stack_model::AgentProfile`]. Reads through THE agent-def reader
 /// (FsBroker, ship-config via ship-platform) — never raw `std::fs`.
 ///
 /// On parse/schema failure (the file is present but the JSONC doesn't fit the

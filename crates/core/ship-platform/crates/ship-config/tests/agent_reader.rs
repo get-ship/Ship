@@ -2,14 +2,14 @@
 //!
 //! ONE agent-def file-access reader serves BOTH granularities off a single
 //! byte-read:
-//!   - FULL `compiler::AgentProfile` (nested) — what the compiler's
+//!   - FULL `stack_model::AgentProfile` (nested) — what the compiler's
 //!     `load_agent_profiles` consumes; NO field loss.
 //!   - SUMMARY `AgentDefSource` — what the read-only index needs.
 //!
 //! These proofs pin the parity contract: the reader returns the SAME full
-//! profile the loader's `compiler::jsonc::from_jsonc_str` would parse, and the
+//! profile the loader's `stack_model::jsonc::from_jsonc_str` would parse, and the
 //! summary is a faithful derivation of the same bytes (incl. `agent.harnesses`,
-//! which the nested `compiler::AgentProfile` view drops). Defs are authored
+//! which the nested `stack_model::AgentProfile` view drops). Defs are authored
 //! through the SAME `FsBroker` door the reader uses — zero raw fs of content.
 
 use std::path::{Path, PathBuf};
@@ -121,11 +121,11 @@ fn read_agent_profiles_returns_full_nested_profile_no_field_loss() {
 
 #[test]
 fn reader_parse_matches_loader_jsonc_parse_byte_for_byte() {
-    // The compiler's loader parses defs via `compiler::jsonc::from_jsonc_str`.
-    // The reader must yield an identical `compiler::AgentProfile` so the cutover
+    // The compiler's loader parses defs via `stack_model::jsonc::from_jsonc_str`.
+    // The reader must yield an identical `stack_model::AgentProfile` so the cutover
     // is behavior-preserving.
-    let loader_parse: compiler::AgentProfile =
-        compiler::jsonc::from_jsonc_str(FULL_DEF).expect("loader parse");
+    let loader_parse: stack_model::AgentProfile =
+        stack_model::jsonc::from_jsonc_str(FULL_DEF).expect("loader parse");
 
     let tmp = tempfile::tempdir().unwrap();
     let dir = ship_dir(&tmp);
@@ -233,7 +233,7 @@ fn read_agent_defs_summary_keeps_harnesses_off_the_same_bytes() {
     assert_eq!(d.name, "Code Reviewer");
     assert_eq!(d.role.as_deref(), Some("worker"));
     assert_eq!(d.tags, vec!["review", "testing"]);
-    // `harnesses` is dropped by the nested `compiler::AgentProfile` view — the
+    // `harnesses` is dropped by the nested `stack_model::AgentProfile` view — the
     // summary must still carry it (read off the same bytes).
     assert_eq!(d.harness, vec!["claude", "codex"]);
     assert_eq!(d.path, "code-reviewer.jsonc");

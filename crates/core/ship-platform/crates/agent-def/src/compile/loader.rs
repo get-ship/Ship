@@ -13,7 +13,7 @@
 //! See [`super::permissions`] for the consumer.
 
 use anyhow::Result;
-use compiler::{
+use stack_model::{
     McpServerConfig, McpServerType, ExtensionLibrary, Rule,
 };
 use serde::{Deserialize, Serialize};
@@ -82,7 +82,7 @@ impl McpFile {
         }
         let text = std::fs::read_to_string(path)?;
 
-        if let Ok(raw) = compiler::jsonc::from_jsonc_str::<RawMcpFile>(&text)
+        if let Ok(raw) = stack_model::jsonc::from_jsonc_str::<RawMcpFile>(&text)
             && !raw.mcp.servers.is_empty()
         {
             let servers = raw
@@ -98,7 +98,7 @@ impl McpFile {
                 .collect();
             return Ok(Self { servers });
         }
-        if let Ok(legacy) = compiler::jsonc::from_jsonc_str::<LegacyMcpFile>(&text) {
+        if let Ok(legacy) = stack_model::jsonc::from_jsonc_str::<LegacyMcpFile>(&text) {
             return Ok(Self {
                 servers: legacy.servers,
             });
@@ -146,7 +146,7 @@ pub fn load_library(ship_dir: &Path) -> Result<ExtensionLibrary> {
         // resolver's `merge_ts_declarations` populates them with
         // values harvested from the `defineConfig` block + the
         // on-disk hooks-dir walk.
-        permissions: compiler::Permissions::default(),
+        permissions: stack_model::Permissions::default(),
         hooks: Vec::new(),
         permissions_presets: std::collections::BTreeMap::new(),
         rules: load_rules(ship_dir)?,

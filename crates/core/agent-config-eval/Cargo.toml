@@ -3,13 +3,13 @@ name = "agent-config-eval"
 version = "0.1.0"
 edition = "2024"
 publish = false
-description = "Evaluate a ship.ts agent config (authored with defineAgent) in a locked-down ship-js isolate → compiler::AgentProfile."
+description = "Evaluate a ship.ts agent config (authored with defineAgent) in a locked-down ship-js isolate → stack_model::AgentProfile."
 
 [dependencies]
 # The AgentProfile type + its schema. This crate produces AgentProfiles; it does
 # NOT re-implement them (the deleted spike's mistake was vendoring these into the
 # engine — here ship supplies them and the engine stays type-free).
-compiler = { path = "../compiler" }
+stack-model = { path = "../stack-model" }
 # The standalone JS engine. Absolute path (ship-exec is a shared repo that is not
 # worktreed, so a relative path breaks at helmd worktree depth — see floki /
 # durable-execution). `deno` pulls the V8 runtime; the closed-world eval lives

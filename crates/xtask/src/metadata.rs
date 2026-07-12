@@ -54,7 +54,8 @@ const L0_SIBLINGS: &[&str] = &[
     "ship-ops-rpc",
     "ship-gateway-client",
     "ship-sidecar-proto",
-    "compiler",
+    "stack-model",
+    "harness-adaptors",
 ];
 
 /// Classify a workspace-relative crate directory into a layer.

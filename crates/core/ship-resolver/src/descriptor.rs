@@ -17,7 +17,7 @@
 //!   `ModuleDescriptor::content_hash` field the descriptor carries. SHA-256
 //!   hex of the canonical bytes; the descriptor treats it as an opaque
 //!   string so the leaf stays hash-agnostic (per
-//!   `compiler::ModuleDescriptor` doc).
+//!   `stack_model::ModuleDescriptor` doc).
 //!
 //! Note: only `ExtensionLibrary` has a canonical form here. `ResolvedConfig`
 //! is a runtime value (it doesn't derive `Serialize` — the resolved
@@ -31,8 +31,8 @@
 //! they are plain data.
 
 #[cfg(test)]
-use compiler::RollupInputs;
-use compiler::{ComposedLibrary, ExtensionLibrary};
+use stack_model::RollupInputs;
+use stack_model::{ComposedLibrary, ExtensionLibrary};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
@@ -62,7 +62,7 @@ pub fn extension_library_canonical(library: &ExtensionLibrary) -> serde_json::Re
 /// SHA-256 hex digest of a `ExtensionLibrary`'s canonical JSON form.
 ///
 /// The exact algorithm is the resolver's choice (the descriptor carries the
-/// hash as an opaque string per `compiler::ModuleDescriptor::content_hash`
+/// hash as an opaque string per `stack_model::ModuleDescriptor::content_hash`
 /// doc). SHA-256 matches the existing `content_hash` in `AgentDefRecord`
 /// (`ship-config/src/agents_index.rs:111-125`) so the cache invalidation
 /// key is consistent with the rest of the config tier.
@@ -130,7 +130,7 @@ fn sort_value_keys(value: serde_json::Value) -> serde_json::Value {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use compiler::ExtensionLibrary;
+    use stack_model::ExtensionLibrary;
     use serde_json::json;
 
     #[test]

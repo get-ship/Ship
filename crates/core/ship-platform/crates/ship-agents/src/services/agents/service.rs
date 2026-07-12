@@ -124,14 +124,14 @@ impl AgentsServiceImpl {
 }
 
 /// Validate that `doc` is schema-conformant: it must parse as
-/// `compiler::AgentProfile` (which requires the canonical `agent:` block), and
+/// `stack_model::AgentProfile` (which requires the canonical `agent:` block), and
 /// any declared capabilities must be agent-settable (no C3/critical). Returns a
 /// `Parse` error with a human-readable message on failure — the write is refused.
 ///
 /// Called in `create` and `put` (not `patch` or `duplicate` — patch operates on
 /// an already-valid doc; duplicate copies a previously validated source).
 fn validate_agent_structure(doc: &serde_json::Value) -> Result<(), state::Error> {
-    let profile: compiler::AgentProfile = serde_json::from_value(doc.clone())
+    let profile: stack_model::AgentProfile = serde_json::from_value(doc.clone())
         .map_err(|e| state::Error::Parse(format!("invalid agent schema: {e}")))?;
     agent_def::Agent::from_profile(&profile, "")
         .validate_capabilities()

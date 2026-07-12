@@ -18,7 +18,7 @@ release = []
 ship-substrate = { path = "../../../ship-substrate" }
 content-scan = { path = "../../../ship-substrate/crates/content-scan" }
 ship-collection = { path = "../ship-collection" }
-compiler = { path = "../../../compiler" }
+stack-model = { path = "../../../stack-model" }
 anyhow = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }

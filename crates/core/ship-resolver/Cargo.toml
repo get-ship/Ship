@@ -3,7 +3,7 @@ name = "ship-resolver"
 version = "0.1.0"
 edition = "2024"
 publish = false
-description = "Phase-2 space-shape resolver — composes the compiler leaf (config types) with agent-config-eval (TS eval) over the FsBroker gated door. Emits a canonical ExtensionLibrary + ResolvedConfig descriptor."
+description = "Phase-2 space-shape resolver — composes the stack-model leaf (config types) with agent-config-eval (TS eval) over the FsBroker gated door. Emits a canonical ExtensionLibrary + ResolvedConfig descriptor."
 
 [dependencies]
 # The L0 leaf — config types, the `load_library` walk over `.ship/`, the
@@ -13,7 +13,8 @@ description = "Phase-2 space-shape resolver — composes the compiler leaf (conf
 # for the bulk of the read path; the leaf populates `skill_paths` with
 # the single default entry ([`DEFAULT_SPACE_SKILL_PATH`]) — no
 # `space.skill_paths` ship.jsonc read, no extras walk.
-compiler = { path = "../compiler" }
+stack-model = { path = "../stack-model" }
+harness-adaptors = { path = "../harness-adaptors" }
 # The V8 isolate glue — `resolve_agents_with_globals` is the only call site
 # for ship.ts eval. V8 is feature-gated on the `deno` feature; the resolver
 # always pulls it (TS eval is the whole point). The `!Send` isolate crosses

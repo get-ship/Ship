@@ -6,7 +6,7 @@
 /// manifest-vs-lock diff pipeline the install orchestrator relies on.
 use std::collections::HashMap;
 
-use compiler::lockfile::{LockPackage, ShipLock};
+use stack_model::lockfile::{LockPackage, ShipLock};
 
 use crate::constraint::{VersionConstraint, normalize_version, parse_constraint};
 use crate::types::{Dependency, ShipManifest, SyncStatus, diff_manifest_against_lock};

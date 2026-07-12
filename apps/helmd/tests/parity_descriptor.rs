@@ -7,7 +7,7 @@
 use std::path::PathBuf;
 
 use ship_resolver::roll_up_blocking;
-use compiler::ComposedLibrary;
+use stack_model::ComposedLibrary;
 
 fn write_library_snapshot(label: &str, lib: &ComposedLibrary, out: &mut String) {
     out.push_str(&format!("# {label}\n"));

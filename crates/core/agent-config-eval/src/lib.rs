@@ -46,7 +46,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::Context;
-use compiler::AgentProfile;
+use stack_model::AgentProfile;
 use oxc_allocator::Allocator;
 use oxc_codegen::Codegen;
 use oxc_parser::Parser;

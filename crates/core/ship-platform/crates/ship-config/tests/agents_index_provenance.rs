@@ -1,23 +1,23 @@
 //! Phase-3 roll-up provenance proofs (P3-J3 — agents-domain index provenance,
 //! F4 in `census-phase3-agents.md`).
 //!
-//! `AgentDefIndex::upsert_composed` ingests a `compiler::compose_space`
+//! `AgentDefIndex::upsert_composed` ingests a `stack_model::compose_space`
 //! result: every winning `AgentProfile` becomes an ACTIVE row (provenance =
 //! the extension that supplied it, `shadowed_by: None`); every
 //! `AgentProfile`-noun `ShadowRecord` the law recorded becomes a SEPARATE row
 //! carrying `shadowed_by` — the index audits both "where did this def come
 //! from" and "why is it not active" without a second write path.
 //!
-//! These proofs build the roll-up fixture directly via `compiler::compose_space`
+//! These proofs build the roll-up fixture directly via `stack_model::compose_space`
 //! (a pure fn already exercised by `crates/core/compiler/tests/p3_compose.rs`)
 //! rather than through `ship_resolver::roll_up`, since ship-resolver is out of
 //! this job's file fence — `upsert_composed` only depends on the
-//! `compiler::ComposedLibrary` shape, not on how it was produced.
+//! `stack_model::ComposedLibrary` shape, not on how it was produced.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use compiler::{
+use stack_model::{
     compose_space, AgentProfile, ExtSource, ExtensionDescriptor, ExtensionLibrary, ProfileMeta,
     RollupInputs,
 };
@@ -75,7 +75,7 @@ fn ext(source: ExtSource, hash: &str, descriptor: ExtensionLibrary) -> Extension
 /// A cached-extension agent (`UserGlobal`, rank 0) colliding by id with a
 /// same-id source agent (`Space`, rank 1000) — the source wins per the
 /// standing precedence law (`RollupInputs::default_precedence`).
-fn cached_vs_source_collision() -> compiler::ComposedLibrary {
+fn cached_vs_source_collision() -> stack_model::ComposedLibrary {
     let cached = ExtensionLibrary {
         agent_profiles: vec![agent("widget", "Cached Widget")],
         ..Default::default()

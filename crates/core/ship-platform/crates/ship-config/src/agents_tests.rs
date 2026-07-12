@@ -54,7 +54,7 @@ fn read_agent_profiles_reads_canonical_via_fs_broker() {
 #[test]
 fn read_agent_docs_in_keeps_rules_refs_the_nested_view_drops() {
     // The daemon view-state needs `rules.refs` — a field the nested
-    // `compiler::AgentProfile` view does NOT carry. The raw-doc reader must
+    // `stack_model::AgentProfile` view does NOT carry. The raw-doc reader must
     // surface it so the cutover does not lose the summary's rule count.
     let tmp = tempdir().unwrap();
     let dir = ship_dir(&tmp);

@@ -7,8 +7,8 @@
 //!
 //! - **Pass-through** (pipelines, triggers, collections): the stack authoring
 //!   shape and `compiler`'s type are identical, so the emitted value
-//!   deserializes directly into `compiler::PipelineDef` /
-//!   `compiler::TriggerDef` / `compiler::CollectionDef`.
+//!   deserializes directly into `stack_model::PipelineDef` /
+//!   `stack_model::TriggerDef` / `stack_model::CollectionDef`.
 //! - **Mapped** (mcp servers, config): `compiler`'s type predates the
 //!   stack shape and carries fields the authoring shape doesn't — a private
 //!   `*Declare` struct mirrors the stack shape exactly and a `into_*` fn
@@ -52,8 +52,8 @@
 use std::collections::HashMap;
 
 use anyhow::{Context, Result, bail};
-use compiler::types::ViewDescriptor;
-use compiler::{
+use stack_model::types::ViewDescriptor;
+use stack_model::{
     AgentProfile, CollectionDef, McpServerConfig, McpServerType, PipelineDef, TriggerDef,
     manifest::ManifestDepValue,
 };
@@ -77,13 +77,13 @@ use serde_json::Value;
 pub struct Declarations {
     pub agents: Vec<AgentProfile>,
     pub mcp_servers: Vec<McpServerConfig>,
-    pub skills: Vec<compiler::Skill>,
-    pub rules: Vec<compiler::Rule>,
+    pub skills: Vec<stack_model::Skill>,
+    pub rules: Vec<stack_model::Rule>,
     pub pipelines: Vec<PipelineDef>,
     pub triggers: Vec<TriggerDef>,
     pub collections: Vec<CollectionDef>,
     /// Views harvested from `defineView` calls. The composition law
-    /// (`compiler::compose::compose_space`) merges these by namespace-prefix
+    /// (`stack_model::compose::compose_space`) merges these by namespace-prefix
     /// merge, not id-replace — see `ViewDescriptor` and the phase-4 J1/J2
     /// roll-up. Hand-spec'd shape (per `defineRule` precedent): no
     /// `@ship/stack` counterpart yet (`ViewDescriptor` is provisional
@@ -146,7 +146,7 @@ pub fn harvest(out: &mut Declarations, index: usize, raw: Value) -> Result<()> {
             // The `defineView` value is the compiler's `ViewDescriptor` shape
             // (route/prefix/component_ref) — a pass-through, mirroring
             // `definePipeline` / `defineCollection`. The composition law
-            // (`compiler::compose::compose_space`) merges the resulting
+            // (`stack_model::compose::compose_space`) merges the resulting
             // `out.views` by namespace-prefix merge.
             let def: ViewDescriptor =
                 serde_json::from_value(envelope.value).with_context(|| {
@@ -232,7 +232,7 @@ pub const MCP_SERVER_DECLARE_FIELDS: &[&str] = &[
     "url",
 ];
 impl McpServerDeclare {
-    /// Map onto `compiler::McpServerConfig`. The authoring shape has no
+    /// Map onto `stack_model::McpServerConfig`. The authoring shape has no
     /// separate display name (only `id`) — `name` doubles as `id`, same
     /// as `defineAgent`'s `id`/`name` collapse when a config omits one.
     /// `disabled`/`timeout_secs`/the Codex+Cursor per-server fields have
@@ -328,7 +328,7 @@ pub struct ConfigDeclare {
     /// `command = "bash <hooks_dir>/<event-stem>.<ext>"`. The resolver
     /// walks the dir the same way it walks skills + rules. The
     /// supported `<event-stem>` values mirror the
-    /// [`compiler::HookTrigger`] enum members exactly:
+    /// [`stack_model::HookTrigger`] enum members exactly:
     /// `pre-tool-use` / `post-tool-use` / `notification` / `stop` /
     /// `subagent-stop` / `pre-compact`. Slice 3 close-out: the leaf
     /// no longer reads `.ship/hooks.jsonc` (the file died with this
@@ -372,7 +372,7 @@ pub struct ConfigAgents {
     /// Named permission presets. Keyed by preset name (e.g.
     /// `"ship-readonly"` / `"ship-standard"`). Each entry is a
     /// [`PermissionPresetDeclare`] that the resolver converts
-    /// 1:1 into a [`compiler::PermissionPreset`]
+    /// 1:1 into a [`stack_model::PermissionPreset`]
     /// (same field set — the Declare type exists so the schema can
     /// keep serde's strict-shape discipline without exposing
     /// `compiler`'s types in the public harvest API).
@@ -397,7 +397,7 @@ pub struct ConfigPermissions {
     /// `PermissionPreset` (`default_mode`, `tools_allow` /
     /// `tools_deny` / `tools_ask`, `additional_directories`). The
     /// resolver converts each entry into a
-    /// `compiler::PermissionPreset` and seeds
+    /// `stack_model::PermissionPreset` and seeds
     /// `ExtensionLibrary::permissions_presets`.
     #[serde(default)]
     pub presets: HashMap<String, PermissionPresetDeclare>,
@@ -405,7 +405,7 @@ pub struct ConfigPermissions {
 
 /// The `defineConfig({ agents: { permissions: { presets: { <name>: ... } } } })`
 /// per-preset shape. Field-for-field identical to
-/// `compiler::PermissionPreset` (the resolver maps Declare → compiler
+/// `stack_model::PermissionPreset` (the resolver maps Declare → compiler
 /// type by field-for-field clone). The Declare type exists so the
 /// public harvest API doesn't have to expose the L0 `compiler` types
 /// to `defineConfig` callers — the same precedent
@@ -440,10 +440,10 @@ const CONFIG_DEF_FIELDS: &[&str] = &[
 ];
 
 // ─── Pass-through nouns: field expectations ────────────────────────────────────
-// `compiler::{PipelineDef,TriggerDef,...}` deserialize directly — no
+// `stack_model::{PipelineDef,TriggerDef,...}` deserialize directly — no
 // separate Declare wrapper. These hand-maintained field lists are the
 // drift-test anchor: a stack shape change that adds/removes a field
-// must update BOTH the compiler type (`compiler::types::{pipeline,
+// must update BOTH the compiler type (`stack_model::types::{pipeline,
 // trigger,collection}`) and the matching list here, or `drift_tests`
 // below fails.
 #[allow(dead_code)]
@@ -479,7 +479,7 @@ const COLLECTION_FIELD_DEF_DECLARE_FIELDS: &[&str] = &[
 // `defineView` is HAND-SPEC (precedent: `defineRule`, see decision-morning-answers.md §2):
 // `ViewDescriptor` is provisional pending sail/deck alignment (decision-views-deck-boundary.md),
 // so the fingerprint constant here mirrors the compiler type's field set directly.
-// The drift-test arm below cross-checks against `compiler::types::ViewDescriptor`'s
+// The drift-test arm below cross-checks against `stack_model::types::ViewDescriptor`'s
 // exported fields, not a stack-derived fingerprint.
 #[allow(dead_code)]
 const VIEW_DESCRIPTOR_DECLARE_FIELDS: &[&str] = &["component_ref", "prefix", "route"];
@@ -570,7 +570,7 @@ mod drift_tests {
 
     /// `defineView` is a hand-spec shape (no stack fingerprint — the
     /// `defineRule` precedent applies). The drift check pins the harvest's
-    /// field set to `compiler::types::ViewDescriptor`'s serialized fields:
+    /// field set to `stack_model::types::ViewDescriptor`'s serialized fields:
     /// changing one without the other breaks the `defineView` pass-through
     /// harvest in a non-obvious way. The compiler type is the source of
     /// truth; this list mirrors it. A future stack-fingerprinted version

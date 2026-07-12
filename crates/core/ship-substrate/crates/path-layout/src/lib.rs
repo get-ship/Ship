@@ -7,9 +7,9 @@
 //! `ship_platform::registry`.
 //!
 //! `views` is no longer a materializer type — it's composed by the
-//! resolver (`compiler::compose::compose_space`'s namespace-prefix merge
+//! resolver (`stack_model::compose::compose_space`'s namespace-prefix merge
 //! on `ExtensionLibrary::views`) and exposed as
-//! `compiler::ComposedLibrary::route_tree`, superseding the file-copy
+//! `stack_model::ComposedLibrary::route_tree`, superseding the file-copy
 //! materializer's views handling per `census-views.md` Part 3 / J2.
 //!
 //! The materializer is the same algorithm as `registry/compose.rs` — it lives
@@ -20,13 +20,13 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use compiler::lockfile::ShipLock;
-use compiler::manifest::ShipManifest;
+use stack_model::lockfile::ShipLock;
+use stack_model::manifest::ShipManifest;
 
 /// The four non-library traveling types — `views` was a fifth and is now
-/// composed by the resolver (`compiler::compose::compose_space`'s
+/// composed by the resolver (`stack_model::compose::compose_space`'s
 /// namespace-prefix merge on `ExtensionLibrary::views`) and exposed as
-/// `compiler::ComposedLibrary::route_tree`, superseding the file-copy
+/// `stack_model::ComposedLibrary::route_tree`, superseding the file-copy
 /// materializer's views handling per `census-views.md` Part 3 / the
 /// J2 acceptance. Deck (the consumer) reads the composed tree, not a
 /// materialized on-disk `views/` dir.

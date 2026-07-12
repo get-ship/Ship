@@ -92,11 +92,11 @@ fn harness_meta(id: &str) -> (&'static str, &'static str) {
 // died with the dot-ship close-out. The Settings page's provider rows
 // are a flat (id, label, glyph, binary) projection — synthesize the
 // provider list here from the typed `HARNESSES` registry in
-// `compiler::compile::harness`. The compiler keeps the runtime source
+// `harness_adaptors::compile::harness`. The compiler keeps the runtime source
 // of truth for which harnesses exist; the settings page just lists
 // them with metadata.
 fn detect_harnesses(default_id: &str) -> Vec<ProviderRow> {
-    // Static provider table mirroring the `compiler::compile::harness`
+    // Static provider table mirroring the `harness_adaptors::compile::harness`
     // runtime registry. Kept narrow (Settings view only) — the runtime
     // registry is the source of truth at dispatch time.
     const PROVIDERS: &[(&str, &str)] = &[

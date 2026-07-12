@@ -14,9 +14,9 @@ pub mod config {
     pub use ship_config::error::ConfigError;
     // `ship_config::project` (SpaceManifest / get_config / save_config /
     // PRIMARY_CONFIG_FILE) died with the A2 close-out (2026-07-11). The
-    // resolved descriptor (`compiler::ResolvedConfig`) is the one source
+    // resolved descriptor (`stack_model::ResolvedConfig`) is the one source
     // of truth post-cutover; the on-disk config surface is dead.
-    pub use compiler::AgentProfile;
+    pub use stack_model::AgentProfile;
     // Agent def readers (still live — A2 delete only removed the
     // deprecated `ship_config::project::SpaceManifest`/`get_config`
     // chain, not these typed agent-def read functions).

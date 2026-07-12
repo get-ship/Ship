@@ -5,7 +5,7 @@
 //! session start.
 
 use anyhow::{Context, Result};
-use compiler::ensure_parent;
+use harness_adaptors::ensure_parent;
 
 // ── Generic JSON helpers ─────────────────────────────────────────────────────
 

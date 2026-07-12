@@ -119,7 +119,7 @@ pub fn gen_slug_suffix() -> String {
 
 // SD-1: authoritative definition lives in `compiler`; delegate to it so there
 // is exactly one copy of the Ship 56-char alphabet.
-pub use compiler::gen_nanoid;
+pub use stack_model::gen_nanoid;
 
 #[cfg(test)]
 mod slug_suffix_tests {

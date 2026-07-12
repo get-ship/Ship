@@ -2,7 +2,7 @@ use std::collections::{HashSet, VecDeque};
 use std::path::Path;
 
 use anyhow::Context;
-use compiler::lockfile::{LockPackage, ShipLock};
+use stack_model::lockfile::{LockPackage, ShipLock};
 
 use super::cache::{CachedPackage, PackageCache};
 use super::constraint::parse_constraint;

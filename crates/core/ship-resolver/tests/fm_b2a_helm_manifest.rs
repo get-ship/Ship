@@ -214,10 +214,10 @@ export default defineConfig({});
         .rollup_inputs
         .as_ref()
         .expect("roll_up populates rollup_inputs");
-    let space_descriptors: Vec<&compiler::ExtensionDescriptor> = rollup
+    let space_descriptors: Vec<&stack_model::ExtensionDescriptor> = rollup
         .extensions
         .iter()
-        .filter(|e| e.source == compiler::ExtSource::Space)
+        .filter(|e| e.source == stack_model::ExtSource::Space)
         .collect();
     assert_eq!(
         space_descriptors.len(),

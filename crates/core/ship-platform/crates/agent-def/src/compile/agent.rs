@@ -6,7 +6,7 @@
 //! `resolve()` can filter MCP / skill / rule refs against it.
 
 use anyhow::Result;
-use compiler::{PluginEntry, PluginsManifest, ExtensionLibrary};
+use stack_model::{PluginEntry, PluginsManifest, ExtensionLibrary};
 use std::path::Path;
 
 use super::permissions::apply_agent_permissions;
@@ -45,7 +45,7 @@ pub fn apply_agent_to_library(
     if let Some(inline) = &profile.rules.inline {
         let trimmed = inline.trim();
         if !trimmed.is_empty() {
-            library.rules.push(compiler::Rule {
+            library.rules.push(stack_model::Rule {
                 file_name: format!("{agent_id}.md"),
                 content: trimmed.to_string(),
                 always_apply: true,

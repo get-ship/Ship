@@ -2,7 +2,7 @@
 //! Relocated from apps/ship-cli/src/loader_tests.rs and compile/tests*.rs.
 
 use super::*;
-use compiler::{HookTrigger, McpServerType};
+use stack_model::{HookTrigger, McpServerType};
 use loader::parse_rule;
 use skill_parser::parse_skill;
 use std::path::Path;
@@ -19,10 +19,10 @@ fn write(dir: &Path, rel: &str, content: &str) {
 /// with Wave 5; project skills now arrive via `defineSkill` declare-forms).
 /// These loader tests assert disk-loading behavior, so they look past the
 /// embedded set.
-fn disk_skills(skills: &[compiler::Skill]) -> Vec<&compiler::Skill> {
+fn disk_skills(skills: &[stack_model::Skill]) -> Vec<&stack_model::Skill> {
     skills
         .iter()
-        .filter(|s| s.source != compiler::SkillSource::Builtin)
+        .filter(|s| s.source != stack_model::SkillSource::Builtin)
         .collect()
 }
 

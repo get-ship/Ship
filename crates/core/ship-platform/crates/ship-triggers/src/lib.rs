@@ -2,7 +2,7 @@
 //! events and dispatch actions.
 //!
 //! Triggers arrive via the composed `ExtensionLibrary::triggers`
-//! (`Vec<compiler::TriggerDef>`), sourced from `defineTrigger` declare-forms
+//! (`Vec<stack_model::TriggerDef>`), sourced from `defineTrigger` declare-forms
 //! in the space's `ship.config.ts` (format-migration Wave 4 phase A —
 //! the prior `.ship/triggers/*.jsonc` file format is retired, no dual
 //! path; see `census-format-migration.md` §4 row 3). Each trigger has a

@@ -1,6 +1,6 @@
 //! Parse SKILL.md frontmatter per the agentskills.io spec.
 //!
-//! The parser is the CANONICAL one in `compiler::skill_parser` (single
+//! The parser is the CANONICAL one in `stack_model::skill_parser` (single
 //! source for both the compile path here and the dep-skill cache in
 //! `ship-store` — see #106 for the inline-form regression the duplicate
 //! parsers caused). Re-exported here so existing
@@ -30,7 +30,7 @@
 //! slice — see the spec's SPEC CHANGE rule 4 for the deferral note).
 
 use anyhow::Result;
-use compiler::Skill;
+use stack_model::Skill;
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -77,11 +77,11 @@ fn collect_embedded_files_unused() {}
 
 // ── Skill parser ─────────────────────────────────────────────────────────────
 //
-// Re-export the CANONICAL `compiler::skill_parser::parse_skill` so callers
+// Re-export the CANONICAL `stack_model::skill_parser::parse_skill` so callers
 // in this crate and its tests keep using `agent_def::compile::skill_parser::parse_skill`
 // without churn. The agent-def specific helpers below stay local — they own
 // the embedded SDK skills + the disk loader for compile.
-pub use compiler::skill_parser::parse_skill;
+pub use stack_model::skill_parser::parse_skill;
 
 // `load_skills` (the agent-def disk-authoring skill walker) retired
 // with Wave 5. The skill bodies now arrive via `defineSkill`
@@ -146,7 +146,7 @@ fn load_skill_vars(
 #[cfg(test)]
 mod sdk_skill_tests {
     use super::*;
-    use compiler::SkillSource;
+    use stack_model::SkillSource;
 
     #[test]
     #[ignore = "embedded SDK skills disabled until ship-contracts publishes a ship-sdk-skills crate; see embedded_capability_skills() and the commented include_dir!"]

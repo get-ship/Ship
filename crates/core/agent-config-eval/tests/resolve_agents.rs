@@ -1,5 +1,5 @@
 //! The linchpin: a `ship.config.ts` authored with `defineAgent`, evaluated in a
-//! locked-down ship-js isolate, produces `compiler::AgentProfile`s — and a
+//! locked-down ship-js isolate, produces `stack_model::AgentProfile`s — and a
 //! program defining N agents in a loop rolls up to N profiles.
 
 use agent_config_eval::{resolve_agents, resolve_agents_with_globals};

@@ -1,4 +1,4 @@
-//! Apply an agent's permission overrides on top of a base `compiler::Permissions`.
+//! Apply an agent's permission overrides on top of a base `stack_model::Permissions`.
 //!
 //! Resolution order: floor wins over everything; per-agent overrides win over
 //! named-preset (from `.ship/permissions.jsonc`); preset wins over base; base
@@ -13,11 +13,11 @@
 //! `allow` a floor-protected pattern do not override at runtime (deny wins in
 //! every harness we target) and the compiler emits a warning.
 
-use compiler::{AgentProfile, Permissions, ToolPermissions};
+use stack_model::{AgentProfile, Permissions, ToolPermissions};
 use std::collections::BTreeMap;
 
 /// A named permission preset section. The struct is a re-export of
-/// `compiler::PermissionPreset` (moved from this module with the
+/// `stack_model::PermissionPreset` (moved from this module with the
 /// slice 3 close-out — the L0 type now owns the canonical shape, and
 /// the resolver's `merge_ts_declarations` harvests it directly into
 /// `ExtensionLibrary::permissions_presets`). The pre-slice-3 struct
@@ -26,9 +26,9 @@ use std::collections::BTreeMap;
 /// descriptor. Re-exported here so the existing
 /// `super::compile::PermissionPreset` path keeps working for any
 /// remaining callers (the compile path now consumes
-/// `compiler::PermissionPreset` directly, the re-export is a
+/// `stack_model::PermissionPreset` directly, the re-export is a
 /// forward-compat surface).
-pub use compiler::PermissionPreset as PermissionPreset;
+pub use stack_model::PermissionPreset as PermissionPreset;
 
 /// Permission rules baked into every Ship agent. Cannot be overridden.
 ///
@@ -221,7 +221,7 @@ pub fn apply_agent_permissions(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use compiler::Permissions;
+    use stack_model::Permissions;
 
     fn profile_with_preset(preset: &str) -> AgentProfile {
         let src = format!(

@@ -45,7 +45,7 @@
 
 use agent_config_eval::Declarations;
 use anyhow::{Context, Result};
-use compiler::ModuleDescriptor;
+use stack_model::ModuleDescriptor;
 use serde_json::Value;
 
 /// Merge one module's [`Declarations`] into the running total, in
@@ -356,8 +356,8 @@ defineView({
             .get("github.com/better-auth/skills")
             .expect("defineConfig dependencies harvested");
         match dep {
-            compiler::manifest::ManifestDepValue::Version(version) => assert_eq!(version, "main"),
-            compiler::manifest::ManifestDepValue::Full(_) => {
+            stack_model::manifest::ManifestDepValue::Version(version) => assert_eq!(version, "main"),
+            stack_model::manifest::ManifestDepValue::Full(_) => {
                 panic!("expected shorthand dependency")
             }
         }

@@ -6,7 +6,7 @@ use std::fs;
 use std::path::Path;
 use tempfile::tempdir;
 
-use compiler::lockfile::{LockPackage, ShipLock};
+use stack_model::lockfile::{LockPackage, ShipLock};
 
 use crate::dep_skills::{
     cache_skill_path, hash_from_lock, is_dep_ref, parse_dep_ref, resolve_dep_skill,

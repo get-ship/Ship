@@ -47,7 +47,7 @@ json-patch = "4"
 minijinja = { workspace = true }
 
 [dev-dependencies]
-compiler = { path = "../core/compiler" }
+stack-model = { path = "../core/stack-model" }
 tokio = { workspace = true, features = ["test-util"] }
 ship-substrate = { path = "../core/ship-substrate" }
 

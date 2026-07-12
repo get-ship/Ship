@@ -7,7 +7,7 @@ description = "L0 traveling-artifact overlay resolver — composes a materialize
 
 [dependencies]
 ship-paths = { path = "../ship-paths" }
-compiler = { path = "../../../compiler" }
+stack-model = { path = "../../../stack-model" }
 anyhow = { workspace = true }
 walkdir = "2.3"
 sha2 = { workspace = true }
