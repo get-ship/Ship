@@ -55,7 +55,6 @@ const L0_SIBLINGS: &[&str] = &[
     "ship-gateway-client",
     "ship-sidecar-proto",
     "stack-model",
-    "harness-adaptors",
 ];
 
 /// Classify a workspace-relative crate directory into a layer.
@@ -63,6 +62,19 @@ const L0_SIBLINGS: &[&str] = &[
 /// Returns `None` for an unclassifiable member — the caller surfaces that as an
 /// R1 orphan error (the taxonomy decision is forced rather than guessed).
 pub fn classify(rel_dir: &str) -> Option<Layer> {
+    // The code world (crates/code/) — ship-code's tier assignments carry
+    // over from their pre-move homes: harness-adaptors was an L0 sibling
+    // (pure logic), ship-code an L1 platform crate. The standard/code
+    // boundary itself is lint-boundary's (path-based, transitive); tiers
+    // here only feed the R2 ordering checks.
+    if rel_dir == "crates/code/harness-adaptors"
+        || rel_dir.starts_with("crates/code/harness-adaptors/")
+    {
+        return Some(Layer::L0);
+    }
+    if rel_dir == "crates/code/ship-code" || rel_dir.starts_with("crates/code/ship-code/") {
+        return Some(Layer::L1);
+    }
     // L0 — ship-substrate tree (root + every nested crate).
     if rel_dir == "crates/core/ship-substrate" || rel_dir.starts_with("crates/core/ship-substrate/")
     {

@@ -10,23 +10,23 @@ workspace = true
 
 [dependencies]
 home = { workspace = true }
-agent-def = { path = "../agent-def" }
+agent-def = { path = "../../core/ship-platform/crates/agent-def", features = ["ship-code"] }
 # The Phase-3 roll-up composer (`roll_up_blocking`) — routes dispatch-compiled
 # agents through the same cache/enabled/space precedence law shipd's boot
 # index composes over, instead of the single-source `.ship/` library.
-ship-resolver = { path = "../../../ship-resolver" }
-ship-substrate = { path = "../../../ship-substrate" }
-process-supervisor = { path = "../../../ship-substrate/crates/process-supervisor" }
-isolation-port = { path = "../../../ship-substrate/crates/isolation-port" }
-harness-adapter = { path = "../harness-adapter" }
-ship-harnesses = { path = "../ship-harnesses" }
-ship-auth = { path = "../ship-auth" }
-ship-isolation = { path = "../ship-isolation", default-features = false }
-ship-device = { path = "../ship-device" }
-ship-files = { path = "../ship-files" }
-ship-config = { path = "../ship-config" }
-ship-types = { path = "../../../ship-substrate/crates/ship-types" }
-ship-git = { path = "../../../ship-git" }
+ship-resolver = { path = "../../core/ship-resolver" }
+ship-substrate = { path = "../../core/ship-substrate" }
+process-supervisor = { path = "../../core/ship-substrate/crates/process-supervisor" }
+isolation-port = { path = "../../core/ship-substrate/crates/isolation-port" }
+harness-adapter = { path = "../../core/ship-platform/crates/harness-adapter" }
+ship-harnesses = { path = "../../core/ship-platform/crates/ship-harnesses" }
+ship-auth = { path = "../../core/ship-platform/crates/ship-auth" }
+ship-isolation = { path = "../../core/ship-platform/crates/ship-isolation", default-features = false }
+ship-device = { path = "../../core/ship-platform/crates/ship-device" }
+ship-files = { path = "../../core/ship-platform/crates/ship-files" }
+ship-config = { path = "../../core/ship-platform/crates/ship-config" }
+ship-types = { path = "../../core/ship-substrate/crates/ship-types" }
+ship-git = { path = "../../core/ship-git" }
 
 anyhow = { workspace = true }
 async-trait = { workspace = true }

@@ -81,12 +81,12 @@ pub fn install_defaults() {
 
 fn install_defaults_inner() {
     ship_substrate::projections::install_extra_projections_factory(Box::new(|| {
-        vec![
+        #[allow(unused_mut)]
+        let mut projections: Vec<Box<dyn ship_substrate::projections::Projection>> = vec![
             // Each projection now lives with its domain; the assembly point
             // pulls from those homes. The pipeline-run projection registers
             // separately from `ship-pipeline-runtime` (it depends on this
             // crate, so it can't be referenced from here).
-            Box::new(ship_agents::services::compile::CompileStateProjection),
             // SpacesProjection (keystone-A's ProjectsProjection rewritten for
             // the 2026-07-09 space cutover) folds `space.opened` and
             // `space.seen` events into the runtime-scoped `spaces` projection
@@ -124,6 +124,12 @@ fn install_defaults_inner() {
             // dashboard / billing / harness-mining work has a home
             // outside the platform crate.
             Box::new(ship_analytics::AnalyticsProjection::new()),
-        ]
+        ];
+        // Compile-state projection rides the ship-code feature: the compile
+        // driver (agent-def/compile) is third-party-harness territory and the
+        // standard build never carries it.
+        #[cfg(feature = "ship-code")]
+        projections.push(Box::new(agent_def::compile::CompileStateProjection));
+        projections
     }));
 }

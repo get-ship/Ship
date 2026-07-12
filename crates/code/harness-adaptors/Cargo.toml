@@ -11,7 +11,7 @@ default = []
 specta = ["dep:specta", "stack-model/specta"]
 
 [dependencies]
-stack-model = { path = "../stack-model" }
+stack-model = { path = "../../core/stack-model" }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
 toml = { workspace = true, features = ["preserve_order"] }

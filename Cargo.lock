@@ -8134,7 +8134,6 @@ dependencies = [
  "connectrpc",
  "fs-watch",
  "futures-util",
- "harness-adaptors",
  "home",
  "serde",
  "serde_json",
@@ -8382,6 +8381,7 @@ dependencies = [
 name = "ship-platform"
 version = "0.1.0"
 dependencies = [
+ "agent-def",
  "anyhow",
  "async-trait",
  "base64 0.22.1",
@@ -8480,7 +8480,6 @@ version = "0.1.0"
 dependencies = [
  "agent-config-eval",
  "anyhow",
- "harness-adaptors",
  "serde",
  "serde_json",
  "sha2",

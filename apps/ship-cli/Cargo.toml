@@ -18,7 +18,8 @@ clap = { workspace = true }
 shipd = { path = "../shipd" }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread"] }
 stack-model = { path = "../../crates/core/stack-model" }
-harness-adaptors = { path = "../../crates/core/harness-adaptors" }
+harness-adaptors = { path = "../../crates/code/harness-adaptors" }
+agent-def = { path = "../../crates/core/ship-platform/crates/agent-def", features = ["ship-code"] }
 ship-substrate = { path = "../../crates/core/ship-substrate" }
 ship-platform = { path = "../../crates/core/ship-platform" }
 ship-agents = { path = "../../crates/core/ship-platform/crates/ship-agents" }
@@ -109,9 +110,6 @@ set -eu
 # gets installed alongside the docs so admins can re-run it manually.
 
 [dev-dependencies]
-# Wave-1.1: ship-skill-vars dissolved into agent-def::skill_vars_store. The
-# skill-vars KV round-trip in tests/registry_e2e.rs now uses agent-def directly.
-agent-def = { path = "../../crates/core/ship-platform/crates/agent-def" }
 tempfile = { workspace = true }
 assert_cmd = "2"
 predicates = "3"

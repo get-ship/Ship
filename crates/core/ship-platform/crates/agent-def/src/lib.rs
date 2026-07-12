@@ -10,6 +10,10 @@
 
 pub mod agent;
 pub mod canonical_session;
+// The stack->harness compile driver — third-party-harness territory
+// (emits via harness-adaptors). Explicitly gated: floki and the standard
+// build never carry it.
+#[cfg(feature = "ship-code")]
 pub mod compile;
 pub mod dispatch_intent;
 pub mod emit;

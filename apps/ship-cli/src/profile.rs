@@ -37,7 +37,7 @@ impl SpaceState {
         let Some(space_id) = ship_substrate::project::resolve_active_space(probe) else {
             return SpaceState::default();
         };
-        match ship_agents::services::compile::projection::load(&space_id) {
+        match agent_def::compile::projection::load(&space_id) {
             Ok(Some(row)) => SpaceState {
                 active_agent: row.active_agent,
                 compiled_at: Some(row.compiled_at),

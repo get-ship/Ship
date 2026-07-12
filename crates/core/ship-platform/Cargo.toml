@@ -7,6 +7,7 @@ publish = false
 description = "L1 platform primitives — agents, collections, artifacts, triggers, projections, auth, config, registry, sessions, search, view-authoring, toolchain. Built on `ship-substrate`; consumed by the daemon and any L2 app."
 
 [dependencies]
+agent-def = { path = "crates/agent-def", optional = true }
 ship-substrate = { path = "../ship-substrate" }
 process-supervisor = { path = "../ship-substrate/crates/process-supervisor" }
 harness-adapter = { path = "crates/harness-adapter" }
@@ -73,7 +74,6 @@ ship-cloud = { path = "../ship-cloud" }
 # sidecar backends stay opt-in (the daemon's feature flags layer them in).
 ship-isolation = { path = "crates/ship-isolation", default-features = false }
 stack-model = { path = "../stack-model", features = ["specta"] }
-harness-adaptors = { path = "../harness-adaptors", features = ["specta"] }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
 toml = { workspace = true, features = ["preserve_order"] }
@@ -132,9 +132,13 @@ specta = ["ship-ui/specta", "ship-agents/specta"]
 fixtures = ["ship-agents/fixtures"]
 # ship-code: enable ship-agents' harness-driver stack (ship-code).
 # Enabled by shipd when ship-code is ON; absent in flag-off builds.
-ship-code = ["ship-agents/ship-code"]
+ship-code = ["ship-agents/ship-code", "dep:agent-def", "agent-def/ship-code"]
 
 [dev-dependencies]
+# The compile-spine integration test (tests/spine_smoke.rs) exercises
+# emission end-to-end; dev-deps of a dependency never enter a consumer's
+# graph, so the standard/code seam holds.
+harness-adaptors = { path = "../../code/harness-adaptors" }
 tokio = { workspace = true, features = ["test-util"] }
 # Self-dep so integration tests (tests/) see the `testutil` module. cfg(test)
 # does not apply to the lib when building integration-test targets, so without

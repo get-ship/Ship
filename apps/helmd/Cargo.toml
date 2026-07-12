@@ -58,7 +58,7 @@ ship-types = { path = "../../crates/core/ship-substrate/crates/ship-types" }
 # `CLAUDE.md` outputs are empty.
 ship-resolver = { path = "../../crates/core/ship-resolver" }
 stack-model = { path = "../../crates/core/stack-model" }
-harness-adaptors = { path = "../../crates/core/harness-adaptors" }
+harness-adaptors = { path = "../../crates/code/harness-adaptors" }
 # helmd must name in its `AgentsHost` impl: `KernelRouter`, `KernelLog`,
 # `ShipHome`, `init_kernel_router`, `project::get_project_dir`. These are the
 # SAME types the facade re-exports, so naming them via the core keeps helmd's
@@ -90,7 +90,7 @@ ship-config = { path = "../../crates/core/ship-platform/crates/ship-config" }
 # The harness-driver stack: process registry, RoutingExecutor, dispatch_ports,
 # helpers, agent_lifecycle, the `EventDedup` gate. helmd's dispatch runtime is
 # built directly from these (mirroring shipd's `subscribe_job_events`).
-ship-code = { path = "../../crates/core/ship-platform/crates/ship-code", features = ["ship-code"], optional = true }
+ship-code = { path = "../../crates/code/ship-code", features = ["ship-code"], optional = true }
 # Spine 2b dispatch deps — pulled in only when `ship-code` is on.
 ship-auth = { path = "../../crates/core/ship-platform/crates/ship-auth", optional = true }
 ship-auth-types = { path = "../../crates/core/ship-substrate/crates/ship-auth-types", optional = true }
@@ -148,10 +148,10 @@ default = ["ship-code"]
 # helmd's (the `ship_agents::runtime` re-export + cancel module light up).
 ship-code = [
     "dep:ship-code",
+    "ship-agents/ship-code",
     "dep:ship-pipeline-runtime",
     "dep:ship-auth",
     "dep:ship-auth-types",
-    "ship-agents/ship-code",
 ]
 
 # Detach from the ship root workspace — helmd is its own compositional root.

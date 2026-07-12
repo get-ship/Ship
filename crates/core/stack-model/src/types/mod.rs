@@ -1,3 +1,4 @@
+pub mod compile_output;
 pub mod harness_settings;
 pub mod agent_profile;
 pub mod capability;

@@ -22,7 +22,7 @@ ship-types = { path = "../../../ship-substrate/crates/ship-types" }
 ship-kernel = { path = "../../../ship-substrate/crates/ship-kernel" }
 # L1 crates (carved siblings, no cycle)
 agent-def = { path = "../agent-def" }
-ship-code = { path = "../ship-code", features = ["ship-code"], optional = true }
+ship-code = { path = "../../../../code/ship-code", features = ["ship-code"], optional = true }
 ship-config = { path = "../ship-config" }
 ship-harnesses = { path = "../ship-harnesses" }
 ship-files = { path = "../ship-files" }
@@ -34,7 +34,7 @@ ship-terminal = { path = "../ship-terminal" }
 ship-auth = { path = "../ship-auth" }
 # compiler crate (the engine; services/compile is only the wrapper)
 stack-model = { path = "../../../stack-model", features = ["specta"] }
-harness-adaptors = { path = "../../../harness-adaptors", features = ["specta"] }
+harness-adaptors = { path = "../../../../code/harness-adaptors", features = ["specta"], optional = true }
 # Phase-3 space roll-up — the no-index agent read composes through the SAME
 # world `compile_project`/dispatch-compile do (format-migration W5 follow-up).
 ship-resolver = { path = "../../../ship-resolver" }
@@ -74,7 +74,7 @@ specta = []
 #                        and the `runtime` re-export are all compiled in.
 # With this feature OFF: only the floki path (FlokiRunFn + the floki branch
 #                        in dispatch.rs) is compiled; ship-code and ship-git are absent.
-ship-code = ["dep:ship-code", "dep:ship-git"]
+ship-code = ["dep:ship-code", "dep:ship-git", "dep:harness-adaptors", "agent-def/ship-code"]
 
 [lints]
 workspace = true

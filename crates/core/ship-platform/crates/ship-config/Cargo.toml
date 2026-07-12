@@ -12,7 +12,6 @@ ship-types = { path = "../../../ship-substrate/crates/ship-types" }
 ship-reactive = { path = "../ship-reactive" }
 ship-ops-rpc = { path = "../../../ship-ops-rpc" }
 stack-model = { path = "../../../stack-model" }
-harness-adaptors = { path = "../../../harness-adaptors" }
 
 anyhow = { workspace = true }
 async-trait = { workspace = true }

@@ -26,6 +26,7 @@ pub mod vars;
 // ─── Top-level re-exports ─────────────────────────────────────────────────────
 
 pub use jsonc::{merge_json, merge_json_file};
+pub use types::compile_output::CompileOutput;
 pub use loader::load_library;
 
 pub use compose::{ComposedLibrary, NounKind, ShadowRecord, compose_space};

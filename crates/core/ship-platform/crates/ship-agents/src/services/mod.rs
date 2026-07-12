@@ -1,7 +1,4 @@
 pub mod agents;
-// compile moved to the agent-def crate (Floki carve D2a.2); re-exported so
-// `crate::services::compile::*` callers keep resolving (back-compat shim).
-pub use agent_def::compile;
 pub mod errors;
 pub mod mcp;
 pub mod rules;

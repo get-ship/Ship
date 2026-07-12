@@ -9,8 +9,11 @@
 //! mount split, 2026-07-10.
 
 pub mod annotation;
+#[cfg(feature = "ship-code")]
 pub mod code_dispatch_core;
+#[cfg(feature = "ship-code")]
 pub mod code_dispatch_request;
+#[cfg(feature = "ship-code")]
 pub mod code_wire;
 pub mod create;
 pub mod dispatch_core;
@@ -30,8 +33,11 @@ pub mod wire;
 pub mod host;
 pub mod wire_types;
 
+#[cfg(feature = "ship-code")]
 pub use code_dispatch_core::dispatch_code_session_core;
+#[cfg(feature = "ship-code")]
 pub use code_dispatch_request::{CodeDispatchRequest, billing_warning_for_axes, validate_code_dispatch_request, validate_axes as validate_code_axes};
+#[cfg(feature = "ship-code")]
 pub use code_wire::{CodeWire, CodeWireConfig};
 pub use dispatch_core::{AgentDispatchPort, DispatchCoreError, DispatchOutcome, dispatch_agent_session_core};
 #[cfg(feature = "ship-code")]
