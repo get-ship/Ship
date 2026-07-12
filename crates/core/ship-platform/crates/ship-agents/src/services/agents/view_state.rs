@@ -9,7 +9,7 @@
 //! `.ship/agents/*.jsonc` two-scope directory scan to fall back to — agents
 //! only exist as `defineAgent` declare-forms in `ship.config.ts`, so the
 //! no-index fallback resolves through the SAME composed world as the
-//! index-backed path: `ship_resolver::roll_up_blocking` from the project
+//! index-backed path: `ship_resolver::roll_up_registered_blocking` from the project
 //! space root (the `compile_project` W5 pattern). The UserGlobal-tier
 //! (operator-enabled library) rides the SAME roll-up (W2) — there is no
 //! separate global-scope read here.
@@ -121,13 +121,13 @@ pub(crate) fn resolve_space_root() -> Option<PathBuf> {
 }
 
 /// Compose the project's space root into an [`ExtensionLibrary`][stack_model::ExtensionLibrary]
-/// snapshot — the same `ship_resolver::roll_up_blocking` call `compile_project`
+/// snapshot — the same `ship_resolver::roll_up_registered_blocking` call `compile_project`
 /// makes (format-migration W5). This IS the no-index fallback's read: no
 /// `.ship/agents/*.jsonc` directory scan survives it. `None` on a roll-up
 /// failure (e.g. a TS eval error) — callers treat that the same as "nothing
 /// composed", matching the old scan's "missing dir" tolerance.
 pub(crate) fn compose_space_library(space_root: &Path) -> Option<ComposedLibrary> {
-    ship_resolver::roll_up_blocking(space_root, None, None)
+    ship_resolver::roll_up_registered_blocking(space_root, None, None)
         .inspect_err(|e| tracing::warn!("agents view_state: roll_up failed for {space_root:?}: {e}"))
         .ok()
 }

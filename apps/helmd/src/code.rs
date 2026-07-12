@@ -42,7 +42,7 @@ use ship_substrate::ShipHome;
 ///
 /// The agent-def index lookup uses the in-memory `AgentDefIndex` when
 /// present, falling back to `agent_id_exists` (which composes through
-/// `ship_resolver::roll_up_blocking`) for the no-index posture.
+/// `ship_resolver::roll_up_registered_blocking`) for the no-index posture.
 pub fn mount(
     router: ConnectRouter,
     dispatch_port: Arc<dyn AgentDispatchPort>,

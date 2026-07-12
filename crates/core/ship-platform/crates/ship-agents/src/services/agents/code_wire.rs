@@ -105,7 +105,7 @@ pub struct CodeWireConfig {
     /// path consults the index for the "agent exists" wire-boundary
     /// check; `None` for the no-index posture (helmd's lean mount) —
     /// the path falls back to `agent_id_exists` which resolves through
-    /// `ship_resolver::roll_up_blocking`.
+    /// `ship_resolver::roll_up_registered_blocking`.
     pub def_index: Option<Arc<ship_config::agents_index::AgentDefIndex>>,
 }
 

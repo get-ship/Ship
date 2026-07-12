@@ -32,6 +32,11 @@ pub fn install_collection_projection() {
             vec![
                 Box::new(ship_collection::item_projection::CollectionItemProjection),
                 Box::new(ship_artifacts::metadata_projection::ArtifactProjection),
+                // The space family: helmd emits space.* / stack.* through its
+                // own kernel, so it must fold them itself (SpaceService's
+                // ListStacks reads the space_stacks projection).
+                Box::new(ship_space::SpacesProjection),
+                Box::new(ship_space::SpaceStacksProjection),
             ]
         }));
     });

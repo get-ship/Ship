@@ -178,6 +178,13 @@ pub struct StackRow {
     pub registered_at: String,
 }
 
+/// List the stacks registered as members of `space_id` (global runtime db),
+/// in registration order (the composition order).
+pub fn list_stacks(space_id: &str) -> Result<Vec<StackRow>> {
+    let ship_dir = get_global_dir()?;
+    list_stacks_at(&ship_dir, space_id)
+}
+
 /// List the stacks registered as members of `space_id` under `ship_dir`,
 /// in registration order (the composition order).
 pub fn list_stacks_at(ship_dir: &Path, space_id: &str) -> Result<Vec<StackRow>> {

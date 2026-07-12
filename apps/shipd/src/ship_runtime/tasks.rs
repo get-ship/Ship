@@ -163,7 +163,7 @@ impl ShipRuntime {
     /// rules/collections/pipelines (see `ConfigWatcher`'s DOMAINS comment).
     /// A space-less boot (no workspace) starts with an empty trigger set —
     /// "globally enabled" (user-scope library) triggers have no roll-up path
-    /// yet (`ship_resolver::roll_up`'s deferred `library_dir` wiring, census
+    /// yet (`ship_resolver::roll_up_registered`'s deferred `library_dir` wiring, census
     /// Phase 6), so they aren't loaded either; a real, pre-existing gap, not
     /// introduced by this cutover.
     pub async fn start_hook_engine(&self) {
@@ -176,7 +176,7 @@ impl ShipRuntime {
         let (hook_ship_dir, triggers) = match &self.workspace_dir {
             Some(workspace) => {
                 let project_ship_dir = workspace.clone();
-                let triggers = match ship_resolver::roll_up(workspace, None, None).await {
+                let triggers = match ship_resolver::roll_up_registered(workspace, None, None).await {
                     Ok(composed) => composed.library.triggers,
                     Err(e) => {
                         tracing::warn!("hooks: project roll-up failed, starting with no triggers: {e}");
@@ -320,7 +320,7 @@ impl ShipRuntime {
         // did this def come from" and "why is it not active". `None, None`
         // default both the cache root and the library root to their
         // `ShipHome` accessors.
-        match ship_resolver::roll_up(&workspace, None, None).await {
+        match ship_resolver::roll_up_registered(&workspace, None, None).await {
             Ok(composed) => index.upsert_composed("project", &composed).await,
             Err(e) => tracing::warn!("agent-def index: project roll-up failed: {e}"),
         }

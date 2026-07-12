@@ -1,4 +1,6 @@
 use super::*;
+use stack_model::{ExtSource, RollupInputs, resolve_library};
+use ship_substrate::ports::LocalFsBroker;
 use serde_json::json;
 use tempfile::TempDir;
 
@@ -64,7 +66,12 @@ defineAgent({
 #[tokio::test(flavor = "current_thread")]
 async fn resolve_space_with_no_globals_yields_resolved_config() {
     let (_tmp, root) = write_minimal_space();
-    let resolved = resolve_space(&root).await.unwrap();
+    let cache = TempDir::new().unwrap();
+    let library = TempDir::new().unwrap();
+    let composed = roll_up_members(&[root.clone()], Some(cache.path()), Some(library.path()))
+        .await
+        .unwrap();
+    let resolved = resolve_library(&composed.library, None, None);
     // The TS-defined agent lands in the resolved config's agent list.
     let ids: Vec<&str> = resolved
         .agent_profiles
@@ -98,27 +105,22 @@ async fn resolve_space_with_no_globals_yields_resolved_config() {
 // tests cover the post-Wave-5 single-source contract.
 
 #[tokio::test(flavor = "current_thread")]
-async fn resolve_space_with_globals_injects_defaults() {
-    // The agent-config-eval tests pin down the globals-injection
-    // contract; this one verifies the resolver composes the value
-    // end-to-end (the `globals` lands in `library.globals` so audit
-    // consumers can see it).
-    let (_tmp, root) = write_minimal_space();
-    let globals = json!({ "agentDefaults": { "harness": "claude" } });
-    let resolved = resolve_space_with_globals(&root, globals).await.unwrap();
-    // The resolved config carries the .ts-defined agent and the rule.
-    assert_eq!(resolved.rules.len(), 1);
-}
-
-#[tokio::test(flavor = "current_thread")]
 async fn resolve_space_is_deterministic_across_two_runs() {
     // The byte-identical-output invariant the cache relies on:
     // two reads of the same space produce byte-identical
     // canonical-JSON `ExtensionLibrary` descriptors. The cache key
     // (J5) is the content hash of this form.
     let (_tmp, root) = write_minimal_space();
-    let a = load_space_library(&root).await.unwrap();
-    let b = load_space_library(&root).await.unwrap();
+    let cache = TempDir::new().unwrap();
+    let library = TempDir::new().unwrap();
+    let a = roll_up_members(&[root.clone()], Some(cache.path()), Some(library.path()))
+        .await
+        .unwrap()
+        .library;
+    let b = roll_up_members(&[root.clone()], Some(cache.path()), Some(library.path()))
+        .await
+        .unwrap()
+        .library;
     let a_bytes = descriptor::extension_library_canonical(&a).unwrap();
     let b_bytes = descriptor::extension_library_canonical(&b).unwrap();
     assert_eq!(a_bytes, b_bytes, "two space loads must be byte-identical");
@@ -129,12 +131,14 @@ async fn resolve_space_is_deterministic_across_two_runs() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn load_space_library_omits_resolve_step() {
+async fn load_root_library_omits_resolve_step() {
     // `load_space_library` returns a `ExtensionLibrary` (not a
     // `ResolvedConfig`); the caller does the resolve. The raw
     // space shape is what J5's cache keys on.
     let (_tmp, root) = write_minimal_space();
-    let lib = load_space_library(&root).await.unwrap();
+    let lib = space_loader::load_root_library(&LocalFsBroker::new(), &root)
+        .await
+        .unwrap();
     // The rule lives on disk in `rules/style.md` (slice 2b close-out
     // + slice 2c's pointer manifest) — this loader skips the TS eval
     // AND the on-disk walks, so the rule stays unmerged here (the
@@ -168,7 +172,7 @@ async fn roll_up_without_lockfile_is_source_only_identity() {
     std::fs::create_dir_all(&cache_root).unwrap();
     let library_root = root.join("empty_library");
 
-    let composed = roll_up(&root, Some(&cache_root), Some(&library_root))
+    let composed = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
         .await
         .unwrap();
 
@@ -278,7 +282,7 @@ defineAgent({
     .unwrap();
 
     let library_root = root.join("empty_library");
-    let composed = roll_up(&root, Some(&cache_root), Some(&library_root))
+    let composed = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
         .await
         .unwrap();
 
@@ -318,7 +322,7 @@ async fn roll_up_with_empty_cache_is_source_only() {
     // No ship.lock → `load_cached_extensions` returns `vec![]` early.
     let library_root = root.join("empty_library");
 
-    let composed = roll_up(&root, Some(&cache_root), Some(&library_root))
+    let composed = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
         .await
         .unwrap();
     assert!(composed.shadows.is_empty());
@@ -378,10 +382,10 @@ async fn roll_up_is_deterministic_across_two_runs() {
     .unwrap();
 
     let library_root = root.join("empty_library");
-    let a = roll_up(&root, Some(&cache_root), Some(&library_root))
+    let a = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
         .await
         .unwrap();
-    let b = roll_up(&root, Some(&cache_root), Some(&library_root))
+    let b = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
         .await
         .unwrap();
 
@@ -436,7 +440,7 @@ async fn roll_up_content_hash_changes_with_cached_package() {
 
     let library_root = root.join("empty_library");
     // Roll-up 1: baseline.
-    let a = roll_up(&root, Some(&cache_root), Some(&library_root))
+    let a = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
         .await
         .unwrap();
     let a_hash = descriptor::extension_library_content_hash(&a.library).unwrap();
@@ -450,7 +454,7 @@ async fn roll_up_content_hash_changes_with_cached_package() {
     )
     .unwrap();
 
-    let b = roll_up(&root, Some(&cache_root), Some(&library_root))
+    let b = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
         .await
         .unwrap();
     let b_hash = descriptor::extension_library_content_hash(&b.library).unwrap();
@@ -504,7 +508,7 @@ async fn roll_up_tear_test_full_composition() {
     .unwrap();
 
     let library_root = root.join("empty_library");
-    let composed = roll_up(&root, Some(&cache_root), Some(&library_root))
+    let composed = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
         .await
         .unwrap();
 
@@ -581,7 +585,7 @@ async fn define_config_dependencies_do_not_change_cached_dep_descriptor() {
     .unwrap();
 
     let library_root = root.join("empty_library");
-    let baseline = roll_up(&root, Some(&cache_root), Some(&library_root))
+    let baseline = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
         .await
         .unwrap();
     let baseline_descriptor = descriptor::extension_library_canonical(&baseline.library).unwrap();
@@ -598,7 +602,7 @@ export default defineConfig({
     )
     .unwrap();
 
-    let after = roll_up(&root, Some(&cache_root), Some(&library_root))
+    let after = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
         .await
         .unwrap();
     let after_descriptor = descriptor::extension_library_canonical(&after.library).unwrap();
@@ -650,7 +654,7 @@ async fn roll_up_missing_library_dir_is_empty_not_error() {
     // Deliberately do NOT create this dir.
     let library_root = root.join("does_not_exist_library");
 
-    let composed = roll_up(&root, Some(&cache_root), Some(&library_root))
+    let composed = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
         .await
         .unwrap();
     assert!(
@@ -735,7 +739,7 @@ async fn roll_up_covers_every_case_resolve_dep_agents_covers() {
     // Case 1: populated lock + cache — the namespaced id the flat merge
     // used to produce must also appear in `roll_up`'s composed result.
     let library_root = root.join("empty_library");
-    let composed = roll_up(&root, Some(&cache_root), Some(&library_root))
+    let composed = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
         .await
         .unwrap();
     let composed_ids: std::collections::HashSet<&str> = composed
@@ -753,7 +757,7 @@ async fn roll_up_covers_every_case_resolve_dep_agents_covers() {
     // — `roll_up` must degenerate the same way (no cached agents at
     // all), not error.
     let (_tmp2, root2) = write_minimal_space();
-    let composed_empty = roll_up(&root2, Some(&cache_root), Some(&library_root))
+    let composed_empty = roll_up_members(&[root2.clone()], Some(&cache_root), Some(&library_root))
         .await
         .unwrap();
     let source_ids: std::collections::HashSet<&str> = composed_empty
@@ -898,10 +902,10 @@ defineCollection({
     std::fs::create_dir_all(&cache_root).unwrap();
     let library_root = root.join("empty_library");
 
-    let a = roll_up(&root, Some(&cache_root), Some(&library_root))
+    let a = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
         .await
         .unwrap();
-    let b = roll_up(&root, Some(&cache_root), Some(&library_root))
+    let b = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
         .await
         .unwrap();
 
@@ -986,7 +990,7 @@ async fn roll_up_content_hash_changes_when_a_dep_view_source_changes() {
     // Roll-up 1: baseline. The view lands with `prefix =
     // github.com/d/views-pkg` (per `load_cached_extensions`) so the
     // composed library's `views` carries exactly that one descriptor.
-    let a = roll_up(&root, Some(&cache_root), Some(&library_root))
+    let a = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
         .await
         .unwrap();
     let a_hash = descriptor::composed_library_content_hash(&a).unwrap();
@@ -1004,7 +1008,7 @@ async fn roll_up_content_hash_changes_when_a_dep_view_source_changes() {
     )
     .unwrap();
 
-    let b = roll_up(&root, Some(&cache_root), Some(&library_root))
+    let b = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
         .await
         .unwrap();
     let b_hash = descriptor::composed_library_content_hash(&b).unwrap();
@@ -1054,7 +1058,7 @@ async fn roll_up_content_hash_changes_when_a_dep_view_is_added() {
     .unwrap();
 
     let library_root = root.join("empty_library");
-    let a = roll_up(&root, Some(&cache_root), Some(&library_root))
+    let a = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
         .await
         .unwrap();
     let a_hash = descriptor::composed_library_content_hash(&a).unwrap();
@@ -1077,7 +1081,7 @@ async fn roll_up_content_hash_changes_when_a_dep_view_is_added() {
     )
     .unwrap();
 
-    let b = roll_up(&root, Some(&cache_root), Some(&library_root))
+    let b = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
         .await
         .unwrap();
     let b_hash = descriptor::composed_library_content_hash(&b).unwrap();
@@ -1129,7 +1133,7 @@ defineView({
     let cache_root = tmp.path().join("empty_cache");
     std::fs::create_dir_all(&cache_root).unwrap();
     let library_root = tmp.path().join("empty_library");
-    let a = roll_up(&root, Some(&cache_root), Some(&library_root))
+    let a = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
         .await
         .unwrap();
     let a_hash = descriptor::composed_library_content_hash(&a).unwrap();
@@ -1160,7 +1164,7 @@ defineView({
     )
     .unwrap();
 
-    let b = roll_up(&root, Some(&cache_root), Some(&library_root))
+    let b = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
         .await
         .unwrap();
     let b_hash = descriptor::composed_library_content_hash(&b).unwrap();
@@ -1244,10 +1248,10 @@ async fn roll_up_two_extensions_views_compose_deterministically_under_distinct_p
     // Two roll-ups, same input — the composed descriptor must be
     // byte-identical (the cache key invariant) and contain BOTH views
     // under their distinct prefixes.
-    let a = roll_up(&root, Some(&cache_root), Some(&library_root))
+    let a = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
         .await
         .unwrap();
-    let b = roll_up(&root, Some(&cache_root), Some(&library_root))
+    let b = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
         .await
         .unwrap();
     let a_bytes = descriptor::extension_library_canonical(&a.library).unwrap();
@@ -1333,7 +1337,7 @@ defineView({
     std::fs::create_dir_all(&cache_root).unwrap();
     let library_root = tmp.path().join("empty_library");
 
-    let composed = roll_up(&root, Some(&cache_root), Some(&library_root))
+    let composed = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
         .await
         .unwrap();
 
@@ -1446,7 +1450,7 @@ defineAgent({ agent: { id: "shared", name: "Child Shared" } });
     std::fs::create_dir_all(&cache_root).unwrap();
     let library_root = root.join("empty_library");
 
-    let composed = roll_up(&root, Some(&cache_root), Some(&library_root))
+    let composed = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
         .await
         .unwrap();
 
@@ -1581,7 +1585,7 @@ defineAgent({ agent: { id: "child-b-only", name: "Child B Only" } });
     )
     .unwrap();
 
-    let composed = roll_up(&root, Some(&cache_root), Some(&library_root))
+    let composed = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
         .await
         .unwrap();
     let hook_ids: Vec<&str> = composed
@@ -1653,7 +1657,7 @@ defineConfig({
     let cache_root = root.join("empty_cache");
     std::fs::create_dir_all(&cache_root).unwrap();
     let library_root = root.join("empty_library");
-    let composed = roll_up(&root, Some(&cache_root), Some(&library_root))
+    let composed = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
         .await
         .unwrap();
     let lib = &composed.library;
@@ -1709,7 +1713,18 @@ defineAgent({
 "#,
     )
     .unwrap();
-    // Member B: the skill, plus a hook payload (push content — fenced).
+    // Member B: the skill, plus a hook payload (push content — fenced) and a
+    // named permission preset (a PULL definition agents reference — survives).
+    std::fs::write(
+        parent.join("b").join("ship.config.ts"),
+        r#"
+import { defineConfig } from "ship";
+export default defineConfig({
+  agents: { permissions: { presets: { "b-standard": { default_mode: "default" } } } },
+});
+"#,
+    )
+    .unwrap();
     std::fs::create_dir_all(parent.join("b/skills/peer-skill")).unwrap();
     std::fs::write(
         parent.join("b/skills/peer-skill/SKILL.md"),
@@ -1747,5 +1762,9 @@ defineAgent({
     assert!(
         lib.hooks.is_empty(),
         "member hooks survived the push fence — no member manifest may ship space-active push content"
+    );
+    assert!(
+        lib.permissions_presets.contains_key("b-standard"),
+        "named presets are pull definitions and must survive member composition"
     );
 }

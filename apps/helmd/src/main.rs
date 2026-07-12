@@ -716,12 +716,12 @@ impl HarnessService for HarnessImpl {
         let repo = PathBuf::from(&repo_path);
 
         // Step 1: roll up the project (cache + enabled-library + space tier).
-        // The V8 TS eval inside `roll_up_blocking` merges every declare-form
+        // The V8 TS eval inside `roll_up_registered_blocking` merges every declare-form
         // (mcp server, rule, collection, trigger, pipeline) into the
         // `ExtensionLibrary` the compile pipeline consumes — the leaf
         // `stack_model::load_library` no longer reads `.ship/mcp.jsonc` or
         // `.ship/rules/*.md` (format-migration Wave 4 phase A).
-        let lib = ship_resolver::roll_up_blocking(&repo, None, None)
+        let lib = ship_resolver::roll_up_registered_blocking(&repo, None, None)
             .map(|composed| composed.library)
             .map_err(|e| {
                 connectrpc::ConnectError::invalid_argument(format!(

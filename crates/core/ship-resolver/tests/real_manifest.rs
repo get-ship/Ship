@@ -32,7 +32,7 @@ async fn repo_manifest_rolls_up_with_all_nouns_present() {
         "repo root manifest missing at {root:?} — did the layout move?"
     );
 
-    let composed = ship_resolver::roll_up(&root, None, None)
+    let composed = ship_resolver::roll_up_members(&[root.clone()], None, None)
         .await
         .expect("roll_up over the real repo must succeed");
 

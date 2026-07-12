@@ -87,8 +87,8 @@ pub fn compile_agent_config(
     // law composed — the same `ship_resolver::roll_up` shipd's boot index
     // ingests, so a dispatch-compiled agent sees what the index sees
     // instead of a single-source `.ship/` read. `roll_up` is async
-    // (V8 TS eval); `roll_up_blocking` bridges the sync trait boundary.
-    let composed = ship_resolver::roll_up_blocking(worktree_path, None, None)
+    // (V8 TS eval); `roll_up_registered_blocking` bridges the sync trait boundary.
+    let composed = ship_resolver::roll_up_registered_blocking(worktree_path, None, None)
         .map_err(|e| anyhow::anyhow!("roll-up failed for agent '{agent_id}': {e}"))?;
 
     // In-process compile via the agent-def engine — the same pipeline
@@ -255,7 +255,7 @@ mod tests {
     /// patch-emission logic is unit-tested in the compiler crate;
     /// this end-to-end test confirms the dispatch default
     /// (`default_effort: Some("medium")` in `compile_agent_config`)
-    /// flows through to the worktree. Skipped when `roll_up_blocking`
+    /// flows through to the worktree. Skipped when `roll_up_registered_blocking`
     /// can't find a sui runtime — the unit test pins the patch
     /// behavior; the e2e confirms the wiring.
     #[test]

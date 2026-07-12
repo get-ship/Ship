@@ -142,7 +142,11 @@ export default defineConfig({});
     std::fs::create_dir_all(&cache_root).expect("cache dir");
     let library_root = root.join("empty_library");
 
-    let composed = ship_resolver::roll_up(&root, Some(&cache_root), Some(&library_root))
+    let composed = ship_resolver::roll_up_members(
+        &[root.join("ship"), root.join("helm")],
+        Some(&cache_root),
+        Some(&library_root),
+    )
         .await
         .expect("roll_up over the B2a fixture must succeed");
 

@@ -691,7 +691,7 @@ impl AgentsServiceTrait for AgentsWire {
         // model) and fall back to the composed-roll-up check only when the
         // index doesn't carry this scope entry. That fallback (`with_roots`,
         // no `AgentDefIndex` — helmd's lean posture) resolves through
-        // `ship_resolver::roll_up_blocking`, the SAME composed world the
+        // `ship_resolver::roll_up_registered_blocking`, the SAME composed world the
         // index itself is seeded from — NOT a `.ship/agents/*.jsonc`
         // directory scan (format-migration W5 follow-up).
         let agent_in_index = if let Some(index) = self.def_index.as_ref() {

@@ -134,7 +134,7 @@ pub fn compile_project(opts: &CompileOptions) -> Result<CompileSummary> {
     //    did — the W2 regression test pinned that). The `library` the
     //    downstream compile consumes is the COMPOSED result, not the
     //    leaf's single-source read.
-    let composed = ship_resolver::roll_up_blocking(&opts.space_root, None, None)
+    let composed = ship_resolver::roll_up_registered_blocking(&opts.space_root, None, None)
         .context("compile_project: roll_up failed")?;
     compile_project_from_library(opts, composed.library)
 }
