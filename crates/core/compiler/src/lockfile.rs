@@ -1,6 +1,6 @@
 //! ship.lock parser and writer.
 //!
-//! `ship.lock` is the registry dependency lockfile (`.ship/ship.lock`).
+//! `ship.lock` is the registry dependency lockfile, at the STACK ROOT beside `ship.config.ts` (lockfile-beside-manifest; ruled 2026-07-12).
 //! It records direct resolved dependencies — path, version, commit, and content hash.
 //! On disk, the file is JSONC (matches every other `.ship/` config: agents,
 //! skills, views, pipelines, collections). The writer emits pure JSON for
@@ -37,7 +37,7 @@ pub struct LockPackage {
     pub export_hashes: BTreeMap<String, String>,
 }
 
-/// The parsed `.ship/ship.lock` file.
+/// The parsed `ship.lock` file (stack root).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ShipLock {
     /// Lockfile format version. Must be `1` for v0.1.

@@ -171,7 +171,11 @@ fn compile_from_library(
     // 3. Resolve dep skills from cache (github.com/ refs in ship.lock + cache)
     let all_skill_refs = collect_all_skill_refs(&library);
     if !all_skill_refs.is_empty() {
-        let lock_path = ship_dir.join("ship.lock");
+        // ship.lock: STACK ROOT beside ship.config.ts, one location.
+        let lock_path = ship_dir
+            .parent()
+            .expect("ship_dir must have a parent (the stack root)")
+            .join("ship.lock");
         let dep_skills = resolve_dep_skills(
             &all_skill_refs,
             &library.skills,

@@ -265,7 +265,7 @@ defineAgent({
 
     // ship.lock with the one package.
     std::fs::write(
-        root.join(".ship").join("ship.lock"),
+        root.join("ship.lock"),
         format!(
             r#"{{ "version": 1, "packages": [
                  {{ "path": "github.com/x/y", "version": "1.0.0",
@@ -365,7 +365,7 @@ async fn roll_up_is_deterministic_across_two_runs() {
     )
     .unwrap();
     std::fs::write(
-        root.join(".ship").join("ship.lock"),
+        root.join("ship.lock"),
         format!(
             r#"{{ "version": 1, "packages": [
                  {{ "path": "github.com/o/p", "version": "0.1.0",
@@ -422,7 +422,7 @@ async fn roll_up_content_hash_changes_with_cached_package() {
     )
     .unwrap();
     std::fs::write(
-        root.join(".ship").join("ship.lock"),
+        root.join("ship.lock"),
         format!(
             r#"{{ "version": 1, "packages": [
                  {{ "path": "github.com/p/q", "version": "0.1.0",
@@ -491,7 +491,7 @@ async fn roll_up_tear_test_full_composition() {
     )
     .unwrap();
     std::fs::write(
-        root.join(".ship").join("ship.lock"),
+        root.join("ship.lock"),
         format!(
             r#"{{ "version": 1, "packages": [
                  {{ "path": "github.com/d/b", "version": "0.1.0",
@@ -568,7 +568,7 @@ async fn define_config_dependencies_do_not_change_cached_dep_descriptor() {
     )
     .unwrap();
     std::fs::write(
-        root.join(".ship").join("ship.lock"),
+        root.join("ship.lock"),
         format!(
             r#"{{ "version": 1, "packages": [
                  {{ "path": "github.com/d/b", "version": "0.1.0",
@@ -718,7 +718,7 @@ async fn roll_up_covers_every_case_resolve_dep_agents_covers() {
     )
     .unwrap();
 
-    let lock_path = root.join(".ship").join("ship.lock");
+    let lock_path = root.join("ship.lock");
     std::fs::write(
         &lock_path,
         format!(
@@ -969,7 +969,7 @@ async fn roll_up_content_hash_changes_when_a_dep_view_source_changes() {
     )
     .unwrap();
     std::fs::write(
-        root.join(".ship").join("ship.lock"),
+        root.join("ship.lock"),
         format!(
             r#"{{ "version": 1, "packages": [
                  {{ "path": "github.com/d/views-pkg", "version": "0.1.0",
@@ -1041,7 +1041,7 @@ async fn roll_up_content_hash_changes_when_a_dep_view_is_added() {
     )
     .unwrap();
     std::fs::write(
-        root.join(".ship").join("ship.lock"),
+        root.join("ship.lock"),
         format!(
             r#"{{ "version": 1, "packages": [
                  {{ "path": "github.com/d/view-grow", "version": "0.1.0",
@@ -1223,7 +1223,7 @@ async fn roll_up_two_extensions_views_compose_deterministically_under_distinct_p
     .unwrap();
 
     std::fs::write(
-        root.join(".ship").join("ship.lock"),
+        root.join("ship.lock"),
         format!(
             r#"{{ "version": 1, "packages": [
                  {{ "path": "github.com/a/views", "version": "0.1.0",

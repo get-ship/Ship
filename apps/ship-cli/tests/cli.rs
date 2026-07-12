@@ -681,7 +681,7 @@ fn e2e_compile_with_dependency_skills() {
     // ship.lock with a matching entry
     write(
         tmp.path(),
-        ".ship/ship.lock",
+        "ship.lock",
         &format!(
             r#"{{
   "version": 1,

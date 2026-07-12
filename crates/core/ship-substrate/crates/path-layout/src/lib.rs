@@ -55,8 +55,19 @@ struct ComposedType {
 ///
 /// Falls back to the raw `.ship/` on any materialization error so composition
 /// never breaks a load that worked before deps were introduced.
+/// ship.lock lives at the STACK ROOT beside ship.config.ts (the
+/// lockfile-beside-manifest convention; ruled 2026-07-12). ONE location,
+/// no legacy fallback. Callers hand us the `.ship/` dir; the lock is at
+/// its parent.
+fn lock_path_for(ship_dir: &Path) -> PathBuf {
+    ship_dir
+        .parent()
+        .expect("ship_dir must have a parent (the stack root)")
+        .join("ship.lock")
+}
+
 pub fn composed_root_for(ship_dir: &Path) -> PathBuf {
-    let lock_path = ship_dir.join("ship.lock");
+    let lock_path = lock_path_for(ship_dir);
     let has_deps = ShipLock::from_file(&lock_path)
         .map(|l| !l.packages.is_empty())
         .unwrap_or(false);
@@ -83,7 +94,7 @@ pub fn composed_root_for(ship_dir: &Path) -> PathBuf {
 pub fn materialize_space(ship_dir: &Path, cache_root: Option<&Path>) -> Result<PathBuf> {
     let cache_root = resolve_cache_root(cache_root)?;
 
-    let lock_path = ship_dir.join("ship.lock");
+    let lock_path = lock_path_for(ship_dir);
     let lock = if lock_path.exists() {
         ShipLock::from_file(&lock_path)
             .with_context(|| format!("reading {}", lock_path.display()))?

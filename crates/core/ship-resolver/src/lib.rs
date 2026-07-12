@@ -662,7 +662,9 @@ pub async fn roll_up(
         .context("roll_up: source content hash")?;
 
     // 4. Load cached packages (the #122 dep loader, per-package output).
-    let lock_path = ShipHome::project_ship_dir(space_root).join("ship.lock");
+    // ship.lock lives at the STACK ROOT, beside ship.config.ts (the
+    // lockfile-beside-manifest convention; ruled 2026-07-12).
+    let lock_path = space_root.join("ship.lock");
     let default_cache_root;
     let resolved_cache_root: &Path = match cache_root {
         Some(p) => p,
