@@ -60,9 +60,6 @@ fn sha256_hex(input: &str) -> String {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-#[ignore = "the test walks cwd ancestors for stack.config.ts; the integrator's \
-cutover flips the working file alongside the daemon roll, at which point the \
-test is re-enabled. Tracked by job-spec-marker-rename.md."]
 async fn capture_full_compile_output_against_worktree_root() {
     let app = build_router();
     let root = std::env::current_dir()
