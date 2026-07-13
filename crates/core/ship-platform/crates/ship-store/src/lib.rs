@@ -24,8 +24,8 @@ pub mod install_bundle;
 mod install_helpers;
 pub mod resolver;
 pub mod tracking;
-pub mod url_encode;
 pub mod types;
+pub mod url_encode;
 pub mod verify;
 
 pub use cache::{CachedPackage, PackageCache};
@@ -40,7 +40,7 @@ pub use resolver::{ResolvedVersion, resolve_alias, resolve_version};
 pub use types::{Dependency, ShipManifest, SyncStatus, diff_manifest_against_lock};
 // Canonical lockfile types live in `stack_model::lockfile`; re-export the names
 // callers expect at this crate path.
-pub use stack_model::lockfile::{LockPackage, ShipLock};
+pub use stack_model::lockfile::{LockPackage, Rails, ShipLock};
 
 #[cfg(test)]
 mod tests;

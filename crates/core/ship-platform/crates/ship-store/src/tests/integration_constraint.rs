@@ -6,7 +6,7 @@
 /// manifest-vs-lock diff pipeline the install orchestrator relies on.
 use std::collections::HashMap;
 
-use stack_model::lockfile::{LockPackage, ShipLock};
+use stack_model::lockfile::{LockPackage, Rails, ShipLock};
 
 use crate::constraint::{VersionConstraint, normalize_version, parse_constraint};
 use crate::types::{Dependency, ShipManifest, SyncStatus, diff_manifest_against_lock};
@@ -42,7 +42,10 @@ fn registry_constraint_parse_branch_with_slash() {
 fn registry_constraint_parse_invalid_semver_errors() {
     let err = parse_constraint("^not-valid").expect_err("bad semver must fail");
     let msg = err.to_string();
-    assert!(msg.contains("semver") || msg.contains("invalid"), "error: {msg}");
+    assert!(
+        msg.contains("semver") || msg.contains("invalid"),
+        "error: {msg}"
+    );
 }
 
 #[test]
@@ -55,7 +58,10 @@ fn registry_constraint_normalize_version_strips_leading_v() {
 // ── diff_manifest_against_lock — integration ──────────────────────────────────
 
 fn dep(version: &str) -> Dependency {
-    Dependency { version: version.into(), grant: vec![] }
+    Dependency {
+        version: version.into(),
+        grant: vec![],
+    }
 }
 
 fn pkg(path: &str) -> LockPackage {
@@ -64,6 +70,7 @@ fn pkg(path: &str) -> LockPackage {
         version: "1.0.0".into(),
         commit: "a".repeat(40),
         hash: "sha256:abc".into(),
+        rails: Rails::Stack,
         export_hashes: Default::default(),
     }
 }

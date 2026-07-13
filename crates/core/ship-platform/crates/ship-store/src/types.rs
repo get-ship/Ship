@@ -76,14 +76,17 @@ pub fn diff_manifest_against_lock(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use stack_model::lockfile::{LockPackage, ShipLock};
+    use stack_model::lockfile::{LockPackage, Rails, ShipLock};
 
     #[test]
     fn diff_in_sync() {
         let manifest = ShipManifest {
             dependencies: [(
                 "github.com/owner/pkg".into(),
-                Dependency { version: "^1.0".into(), grant: vec![] },
+                Dependency {
+                    version: "^1.0".into(),
+                    grant: vec![],
+                },
             )]
             .into(),
         };
@@ -94,6 +97,7 @@ mod tests {
                 version: "v1.0.0".into(),
                 commit: "a".repeat(40),
                 hash: "sha256:abc".into(),
+                rails: Rails::Stack,
                 export_hashes: Default::default(),
             }],
         };
@@ -105,7 +109,10 @@ mod tests {
         let manifest = ShipManifest {
             dependencies: [(
                 "github.com/owner/new".into(),
-                Dependency { version: "^1.0".into(), grant: vec![] },
+                Dependency {
+                    version: "^1.0".into(),
+                    grant: vec![],
+                },
             )]
             .into(),
         };
@@ -126,6 +133,7 @@ mod tests {
                 version: "v1.0.0".into(),
                 commit: "a".repeat(40),
                 hash: "sha256:abc".into(),
+                rails: Rails::Stack,
                 export_hashes: Default::default(),
             }],
         };

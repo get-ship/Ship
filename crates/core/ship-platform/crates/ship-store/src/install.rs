@@ -2,7 +2,7 @@ use std::collections::{HashSet, VecDeque};
 use std::path::Path;
 
 use anyhow::Context;
-use stack_model::lockfile::{LockPackage, ShipLock};
+use stack_model::lockfile::{LockPackage, Rails, ShipLock};
 
 use super::cache::{CachedPackage, PackageCache};
 use super::constraint::parse_constraint;
@@ -129,6 +129,11 @@ pub fn resolve_and_fetch(
             version: resolved.tag.clone(),
             commit: resolved.commit.clone(),
             hash: cached.hash.clone(),
+            // The install path resolves stack-rail entries; the npm rail
+            // (component packages) is routed in wave 2 of the registry
+            // cutover (see report-registry-shapes.md Q4). Until then every
+            // locked package here rides the stack rail.
+            rails: Rails::Stack,
             export_hashes: Default::default(),
         });
 
@@ -153,9 +158,8 @@ pub fn resolve_and_fetch(
 
     // #119: compute the transitive capability surface for the caller to surface
     // for approval. Advisory — never fail the install over it.
-    let capabilities =
-        crate::dep_skills::transitive_capabilities(lock_path, Some(cache.root()))
-            .unwrap_or_default();
+    let capabilities = crate::dep_skills::transitive_capabilities(lock_path, Some(cache.root()))
+        .unwrap_or_default();
 
     Ok(InstallResult {
         packages,

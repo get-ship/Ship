@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use super::*;
-use stack_model::lockfile::{LockPackage, ShipLock};
+use stack_model::lockfile::{LockPackage, Rails, ShipLock};
 use std::collections::BTreeMap;
 use tempfile::TempDir;
 
@@ -16,7 +16,10 @@ fn write_file(root: &Path, rel: &str, content: &str) {
 }
 
 fn lock_with(packages: Vec<LockPackage>) -> ShipLock {
-    ShipLock { version: 1, packages }
+    ShipLock {
+        version: 1,
+        packages,
+    }
 }
 
 fn pkg(path: &str, hex: &str) -> LockPackage {
@@ -25,6 +28,7 @@ fn pkg(path: &str, hex: &str) -> LockPackage {
         version: "1.0.0".into(),
         commit: "a".repeat(40),
         hash: format!("sha256:{hex}"),
+        rails: Rails::Stack,
         export_hashes: BTreeMap::new(),
     }
 }
@@ -132,8 +136,8 @@ fn one_dep_component_namespaced_resolvable_source() {
 
     // The dep's component source lands under its package namespace, ready for
     // the bundler's component discovery to scan + resolve `ship-agent-card`.
-    let src = composed
-        .join("components/github.com/acme/agents/ship-agent-card/ship-agent-card.sui");
+    let src =
+        composed.join("components/github.com/acme/agents/ship-agent-card/ship-agent-card.sui");
     assert!(
         src.is_file(),
         "dep component composed under package namespace at {}",
@@ -156,7 +160,10 @@ fn determinism_same_inputs_reuse_cached_dir() {
 
     let second = materialize_space(&ship_dir, Some(&cache_root)).unwrap();
 
-    assert_eq!(first, second, "identical inputs → identical composed hash dir");
+    assert_eq!(
+        first, second,
+        "identical inputs → identical composed hash dir"
+    );
     assert!(
         second.join("MARKER").is_file(),
         "cached dir reused as-is (no rebuild)"

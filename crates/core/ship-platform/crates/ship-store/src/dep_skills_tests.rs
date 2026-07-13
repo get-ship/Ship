@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use super::*;
-use stack_model::lockfile::{LockPackage, ShipLock};
+use stack_model::lockfile::{LockPackage, Rails, ShipLock};
 use stack_model::{Skill, SkillSource};
 use tempfile::TempDir;
 
@@ -62,6 +62,7 @@ fn load_cached_extensions_bundles_per_package() {
                 version: "1.0.0".to_string(),
                 commit: "deadbeef".to_string(),
                 hash: format!("sha256:{hex1}"),
+                rails: Rails::Stack,
                 export_hashes: Default::default(),
             },
             LockPackage {
@@ -69,6 +70,7 @@ fn load_cached_extensions_bundles_per_package() {
                 version: "0.1.0".to_string(),
                 commit: "cafebabe".to_string(),
                 hash: format!("sha256:{hex2}"),
+                rails: Rails::Stack,
                 export_hashes: Default::default(),
             },
         ],
@@ -100,7 +102,8 @@ fn load_cached_extensions_bundles_per_package() {
 #[test]
 fn load_cached_extensions_empty_without_lockfile() {
     let tmp = TempDir::new().unwrap();
-    let bundles = load_cached_extensions(&tmp.path().join("absent.lock"), Some(tmp.path())).unwrap();
+    let bundles =
+        load_cached_extensions(&tmp.path().join("absent.lock"), Some(tmp.path())).unwrap();
     assert!(bundles.is_empty(), "no lockfile => no bundles");
 }
 
@@ -121,7 +124,11 @@ fn load_cached_extensions_skips_missing_manifest() {
         r#"{ "id": "p1", "exports": { "skills": [], "agents": ["agents/a.jsonc"] } }"#,
     )
     .unwrap();
-    std::fs::write(obj1.join("agents/a.jsonc"), r#"{ "agent": { "id": "a", "name": "A" } }"#).unwrap();
+    std::fs::write(
+        obj1.join("agents/a.jsonc"),
+        r#"{ "agent": { "id": "a", "name": "A" } }"#,
+    )
+    .unwrap();
 
     // Package 2: NOT in cache (object dir absent).
     let lock = ShipLock {
@@ -132,6 +139,7 @@ fn load_cached_extensions_skips_missing_manifest() {
                 version: "0.0.1".to_string(),
                 commit: "a".repeat(40),
                 hash: format!("sha256:{hex1}"),
+                rails: Rails::Stack,
                 export_hashes: Default::default(),
             },
             LockPackage {
@@ -139,6 +147,7 @@ fn load_cached_extensions_skips_missing_manifest() {
                 version: "0.0.1".to_string(),
                 commit: "b".repeat(40),
                 hash: "sha256:missing".to_string(),
+                rails: Rails::Stack,
                 export_hashes: Default::default(),
             },
         ],
@@ -172,7 +181,11 @@ fn transitive_capabilities_unions_requires_and_grants() {
     lock.write_atomic(&lock_path).unwrap();
 
     let caps = transitive_capabilities(&lock_path, Some(tmp.path())).unwrap();
-    assert_eq!(caps.required, vec!["cap.x".to_string()], "union of requires");
+    assert_eq!(
+        caps.required,
+        vec!["cap.x".to_string()],
+        "union of requires"
+    );
     assert_eq!(caps.granted, vec!["cap.y".to_string()], "union of grants");
     assert_eq!(
         caps.unmet,
@@ -237,7 +250,11 @@ fn transitive_capabilities_includes_inline_grants_and_requires() {
 fn parse_dep_skill_handles_inline_form() {
     let raw = "---\nname: bar\ngrants: [g1, g2]\nrequires: [r1]\n---\n\nBody.";
     let skill = parse_dep_skill("github.com/o/p/skills/bar", raw);
-    assert_eq!(skill.source, SkillSource::Community, "dep skills are Community");
+    assert_eq!(
+        skill.source,
+        SkillSource::Community,
+        "dep skills are Community"
+    );
     assert_eq!(skill.grants, vec!["g1".to_string(), "g2".to_string()]);
     assert_eq!(skill.requires, vec!["r1".to_string()]);
     assert_eq!(skill.name, "bar", "frontmatter name is preserved");
@@ -335,6 +352,7 @@ fn make_lock(path: &str, hash: &str) -> ShipLock {
             version: "main".to_string(),
             commit: "a".repeat(40),
             hash: hash.to_string(),
+            rails: Rails::Stack,
             export_hashes: Default::default(),
         }],
     }

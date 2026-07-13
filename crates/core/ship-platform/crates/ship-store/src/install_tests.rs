@@ -61,7 +61,7 @@ fn test_no_lock_no_deps_writes_empty_lock() -> anyhow::Result<()> {
     assert!(result.lockfile_written);
     assert!(lock_path.exists());
     let content = std::fs::read_to_string(&lock_path)?;
-    assert!(content.contains("\"version\": 1"));
+    assert!(content.contains("\"version\": 2"));
     Ok(())
 }
 
@@ -89,6 +89,7 @@ fn test_install_aborts_on_hash_mismatch() -> anyhow::Result<()> {
             version: "v1.0.0".into(),
             commit: "a".repeat(40),
             hash: "sha256:0000000000000000000000000000000000000000000000000000000000000000".into(),
+            rails: Rails::Stack,
             export_hashes: Default::default(),
         }],
     };
