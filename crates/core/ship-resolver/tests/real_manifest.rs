@@ -53,10 +53,10 @@ async fn repo_manifest_rolls_up_with_all_nouns_present() {
         "no skills composed from the real manifest"
     );
 
-    // The dispatch lane the operational loop depends on.
+    // The publish-intended agent this stack keeps (the internal fleet
+    // lives in the ship-meta member stack).
     assert!(
-        lib.agent_profiles.iter().any(|p| p.agent.id == "rust-lane"),
-        "rust-lane missing from the composed agents — dispatch validation \
-         will refuse every job"
+        lib.agent_profiles.iter().any(|p| p.agent.id == "shipwright"),
+        "shipwright missing from the composed agents"
     );
 }
