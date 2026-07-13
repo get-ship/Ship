@@ -23,6 +23,7 @@ pub mod init_deps;
 pub mod install;
 pub mod install_bundle;
 mod install_helpers;
+pub mod platform_bundles;
 pub mod publish_walk;
 pub mod resolver;
 pub mod tracking;
