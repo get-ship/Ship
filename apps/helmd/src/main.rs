@@ -94,6 +94,7 @@ mod artifacts;
 mod collections;
 // ship.ops.v1.SpaceService — Snapshot reachable on live helmd (backup surface).
 mod space;
+mod settings;
 // Real agent-dispatch runtime (spine 2b) — the ship-code consumer construction
 #[cfg(feature = "ship-code")]
 mod dispatch;
@@ -1249,6 +1250,9 @@ async fn main() -> anyhow::Result<()> {
     let connect = artifacts::mount(connect).await?;
     // space.* — Snapshot against the active space (the backup surface).
     let connect = space::mount(connect).await?;
+    // Settings wire — space policy rows (rules.<name>) become writable
+    // over the wire; the compile path already reads them.
+    let connect = settings::mount(connect).await?;
     // CORS so the browser — Helm's SPA, served by Hono on another origin (e.g.
     // http://localhost:3000) — can dial GitService directly in dev. Connect-web
     // sends `content-type` + `connect-protocol-version` headers, which trip a
