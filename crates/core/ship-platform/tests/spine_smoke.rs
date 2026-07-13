@@ -15,11 +15,16 @@
 //!   view_state`) → a `config.file_changed` kernel event → the descriptor
 //!   cache invalidates → the next resolve recomposes with an edit visible.
 //!
-//! The fixture's rule is authored via `stack.config.ts`'s `defineRule`
-//! declare-form (format-migration Wave 4 phase A — `.ship/rules/*.md` is
-//! no longer read), so this file does touch the V8 isolate for the one
-//! `imported_modules` entry; every other noun (agents, skills) stays a
-//! plain `std::fs` fixture.
+//! The fixture's rule body lives on the agent composition as
+//! `defineAgent({ rules: { inline } })` (the rules-format cut
+//! collapsed the on-disk `rules/<id>.md` convention — rules arrive
+//! exclusively via the inline block on the agent). The change leg
+//! mutates the agent's inline body to prove the recompose is
+//! visible. This file does NOT touch the V8 isolate: the rule
+//! body is plain `rs` text, not a TS source — the
+//! `write_agent_ts_with_rule` helper writes the rendered TS to
+//! disk on each change so the resolver's eval picks up the new
+//! body on the next roll-up.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -34,7 +39,7 @@ use ship_resolver::descriptor::{extension_library_canonical, extension_library_c
 use ship_resolver::roll_up_members;
 use ship_substrate::data::DataService;
 use ship_substrate::events::new_isolated_for_test;
-use ship_substrate::home::ShipHome;
+
 use ship_substrate::ports::{DataStore, KernelLog, SingleBackendDataStore, SpaceId};
 use ship_types::payload::ConfigFileChanged;
 use ship_types::{EventEnvelope, event_types};
@@ -51,35 +56,31 @@ const PKG_HEX: &str = "f00dcafe";
 /// same shape `ship-resolver`'s own
 /// `roll_up_source_shadows_cached_agent_on_id_collision` test uses.
 const COLLIDING_ID: &str = "example.test/acme/kit/helper";
-/// One space root with a colliding source + cached-package fixture:
-/// - `stack.config.ts` (thin POINTER manifest: empty `defineConfig({})`).
-/// - `agents/<id>.ts` — source's colliding `helper` agent.
-/// - `skills/review/SKILL.md` — the source's on-disk skill.
-/// - `rules/style.md` — the source's on-disk rule; the change leg edits
-///   only the rule body to prove the recompose is visible.
+
 const SPINE_CONFIG_TS_MANIFEST: &str = r#"import { defineConfig } from "ship";
 
 export default defineConfig({});
 "#;
-
-/// Render the source's rule body into the on-disk `rules/style.md`.
-/// Slice 2c: the rule is a file (not a `defineRule` declare-form);
-/// the frontmatter `alwaysApply: true` matches the W3 declare-form's
-/// `applyScope: "always"` mapping.
-fn write_rule_md(space_root: &Path, rule_body: &str) {
-    let rendered = format!(
-        "---\nalwaysApply: true\n---\n{}",
-        rule_body
-    );
-    std::fs::write(space_root.join("rules").join("style.md"), rendered).unwrap();
-}
-
-/// Render the source's agent into the on-disk `agents/<id>.ts`. The
-/// id is the space-relative id of the cached package's agent
-/// (per `COLLIDING_ID`); the body is the same `defineAgent` shape
-/// the W4/W5 inline form used (slice 2c's per-noun source dir
-/// convention). The file name is sanitized for the FS (slashes → `__`).
+/// One space root with a colliding source + cached-package fixture:
+/// - `stack.config.ts` (thin POINTER manifest: empty `defineConfig({})`).
+/// - `agents/<id>.ts` — source's colliding `helper` agent, with
+///   the inline `rules: { inline: "Be terse." }` block; the change
+///   leg rewrites the agent's inline rule body to prove the
+///   recompose is visible.
+/// - `skills/review/SKILL.md` — the source's on-disk skill.
+/// Write the source's agent (with the given rule body) into the
+/// on-disk `agents/<id>.ts`. The id is the space-relative id of
+/// the cached package's agent (per `COLLIDING_ID`); the body is
+/// the same `defineAgent` shape the W4/W5 inline form used
+/// (slice 2c's per-noun source dir convention). The rules-format
+/// cut moved the rule body from the on-disk `rules/<id>.md`
+/// convention to the agent's `rules: { inline: "..." }` block —
+/// the change leg mutates that block to prove the recompose is
+/// visible. The file name is sanitized for the FS (slashes → `__`).
 fn write_agent_ts(space_root: &Path, id: &str) {
+    write_agent_ts_with_rule(space_root, id, "Be terse.");
+}
+fn write_agent_ts_with_rule(space_root: &Path, id: &str, rule_body: &str) {
     let stem = id.replace('/', "__");
     let rendered = format!(
         r#"
@@ -87,11 +88,13 @@ import {{ defineAgent }} from "ship";
 
 defineAgent({{
   agent: {{ id: "{id}", name: "Source Helper" }},
+  rules: {{ inline: {rule_body:?} }},
 }});
 "#,
     );
     std::fs::write(space_root.join("agents").join(format!("{stem}.ts")), rendered).unwrap();
 }
+
 
 /// Author the source's skill on-disk (slice 2b close-out convention):
 /// `skills/<id>/SKILL.md` is the per-extension-project source surface
@@ -130,12 +133,7 @@ fn write_colliding_fixture() -> (tempfile::TempDir, PathBuf, PathBuf) {
     // 3. The source's on-disk skill (slice 2b close-out convention).
     write_skill_md(&space_root);
 
-    // 4. The source's on-disk rule (slice 2b close-out convention).
-    //    The change leg mutates the body to prove the recompose
-    //    visibility; the initial body is the W3 declare-form's
-    //    "Be terse.".
-    std::fs::create_dir_all(space_root.join("rules")).unwrap();
-    write_rule_md(&space_root, "Be terse.");
+
 
     let cache_root = space_root.join("cache");
     let obj = cache_root.join("objects").join(PKG_HEX);
@@ -169,16 +167,16 @@ fn write_colliding_fixture() -> (tempfile::TempDir, PathBuf, PathBuf) {
     (tmp, space_root, cache_root)
 }
 
-/// Write the change-leg rule body. The rule lives on disk at
-/// `rules/style.md` (slice 2b close-out + slice 2c's per-noun
-/// source-dir convention); the agent + skill declarations are stable
-/// across edits — only the rule body changes to prove the recompose
-/// is visible. The change leg calls this fn with the new body; the
-/// `write_colliding_fixture` setup established the initial body.
-/// (The `template` + `COLLIDING_ID` parameters are retained for
-/// signature parity with the pre-slice-2c fixture; the body is the
-/// only thing that mutates.)
-///
+/// Write the change-leg agent with the new rule body. The
+/// `write_agent_ts_with_rule` helper renders a `defineAgent`
+/// call whose `rules: { inline }` block carries the given body;
+/// only the rule body mutates between the pre-edit and the
+/// change-leg resolve, proving the recompose is visible. The
+/// `COLLIDING_ID` is fixed across edits (the cached-package
+/// collision shape `ship-resolver`'s own
+/// `roll_up_source_shadows_cached_agent_on_id_collision` test
+/// exercises); the agent + skill declarations are stable.
+
 
 async fn make_index(ship_dir: &Path, db_name: &str) -> AgentDefIndex {
     let db = ship_substrate::db::space_db_path(ship_dir, db_name);
@@ -296,20 +294,20 @@ async fn spine_config_file_changed_invalidates_cache_and_recompose_sees_the_edit
     assert!(!before_context.contains("Ship it."), "{before_context}");
     assert_eq!(cache._len().await, 1);
 
-    // Edit the source's on-disk rule — the "edited source file" the
-    // change leg exercises. Slice 2c: rules live on disk
-    // (`rules/style.md`), not in the manifest; the `config.file_changed`
-    // event's path is the rule file (the source-root watch sees the
-    // rule dir as a watched surface).
-    write_rule_md(&space_root, "Be terse. Ship it.");
+    // Edit the source's agent file — the change leg exercises the
+    // recompose visibility by mutating the agent's inline rule body.
+    // The rules-format cut moved the rule body from the on-disk
+    // `rules/<id>.md` convention to the agent's `rules: { inline }`
+    // block; the change surface is the agent's TS file.
+    write_agent_ts_with_rule(&space_root, COLLIDING_ID, "Be terse. Ship it.");
 
     // Author + broadcast the synthetic `config.file_changed` — the keystone
     // pattern (no inotify, not flaky), the same shape `ship-resolver`'s own
     // `cache.rs` tests inject. The cache subscriber filters on event type
-    // (not path); the path is metadata. Slice 2c: the surface that
-    // invalidated is `rules/style.md` (the rule file we just rewrote);
-    // the event's `path` field carries the original manifest path for
-    // audit, but the cache doesn't key on it.
+    // (not path); the path is metadata. The change surface is the
+    // agent's TS file (the file we just rewrote); the event's
+    // `path` field carries the manifest path for audit, but the
+    // cache doesn't key on it.
     kernel.broadcast(
         EventEnvelope::new(
             event_types::CONFIG_FILE_CHANGED,

@@ -76,10 +76,20 @@ fn install_subcommand_does_not_exist() {
 fn retained_compile_still_works() {
     let tmp = TempDir::new().unwrap();
     std::fs::write(tmp.path().join("stack.config.ts"), "export default {};\n").unwrap();
-    std::fs::create_dir_all(tmp.path().join("rules")).unwrap();
+    // Rules-format cut: the rule body lives on the agent composition
+    // as `rules: { inline: "..." }`. The on-disk `rules/<id>.md`
+    // convention died.
+    std::fs::create_dir_all(tmp.path().join("agents")).unwrap();
     std::fs::write(
-        tmp.path().join("rules/style.md"),
-        "Use explicit types.",
+        tmp.path().join("agents/demo.ts"),
+        r#"
+import { defineAgent } from "ship";
+
+defineAgent({
+  agent: { id: "demo", name: "Demo" },
+  rules: { inline: "Use explicit types." },
+});
+"#,
     )
     .unwrap();
 

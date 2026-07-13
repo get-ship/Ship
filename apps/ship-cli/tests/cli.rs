@@ -58,19 +58,20 @@ import {{
 /// at `rules/<id>.md`, an on-disk agent at `agents/<id>.ts`, and a stub
 /// for the `ship use` activation gate (`.ship/agents/<id>.jsonc`).
 /// The `stack.config.ts` is a thin pointer (`defineConfig({})`).
+/// Rule bodies live on the agent composition as
+/// `rules: { inline: "..." }` — the rules-format cut collapsed the
+/// on-disk `rules/<id>.md` convention, so the rule content rides the
+/// `defineAgent` call's inline block (the `rule_id` is the agent
+/// id post-cut; the helper signature preserves the historical
+/// `rule_id` parameter so the call sites still look like rule
+/// authoring — the value is ignored except as an explanatory tag).
 fn write_rule_and_agent(
     root: &Path,
-    rule_id: &str,
+    _rule_id: &str,
     rule_content: &str,
     agent_id: &str,
     agent_name: &str,
 ) {
-    std::fs::create_dir_all(root.join("rules")).unwrap();
-    write(
-        root,
-        &format!("rules/{rule_id}.md"),
-        &format!("---\nalwaysApply: true\n---\n{rule_content}"),
-    );
     std::fs::create_dir_all(root.join("agents")).unwrap();
     write(
         root,
@@ -81,6 +82,7 @@ import {{ defineAgent }} from "ship";
 
 defineAgent({{
   agent: {{ id: "{agent_id}", name: "{agent_name}" }},
+  rules: {{ inline: {rule_content:?} }},
 }});
 "#
         ),
@@ -170,14 +172,10 @@ fn use_fails_for_unknown_agent() {
 fn compile_writes_claude_md() {
     let tmp = TempDir::new().unwrap();
     scaffold_ship_dir(tmp.path());
-    // Slice 2c: rule on disk; manifest is a thin pointer.
-    std::fs::create_dir_all(tmp.path().join("rules")).unwrap();
-    write(
-        tmp.path(),
-        "rules/style.md",
-        "---\nalwaysApply: true\n---\nUse explicit types.",
-    );
-    write_ship_config(tmp.path(), "");
+    // Rules-format cut: the rule body lives on the agent composition
+    // as `rules: { inline: "..." }`. The on-disk `rules/<id>.md`
+    // convention died — the agent is the only authoring surface.
+    write_rule_and_agent(tmp.path(), "style", "Use explicit types.", "demo", "Demo");
 
     ship()
         .args([
@@ -198,13 +196,7 @@ fn compile_writes_claude_md() {
 fn compile_dry_run_writes_nothing() {
     let tmp = TempDir::new().unwrap();
     scaffold_ship_dir(tmp.path());
-    std::fs::create_dir_all(tmp.path().join("rules")).unwrap();
-    write(
-        tmp.path(),
-        "rules/style.md",
-        "---\nalwaysApply: true\n---\nUse explicit types.",
-    );
-    write_ship_config(tmp.path(), "");
+    write_rule_and_agent(tmp.path(), "style", "Use explicit types.", "demo", "Demo");
 
     ship()
         .args([
@@ -242,13 +234,7 @@ fn compile_fails_without_ship_dir() {
 fn compile_harness_codex_writes_agents_md() {
     let tmp = TempDir::new().unwrap();
     scaffold_ship_dir(tmp.path());
-    std::fs::create_dir_all(tmp.path().join("rules")).unwrap();
-    write(
-        tmp.path(),
-        "rules/style.md",
-        "---\nalwaysApply: true\n---\nUse explicit types.",
-    );
-    write_ship_config(tmp.path(), "");
+    write_rule_and_agent(tmp.path(), "style", "Use explicit types.", "demo", "Demo");
 
     ship()
         .args(["compile", "--harness", "codex"])
@@ -268,13 +254,7 @@ fn compile_harness_codex_writes_agents_md() {
 fn compile_harness_codex_writes_codex_config_toml() {
     let tmp = TempDir::new().unwrap();
     scaffold_ship_dir(tmp.path());
-    std::fs::create_dir_all(tmp.path().join("rules")).unwrap();
-    write(
-        tmp.path(),
-        "rules/style.md",
-        "---\nalwaysApply: true\n---\nUse explicit types.",
-    );
-    write_ship_config(tmp.path(), "");
+    write_rule_and_agent(tmp.path(), "style", "Use explicit types.", "demo", "Demo");
 
     ship()
         .args(["compile", "--harness", "codex"])
@@ -300,13 +280,7 @@ fn compile_harness_codex_writes_codex_config_toml() {
 fn compile_is_idempotent() {
     let tmp = TempDir::new().unwrap();
     scaffold_ship_dir(tmp.path());
-    std::fs::create_dir_all(tmp.path().join("rules")).unwrap();
-    write(
-        tmp.path(),
-        "rules/style.md",
-        "---\nalwaysApply: true\n---\nUse explicit types.",
-    );
-    write_ship_config(tmp.path(), "");
+    write_rule_and_agent(tmp.path(), "style", "Use explicit types.", "demo", "Demo");
 
     let args = [
         "compile",
@@ -339,18 +313,13 @@ fn e2e_scaffold_create_agent_use_compile_full_flow() {
     let p = tmp.path().to_str().unwrap();
     scaffold_ship_dir(tmp.path());
 
-    // Slice 2c: the rule on disk (`rules/style.md`); the agent on
-    // disk (`agents/fullstack.ts`); the MCP server registration under
+    // Rules-format cut: the rule body lives on the agent composition
+    // as `rules: { inline: "..." }`. The on-disk `rules/<id>.md`
+    // convention died — the agent is the only authoring surface.
+    // The MCP server registration lives under
     // `defineConfig({ agents: { mcp: { ... } } })`; the permissions
     // preset stays in `.ship/permissions.jsonc` (untouched by the
     // migration).
-    std::fs::create_dir_all(tmp.path().join("rules")).unwrap();
-    write(
-        tmp.path(),
-        "rules/style.md",
-        "---\nalwaysApply: true\n---\n\
-         Prefer composition over inheritance. Use explicit return types.",
-    );
     std::fs::create_dir_all(tmp.path().join("agents")).unwrap();
     write(
         tmp.path(),
@@ -372,7 +341,7 @@ defineAgent({
     tools_deny: ["Bash(docker rm*)"],
   },
   rules: {
-    inline: "Always write tests before implementation.",
+    inline: "Prefer composition over inheritance. Use explicit return types.\n\nAlways write tests before implementation.",
   },
   hooks: [
     { id: "perms-sync", trigger: "Stop", command: "ship permissions sync" },
@@ -477,12 +446,15 @@ fn e2e_cross_harness_same_config() {
     let p = tmp.path().to_str().unwrap();
     scaffold_ship_dir(tmp.path());
 
-    // Slice 2c: rule on disk, MCP block in the manifest's defineConfig.
-    std::fs::create_dir_all(tmp.path().join("rules")).unwrap();
-    write(
+    // Rules-format cut: the rule body lives on the agent composition
+    // as `rules: { inline: "..." }`. The on-disk `rules/<id>.md`
+    // convention died — the agent is the only authoring surface.
+    write_rule_and_agent(
         tmp.path(),
-        "rules/architecture.md",
-        "---\nalwaysApply: true\n---\nKeep modules under 300 lines. Prefer pure functions.",
+        "architecture",
+        "Keep modules under 300 lines. Prefer pure functions.",
+        "demo",
+        "Demo",
     );
     write_ship_config(
         tmp.path(),

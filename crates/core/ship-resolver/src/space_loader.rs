@@ -65,7 +65,7 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use stack_model::{ExtensionLibrary, HookConfig, HookTrigger, Rule, Skill, SkillSource};
+use stack_model::{ExtensionLibrary, HookConfig, HookTrigger, Skill, SkillSource};
 use ship_substrate::ports::{FsBroker, FsCap, FsError, FsMode, FsRoot, SpaceId};
 
 /// The canonical `.ship` dir name, mirrored from
@@ -286,50 +286,6 @@ pub(crate) fn walk_skills_dir(
     skills.sort_by(|a, b| a.id.cmp(&b.id));
     Ok(skills)
 }
-/// Walk one rules dir and return its `Rule` records (id derived from
-/// the `.md` file stem; the `.md` is dropped for `file_name` so the
-/// rule id matches the `defineRule({ id })` declare-form id one-to-one).
-/// Missing dir → empty. Malformed rule `.md` → skip the entry (same
-/// lenient contract as `walk_skills_dir`).
-///
-/// `space_rel` is the space-relative path (a value from
-/// `defineConfig({ rules_dir })` in each extension's `stack.config.ts`;
-/// the per-extension-project authoring surface, default `"rules/"`).
-/// The cap is rooted at the space root, so the rel path under the cap
-/// is the space-relative path verbatim.
-pub(crate) fn walk_rules_dir(fs: &dyn FsBroker, cap: &FsCap, space_rel: &str) -> Result<Vec<Rule>> {
-    let rel = space_rel.trim_start_matches('/').trim_end_matches('/');
-
-    let entries = match fs.list_dir(cap, &rel) {
-        Ok(e) => e,
-        Err(FsError::NotFound) => return Ok(Vec::new()),
-        Err(e) => return Err(e.into()),
-    };
-
-    let mut rules = Vec::new();
-    for entry in entries {
-        let path = entry.clone();
-        let Some(stem) = path.file_name().and_then(|n| n.to_str()) else {
-            continue;
-        };
-        // Only `.md` files are rule entries.
-        let stem_no_ext = match stem.strip_suffix(".md") {
-            Some(s) => s,
-            None => continue,
-        };
-        let file_rel = format!("{rel}/{stem}");
-        let raw = match fs.read(cap, &file_rel) {
-            Ok(bytes) => bytes,
-            Err(FsError::NotFound) => continue,
-            Err(e) => return Err(e.into()),
-        };
-        let raw_str = String::from_utf8_lossy(&raw);
-        rules.push(parse_rule_md(stem_no_ext, &raw_str));
-    }
-    rules.sort_by(|a, b| a.file_name.cmp(&b.file_name));
-    Ok(rules)
-}
-
 /// Map a `<event-stem>.<ext>` filename (e.g. `stop.sh`,
 /// `pre-tool-use.bash`, `notification.py`) to the canonical
 /// `HookTrigger` enum. Returns `None` for unknown stems — the
@@ -439,54 +395,6 @@ pub(crate) fn walk_hooks_dir(
     }
     hooks.sort_by(|a, b| a.id.cmp(&b.id));
     Ok(hooks)
-}
-
-/// Parse a rule `.md` file: strip YAML frontmatter (when present) into
-/// `always_apply` / `description` / `globs`, take the body as `content`
-/// (trimmed). Mirrors the pre-W4 `agent_def::compile::loader::parse_rule`
-/// shape — the same loader the dot-ship close-out deleted with W4 phase A
-/// (`job-spec-fm-w4a-rules-pipelines`); resurrected here under
-/// `space_loader` since the on-disk rule walk is the resolution layer's
-/// job post-W5 (slice 2b close-out: skills + rules un-flatten from the
-/// W4/W5 manifest-induction).
-///
-/// Frontmatter fields: `alwaysApply` (bool, defaults true), `description`
-/// (string, optional), `globs` (list of `- ` lines, optional). Unknown
-/// frontmatter lines are silently ignored.
-pub(crate) fn parse_rule_md(file_name: &str, raw: &str) -> Rule {
-    let mut always_apply = true;
-    let mut globs: Vec<String> = vec![];
-    let mut description: Option<String> = None;
-    let body: &str;
-    if let Some(rest) = raw.strip_prefix("---\n")
-        && let Some(end) = rest.find("\n---\n")
-    {
-        let fm = &rest[..end];
-        body = &rest[end + 5..];
-        for line in fm.lines() {
-            if let Some(v) = line.strip_prefix("alwaysApply:") {
-                always_apply = v.trim() != "false";
-            } else if let Some(v) = line.strip_prefix("description:") {
-                description = Some(v.trim().trim_matches('"').trim_matches('\'').to_string());
-            } else if line.trim_start().starts_with("- ") {
-                globs.push(line.trim().trim_start_matches("- ").to_string());
-            }
-        }
-    } else {
-        body = raw;
-    }
-    Rule {
-        file_name: file_name.to_string(),
-        // Slice 2b: trim only LEADING whitespace (see parse_skill).
-        // The declare-form `RuleDeclare::into_rule` preserves the
-        // content string verbatim (incl. trailing whitespace); the
-        // on-disk path now matches — byte-faithful Skill.content /
-        // Rule.content across both creation paths.
-        content: body.trim_start().to_string(),
-        always_apply,
-        globs,
-        description,
-    }
 }
 
 /// Read the space's `stack.config.ts` manifest. Returns `Ok(None)` when
@@ -613,7 +521,7 @@ mod tests {
 
         // stack.config.ts at the space root. `load_space_library` only
         // stores the raw module source in `imported_modules` here — TS
-        // eval + declare-form harvest (defineMcpServer/defineRule/etc.)
+        // eval + declare-form harvest (defineMcpServer/etc.)
         // happens one layer up, in `resolve_space_with_broker`/`roll_up`
         // (`lib.rs::merge_ts_declarations`), so mcp/rule content has no
         // effect on THIS function's output and is omitted.

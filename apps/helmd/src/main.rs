@@ -723,8 +723,9 @@ impl HarnessService for HarnessImpl {
         // The V8 TS eval inside `roll_up_registered_blocking` merges every declare-form
         // (mcp server, rule, collection, trigger, pipeline) into the
         // `ExtensionLibrary` the compile pipeline consumes — the leaf
-        // `stack_model::load_library` no longer reads `.ship/mcp.jsonc` or
-        // `.ship/rules/*.md` (format-migration Wave 4 phase A).
+        // `stack_model::load_library` no longer reads `.ship/mcp.jsonc`
+        // (format-migration Wave 4 phase A), and rules arrive exclusively
+        // via `defineAgent({ rules: { inline: "..." } })` post-cut.
         let lib = ship_resolver::roll_up_registered_blocking(&repo, None, None)
             .map(|composed| composed.library)
             .map_err(|e| {

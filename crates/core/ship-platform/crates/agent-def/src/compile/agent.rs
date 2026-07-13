@@ -45,13 +45,23 @@ pub fn apply_agent_to_library(
     if let Some(inline) = &profile.rules.inline {
         let trimmed = inline.trim();
         if !trimmed.is_empty() {
-            library.rules.push(stack_model::Rule {
-                file_name: format!("{agent_id}.md"),
-                content: trimmed.to_string(),
-                always_apply: true,
-                globs: vec![],
-                description: None,
-            });
+            // The agent's inline rule body is already in `library.rules`
+            // under `file_name = {agent_id}.md` — the resolver's TS eval
+            // harvested it from the `defineAgent` call's `rules: { inline }`
+            // block and `merge_ts_declarations` merged it in. Only push
+            // when the harvest didn't (the path where someone constructs
+            // an `ExtensionLibrary` outside the resolver — e.g. an
+            // in-process test stub).
+            let file_name = format!("{agent_id}.md");
+            if !library.rules.iter().any(|r| r.file_name == file_name) {
+                library.rules.push(stack_model::Rule {
+                    file_name,
+                    content: trimmed.to_string(),
+                    always_apply: true,
+                    globs: vec![],
+                    description: None,
+                });
+            }
         }
     }
 

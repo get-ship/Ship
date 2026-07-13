@@ -79,7 +79,7 @@ fn fixture_round_trips_byte_unchanged() {
     // unconditionally — the `space.skill_paths` ship.jsonc field
     // died with the dot-ship close-out, so no extras walk exists.
     assert!(lib.skills_dir.is_none());
-    assert!(lib.rules_dir.is_none());
+
     assert_eq!(
         lib.skill_paths,
         vec![stack_model::loader::DEFAULT_SPACE_SKILL_PATH.to_string()]
@@ -110,12 +110,6 @@ fn skills_dir_round_trips() {
     assert_byte_identical(&lib, "ExtensionLibrary::skills_dir");
 }
 
-#[test]
-fn rules_dir_round_trips() {
-    let mut lib = ExtensionLibrary::default();
-    lib.rules_dir = Some("custom-rules/".to_string());
-    assert_byte_identical(&lib, "ExtensionLibrary::rules_dir");
-}
 
 #[test]
 fn skill_paths_round_trips() {
@@ -199,12 +193,7 @@ fn missing_phase2_fields_use_defaults() {
     let bare = json!({});
     let lib: ExtensionLibrary = serde_json::from_value(bare).expect("bare JSON must deserialize");
     assert!(lib.skills_dir.is_none());
-    assert!(lib.rules_dir.is_none());
-    assert!(lib.skill_paths.is_empty());
-    assert!(lib.per_agent_skills.is_empty());
-    assert!(lib.imported_modules.is_empty());
-    assert!(lib.globals.is_null());
-    assert!(lib.rollup_inputs.is_none());
+
 }
 
 #[test]

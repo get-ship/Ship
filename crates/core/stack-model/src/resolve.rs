@@ -365,10 +365,6 @@ pub struct ExtensionLibrary {
     /// default `.ship/skills/`. The `skills_dir` key in `stack.config.ts` lands here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub skills_dir: Option<String>,
-    /// Override the rules dir (project-relative path). `None` means use the
-    /// default `.ship/rules/`. The `rules_dir` key in `stack.config.ts` lands here.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub rules_dir: Option<String>,
     /// The default skill path the leaf populates. Single-entry list
     /// carrying [`DEFAULT_SPACE_SKILL_PATH`] (the only on-disk
     /// surface for skill assets post Wave 5). The

@@ -107,10 +107,13 @@ const NOUN_TYPES: &[NounType] = &[
 /// (Phase 0); `definePipeline` / `defineTrigger` / `defineCollection` /
 /// `defineView` are the surviving Wave 3 + Phase-4 additions. Five
 /// forms share one generic collector body — see [`render_sdk_stub`].
-/// `defineSkill` + `defineRule` + `defineMcpServer` are gone (slice 2c):
-/// skills + rules live on-disk under `defineConfig({ skills_dir,
-/// rules_dir })`, and MCP server registrations live under
-/// `defineConfig({ agents: { mcp: { … } } })`.
+/// `defineSkill` + `defineMcpServer` are gone (slice 2c):
+/// skills live on-disk under `defineConfig({ skills_dir })`,
+/// and MCP server registrations live under
+/// `defineConfig({ agents: { mcp: { … } } })`. `defineRule`
+/// was retired earlier (the on-disk `rules/<id>.md` convention
+/// also died with the rules-format cut — rule bodies now live on
+/// the agent composition as `defineAgent({ rules: { inline } })`).
 ///
 /// `defineView` is the Phase-4 J2 addition. The hand-specified
 /// field set (no stack fingerprint) follows the same precedent

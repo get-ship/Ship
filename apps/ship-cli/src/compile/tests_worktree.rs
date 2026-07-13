@@ -11,9 +11,10 @@ fn write(dir: &Path, rel: &str, content: &str) {
 }
 
 fn setup_minimal_space(tmp: &TempDir) {
-    // Slice 2c close-out: rules + MCP servers are NOT inlined in
-    // `stack.config.ts` any more. The rule lives on disk at
-    // `rules/style.md`; the MCP registration lives under
+    // Rules-format cut: the rule body lives on the agent composition
+    // as `rules: { inline: "..." }`. The on-disk `rules/<id>.md`
+    // convention died — the agent is the only authoring surface.
+    // The MCP registration lives under
     // `defineConfig({ agents: { mcp: { ... } } })` in the manifest
     // (the per-extension-project config block — slice 2c's
     // new home for the per-call `defineMcpServer` form).
@@ -40,15 +41,17 @@ export default defineConfig({
 });
 "#,
     );
-    // On-disk rule (slice 2b close-out): the rule body's on-disk
-    // form is the resolver's source (the W3 `defineRule({ id, content,
-    // applyScope })` shape maps onto `rules/<id>.md` with the same
-    // `applyScope: "always"` → `alwaysApply: true` default).
-    std::fs::create_dir_all(tmp.path().join("rules")).unwrap();
     write(
         tmp.path(),
-        "rules/style.md",
-        "---\nalwaysApply: true\n---\nUse explicit types.",
+        "agents/demo.ts",
+        r#"
+import { defineAgent } from "ship";
+
+defineAgent({
+  agent: { id: "demo", name: "Demo" },
+  rules: { inline: "Use explicit types." },
+});
+"#,
     );
 }
 

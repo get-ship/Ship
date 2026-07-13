@@ -173,7 +173,7 @@ mod tests {
     fn extension_library_canonical_is_byte_stable_across_runs() {
         let mut lib = ExtensionLibrary::default();
         lib.skills_dir = Some("skills/".to_string());
-        lib.rules_dir = None;
+
         lib.skill_paths = vec!["skills/".to_string(), "docs/".to_string()];
         let a = extension_library_canonical(&lib).unwrap();
         let b = extension_library_canonical(&lib).unwrap();

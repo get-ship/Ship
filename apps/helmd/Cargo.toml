@@ -50,12 +50,14 @@ ship-paths = { path = "../../crates/core/ship-substrate/crates/ship-paths" }
 ship-agents = { path = "../../crates/core/ship-platform/crates/ship-agents" }
 ship-substrate = { path = "../../crates/core/ship-substrate" }
 ship-types = { path = "../../crates/core/ship-substrate/crates/ship-types" }
-# Format-migration Wave 4 phase A: the `HarnessService.Compile` RPC routes
-# through `ship_resolver::roll_up_blocking` so the V8 TS eval populates the
-# `ExtensionLibrary`'s mcp_servers + rules + collections + triggers + pipelines
-# (the leaf `compiler::load_library` no longer reads `.ship/mcp.jsonc` or
-# `.ship/rules/*.md`). Without this dep, the compiled `.mcp.json` and
-# `CLAUDE.md` outputs are empty.
+# Format-migration Wave 4 phase A + rules-format cut: the
+# `HarnessService.Compile` RPC routes through
+# `ship_resolver::roll_up_blocking` so the V8 TS eval populates the
+# `ExtensionLibrary`'s mcp_servers + collections + triggers + pipelines
+# (the leaf `compiler::load_library` no longer reads `.ship/mcp.jsonc`,
+# and rules arrive exclusively via `defineAgent({ rules: { inline } })`).
+# Without this dep, the compiled `.mcp.json` and `CLAUDE.md` outputs
+# are empty.
 ship-resolver = { path = "../../crates/core/ship-resolver" }
 stack-model = { path = "../../crates/core/stack-model" }
 harness-config-compiler = { path = "../../crates/code/harness-config-compiler" }

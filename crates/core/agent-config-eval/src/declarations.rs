@@ -17,14 +17,16 @@
 //!
 //! Slice 2c close-out: `defineSkill` and `defineRule` declare-forms die —
 //! skills are on-disk `skills/<id>/SKILL.md` files (the resolver walks the
-//! `defineConfig({ skills_dir })` dir), and rules are on-disk
-//! `rules/<id>.md` files (the resolver walks `defineConfig({ rules_dir })`).
-//! The previous `SkillDeclare` / `RuleDeclare` / `SkillFrontmatterDeclare` /
-//! `SkillAssetRefDeclare` / `SkillGrantDeclare` / `SkillRequirementDeclare`
-//! types and their `into_skill` / `into_rule` harvest arms are gone. The
-//! corresponding `"skill"` / `"rule"` cases in [`harvest`] are also gone:
-//! any `__kind` other than the surviving nouns is rejected (the eval is
-//! treated as an error, same contract as before).
+//! `defineConfig({ skills_dir })` dir), and rules arrive exclusively via
+//! `defineAgent({ rules: { inline: "..." } })` (the inline block on the
+//! agent composition; the on-disk `rules/<id>.md` convention died
+//! with the rules-format cut, so the only authoring surface for
+//! rules is the agent composition's inline block). The `RuleDeclare` /
+//! `RuleFrontmatterDeclare` / `RuleAssetRefDeclare`
+//! / `RuleGrantDeclare` / `RuleRequirementDeclare` types and their
+//! `into_rule` harvest arms are gone. The corresponding `"rule"` case in
+//! [`harvest`] is also gone: any `__kind` other than the surviving nouns
+//! is rejected (the eval is treated as an error, same contract as before).
 //!
 //! Slice 2c also reshapes MCP server registration: `defineMcpServer`
 //! declare-forms die; MCP server registrations move to
@@ -65,13 +67,17 @@ use serde_json::Value;
 /// over `.agents`; `ts_resolver::resolve_ts_files` merges these again
 /// across multiple modules.
 ///
-/// Slice 2c: `skills` / `rules` / `mcp_servers` are no longer declared per-
-/// call from a `stack.config.ts`. Skills + rules live on disk
-/// (`skills/<id>/SKILL.md`, `rules/<id>.md`); MCP servers live under
+/// Slice 2c + rules-format cut: `skills` / `mcp_servers` are no longer
+/// declared per-call from a `stack.config.ts`. Skills live on disk
+/// (`skills/<id>/SKILL.md`); MCP servers live under
 /// `defineConfig({ agents: { mcp: {…} } })` and are pushed into
 /// `ExtensionLibrary::mcp_servers` by
-/// `ship_resolver::merge_ts_declarations`. The fields stay on the struct
-/// (typed `Vec<…>`) so the canonical-JSON surface remains shape-stable
+/// `ship_resolver::merge_ts_declarations`. Rules arrive exclusively via
+/// the agent composition's `defineAgent({ rules: { inline } })` block
+/// (the `harvest` step projects each agent's inline body into
+/// `declarations.rules`; the on-disk `rules/<id>.md` convention died
+/// with the rules-format cut). The fields stay on the struct (typed
+/// `Vec<…>`) so the canonical-JSON surface remains shape-stable
 /// for the descriptor cache's content hash.
 #[derive(Debug, Clone, Default)]
 pub struct Declarations {
@@ -95,11 +101,15 @@ pub struct Declarations {
     /// `export default defineConfig({...})` shape is purely for ecosystem
     /// conformance). The resolver reads `declarations.config` after the
     /// fan-out and threads each per-module value into the right
-    /// `ExtensionLibrary` field (skills/rules from the on-disk walk
-    /// override `skill_paths` / `rules_dir`; the `agents.mcp` map seeds
-    /// `mcp_servers`). Slice 2c adds `agents_dir` / `collections_dir` /
-    /// `pipelines_dir` / `triggers_dir` and the `agents.mcp` block to
-    /// the shape.
+    /// `ExtensionLibrary` field (skills from the on-disk walk override
+    /// `skill_paths`; the `agents.mcp` map seeds `mcp_servers`).
+    /// Slice 2c adds `agents_dir` / `collections_dir` / `pipelines_dir` /
+    /// `triggers_dir` and the `agents.mcp` block to the shape. Rules
+    /// don't appear in this struct: the rules-format cut retired the
+    /// on-disk `rules/<id>.md` convention — rule bodies arrive
+    /// exclusively via the agent composition's inline
+    /// `rules: { inline: "..." }` block (the `harvest` step projects
+    /// each agent's body into `declarations.rules`).
     pub config: Vec<ConfigDeclare>,
 }
 
@@ -123,6 +133,34 @@ pub fn harvest(out: &mut Declarations, index: usize, raw: Value) -> Result<()> {
         "agent" => {
             let profile: AgentProfile = serde_json::from_value(envelope.value)
                 .with_context(|| format!("defineAgent call #{index} did not match AgentProfile"))?;
+            // Rules arrive exclusively via the agent composition's
+            // `rules: { inline: "..." }` block (the rules-format
+            // cut retired the on-disk `rules/<id>.md` convention).
+            // Project each agent's inline rule body into the
+            // declarations-level rule pool — the resolver's
+            // `merge_ts_declarations` merges it into `library.rules`
+            // with the same id-dedup policy as every other noun.
+            // `file_name` is the agent id (the
+            // `apply_agent_to_library` step in `agent-def` uses
+            // the same convention when the agent is active).
+            // body into the declarations-level rule pool — the
+            // resolver's `merge_ts_declarations` merges it into
+            // `library.rules` with the same id-dedup policy as
+            // every other noun. `file_name` is the agent id (the
+            // `apply_agent_to_library` step in `agent-def` uses
+            // the same convention when the agent is active).
+            if let Some(inline) = profile.rules.inline.as_deref() {
+                let trimmed = inline.trim();
+                if !trimmed.is_empty() {
+                    out.rules.push(stack_model::Rule {
+                        file_name: format!("{}.md", profile.agent.id),
+                        content: trimmed.to_string(),
+                        always_apply: true,
+                        globs: vec![],
+                        description: None,
+                    });
+                }
+            }
             out.agents.push(profile);
         }
         "pipeline" => {
@@ -158,14 +196,19 @@ pub fn harvest(out: &mut Declarations, index: usize, raw: Value) -> Result<()> {
             // The `defineConfig` value carries the per-extension-project
             // `skills_dir` (single dir name, no trailing slash, relative
             // to the dir containing the `stack.config.ts` declaring it) +
-            // the slice-2c additions: `rules_dir`, `agents_dir`,
-            // `collections_dir`, `pipelines_dir`, `triggers_dir`, and the
-            // `agents.mcp` block (the MCP server registrations; the
-            // per-call `defineMcpServer` declare-form died with slice 2c).
+            // the slice-2c additions: `agents_dir`, `collections_dir`,
+            // `pipelines_dir`, `triggers_dir`, and the `agents.mcp` block
+            // (the MCP server registrations; the per-call
+            // `defineMcpServer` declare-form died with slice 2c).
             // Hand-spec'd (no `@ship/stack` counterpart yet) — the same
-            // posture as `defineRule` / `defineView`. The resolver's
-            // `merge_ts_declarations` walks `out.config` and threads
-            // each value into the right `ExtensionLibrary` field.
+            // posture as `defineView` (the `defineRule` declare-form also
+            // died with slice 2c, so the on-disk `rules/<id>.md`
+            // convention likewise retired — rules arrive exclusively via
+            // the agent composition's `rules: { inline: "..." }` block).
+            // The resolver's `merge_ts_declarations` walks `out.config`
+            // and threads each value into the right `ExtensionLibrary`
+            // field.
+
             let declared: ConfigDeclare =
                 serde_json::from_value(envelope.value).with_context(|| {
                     format!("defineConfig call #{index} did not match the config shape")
@@ -173,19 +216,22 @@ pub fn harvest(out: &mut Declarations, index: usize, raw: Value) -> Result<()> {
             out.config.push(declared);
         }
         // Slice 2c close-out: the dead declare-form kinds. `defineSkill`
-        // and `defineRule` are gone (skills + rules are on-disk files,
-        // walked from `defineConfig.skills_dir` / `.rules_dir`); the
-        // per-call `defineMcpServer` is gone (MCP registrations live
-        // under `defineConfig.agents.mcp`). Any of these `__kind` values
-        // landing here is a bug — a re-introduction or a stale module
-        // — and the eval is treated as an error, same as an unknown kind.
+        // is gone (skills are on-disk files, walked from
+        // `defineConfig.skills_dir`); `defineRule` is gone (rules arrive
+        // exclusively via `defineAgent({ rules: { inline: "..." } })` —
+        // the on-disk `rules/<id>.md` convention died with the
+        // rules-format cut); the per-call `defineMcpServer` is gone
+        // (MCP registrations live under `defineConfig.agents.mcp`).
+        // Any of these `__kind` values landing here is a bug — a
+        // re-introduction or a stale module — and the eval is treated
+        // as an error, same as an unknown kind.
         "skill" => bail!(
             "declare-form call #{index}: `defineSkill` is retired (slice 2c) — author skills \
              on-disk at `<skills_dir>/<id>/SKILL.md`; the resolver walks the dir"
         ),
         "rule" => bail!(
             "declare-form call #{index}: `defineRule` is retired (slice 2c) — author rules \
-             on-disk at `<rules_dir>/<id>.md`; the resolver walks the dir"
+             on the agent composition: `defineAgent({{ rules: {{ inline: \"...\" }} }})`"
         ),
         "mcp_server" => bail!(
             "declare-form call #{index}: `defineMcpServer` is retired (slice 2c) — author MCP \
@@ -302,9 +348,6 @@ pub struct ConfigDeclare {
     /// The dir name where on-disk skills live (default `"skills/"`).
     #[serde(default)]
     pub skills_dir: Option<String>,
-    /// The dir name where on-disk rule `.md` files live (default `"rules/"`).
-    #[serde(default)]
-    pub rules_dir: Option<String>,
     /// The dir name where on-disk agent source `.ts` files live
     /// (default `"agents/"`).
     #[serde(default)]
@@ -434,7 +477,6 @@ const CONFIG_DEF_FIELDS: &[&str] = &[
     "dependencies",
     "hooks_dir",
     "pipelines_dir",
-    "rules_dir",
     "skills_dir",
     "triggers_dir",
 ];

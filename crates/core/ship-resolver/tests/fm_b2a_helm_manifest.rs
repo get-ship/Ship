@@ -276,8 +276,7 @@ fn fm_b2a_real_manifest_no_longer_declares_working_in_helm() {
     // extension owns it. The shape this assertion pins: walk the
     // ship repo's pointer manifest (`stack.config.ts`) + the per-noun
     // source dirs (`agents/`, `collections/`, `pipelines/`,
-    // `triggers/`, `skills/`, `rules/`); prove the skill id is absent
-    // from every `defineSkill` shape AND from the manifest block.
+    // `triggers/`, `skills/`); prove the skill id is absent
     // Cheap and hermetic; a re-introduction is a regression the
     // operator's ruling (`decision-morning-answers.md` §4) forbids.
     let root = repo_root();

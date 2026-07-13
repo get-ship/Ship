@@ -68,7 +68,7 @@ export function defineView(config) {
 // extension's `stack.config.ts`:
 //   export default defineConfig({
 //     dependencies: { "github.com/owner/package": "main" },
-//     agents_dir: "agents", skills_dir: "skills", rules_dir: "rules",
+//     agents_dir: "agents", skills_dir: "skills",
 //     hooks_dir: "hooks", triggers_dir: "triggers", ...
 //     agents: { mcp: {…}, permissions: { presets: { ... } } },
 //   });
@@ -78,7 +78,7 @@ export function defineView(config) {
 // what the resolver rolls up. Zero-or-one per module; each scalar key
 // is the single directory (no trailing slash) where on-disk entries live
 // relative to the dir containing the `stack.config.ts` declaring it.
-// Defaults are applied by the resolver: skills → "skills/", rules → "rules/",
+// Defaults are applied by the resolver: skills → "skills/",
 // agents → "agents/", collections → "collections/", pipelines → "pipelines/",
 // triggers → "triggers/", hooks → "hooks/". The `agents.mcp` block holds
 // the MCP server registrations (the per-call `defineMcpServer` form
@@ -86,8 +86,13 @@ export function defineView(config) {
 // named permission presets (the `.ship/permissions.jsonc` per-preset
 // sections died with slice 3 close-out, A3+A4). Hooks are on-disk
 // files at `<hooks_dir>/<event-stem>.<ext>` — not a `defineConfig`
-// sub-block, the same way skills + rules are on-disk files and not
-// declare-forms.
+// sub-block, the same way skills are on-disk files and not
+// declare-forms. Rules are gone from this surface (the rules-format
+// cut retired the on-disk `rules/<id>.md` convention): rule bodies
+// live exclusively on the
+// agent composition as `defineAgent({ rules: { inline: "..." } })`,
+// and the `harvest` step in `declarations.rs` projects each agent's
+// inline body into `declarations.rules` for the resolver to merge.
 export function defineConfig(config) {
   return __emit("config", config);
 }
@@ -145,7 +150,6 @@ pub const CONFIG_DEF_FIELDS: &[&str] = &[
     "dependencies",
     "hooks_dir",
     "pipelines_dir",
-    "rules_dir",
     "skills_dir",
     "triggers_dir",
 ];

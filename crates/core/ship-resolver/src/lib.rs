@@ -10,7 +10,7 @@
 
 //! Generalizes the Phase-0 resolver (compiler leaf + agent-config-eval) from
 //! single-manifest to **space shape**: a `stack.config.ts` at the space root, a
-//! `skills/` + `rules/` directory convention, the on-disk permissions +
+//! `skills/` directory convention, the on-disk permissions +
 //! hooks reads. The result is a fully-populated [`stack_model::ExtensionLibrary`]
 //! (disk state) and a [`stack_model::ResolvedConfig`] (resolved state) — the
 //! canonical descriptors the rest of the platform compiles and runs against.
@@ -20,7 +20,7 @@
 //! The resolver is a NEW crate that composes with — does NOT replace — the
 //! compiler leaf's `load_library` (per the F1 decision, `decision-f1-loader.md`
 //! Option A: "embrace the superset"). The leaf's `load_library` keeps walking
-//! `.ship/{mcp,permissions,hooks,rules,skills,agents}/` with its `std::fs`
+//! `.ship/{mcp,permissions,hooks,skills}/` with its `std::fs`
 //! surface; this crate layers the Phase-2 space-shape pieces on top via the
 //! [`ship_substrate::ports::FsBroker`] gated door (R1 — new code goes through
 //! FsBroker, not raw `std::fs`).
@@ -87,11 +87,8 @@ pub use members::{
 
 use std::collections::HashSet;
 use std::path::Path;
-
 use agent_config_eval::Declarations;
-use anyhow::Context;
 use stack_model::ExtensionLibrary;
-use ship_substrate::ports::FsBroker;
 
 /// Merge one eval's harvested [`Declarations`] into `library`'s noun
 /// collections — the shared merge both [`resolve_space_with_broker`] and
@@ -140,8 +137,8 @@ pub(crate) fn merge_ts_declarations(
     // `defineConfig({ agents: { mcp: { <name>: {…} } } })`. The per-call
     // `defineMcpServer` form is gone; the `agents.mcp` map is the only
     // source for MCP servers in the post-slice-2c surface. Walk
-    // `declarations.config` (root-last-wins, same as `skills_dir` /
-    // `rules_dir` overrides below) and convert each entry via
+    // `declarations.config` (root-last-wins, same as the `skills_dir` /
+    // `hooks_dir` overrides below) and convert each entry via
     // `McpServerDeclare::into_mcp_server_config`. The id-collision
     // policy matches the dead per-call form: the existing
     // `library.mcp_servers` (populated by the leaf's `load_mcp_servers`
@@ -180,34 +177,27 @@ pub(crate) fn merge_ts_declarations(
     });
     library.views.extend(declarations.views);
 
-    // Per-extension-project on-disk skills + rules walks (the
-    // resolution layer's source for these nouns post slice-2b).
+    // Per-extension-project on-disk skills walk (the resolution
+    // layer's source for skills post slice-2b). The walk happens here
+    // (not in the leaf) because the TS eval populates declared skills
+    // via `defineSkill`; the disk walk duplicates the surface for
+    // callers that author `SKILL.md` files directly.
     //
-    // The walk happens here (not in the leaf) because the TS eval
-    // already populated declared skills via `defineSkill` and
-    // declared rules via `defineRule`. The disk walk duplicates the
-    // surface for callers that author SKILL.md / rule `.md` files
-    // directly — the dot-ship close-out's correct posture per
-    // `data/blueprint/subsystems/ship-stack-format.md` (skills + rules
-    // are on-disk directory conventions detected by the resolver; the
-    // manifest is just a pointer via `defineConfig({ skills_dir,
-    // rules_dir })`).
+    // Rules no longer have an on-disk walk: the on-disk
+    // `rules/<id>.md` convention died with the rules-format cut, so
+    // rules arrive exclusively via `defineAgent({ rules: { inline: "..." } })`
+    // (the active agent's inline rule body, the `apply_agent_to_library`
+    // path in `agent-def`) — the `library.rules` vector this function
+    // populates from `declarations.rules` is the only source for rules
     //
-    // For each path:
-    // - The leaf populates the default (`skill_paths: ["skills/"]`,
-    //   no leaf-side equivalent for `rules_dir` yet — the resolver
-    //   applies the unified default "rules/" when no override).
-    // - `defineConfig({ skills_dir | rules_dir })` overrides via
-    //   root-last-wins scalar.
-    // - The walked records MERGE into `library.skills` / `.rules`
-    //   with the same id-dedup policy as the TS-declared side: an
-    //   entry already in the library wins (the leaf's existing
-    //   contract generalized to every noun this crate harvests).
-    //
-    // Without these walks the post-slice-2b close-out (skills +
-    // rules un-flattened from `defineSkill` / `defineRule` calls
-    // into on-disk files) would deliver an empty resolved surface —
-    // these walks ARE the on-disk authority.
+    // For skills:
+
+    // - The leaf populates the default (`skill_paths: ["skills/"]`).
+    // - `defineConfig({ skills_dir })` overrides via root-last-wins
+    //   scalar.
+    // - The walked records MERGE into `library.skills` with the same
+    //   id-dedup policy as the TS-declared side: an entry already in
+    //   the library wins.
     let cap = ship_substrate::ports::FsCap::new_unchecked(
         space_root.to_path_buf(),
         ship_substrate::ports::FsRoot::Space(ship_substrate::ports::SpaceId::new("resolver")),
@@ -264,50 +254,13 @@ pub(crate) fn merge_ts_declarations(
             library.skills.sort_by(|a, b| a.id.cmp(&b.id));
         }
     }
-
-    // ── Rules: resolve `rules_dir` from `defineConfig` (last wins)
-    //    falling through to the unified default `"rules/"`.
-    let resolved_rules_dir: String = declarations
-        .config
-        .iter()
-        .filter_map(|c| c.rules_dir.clone())
-        .next_back()
-        .map(|s| s.trim_end_matches('/').to_string())
-        .unwrap_or_else(|| "rules".to_string());
-    {
-        let mut seen: HashSet<String> = library.rules.iter().map(|r| r.file_name.clone()).collect();
-        let mut added_rules: Vec<String> = Vec::new();
-        match space_loader::walk_rules_dir(fs, &cap, &resolved_rules_dir) {
-            Ok(found) => {
-                for rule in found {
-                    if seen.insert(rule.file_name.clone()) {
-                        added_rules.push(rule.file_name.clone());
-                        library.rules.push(rule);
-                    }
-                }
-            }
-            Err(e) => {
-                tracing::warn!(
-                    "resolver: walk_rules_dir failed for {}: {e}",
-                    resolved_rules_dir
-                );
-            }
-        }
-        // Stable order — same conditional-sort policy as skills:
-        // declared rules arrive in call order; only re-sort when the
-        // on-disk walk contributed new entries. Slice 2b close-out.
-        if !added_rules.is_empty() {
-            library.rules.sort_by(|a, b| a.file_name.cmp(&b.file_name));
-        }
-    }
-
     // ── Hooks: resolve `hooks_dir` from `defineConfig` (last wins)
     //    falling through to the unified default `"hooks/"`.
     //
     // Slice 3 close-out (A3): hooks arrive as on-disk files at
     // `<hooks_dir>/<event-stem>.<ext>`. The leaf no longer reads
     // `.ship/hooks.jsonc` — the resolver walks the per-extension-project
-    // hooks dir, same as skills + rules. Filename → trigger mapping
+    // hooks dir, the same as skills. Filename → trigger mapping
     // happens in `space_loader::walk_hooks_dir`; the resolver is just
     // the side that decides WHERE the dir is (the `defineConfig`
     // pointer, falling through to the unified default).
@@ -366,7 +319,7 @@ pub(crate) fn merge_ts_declarations(
     // `ship-elevated`) moves to
     // `defineConfig({ agents: { permissions: { presets: { ... } } } })`
     // in `stack.config.ts`. The per-module map is harvested by walking
-    // `declarations.config` (root-last-wins, same as the skills/rules
+    // `declarations.config` (root-last-wins, same as the skills/hooks
     // dir overrides), converting each `PermissionPresetDeclare` into
     // a `stack_model::PermissionPreset` via field-for-field clone, and
     // inserting into the `BTreeMap`-keyed library field. First-wins

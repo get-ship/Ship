@@ -40,9 +40,7 @@ pub fn space_dir() -> PathBuf {
 pub fn agents_dir() -> PathBuf {
     ShipHome::from_env().vector_dir(ship_substrate::home::Scope::Project, Vector::Agents, None)
 }
-pub fn rules_dir() -> PathBuf {
-    ShipHome::from_env().vector_dir(ship_substrate::home::Scope::Project, Vector::Rules, None)
-}
+
 pub fn skills_dir() -> PathBuf {
     ShipHome::from_env().vector_dir(ship_substrate::home::Scope::Project, Vector::Skills, None)
 }
@@ -85,7 +83,6 @@ pub fn ensure_space_dirs() -> anyhow::Result<()> {
     for dir in [
         space_dir(),
         agents_dir(),
-        rules_dir(),
         skills_dir(),
         views_dir(),
     ] {

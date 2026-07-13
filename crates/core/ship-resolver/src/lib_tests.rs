@@ -8,21 +8,17 @@ fn write_minimal_space() -> (TempDir, std::path::PathBuf) {
     let tmp = tempfile::tempdir().unwrap();
     let root = tmp.path().to_path_buf();
 
-    // `.ship/` is empty post format-migration Wave 4 phase A — rules,
-    // collections, triggers, MCP all live in `stack.config.ts` as
-    // declare-forms. Slice 2c: rules moved to on-disk `rules/<id>.md`
-    // files (the resolver walks `defineConfig({ rules_dir })`); agents
-    // moved to on-disk `agents/<id>.ts` files (the resolver enumerates
-    // the dir and evals each module). `.ship/agents/` is gone
-    // (Wave 5).
-    let ship = root.join(".ship");
-    std::fs::create_dir_all(&ship).unwrap();
-
-    // stack.config.ts at the space root is now a thin POINTER manifest
-    // (slice 2c). No declare-form calls in it — the only `defineConfig`
-    // keys we'd author here (skills_dir, rules_dir, the per-noun dir
-    // pointers) use their defaults, so an empty `export default
-    // defineConfig({})` suffices.
+    // `.ship/` is empty post format-migration Wave 4 phase A — skills,
+    // collections, triggers, MCP all live in `stack.config.ts` (or
+    // their on-disk dirs) and the agent compositions carry the
+    // inline rule bodies. Slice 2c: skills are on-disk
+    // `skills/<id>/SKILL.md` files (the resolver walks
+    // `defineConfig({ skills_dir })`); agents are on-disk
+    // `agents/<id>.ts` files (the resolver enumerates the dir and
+    // evals each module). `.ship/agents/` is gone (Wave 5). The
+    // rules-format cut (this branch) collapsed the on-disk
+    // `rules/<id>.md` convention: every rule body now lives on the
+    // agent composition as `rules: { inline: "..." }`.
     std::fs::write(
         root.join("stack.config.ts"),
         r#"
@@ -34,7 +30,14 @@ export default defineConfig({});
     .unwrap();
 
     // The agent lives at `agents/demo.ts` (slice 2c — per-noun source
-    // dir, enumerated by the resolver into `imported_modules`).
+    // dir, enumerated by the resolver into `imported_modules`). The
+    // `rules: { inline: "..." }` block is the post-cut format surface
+    // for rule bodies: the on-disk `rules/<id>.md` convention died
+    // with the rules-format cut, so every rule body lives on the agent
+    // composition. The `harvest` step projects the inline body into
+    // `declarations.rules` under `file_name = {agent_id}.md`; the
+    // resolver's `merge_ts_declarations` merges it into
+    // `library.rules` like every other declared noun.
     std::fs::create_dir_all(root.join("agents")).unwrap();
     std::fs::write(
         root.join("agents/demo.ts"),
@@ -43,20 +46,9 @@ import { defineAgent } from "ship";
 
 defineAgent({
   agent: { id: "demo", name: "Demo" },
+  rules: { inline: "Be terse." },
 });
 "#,
-    )
-    .unwrap();
-    // The rule lives on disk (slice 2b close-out; the format-migration
-    // W4 phase A → slice 2c chain: `.ship/rules/*.md` → inlined
-    // `defineRule` → on-disk `rules/<id>.md`). The frontmatter
-    // `alwaysApply: true` matches the W3 declare-form's
-    // `applyScope: "always"` (the resolver's `parse_rule_md` maps the
-    // same default).
-    std::fs::create_dir_all(root.join("rules")).unwrap();
-    std::fs::write(
-        root.join("rules/style.md"),
-        "---\nalwaysApply: true\n---\nBe terse.",
     )
     .unwrap();
 
@@ -81,12 +73,13 @@ async fn resolve_space_with_no_globals_yields_resolved_config() {
     // Phase-2 contract: TS agents appear in the active-agent-shaped
     // list (the leaf's resolve step pulls from `library.agents`).
     // The .ts path populates that list via this crate's merge step.
-    // The rule from `stack.config.ts` `defineRule` reaches the resolved
-    // config. The W3 harvest maps `id` → `file_name` and `applyScope`
-    // → `always_apply` (the `applyScope: "always"` tag is the always-apply
-    // case; a `globs: [...]` object is the conditional case).
+    // The agent's inline `rules: { inline: "..." }` block reaches
+    // the resolved config under `file_name = {agent_id}.md` — the
+    // rules-format cut made the on-disk `rules/<id>.md` convention
+    // dead, so this is the only authoring surface for rule bodies
+    // in the post-cut stack.
     assert_eq!(resolved.rules.len(), 1);
-    assert_eq!(resolved.rules[0].file_name, "style");
+    assert_eq!(resolved.rules[0].file_name, "demo.md");
     assert!(resolved.rules[0].always_apply);
     assert_eq!(resolved.rules[0].content, "Be terse.");
 }
@@ -139,12 +132,13 @@ async fn load_root_library_omits_resolve_step() {
     let lib = space_loader::load_root_library(&LocalFsBroker::new(), &root)
         .await
         .unwrap();
-    // The rule lives on disk in `rules/style.md` (slice 2b close-out
-    // + slice 2c's pointer manifest) — this loader skips the TS eval
-    // AND the on-disk walks, so the rule stays unmerged here (the
-    // raw disk shape has no rules to find until the
-    // `merge_ts_declarations` step runs the `walk_rules_dir`).
-    assert!(lib.rules.is_empty());
+    // `load_root_library` skips the TS eval AND every on-disk walk,
+    // so `library.rules` is empty here — rules arrive via the
+    // resolver's `merge_ts_declarations` step (the inline
+    // `defineAgent({ rules: { inline } })` body projects into
+    // `declarations.rules` and the merge step lands it in
+    // `library.rules`). The on-disk `rules/<id>.md` convention
+    // died with the rules-format cut.
     // Slice 2c: the imported_modules vec carries `stack.config.ts`
     // (the manifest) + every `agents/<id>.ts` file in the per-noun
     // source dir. The minimal fixture has one agent (`demo`), so
@@ -537,8 +531,7 @@ async fn roll_up_tear_test_full_composition() {
     // The source's rule still passes through (permissions/hooks
     // pass-through is the J1 contract — the source's verb is `Space`).
     assert_eq!(lib.rules.len(), 1);
-    assert_eq!(lib.rules[0].file_name, "style");
-
+    assert_eq!(lib.rules[0].file_name, "demo.md");
     // The roll-up audit carries all three extensions: source, cached
     // package, and the (empty) enabled tier.
     let rollup = lib.rollup_inputs.as_ref().unwrap();
@@ -772,7 +765,7 @@ async fn roll_up_covers_every_case_resolve_dep_agents_covers() {
     );
 }
 
-// ── Format-migration Wave 3 + slice 2c close-out: round-trips ───────────────
+// ── Format-migration Wave 3 + slice 2c close-out + rules-format cut: round-trips ──
 
 /// Slice 2c migration: the `every declare-form` test fixture is now
 /// spread across the per-noun source dirs (the POINTER manifest) +
@@ -781,9 +774,12 @@ async fn roll_up_covers_every_case_resolve_dep_agents_covers() {
 /// `defineTrigger`, `defineCollection`, `defineView`) keep their
 /// per-noun TS files; `defineSkill` / `defineRule` / `defineMcpServer`
 /// retired in favor of on-disk `skills/<id>/SKILL.md` +
-/// `rules/<id>.md` + the `agents.mcp` block. Resolves → composes →
-/// produces a byte-identical descriptor across two `roll_up` runs,
-/// with each noun landing in its matching `ExtensionLibrary` field.
+/// the `agents.mcp` block. The rules-format cut collapsed the
+/// `rules/<id>.md` convention — the rule body now lives on the
+/// agent composition as `rules: { inline: "..." }`. Resolves →
+/// composes → produces a byte-identical descriptor across two
+/// `roll_up` runs, with each noun landing in its matching
+/// `ExtensionLibrary` field.
 #[tokio::test(flavor = "current_thread")]
 async fn every_declare_form_round_trips_through_resolve_compose_descriptor() {
     let tmp = tempfile::tempdir().unwrap();
@@ -793,8 +789,8 @@ async fn every_declare_form_round_trips_through_resolve_compose_descriptor() {
     // The manifest is now a thin pointer: it carries the agents.mcp
     // block (the only surviving config-shaped entry — the per-call
     // `defineMcpServer` died with slice 2c). The other nouns live in
-    // their per-noun source dirs (or on-disk `rules/`, `skills/`
-    // for the disk-shaped ones).
+    // their per-noun source dirs (or on-disk `skills/` for
+    // the disk-shaped skills surface).
     std::fs::write(
         root.join("stack.config.ts"),
         r#"
@@ -818,15 +814,23 @@ export default defineConfig({
 "#,
     )
     .unwrap();
-
     // Agents: per-noun source dir, one TS file per agent (slice 2c).
+    // The rules-format cut collapsed the on-disk `rules/<id>.md`
+    // convention — the rule body now lives on the agent composition
+    // as `rules: { inline: "..." }`. The harvest step projects
+    // the inline body into `declarations.rules` under
+    // `file_name = {agent_id}.md`; the resolver's
+    // `merge_ts_declarations` lands it in `library.rules`.
     std::fs::create_dir_all(root.join("agents")).unwrap();
     std::fs::write(
         root.join("agents/demo.ts"),
         r#"
 import { defineAgent } from "ship";
 
-defineAgent({ agent: { id: "demo", name: "Demo" } });
+defineAgent({
+  agent: { id: "demo", name: "Demo" },
+  rules: { inline: "Be terse." },
+});
 "#,
     )
     .unwrap();
@@ -838,15 +842,6 @@ defineAgent({ agent: { id: "demo", name: "Demo" } });
     std::fs::write(
         skill_dir.join("SKILL.md"),
         "---\nname: review-pr\ndescription: Reviews a pull request.\n---\nDo the review.\n",
-    )
-    .unwrap();
-
-    // Rules: on-disk `rules/<id>.md` (slice 2b close-out). The per-call
-    // `defineRule` is gone; the resolver walks the dir.
-    std::fs::create_dir_all(root.join("rules")).unwrap();
-    std::fs::write(
-        root.join("rules/style.md"),
-        "---\nalwaysApply: true\n---\nBe terse.\n",
     )
     .unwrap();
 
@@ -935,8 +930,7 @@ defineCollection({
     assert_eq!(lib.collections.len(), 1);
     assert_eq!(lib.collections[0].id, "notes");
     assert_eq!(lib.rules.len(), 1);
-    assert_eq!(lib.rules[0].file_name, "style");
-    assert!(lib.rules[0].always_apply);
+    assert_eq!(lib.rules[0].file_name, "demo.md");
 }
 
 // ── Phase-4 J2: view source change invalidates the roll-up's cache key ─────────

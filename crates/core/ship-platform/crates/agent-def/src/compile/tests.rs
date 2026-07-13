@@ -3,7 +3,6 @@
 
 use super::*;
 use stack_model::{HookTrigger, McpServerType};
-use loader::parse_rule;
 use skill_parser::parse_skill;
 use std::path::Path;
 use tempfile::TempDir;
@@ -107,35 +106,6 @@ fn loads_http_mcp_server_by_url() {
     assert!(matches!(lib.mcp_servers[0].server_type, McpServerType::Http));
 }
 
-#[test]
-fn loads_rules_sorted_alphabetically() {
-    let tmp = TempDir::new().unwrap();
-    let ship_dir = tmp.path().join(".ship");
-    std::fs::create_dir_all(&ship_dir).unwrap();
-    write(&ship_dir, "rules/b-workflow.md", "Run tests first.");
-    write(&ship_dir, "rules/a-style.md", "Use explicit types.");
-    let lib = load_library(&ship_dir).unwrap();
-    assert_eq!(lib.rules.len(), 2);
-    assert_eq!(lib.rules[0].file_name, "a-style.md");
-    assert_eq!(lib.rules[1].file_name, "b-workflow.md");
-}
-
-#[test]
-fn rule_frontmatter_parsed() {
-    let raw = "---\ndescription: \"Style guide\"\nalwaysApply: false\n---\n\nKeep it clean.";
-    let rule = parse_rule("style.md", raw);
-    assert_eq!(rule.description.as_deref(), Some("Style guide"));
-    assert!(!rule.always_apply);
-    assert_eq!(rule.content, "Keep it clean.");
-}
-
-#[test]
-fn rule_without_frontmatter_uses_full_content() {
-    let rule = parse_rule("plain.md", "Just plain content.");
-    assert_eq!(rule.content, "Just plain content.");
-    assert!(rule.always_apply);
-    assert!(rule.description.is_none());
-}
 
 // `loads_skill_from_skill_md` retired with format-migration Wave 5. The test exercised
 // the agent-def leaf's `.ship/agents/*.jsonc` and/or
@@ -147,10 +117,13 @@ fn rule_without_frontmatter_uses_full_content() {
 // output must use `stack.config.ts` and route through the composed
 // descriptor (`compile_project_from_library` /
 // `ship_resolver::roll_up`). Post slice 3, the leaf's `load_library`
-// is disk-shape for mcp + rules only — permissions + hooks +
+// is disk-shape for mcp only — permissions + hooks +
 // permissions_presets are resolver-sourced (the per-noun walks land
 // in `ExtensionLibrary.{permissions,hooks,permissions_presets}` from
-// `merge_ts_declarations`, not from this fn).
+// `merge_ts_declarations`, not from this fn). The leaf's
+// `.ship/rules/*.md` walker died with the rules-format cut — rules
+// now arrive exclusively via `defineAgent({ rules: { inline } })`,
+// the inline block on the agent composition.
 
 
 // `loads_skill_from_flat_md` retired with format-migration Wave 5. The test exercised
@@ -163,7 +136,8 @@ fn rule_without_frontmatter_uses_full_content() {
 // output must use `stack.config.ts` and route through the composed
 // descriptor (`compile_project_from_library` /
 // `ship_resolver::roll_up`). The leaf's `load_library` is now
-// disk-shape for permissions / hooks / mcp / rules only.
+// disk-shape for permissions / hooks / mcp only — rules live on
+// the agent composition (`defineAgent({ rules: { inline } })`).
 
 
 // `loads_skills_mixed_formats` retired with format-migration Wave 5. The test exercised
@@ -176,7 +150,8 @@ fn rule_without_frontmatter_uses_full_content() {
 // output must use `stack.config.ts` and route through the composed
 // descriptor (`compile_project_from_library` /
 // `ship_resolver::roll_up`). The leaf's `load_library` is now
-// disk-shape for permissions / hooks / mcp / rules only.
+// disk-shape for permissions / hooks / mcp only — rules live on
+// the agent composition (`defineAgent({ rules: { inline } })`).
 
 
 // `load_permission_preset` retired from disk reads with the slice 3

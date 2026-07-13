@@ -14,7 +14,7 @@
 
 use anyhow::Result;
 use stack_model::{
-    McpServerConfig, McpServerType, ExtensionLibrary, Rule,
+    ExtensionLibrary, McpServerConfig, McpServerType,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -149,7 +149,7 @@ pub fn load_library(ship_dir: &Path) -> Result<ExtensionLibrary> {
         permissions: stack_model::Permissions::default(),
         hooks: Vec::new(),
         permissions_presets: std::collections::BTreeMap::new(),
-        rules: load_rules(ship_dir)?,
+        rules: Vec::new(),
         skills: Vec::new(),
         agent_profiles: Vec::new(),
         ..Default::default()
@@ -221,64 +221,6 @@ pub fn load_permission_preset(
     preset_name: &str,
 ) -> Option<PermissionPreset> {
     presets.get(preset_name).cloned()
-}
-
-// ── Rules ─────────────────────────────────────────────────────────────────────
-
-fn load_rules(ship_dir: &Path) -> Result<Vec<Rule>> {
-    let rules_dir = ship_dir.join("rules");
-    if !rules_dir.exists() {
-        return Ok(vec![]);
-    }
-    let mut rules = Vec::new();
-    let mut entries: Vec<_> = std::fs::read_dir(&rules_dir)?
-        .flatten()
-        .filter(|e| e.path().extension().is_some_and(|x| x == "md"))
-        .collect();
-    entries.sort_by_key(|e| e.file_name());
-    for e in entries {
-        let file_name = e.file_name().to_string_lossy().to_string();
-        let raw = std::fs::read_to_string(e.path())?;
-        rules.push(parse_rule(&file_name, &raw));
-    }
-    Ok(rules)
-}
-
-/// Parse a rule `.md` file, stripping YAML frontmatter if present.
-/// Frontmatter fields: `description`, `globs` (list), `alwaysApply` (bool).
-pub fn parse_rule(file_name: &str, raw: &str) -> Rule {
-    if let Some(rest) = raw.strip_prefix("---\n")
-        && let Some(end) = rest.find("\n---\n")
-    {
-        let fm = &rest[..end];
-        let body = &rest[end + 5..];
-        let mut always_apply = true;
-        let mut globs = vec![];
-        let mut description = None;
-        for line in fm.lines() {
-            if let Some(v) = line.strip_prefix("alwaysApply:") {
-                always_apply = v.trim() != "false";
-            } else if let Some(v) = line.strip_prefix("description:") {
-                description = Some(v.trim().trim_matches('"').to_string());
-            } else if line.trim_start().starts_with("- ") {
-                globs.push(line.trim().trim_start_matches("- ").to_string());
-            }
-        }
-        return Rule {
-            file_name: file_name.to_string(),
-            content: body.trim().to_string(),
-            always_apply,
-            globs,
-            description,
-        };
-    }
-    Rule {
-        file_name: file_name.to_string(),
-        content: raw.trim().to_string(),
-        always_apply: true,
-        globs: vec![],
-        description: None,
-    }
 }
 
 // `.ship/agents/*.jsonc` is no longer read by this loader. Post

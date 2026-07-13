@@ -8,11 +8,15 @@ description = "Phase-2 space-shape resolver — composes the stack-model leaf (c
 [dependencies]
 # The L0 leaf — config types, the `load_library` walk over `.ship/`, the
 # `resolve_library` pure transform, and the Phase-2 field set the descriptor
-# carries (skills_dir, rules_dir, skill_paths, per_agent_skills, modules,
+# carries (skills_dir, skill_paths, per_agent_skills, modules,
 # globals, rollup_inputs). The new resolver composes with `load_library`
 # for the bulk of the read path; the leaf populates `skill_paths` with
 # the single default entry ([`DEFAULT_SPACE_SKILL_PATH`]) — no
-# `space.skill_paths` ship.jsonc read, no extras walk.
+# `space.skill_paths` ship.jsonc read, no extras walk. Rules are
+# not part of the descriptor field set — the rules-format cut retired
+# the on-disk `rules/<id>.md` convention; rules flow through
+# `declarations.rules` (the resolver's TS eval harvests each agent's
+# `rules: { inline }` body into the merged library).
 stack-model = { path = "../stack-model" }
 # The V8 isolate glue — `resolve_agents_with_globals` is the only call site
 # for ship.ts eval. V8 is feature-gated on the `deno` feature; the resolver
