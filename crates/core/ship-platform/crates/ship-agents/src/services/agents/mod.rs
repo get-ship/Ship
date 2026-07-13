@@ -8,7 +8,7 @@
 //! `code_dispatch_core` / `code_dispatch_request` / `code_wire` —
 //! mount split, 2026-07-10.
 
-pub mod annotation;
+
 #[cfg(feature = "ship-code")]
 pub mod code_dispatch_core;
 #[cfg(feature = "ship-code")]
@@ -20,7 +20,6 @@ pub mod dispatch_core;
 pub mod dispatch_request;
 #[cfg(feature = "ship-code")]
 pub mod dispatch_resume;
-pub mod feedback;
 pub mod rpc_wire;
 pub mod service;
 pub mod settings_view;
@@ -42,6 +41,5 @@ pub use code_wire::{CodeWire, CodeWireConfig};
 pub use dispatch_core::{AgentDispatchPort, DispatchCoreError, DispatchOutcome, dispatch_agent_session_core};
 #[cfg(feature = "ship-code")]
 pub use dispatch_resume::{ResumeOutcome, ResumeResolveError, load_and_validate_session_file, resolve_resume};
-pub use feedback::{FeedbackGuard, FeedbackError, ViewBroadcastPort, ViewBroadcastError, shared_guard, post_feedback};
 pub use rpc_wire::AgentsWire;
 pub use host::{AgentsGrantHost, AgentsHost, AgentsWatchHost, DispatchHandlePort};

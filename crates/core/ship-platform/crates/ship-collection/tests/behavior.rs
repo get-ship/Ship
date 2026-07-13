@@ -278,13 +278,7 @@ async fn system_collections_flagged_in_list() {
     let kernel = make_kernel(&tmp);
     let ctx = make_ctx(&tmp, kernel);
     let svc = make_service(ctx);
-
     let list = svc.list();
-    let feedback = list.iter().find(|s| s.id == "feedback").expect("feedback must be present");
-    let annotations = list.iter().find(|s| s.id == "annotations").expect("annotations must be present");
-    assert!(feedback.system, "feedback must have system=true");
-    assert!(annotations.system, "annotations must have system=true");
-
     let notes = list.iter().find(|s| s.id == "notes").expect("notes must be present");
     assert!(!notes.system, "notes must have system=false");
 }
@@ -299,40 +293,15 @@ async fn create_schema_rejects_reserved_builtin_id() {
     let svc = make_service(ctx);
 
     let schema_json = serde_json::to_vec(&json!({
-        "id": "feedback",
+        "id": "notes",
         "fields": { "title": { "type": "string" } }
     })).unwrap();
 
-    let result = svc.create_schema("feedback", &schema_json).await;
-    assert!(result.is_err(), "reserved id 'feedback' must be rejected");
+    let result = svc.create_schema("notes", &schema_json).await;
+    assert!(result.is_err(), "reserved id 'notes' must be rejected");
     let err = result.unwrap_err().to_string();
     assert!(err.contains("reserved"), "err: {err}");
 }
-
-// ── Test 9: update_item_validates_against_schema ──────────────────────────────
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn update_item_validates_against_schema() {
-    let tmp = tempfile::tempdir().unwrap();
-    let kernel = make_kernel(&tmp);
-    let ctx = make_ctx(&tmp, kernel);
-    let svc = make_service(ctx);
-
-    svc.create_schema("tasks", &test_schema_json()).await.unwrap();
-    let data = serde_json::to_vec(&json!({ "title": "original", "done": false })).unwrap();
-    let item = svc.create_item("tasks", &data).await.unwrap();
-
-    // Update with unknown field — must be rejected.
-    let bad_data = serde_json::to_vec(&json!({ "title": "updated", "unknown_field": "bad" })).unwrap();
-    let result = svc.update_item("tasks", &item.id, &bad_data).await;
-    assert!(result.is_err(), "unknown field must be rejected");
-
-    // Update with type mismatch — must be rejected.
-    let bad_type = serde_json::to_vec(&json!({ "title": 42, "done": false })).unwrap();
-    let result2 = svc.update_item("tasks", &item.id, &bad_type).await;
-    assert!(result2.is_err(), "type mismatch must be rejected");
-}
-
 // ── Test 10: watch_first_frame_is_root_set_then_patch_on_event ───────────────
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

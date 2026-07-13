@@ -5,13 +5,9 @@
 //! from its `ApiState`. The trait + `mount` fn here let ship-agents own the
 //! shape of that wiring; shipd just implements `AgentsHost` and calls
 //! `mount(state, gate, router)`.
-//!
-//! The concrete port adapters (`AgentDispatchAdapter`, `FeedbackAuthAdapter`,
-//! `ViewBroadcastAdapter`, `CollectionPersistAdapter`) stay in shipd — they
-//! close over shipd's `AuthContext`, kernel, and collection service. The
-//! abstract port trait objects (`FeedbackAuthPort`, `AgentDispatchPort`,
-//! `ViewBroadcastPort`, `CollectionPersistPort`) are re-exposed here as the
-//! `Host`-returning types so the host bundle reads as a single surface.
+//! The concrete `AgentDispatchAdapter` stays in shipd — it closes over shipd's
+//! runtime state. The abstract `AgentDispatchPort` trait is re-exposed here as
+//! the `Host`-returning type so the host bundle reads as a single surface.
 //!
 //! Capability split:
 //!  * `AgentsHost` — the *core* trait that exposes only ship-agents /
@@ -47,12 +43,9 @@ use connectrpc::{ConnectError, RequestContext, Router as ConnectRouter};
 use serde_json::Value;
 use tokio::sync::Mutex;
 
-use crate::services::agents::annotation::CollectionPersistPort;
 use crate::services::agents::dispatch_core::AgentDispatchPort;
-use crate::services::agents::feedback::ViewBroadcastPort;
 use crate::services::agents::rpc_wire::{
-    AgentsWire, AgentsWireConfig, FeedbackAuthPort, GateFn, GrantFn, NotifySavedFn, SessionsFn,
-    SteerFn, StopFn,
+    AgentsWire, AgentsWireConfig, GateFn, GrantFn, NotifySavedFn, SessionsFn, SteerFn, StopFn,
 };
 use crate::services::agents::service::AgentsService;
 use ship_substrate::events::KernelRouter;
@@ -109,16 +102,6 @@ pub trait AgentsHost: Clone + Send + Sync + 'static {
     /// The dispatch port — agent dispatch writes events through this.
     fn dispatch_port(&self) -> Arc<dyn AgentDispatchPort>;
 
-    /// Feedback auth port — extracts the emit context + agent id from the
-    /// request context.
-    fn feedback_auth(&self) -> Arc<dyn FeedbackAuthPort>;
-
-    /// View broadcast port — feedback / annotation live broadcast.
-    fn view_broadcast(&self) -> Arc<dyn ViewBroadcastPort>;
-
-    /// Collection persist port — annotation writes land here.
-    fn collection(&self) -> Arc<dyn CollectionPersistPort>;
-
     /// Extract the verified approver (`agent_id`) from the auth context for
     /// `agent.grant`. Returns `Err(unauthenticated)` when the auth extension
     /// is missing; `Ok(None)` for anonymous / daemon-token requests.
@@ -169,13 +152,9 @@ struct AgentsWireCoreConfig {
     dispatch_port:    Arc<dyn AgentDispatchPort>,
     stop_fn:          StopFn,
     steer_fn:         SteerFn,
-    feedback_auth:    Arc<dyn FeedbackAuthPort>,
-    view_broadcast:   Arc<dyn ViewBroadcastPort>,
-    collection:       Arc<dyn CollectionPersistPort>,
 }
 
 /// Build the ship-agents + ship-substrate portion of an `AgentsWireConfig`.
-///
 /// Pulls every accessor / closure that does NOT require `ship-auth` or
 /// `ship-reactive` — i.e. the closure-half of `AgentsHost`. The two
 /// capability-shaped closures / fields (`grant_fn`, `agent_reactive`) are
@@ -276,9 +255,6 @@ fn build_core<H: AgentsHost>(host: &H, gate: GateFn) -> AgentsWireCoreConfig {
         dispatch_port: host.dispatch_port(),
         stop_fn,
         steer_fn,
-        feedback_auth: host.feedback_auth(),
-        view_broadcast: host.view_broadcast(),
-        collection: host.collection(),
     }
 }
 /// Lean stub `grant_fn`: every call returns `unimplemented`. Lets a consumer
@@ -321,9 +297,6 @@ pub fn mount<H: AgentsHost>(host: &H, gate: GateFn, router: ConnectRouter) -> Co
         grant_fn:         lean_grant_fn(),
         agent_reactive:   None,
         def_index:        host.agent_def_index(),
-        feedback_auth:    core.feedback_auth,
-        view_broadcast:   core.view_broadcast,
-        collection:       core.collection,
     }));
     ship_ops_rpc::AgentsServiceExt::register(agents_wire, router)
 }
@@ -421,9 +394,6 @@ where
         grant_fn,
         agent_reactive:   host.agent_reactive(),
         def_index:        host.agent_def_index(),
-        feedback_auth:    core.feedback_auth,
-        view_broadcast:   core.view_broadcast,
-        collection:       core.collection,
     }));
     ship_ops_rpc::AgentsServiceExt::register(agents_wire, router)
 }

@@ -76,24 +76,6 @@ pub type GrantFn = Arc<
         + Sync,
 >;
 
-/// Extracts feedback/annotation auth info from a ConnectRPC `RequestContext`.
-/// Shipd implements this; ship-agents calls it to get the emit context and agent
-/// id without importing the shipd `AuthContext` type.
-pub trait FeedbackAuthPort: Send + Sync {
-    /// Returns `(agent_id, emit_ctx)` or `ConnectError::unauthenticated` if the
-    /// auth extension is missing from the context.
-    fn extract(
-        &self,
-        ctx: &RequestContext,
-    ) -> Result<
-        (
-            Option<String>,
-            ship_substrate::events::validator::EmitContext,
-        ),
-        ConnectError,
-    >;
-}
-
 // ── Wire struct ───────────────────────────────────────────────────────────────
 
 /// ConnectRPC wire for `AgentsService`.
@@ -113,9 +95,6 @@ pub struct AgentsWire {
     /// READ handlers serve list/detail from the DataStore snapshot instead of
     /// re-reading `.ship/agents/*.jsonc`. `None` in space-less / lean mounts.
     def_index: Option<Arc<AgentDefIndex>>,
-    feedback_auth: Arc<dyn FeedbackAuthPort>,
-    view_broadcast: Arc<dyn crate::services::agents::feedback::ViewBroadcastPort>,
-    collection: Arc<dyn crate::services::agents::annotation::CollectionPersistPort>,
 }
 
 /// Named-field constructor input for [`AgentsWire`] — replaces the former
@@ -134,9 +113,6 @@ pub struct AgentsWireConfig {
     pub grant_fn: GrantFn,
     pub agent_reactive: Option<Arc<ReactiveRegistry>>,
     pub def_index: Option<Arc<AgentDefIndex>>,
-    pub feedback_auth: Arc<dyn FeedbackAuthPort>,
-    pub view_broadcast: Arc<dyn crate::services::agents::feedback::ViewBroadcastPort>,
-    pub collection: Arc<dyn crate::services::agents::annotation::CollectionPersistPort>,
 }
 
 impl AgentsWire {
@@ -154,9 +130,6 @@ impl AgentsWire {
             grant_fn,
             agent_reactive,
             def_index,
-            feedback_auth,
-            view_broadcast,
-            collection,
         } = config;
         Self {
             svc,
@@ -171,9 +144,6 @@ impl AgentsWire {
             grant_fn,
             agent_reactive,
             def_index,
-            feedback_auth,
-            view_broadcast,
-            collection,
         }
     }
 }
@@ -872,97 +842,5 @@ impl AgentsServiceTrait for AgentsWire {
             }
         };
         Ok(Response::new(Box::pin(stream)))
-    }
-
-    // ── Canvas / observation ─────────────────────────────────────────────────
-
-    async fn post_feedback(
-        &self,
-        ctx: RequestContext,
-        request: ship_ops_rpc::OwnedPostFeedbackRequestView,
-    ) -> ServiceResult<ship_ops_rpc::PostFeedbackResponse> {
-        let ev: crate::feedback::FeedbackEvent = serde_json::from_str(&request.event_json)
-            .map_err(|e| ConnectError::invalid_argument(format!("event_json: {e}")))?;
-        let (agent_id, emit_ctx) = self.feedback_auth.extract(&ctx)?;
-        let guard = crate::services::agents::feedback::shared_guard();
-        let id = crate::services::agents::feedback::post_feedback(
-            &self.kernel,
-            emit_ctx,
-            self.view_broadcast.as_ref(),
-            guard,
-            agent_id.as_deref(),
-            ev,
-        )
-        .await
-        .map_err(feedback_err_to_connect)?;
-        Ok(Response::new(ship_ops_rpc::PostFeedbackResponse {
-            id,
-            ..Default::default()
-        }))
-    }
-
-    async fn post_annotation(
-        &self,
-        ctx: RequestContext,
-        request: ship_ops_rpc::OwnedPostAnnotationRequestView,
-    ) -> ServiceResult<ship_ops_rpc::PostAnnotationResponse> {
-        let ev: crate::annotation::AnnotationEvent = serde_json::from_str(&request.event_json)
-            .map_err(|e| ConnectError::invalid_argument(format!("event_json: {e}")))?;
-        let (_agent_id, emit_ctx) = self.feedback_auth.extract(&ctx)?;
-        let id = crate::services::agents::annotation::post_annotation(
-            &self.kernel,
-            emit_ctx,
-            self.view_broadcast.as_ref(),
-            self.collection.as_ref(),
-            ev,
-        )
-        .await
-        .map_err(annotation_err_to_connect)?;
-        Ok(Response::new(ship_ops_rpc::PostAnnotationResponse {
-            id,
-            ..Default::default()
-        }))
-    }
-}
-
-fn feedback_err_to_connect(e: crate::services::agents::feedback::FeedbackError) -> ConnectError {
-    use crate::services::agents::feedback::FeedbackError;
-    match e {
-        FeedbackError::RateLimited => ConnectError::resource_exhausted(e.to_string()),
-        FeedbackError::ViewNotFound(_) => ConnectError::not_found(e.to_string()),
-        FeedbackError::InvalidId
-        | FeedbackError::SelectorRequired
-        | FeedbackError::RectForbidden
-        | FeedbackError::RectRequired
-        | FeedbackError::RectInvalid
-        | FeedbackError::NoteTooLarge
-        | FeedbackError::SelectionTooLarge
-        | FeedbackError::DuplicateId => ConnectError::invalid_argument(e.to_string()),
-        FeedbackError::SerializeFailed(_) | FeedbackError::EmitFailed(_) => {
-            ConnectError::internal(e.to_string())
-        }
-    }
-}
-
-fn annotation_err_to_connect(
-    e: crate::services::agents::annotation::AnnotationError,
-) -> ConnectError {
-    use crate::services::agents::annotation::AnnotationError;
-    match e {
-        AnnotationError::SelectorRequired
-        | AnnotationError::RectInvalid
-        | AnnotationError::NoteTooLarge
-        | AnnotationError::SelectionTooLarge => ConnectError::invalid_argument(e.to_string()),
-        AnnotationError::Collection(ref ce) => match ce {
-            crate::services::agents::annotation::CollectionError::NoActiveSpace(_) => {
-                ConnectError::failed_precondition(e.to_string())
-            }
-            crate::services::agents::annotation::CollectionError::PersistFailed(_) => {
-                ConnectError::internal(e.to_string())
-            }
-        },
-        AnnotationError::SerializeFailed(_) | AnnotationError::EmitFailed(_) => {
-            ConnectError::internal(e.to_string())
-        }
     }
 }

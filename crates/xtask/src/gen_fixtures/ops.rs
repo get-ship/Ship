@@ -75,9 +75,8 @@ fn type_validators() -> BTreeMap<&'static str, fn(&Value) -> Result<()>> {
         // decodes the oneof arm's payload via buffa's generated serde impl.
         v!(IsolationStatusResponse), v!(IsolationRecommendationsResponse),
         v!(IsolationPreviewResponse), v!(IsolationVerifyResponse),
-        // Scaffold + feedback/annotation typed results (proto-added; fixtures backfilled).
+        // Scaffold typed results (proto-added; fixtures backfilled).
         v!(SkillScaffoldResponse), v!(ViewScaffoldResponse),
-        v!(PostFeedbackResponse), v!(PostAnnotationResponse),
         // UI discovery reads + terminal session/stop typed results
         // (proto-added; fixtures backfilled on this branch).
         v!(UiQueryResponse), v!(UiReadResponse),

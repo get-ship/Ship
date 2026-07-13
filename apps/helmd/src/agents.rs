@@ -9,10 +9,9 @@
 //!
 //! The lean mount means helmd does NOT implement `AgentsGrantHost`
 //! (ship-auth) or `AgentsWatchHost` (ship-reactive): the grant path returns
-//! `unimplemented`, the watch path returns `unavailable`, and the four
-//! daemon-side ports (`AgentDispatchPort` / `FeedbackAuthPort` /
-//! `ViewBroadcastPort` / `CollectionPersistPort`) are trivial no-op adapters —
-//! reads never call them. `AgentsServiceImpl` reads agent-profile FILES only;
+//! `unimplemented`, the watch path returns `unavailable`, and the
+//! `AgentDispatchPort` is a no-op adapter when `ship-code` is OFF —
+//! reads never call it. `AgentsServiceImpl` reads agent-profile FILES only;
 //! it touches no db.
 
 use std::path::PathBuf;
@@ -22,17 +21,13 @@ use async_trait::async_trait;
 use connectrpc::{ConnectError, RequestContext, Router as ConnectRouter};
 use tokio::sync::Mutex;
 
-use ship_agents::services::agents::annotation::{CollectionError, CollectionPersistPort};
 use ship_agents::services::agents::dispatch_core::AgentDispatchPort;
-use ship_agents::services::agents::feedback::{ViewBroadcastError, ViewBroadcastPort};
 use ship_agents::services::agents::host::{AgentsHost, mount as mount_agents_wire};
 #[cfg(feature = "ship-code")]
 use ship_agents::services::agents::host::DispatchHandlePort;
-use ship_agents::services::agents::rpc_wire::FeedbackAuthPort;
 use ship_agents::services::agents::service::{AgentsService, AgentsServiceImpl};
 use ship_agents::services::rules::wire::GateFn;
 use ship_substrate::ShipHome;
-use ship_substrate::events::validator::EmitContext;
 use ship_substrate::events::{KernelRouter, init_kernel_router};
 // Only the OFF-path `NoopDispatch` names `EventEnvelope`; the real adapter lives
 // in `dispatch.rs`.
@@ -160,18 +155,6 @@ impl AgentsHost for HelmAgentsHost {
         }
     }
 
-    fn feedback_auth(&self) -> Arc<dyn FeedbackAuthPort> {
-        Arc::new(NoopFeedbackAuth)
-    }
-
-    fn view_broadcast(&self) -> Arc<dyn ViewBroadcastPort> {
-        Arc::new(NoopViewBroadcast)
-    }
-
-    fn collection(&self) -> Arc<dyn CollectionPersistPort> {
-        Arc::new(NoopCollection)
-    }
-
     fn extract_approver(&self, _ctx: &RequestContext) -> Result<Option<String>, ConnectError> {
         // helmd serves no grant path; anonymous is fine.
         Ok(None)
@@ -233,44 +216,5 @@ impl AgentDispatchPort for NoopDispatch {
     #[cfg(feature = "ship-code")]
     fn worktrees_dir(&self) -> Option<PathBuf> {
         None
-    }
-}
-/// Feedback auth port — helmd serves no feedback emit.
-struct NoopFeedbackAuth;
-
-impl FeedbackAuthPort for NoopFeedbackAuth {
-    fn extract(
-        &self,
-        _ctx: &RequestContext,
-    ) -> Result<(Option<String>, EmitContext), ConnectError> {
-        Err(ConnectError::unimplemented("feedback not available on helmd"))
-    }
-}
-
-/// View broadcast port — helmd serves no live view fan-out.
-struct NoopViewBroadcast;
-
-#[async_trait]
-impl ViewBroadcastPort for NoopViewBroadcast {
-    async fn broadcast_feedback(
-        &self,
-        _view_id: &str,
-        _payload: &serde_json::Value,
-    ) -> Result<(), ViewBroadcastError> {
-        Err(ViewBroadcastError::Other(
-            "view broadcast not available on helmd".to_string(),
-        ))
-    }
-}
-
-/// Collection persist port — helmd serves no annotation writes.
-struct NoopCollection;
-
-#[async_trait]
-impl CollectionPersistPort for NoopCollection {
-    async fn persist_annotation(&self, _row_bytes: &[u8]) -> Result<(), CollectionError> {
-        Err(CollectionError::PersistFailed(
-            "collections not available on helmd".to_string(),
-        ))
     }
 }

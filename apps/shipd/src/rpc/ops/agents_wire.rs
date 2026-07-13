@@ -18,13 +18,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use connectrpc::{ConnectError, RequestContext, Router as ConnectRouter};
-use ship_agents::services::agents::annotation::CollectionPersistPort;
 use ship_agents::services::agents::dispatch_core::AgentDispatchPort;
-use ship_agents::services::agents::feedback::ViewBroadcastPort;
 use ship_agents::services::agents::host::{
     AgentsGrantHost, AgentsHost, AgentsWatchHost, DispatchHandlePort,
 };
-use ship_agents::services::agents::rpc_wire::FeedbackAuthPort;
 use ship_agents::services::agents::service::AgentsService;
 use ship_agents::services::rules::wire::GateFn;
 use ship_agents::services::agents::host::mount_full as host_mount_full;
@@ -34,10 +31,7 @@ use ship_substrate::ports::KernelLog;
 use tokio::sync::Mutex;
 
 use crate::auth::SessionRegistry;
-use crate::ports::agent_events::{
-    AgentDispatchAdapter, CollectionPersistAdapter, FeedbackAuthAdapter,
-    ViewBroadcastAdapter,
-};
+use crate::ports::agent_events::AgentDispatchAdapter;
 use crate::ship_runtime::ApiState;
 
 pub(super) fn mount(
@@ -84,18 +78,6 @@ impl AgentsHost for StateHost {
 
     fn dispatch_port(&self) -> Arc<dyn AgentDispatchPort> {
         Arc::new(AgentDispatchAdapter::new(self.0.clone()))
-    }
-
-    fn feedback_auth(&self) -> Arc<dyn FeedbackAuthPort> {
-        Arc::new(FeedbackAuthAdapter)
-    }
-
-    fn view_broadcast(&self) -> Arc<dyn ViewBroadcastPort> {
-        Arc::new(ViewBroadcastAdapter)
-    }
-
-    fn collection(&self) -> Arc<dyn CollectionPersistPort> {
-        Arc::new(CollectionPersistAdapter::new(self.0.clone()))
     }
 
     fn extract_approver(

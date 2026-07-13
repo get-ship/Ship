@@ -12,9 +12,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use serde_json::json;
-use ship_collection::builtin::{
-    all_builtin_schemas, annotations_schema, feedback_schema, notes_schema,
-};
+use ship_collection::builtin::{all_builtin_schemas, notes_schema};
 use ship_collection::error::CollectionError;
 use ship_collection::projection::{SchemaRegistry, ensure_collection_table};
 use ship_collection::schema::{is_safe_identifier, parse_schema_doc, validate_item};
@@ -317,37 +315,7 @@ fn parity_builtin_notes_has_required_title_field() {
     assert_eq!(f.kind, FieldKind::String);
 }
 
-#[test]
-fn parity_builtin_feedback_is_system() {
-    // Origin: collections_builtin_feedback_schema_has_target_fields
-    let schema = feedback_schema();
-    assert!(schema.system, "feedback must have system=true");
-    assert!(schema.fields.contains_key("target_type"), "must have target_type");
-    assert!(schema.fields.contains_key("target_id"), "must have target_id");
-}
 
-#[test]
-fn parity_builtin_annotations_is_system() {
-    // Origin: collections_builtin_annotations_schema_is_system
-    let schema = annotations_schema();
-    assert!(schema.system, "annotations must have system=true");
-}
-
-#[test]
-fn parity_builtin_notes_is_not_system() {
-    // Origin: system_collections_flagged_in_list (notes is user-facing)
-    assert!(!notes_schema().system, "notes must NOT be a system collection");
-}
-
-#[test]
-fn parity_builtin_all_schemas_includes_all_three() {
-    // Origin: collections_builtin_all_schemas_includes_specs_and_notes
-    let schemas = all_builtin_schemas();
-    let ids: Vec<&str> = schemas.iter().map(|s| s.id.as_str()).collect();
-    assert!(ids.contains(&"notes"), "all builtins must include notes");
-    assert!(ids.contains(&"feedback"), "all builtins must include feedback");
-    assert!(ids.contains(&"annotations"), "all builtins must include annotations");
-}
 
 #[test]
 fn parity_builtin_user_schemas_excludes_system() {
@@ -713,8 +681,7 @@ async fn parity_reserved_ids_all_rejected_by_create_schema() {
 /// without reservation.
 ///
 /// `ALL_SYSTEM_IDS` enumerates the runtime's system collections:
-/// - The four built-in schemas from `all_builtin_schemas()` (notes, feedback,
-///   annotations, decisions).
+/// - The single built-in schema from `all_builtin_schemas()` (notes).
 /// - `view_snapshots` (the L1 view-authoring collection, declared in
 ///   `ship-ui` — hardcoded here to avoid a `ship-ui` ↔ `ship-collection` dep
 ///   cycle; keep in sync with `VIEW_SNAPSHOTS_COLLECTION_ID`).
