@@ -15,42 +15,42 @@
 //!
 //! The spawner ([`spawn_config_watcher`]) and its RAII handle ([`ConfigWatcher`])
 //! live in this module too: they open the remaining declarative `<domain>/`
-//! watches (`views` post Wave 5; the others moved into `ship.config.ts`
+//! watches (`views` post Wave 5; the others moved into `stack.config.ts`
 //! declare-forms) for both user-scope (the XDG `data/library/<domain>/` per
 //! the home-layout ADR) and project-scope (under
 //! `<workspace>/.ship/<domain>/`),
 //! drive the `author_*` helpers above from each domain's delta stream, and
 //! tear the whole thing down on drop. (Post format-migration Wave 4
 //! phase A: `pipelines`, `rules`, and `collections` are gone — those
-//! nouns move exclusively into `ship.config.ts` declare-forms and
+//! nouns move exclusively into `stack.config.ts` declare-forms and
 //! the resolver's merge step, not the file watcher set.)
 //!
 //! ## Source-root coverage (Phase-3 J-event-channel)
 //!
 //! The one remaining declarative domain watch (`views`) doesn't reach
-//! `ship.config.ts` at the space root. The retired ship-resolver private
+//! `stack.config.ts` at the space root. The retired ship-resolver private
 //! watcher used to cover that surface off its own
 //! `tokio::sync::watch` channel; per the operator ruling (2026-07-06,
 //! `job-spec-p3-event-channel.md`) reactivity flows through the kernel log
 //! only, so [`spawn_config_watcher`] extends its watch set to:
-//! [`spawn_source_root_watch`] opens a watch on `ship.config.ts`, authoring
+//! [`spawn_source_root_watch`] opens a watch on `stack.config.ts`, authoring
 //! the SAME `config.file_changed` shape under one `source` domain label.
 //! ONE observer, ONE authored signal, N subscribers.
 //!
 //! The pre-cutover `space.skill_paths` extras-watch loop died with the
 //! dot-ship close-out. The `space.skill_paths` ship.jsonc field is gone;
 //! the option moved to `defineConfig({ skills: { paths } })` in each
-//! extension's `ship.config.ts` — the per-extension-project authoring
-//! surface. The `ship.config.ts` watch above is the trigger: a
-//! `ship.config.ts` change re-runs the resolver, which re-evaluates
+//! extension's `stack.config.ts` — the per-extension-project authoring
+//! surface. The `stack.config.ts` watch above is the trigger: a
+//! `stack.config.ts` change re-runs the resolver, which re-evaluates
 //! the `defineConfig` paths and re-walks them. The default
 //! `<space_root>/skills/` path is skill-marker-only (skills arrive via
-//! `defineSkill` declare-forms in `ship.config.ts` post Wave 5) and
+//! `defineSkill` declare-forms in `stack.config.ts` post Wave 5) and
 //! shares the same re-evaluation trigger; no separate watch is needed.
 //!
 //! (Watching on-disk skill files under the `defineConfig` paths
 //! directly is a follow-up — out of scope for this slice. The
-//! `ship.config.ts` re-eval is the current cache-invalidation path
+//! `stack.config.ts` re-eval is the current cache-invalidation path
 //! for skill assets, and the descriptor cache's content hash captures
 //! the union of declare-forms + on-disk skill content for the
 //! descriptor-cache-shaped consumers.)
@@ -174,10 +174,10 @@ struct DomainCfg {
 
 // Post format-migration Wave 5: only `views` remains. The `pipelines`,
 // `rules`, and `collections` entries died in Wave 4 phase A (moved
-// exclusively to `ship.config.ts` declare-forms). The `agents` and
+// exclusively to `stack.config.ts` declare-forms). The `agents` and
 // `skills` entries die with this wave — those nouns now arrive via
-// `defineAgent` / `defineSkill` declare-forms in `ship.config.ts`,
-// and the `ship.config.ts`-rooted source-root watch already covers
+// `defineAgent` / `defineSkill` declare-forms in `stack.config.ts`,
+// and the `stack.config.ts`-rooted source-root watch already covers
 // their only authoring surface. Domain watches for non-existent
 // directories are dead weight.
 // (census-format-migration.md §4 row 3.)
@@ -231,9 +231,9 @@ pub fn spawn_config_watcher(
         }
     }
 
-    // Source-root coverage: `ship.config.ts` + `space.skill_paths` extras, the
+    // Source-root coverage: `stack.config.ts` + `space.skill_paths` extras, the
     // surface the three domain dirs above don't reach. User-scope has no
-    // notion of a space-root `ship.config.ts`, so this only runs when a project
+    // notion of a space-root `stack.config.ts`, so this only runs when a project
     // is registered.
     if let (Some(ws_dir), Some(ref proj_ship_dir)) =
         (workspace_dir.as_deref(), project_ship_dir.as_deref())
@@ -252,12 +252,12 @@ pub fn spawn_config_watcher(
 }
 
 /// The domain label the source-root watch authors `config.file_changed`
-/// under. Distinct from the [`DOMAINS`] labels — `ship.config.ts` lives
+/// under. Distinct from the [`DOMAINS`] labels — `stack.config.ts` lives
 /// at the space root, not inside a `.ship/<domain>/` dir.
 const SOURCE_ROOT_DOMAIN: &str = "source";
 
 /// Cover the space-shape surface the one remaining declarative domain
-/// watch (`views`) doesn't reach: `ship.config.ts` at the space root.
+/// watch (`views`) doesn't reach: `stack.config.ts` at the space root.
 ///
 /// Authors the SAME `config.file_changed` shape the domain watches use
 /// ([`author_file_changed_router`]) under the one [`SOURCE_ROOT_DOMAIN`]
@@ -268,7 +268,7 @@ const SOURCE_ROOT_DOMAIN: &str = "source";
 /// The pre-cutover `space.skill_paths` extras watch died with the
 /// dot-ship close-out: the manifest field is gone, the on-disk default
 /// `<space_root>/skills/` path is skill-marker-only (skills arrive via
-/// `defineSkill` declare-forms in `ship.config.ts` post Wave 5), so
+/// `defineSkill` declare-forms in `stack.config.ts` post Wave 5), so
 /// there is nothing else under the space root to watch.
 fn spawn_source_root_watch(
     watcher: &mut ConfigWatcher,
@@ -278,7 +278,7 @@ fn spawn_source_root_watch(
     space: Option<SpaceId>,
     debounce: Duration,
 ) {
-    // `ship.config.ts` — a single file at the space root. The watch is rooted at
+    // `stack.config.ts` — a single file at the space root. The watch is rooted at
     // the space root itself (non-recursive: siblings like Cargo.toml or
     // README.md are noise), filtered to the one file so unrelated
     // top-level churn never authors a signal.
@@ -295,7 +295,7 @@ fn spawn_source_root_watch(
                 rx,
                 space_root.to_path_buf(),
                 space.clone(),
-                |rel| rel == "ship.config.ts",
+                |rel| rel == "stack.config.ts",
             ));
         }
     }
@@ -305,7 +305,7 @@ fn spawn_source_root_watch(
 /// under [`SOURCE_ROOT_DOMAIN`] (no coarse `<domain>.changed` ping) and
 /// applies `filter` to each touched rel before authoring — the
 /// source-root watches' roots aren't a whole domain dir, so not every
-/// delta under the watched root is necessarily in scope (the `ship.config.ts`
+/// delta under the watched root is necessarily in scope (the `stack.config.ts`
 /// watch, in particular, shares its root with unrelated top-level files).
 fn spawn_filtered_file_consumer(
     kernel: Arc<KernelLog>,

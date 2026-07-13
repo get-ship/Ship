@@ -1,4 +1,4 @@
-//! Stack-root discovery: walk ancestors for the `ship.config.ts` marker.
+//! Stack-root discovery: walk ancestors for the `stack.config.ts` marker.
 //!
 //! Deliberately dumb: the nearest ancestor directory containing the manifest
 //! IS the stack root. A worktree carrying its own manifest resolves itself —
@@ -26,7 +26,7 @@ fn is_stack_root(dir: &Path) -> bool {
 }
 
 /// The nearest enclosing stack root of `path` (the first ancestor — including
-/// `path` itself — containing `ship.config.ts`). Pure path/fs scan.
+/// `path` itself — containing `stack.config.ts`). Pure path/fs scan.
 pub fn stack_root_from_path(path: &Path) -> Option<PathBuf> {
     path.ancestors()
         .find(|ancestor| is_stack_root(ancestor))

@@ -159,7 +159,7 @@ pub fn create_skill(project_dir: &Path, id: &str, name: &str, content: &str) -> 
     // `ship_config::project::save_config`'s `config.agent.skills` array
     // was a side effect of the dead ship.jsonc manifest model — the
     // `agent.skills` field died with the dot-ship close-out. Skills
-    // arrive via `defineSkill` declare-forms in `ship.config.ts`; the
+    // arrive via `defineSkill` declare-forms in `stack.config.ts`; the
     // roll-up re-materializes the descriptor and the active agent's
     // `skills.refs` is recomputed from the active-profile merge. No
     // config write is necessary at create time.

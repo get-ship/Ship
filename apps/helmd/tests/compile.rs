@@ -104,7 +104,7 @@ async fn compile_rejects_missing_repo_path() {
 async fn compile_dry_run_does_not_write_files() {
     let tmp = tempfile::tempdir().unwrap();
     let repo = tmp.path();
-    std::fs::copy(fixture_root().join("ship.config.ts"), repo.join("ship.config.ts")).unwrap();
+    std::fs::copy(fixture_root().join("stack.config.ts"), repo.join("stack.config.ts")).unwrap();
     let app = build_router();
     let (status, _body) = call_compile(
         &app,

@@ -3,9 +3,9 @@
 //! ## Wave 4 phase B: multi-extension space scan
 //!
 //! The space root is a DIRECTORY (operator ruling, `decision-space-scan.md`).
-//! Enumeration scans the space root for `ship.config.ts` at candidate
+//! Enumeration scans the space root for `stack.config.ts` at candidate
 //! roots: the space root itself (reserved identity `"root"`) and each
-//! direct child directory that carries `ship.config.ts` (identity =
+//! direct child directory that carries `stack.config.ts` (identity =
 //! child dir name). No TS eval during enumeration, no git awareness, no
 //! recursion past depth 1, no symlink following. Missing or empty space
 //! dir → empty enumeration, not an error.
@@ -49,7 +49,7 @@
 //!
 //! The cap is rooted at the space root with no fixed prefix; callers
 //! compose the rel path explicitly. The same
-//! cap serves both the `.ship/...` reads and the space-root `ship.config.ts`
+//! cap serves both the `.ship/...` reads and the space-root `stack.config.ts`
 //! read. The bootstrap posture mirrors `ship-config::agents::cap_root_and_dir`
 //! (`ship-config/src/agents.rs:39-50`): root at a directory that always
 //! exists (the space root) and use explicit two-segment rels. Per-root
@@ -76,7 +76,7 @@ const SHIP_DIR_NAME: &str = ".ship";
 /// The extension-source manifest filename at the space root, per
 /// `decision-space-scan.md` (one TS file per extension: manifest identity
 /// via the W1 `ExtensionManifest` export + content entry via declare-forms).
-const SHIP_CONFIG_FILENAME: &str = "ship.config.ts";
+const SHIP_CONFIG_FILENAME: &str = "stack.config.ts";
 
 /// The cap the resolver uses for space reads. No fixed prefix — callers
 /// compose the rel path explicitly.
@@ -109,7 +109,7 @@ impl SpaceCap {
 /// leaf's [`stack_model::load_library`] at `<root>/.ship/`. The
 /// Phase-2 pieces layered on top:
 ///
-/// 1. Read `ship.config.ts` at the root and append a
+/// 1. Read `stack.config.ts` at the root and append a
 ///    `ModuleDescriptor` to `imported_modules`. No dual filename
 ///    support — the legacy `<.ship>/ship.ts` shape is retired
 ///    (format-migration Wave 4 phase A).
@@ -137,7 +137,7 @@ impl SpaceCap {
 /// slice-3 world).
 ///
 /// Skills (per Wave 5) arrive exclusively via `defineSkill`
-/// declare-forms in the space's `ship.config.ts` and land in
+/// declare-forms in the space's `stack.config.ts` and land in
 /// `ExtensionLibrary::skills` through
 /// `ship_resolver::merge_ts_declarations` one layer up. The leaf no
 /// longer reads `.ship/skills/<id>/SKILL.md` from disk; the
@@ -147,9 +147,9 @@ impl SpaceCap {
 /// [`stack_model::loader::DEFAULT_SPACE_SKILL_PATH`]) but no consumer
 /// in this crate iterates over it post-cutover.
 /// Slice 2c close-out: the per-noun TS source dirs (agents/collections/
-/// pipelines/triggers) live beside `ship.config.ts`. Each carries one
+/// pipelines/triggers) live beside `stack.config.ts`. Each carries one
 /// declare-form per noun. The manifest is a POINTER manifest
-/// (`ship-stack-format.md` §"Manifest nature"): `ship.config.ts` points
+/// (`ship-stack-format.md` §"Manifest nature"): `stack.config.ts` points
 /// at the source dirs; the dirs contain source; the manifest carries no
 /// per-call content. The dir names default to `agents/`, `collections/`,
 /// `pipelines/`, `triggers/` (the `defineConfig` pointer values; the
@@ -163,13 +163,13 @@ pub(crate) async fn load_root_library(fs: &dyn FsBroker, root: &Path) -> Result<
         .with_context(|| format!("stack_model::load_library failed for {}", ship_dir.display()))?;
 
     // 2. Read the TS manifest. W4 phase A retired the legacy
-    //    `<.ship>/ship.ts` shape — `ship.config.ts` at the root is
+    //    `<.ship>/ship.ts` shape — `stack.config.ts` at the root is
     //    the only valid manifest. Phase 3 extends the closed-world
     //    loader to admit project-relative imports; until then, every
     //    root contributes one module.
     let cap = SpaceCap::read_only(root);
     if let Some(module) = read_ship_config_ts(fs, &cap.cap, root)
-        .with_context(|| format!("read ship.config.ts under {}", root.display()))?
+        .with_context(|| format!("read stack.config.ts under {}", root.display()))?
     {
         let content_hash = extension_library_module_hash(&module);
         let mut module = module;
@@ -193,7 +193,7 @@ pub(crate) async fn load_root_library(fs: &dyn FsBroker, root: &Path) -> Result<
 }
 
 /// Default per-noun source dirs. The values are the slice-2c spec
-/// defaults: each lives beside the `ship.config.ts` at the space
+/// defaults: each lives beside the `stack.config.ts` at the space
 /// root. Per-extension-project overrides are read from `defineConfig`
 /// (slice 2c), but the space loader reads defaults — the override is a
 /// future plumbing pass; the ship repo's own manifest uses defaults.
@@ -242,7 +242,7 @@ fn merge_root_into(merged: &mut ExtensionLibrary, lib: ExtensionLibrary, is_spac
 ///
 /// `space_rel` is the space-relative path (a value from
 /// `defineConfig({ skills: { paths } })` in each extension's
-/// `ship.config.ts` — the per-extension-project authoring surface, NOT
+/// `stack.config.ts` — the per-extension-project authoring surface, NOT
 /// the dead `space.skill_paths` ship.jsonc read). The cap is rooted
 /// at the space root, so the rel path under the cap is the
 /// space-relative path verbatim. `extra-skills/` lands at
@@ -293,7 +293,7 @@ pub(crate) fn walk_skills_dir(
 /// lenient contract as `walk_skills_dir`).
 ///
 /// `space_rel` is the space-relative path (a value from
-/// `defineConfig({ rules_dir })` in each extension's `ship.config.ts`;
+/// `defineConfig({ rules_dir })` in each extension's `stack.config.ts`;
 /// the per-extension-project authoring surface, default `"rules/"`).
 /// The cap is rooted at the space root, so the rel path under the cap
 /// is the space-relative path verbatim.
@@ -344,7 +344,7 @@ pub(crate) fn walk_rules_dir(fs: &dyn FsBroker, cap: &FsCap, space_rel: &str) ->
 /// are NOT accepted here — the on-disk convention is
 /// kebab-case, the same way the on-disk agent TS files are
 /// `agents/<id>.ts` and the on-disk skill dirs are
-/// `skills/<id>/SKILL.md`. The space_root's `ship.config.ts`
+/// `skills/<id>/SKILL.md`. The space_root's `stack.config.ts`
 /// is the canonical authoring surface; this walker is the
 /// resolver-side projection.
 fn hook_trigger_from_stem(stem: &str) -> Option<HookTrigger> {
@@ -367,7 +367,7 @@ fn hook_trigger_from_stem(stem: &str) -> Option<HookTrigger> {
 ///
 /// `space_rel` is the space-relative hooks dir (a value from
 /// `defineConfig({ hooks_dir })` in each extension's
-/// `ship.config.ts`; the per-extension-project authoring surface,
+/// `stack.config.ts`; the per-extension-project authoring surface,
 /// default `"hooks/"`). The cap is rooted at the space root, so
 /// the rel path under the cap is the space-relative path verbatim.
 ///
@@ -428,7 +428,7 @@ pub(crate) fn walk_hooks_dir(
             // The job spec (A3) is explicit: "command = the
             // file invocation, relative to extension root".
             // The extension root = the dir holding
-            // `ship.config.ts`; the hooks dir is a dir name
+            // `stack.config.ts`; the hooks dir is a dir name
             // beside it. So the command is the bash invocation
             // of the file at `<hooks_dir>/<stem>.<ext>` —
             // `bash hooks/stop.sh` for the canonical case.
@@ -489,7 +489,7 @@ pub(crate) fn parse_rule_md(file_name: &str, raw: &str) -> Rule {
     }
 }
 
-/// Read the space's `ship.config.ts` manifest. Returns `Ok(None)` when
+/// Read the space's `stack.config.ts` manifest. Returns `Ok(None)` when
 /// no manifest exists — every pre-W4 author (`.jsonc`-only or
 /// `.ts`+`<.ship>/ship.ts` legacy) is now retired; the TS form is the
 /// only read (census-format-migration.md §4 row 3).
@@ -595,7 +595,7 @@ mod tests {
     use tempfile::TempDir;
 
     /// Build a space root with `.ship/{agents,skills}` and a
-    /// `ship.config.ts` at the space root. Returns the temp dir so
+    /// `stack.config.ts` at the space root. Returns the temp dir so
     /// the caller can keep it alive.
     ///
     /// Post Wave 5 + dot-ship close-out: the leaf does not read
@@ -611,14 +611,14 @@ mod tests {
         std::fs::create_dir_all(ship.join("skills")).unwrap();
         std::fs::create_dir_all(ship.join("agents")).unwrap();
 
-        // ship.config.ts at the space root. `load_space_library` only
+        // stack.config.ts at the space root. `load_space_library` only
         // stores the raw module source in `imported_modules` here — TS
         // eval + declare-form harvest (defineMcpServer/defineRule/etc.)
         // happens one layer up, in `resolve_space_with_broker`/`roll_up`
         // (`lib.rs::merge_ts_declarations`), so mcp/rule content has no
         // effect on THIS function's output and is omitted.
         std::fs::write(
-            root.join("ship.config.ts"),
+            root.join("stack.config.ts"),
             r#"
 import { defineAgent } from "ship";
 
@@ -641,9 +641,9 @@ defineAgent({
         // Post Wave 5: the leaf does not read skill files from
         // disk. Skills land in `ExtensionLibrary::skills` through
         // `ship_resolver::merge_ts_declarations` one layer up
-        // (declare-forms in `ship.config.ts`). This test exercises
+        // (declare-forms in `stack.config.ts`). This test exercises
         // the disk-shape side: the leaf's permissions/hooks read +
-        // the `ship.config.ts` source read + the default
+        // the `stack.config.ts` source read + the default
         // `skill_paths` field population.
         assert!(lib.mcp_servers.is_empty());
         assert!(lib.skills.is_empty(), "no on-disk skills walk post Wave 5");
@@ -652,10 +652,10 @@ defineAgent({
         // populates — no extras walk, no extras field, no
         // `space.skill_paths` field either.
         assert_eq!(lib.skill_paths, vec!["skills/".to_string()],);
-        // ship.config.ts: one module, content hash non-empty.
+        // stack.config.ts: one module, content hash non-empty.
         assert_eq!(lib.imported_modules.len(), 1);
         let module = &lib.imported_modules[0];
-        assert_eq!(module.path, PathBuf::from("ship.config.ts"));
+        assert_eq!(module.path, PathBuf::from("stack.config.ts"));
         assert!(module.source.contains("defineAgent"));
         assert_eq!(module.content_hash.len(), 64, "SHA-256 hex");
     }
@@ -722,7 +722,7 @@ defineAgent({
         )
         .unwrap();
         std::fs::write(
-            child.join("ship.config.ts"),
+            child.join("stack.config.ts"),
             r#"import { defineAgent } from "ship";
 defineAgent({ agent: { id: "child-agent", name: "Child" } });
 "#,

@@ -41,7 +41,7 @@ fn scaffold_ship_dir(root: &Path) {
 fn write_ship_config(root: &Path, body: &str) {
     write(
         root,
-        "ship.config.ts",
+        "stack.config.ts",
         &format!(
             r#"
 import {{
@@ -57,7 +57,7 @@ import {{
 /// Write the per-noun source surface slice 2c expects: an on-disk rule
 /// at `rules/<id>.md`, an on-disk agent at `agents/<id>.ts`, and a stub
 /// for the `ship use` activation gate (`.ship/agents/<id>.jsonc`).
-/// The `ship.config.ts` is a thin pointer (`defineConfig({})`).
+/// The `stack.config.ts` is a thin pointer (`defineConfig({})`).
 fn write_rule_and_agent(
     root: &Path,
     rule_id: &str,
@@ -149,7 +149,7 @@ fn use_fails_without_ship_dir() {
         .args(["use", "my-profile", "--path", tmp.path().to_str().unwrap()])
         .assert()
         .failure()
-        .stderr(predicate::str::contains("no ship.config.ts found"));
+        .stderr(predicate::str::contains("no stack.config.ts found"));
 }
 
 #[test]
@@ -233,7 +233,7 @@ fn compile_fails_without_ship_dir() {
         .args(["compile", "--path", tmp.path().to_str().unwrap()])
         .assert()
         .failure()
-        .stderr(predicate::str::contains("no ship.config.ts found"));
+        .stderr(predicate::str::contains("no stack.config.ts found"));
 }
 
 // ── ship compile --harness ───────────────────────────────────────────────────

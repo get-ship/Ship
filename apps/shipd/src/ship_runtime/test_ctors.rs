@@ -82,7 +82,7 @@ impl ShipRuntime {
             // was removed — no live UI consumer invokes it, and the
             // named-preset layer is now sourced from
             // `defineConfig.agents.permissions.presets` in
-            // `ship.config.ts`.
+            // `stack.config.ts`.
             mcp,
             skills,
             agents,

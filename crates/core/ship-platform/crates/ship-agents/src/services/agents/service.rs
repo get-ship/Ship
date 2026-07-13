@@ -254,7 +254,7 @@ mod tests {
         (tmp, svc)
     }
 
-    /// Build a tempdir-shaped space with a ship.config.ts the composed
+    /// Build a tempdir-shaped space with a stack.config.ts the composed
     /// roll-up will pick up. Returns the dir + a `with_roots_and_space`
     /// service that pins BOTH the jsonc door roots AND the composed
     /// space root to the same tempdir. Used by the C0 Get/List
@@ -266,7 +266,7 @@ mod tests {
         std::fs::create_dir_all(&user).unwrap();
         std::fs::create_dir_all(&project).unwrap();
         std::fs::create_dir_all(tmp.path().join(".ship")).unwrap();
-        std::fs::write(tmp.path().join("ship.config.ts"), ts_body).unwrap();
+        std::fs::write(tmp.path().join("stack.config.ts"), ts_body).unwrap();
         let svc = AgentsServiceImpl::with_roots_and_space(
             user,
             Some(project),
@@ -285,7 +285,7 @@ mod tests {
     /// C0 Get/List regression (job-spec-helmd-reads-composed.md
     /// acceptance): a `with_roots` (no-index, no `AgentDefIndex`)
     /// service must serve `get` AND `list` for an agent declared only
-    /// via `defineAgent` in `ship.config.ts` — there is no
+    /// via `defineAgent` in `stack.config.ts` — there is no
     /// `.ship/agents/` directory anywhere on disk. Mirrors the W5b
     /// regression in `view_state_tests` (W5b covered `summaries` /
     /// `detail` / `agent_id_exists`; this commit extends coverage to
@@ -343,7 +343,7 @@ defineAgent({
     #[test]
     fn empty_list_when_no_agents() {
         // Empty composed space: the tempdir IS a space (`.ship/` +
-        // `ship.config.ts`) so the cwd-walked `resolve_space_root` would
+        // `stack.config.ts`) so the cwd-walked `resolve_space_root` would
         // otherwise find THIS test's enclosing repo and pick up the
         // actual repo's agents. With the override pinned to the empty
         // tempdir, the composed roll-up has no agents.

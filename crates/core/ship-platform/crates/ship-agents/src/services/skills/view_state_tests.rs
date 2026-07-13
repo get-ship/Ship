@@ -106,7 +106,7 @@ fn merges_project_and_global_scopes() {
     let project_space = project_root;
     std::fs::create_dir_all(project_space.join("skills")).unwrap();
     std::fs::write(
-        project_root.join("ship.config.ts"),
+        project_root.join("stack.config.ts"),
         "export default {};\n",
     )
     .unwrap();

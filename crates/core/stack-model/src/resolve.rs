@@ -199,7 +199,7 @@ pub struct ResolvedConfig {
     /// is fine and there is no spawner to provision the token env.
     pub scoped_launch: bool,
     // ── Phase-2 project-shape passthrough ─────────────────────────────────────
-    /// Resolved TS modules from the multi-file `ship.config.ts` import graph. The
+    /// Resolved TS modules from the multi-file `stack.config.ts` import graph. The
     /// Phase-0 leaf never produced this; Phase-2's resolver populates it on
     /// the TS path. The leaf's `resolve()` returns an empty vec — the
     /// `.jsonc` path doesn't have TS modules to surface.
@@ -239,18 +239,18 @@ pub struct ExtensionLibrary {
     #[serde(default)]
     pub rules: Vec<Rule>,
     /// Pipeline definitions — from `pipelines/*.jsonc` today, from
-    /// `definePipeline` declare-forms in `ship.config.ts` per format-migration
+    /// `definePipeline` declare-forms in `stack.config.ts` per format-migration
     /// Wave 3. Not yet cross-extension composed (`compose_space` passes
     /// the space tier's set through verbatim; see `compose.rs`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub pipelines: Vec<PipelineDef>,
     /// Trigger definitions — from `triggers/*.jsonc` today, from
-    /// `defineTrigger` declare-forms in `ship.config.ts` per format-migration
+    /// `defineTrigger` declare-forms in `stack.config.ts` per format-migration
     /// Wave 3. Not yet cross-extension composed.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub triggers: Vec<TriggerDef>,
     /// Collection definitions — from `collections/*.jsonc` today, from
-    /// `defineCollection` declare-forms in `ship.config.ts` per format-migration
+    /// `defineCollection` declare-forms in `stack.config.ts` per format-migration
     /// Wave 3. Not yet cross-extension composed.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub collections: Vec<CollectionDef>,
@@ -270,7 +270,7 @@ pub struct ExtensionLibrary {
     /// Replaces the per-preset sections of the dead
     /// `.ship/permissions.jsonc` (slice 3 close-out, A3+A4). Authored
     /// as the `defineConfig.agents.permissions.presets` map in each
-    /// extension's `ship.config.ts`; harvested by the resolver's
+    /// extension's `stack.config.ts`; harvested by the resolver's
     /// `merge_ts_declarations` walk and consumed by the compile path
     /// (agent-def's `apply_agent_permissions`) instead of the disk
     /// read the leaf used to do. `BTreeMap` so the resolved view is
@@ -362,11 +362,11 @@ pub struct ExtensionLibrary {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub claude_effort: Option<String>,
     /// Override the skills dir (project-relative path). `None` means use the
-    /// default `.ship/skills/`. The `skills_dir` key in `ship.config.ts` lands here.
+    /// default `.ship/skills/`. The `skills_dir` key in `stack.config.ts` lands here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub skills_dir: Option<String>,
     /// Override the rules dir (project-relative path). `None` means use the
-    /// default `.ship/rules/`. The `rules_dir` key in `ship.config.ts` lands here.
+    /// default `.ship/rules/`. The `rules_dir` key in `stack.config.ts` lands here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rules_dir: Option<String>,
     /// The default skill path the leaf populates. Single-entry list
@@ -375,7 +375,7 @@ pub struct ExtensionLibrary {
     /// `space.skill_paths` ship.jsonc field died with the dot-ship
     /// close-out; no extras are ever appended. Skills themselves
     /// arrive via `defineSkill` declare-forms in
-    /// `ship.config.ts` and land in `ExtensionLibrary::skills`
+    /// `stack.config.ts` and land in `ExtensionLibrary::skills`
     /// through `ship_resolver::merge_ts_declarations`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub skill_paths: Vec<String>,
@@ -385,7 +385,7 @@ pub struct ExtensionLibrary {
     /// but the in-memory form needs a stable order for diff/snapshot tests.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub per_agent_skills: BTreeMap<String, Vec<Skill>>,
-    /// Resolved multi-file TS import graph: `ship.config.ts` + `agents.ts` + any
+    /// Resolved multi-file TS import graph: `stack.config.ts` + `agents.ts` + any
     /// per-domain modules. Populated by the Phase-2 resolver; the leaf
     /// `load_library` produces an empty vec.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

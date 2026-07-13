@@ -75,7 +75,7 @@ pub async fn mount(router: ConnectRouter) -> anyhow::Result<ConnectRouter> {
     // (`all_builtin_schemas`); API-created schemas hydrate from this
     // space's `_schema_registry` table (per-space, Storage Blueprint
     // `ship-substrate-db.md`); the descriptor-sourced collections
-    // (TS declare-forms in `ship.config.ts`, hydrated by shipd's
+    // (TS declare-forms in `stack.config.ts`, hydrated by shipd's
     // boot path against the same per-space db) layer on top via
     // `hydrate_from_store`. Post format-migration Wave 4 phase A
     // there's no file overlay here — the descriptor is the only

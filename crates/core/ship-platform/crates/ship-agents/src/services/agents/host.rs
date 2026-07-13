@@ -333,7 +333,7 @@ where
                 // was removed (the runtime CRUD service had no live UI
                 // consumer; the named-preset layer moved to
                 // `defineConfig.agents.permissions.presets` in
-                // `ship.config.ts`). `provisioned_grants_for` (the
+                // `stack.config.ts`). `provisioned_grants_for` (the
                 // granted-capability baseline) is the OTHER
                 // `provisioned_grants_for` — it lives in
                 // `ship_auth::grants_projection` (re-exported here

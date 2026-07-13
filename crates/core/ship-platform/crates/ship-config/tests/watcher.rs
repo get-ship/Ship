@@ -228,7 +228,7 @@ async fn watcher_never_authors_durable_agent_def_updated() {
 
 // ── Source-root coverage (Phase-3 J-event-channel) ──────────────────────────────
 //
-// `ship.config.ts` sits outside the three declarative `.ship/<domain>/`
+// `stack.config.ts` sits outside the three declarative `.ship/<domain>/`
 // dirs (agents, skills, views) `spawn_config_watcher` watches by default
 // (job-spec-p3-event-channel.md). `spawn_source_root_watch` adds a
 // dedicated, filtered watch for it; a single edit must author exactly
@@ -237,7 +237,7 @@ async fn watcher_never_authors_durable_agent_def_updated() {
 async fn ship_ts_edit_authors_exactly_one_config_file_changed() {
     let (_tmp, ship_dir, kernel) = setup().await;
     let workspace_dir = ship_dir.clone(); // the stack root IS the workspace
-    std::fs::write(workspace_dir.join("ship.config.ts"), "export const x = 0;").unwrap();
+    std::fs::write(workspace_dir.join("stack.config.ts"), "export const x = 0;").unwrap();
 
     let mut rx = kernel.subscribe();
     let _watcher = ship_config::watcher::spawn_config_watcher(
@@ -248,9 +248,9 @@ async fn ship_ts_edit_authors_exactly_one_config_file_changed() {
 
     // Let the watch open before editing.
     tokio::time::sleep(std::time::Duration::from_millis(150)).await;
-    std::fs::write(workspace_dir.join("ship.config.ts"), "export const x = 1;").unwrap();
+    std::fs::write(workspace_dir.join("stack.config.ts"), "export const x = 1;").unwrap();
 
-    // Collect every config.file_changed touching ship.config.ts over a window
+    // Collect every config.file_changed touching stack.config.ts over a window
     // comfortably past the 200ms default debounce.
     let mut count = 0;
     let deadline = std::time::Instant::now() + std::time::Duration::from_millis(1200);
@@ -263,7 +263,7 @@ async fn ship_ts_edit_authors_exactly_one_config_file_changed() {
             Ok(Ok(ev)) if ev.event_type == event_types::CONFIG_FILE_CHANGED => {
                 let payload: ship_types::payload::ConfigFileChanged =
                     serde_json::from_str(&ev.payload_json).unwrap();
-                if payload.path == "ship.config.ts" {
+                if payload.path == "stack.config.ts" {
                     count += 1;
                 }
             }
@@ -273,6 +273,6 @@ async fn ship_ts_edit_authors_exactly_one_config_file_changed() {
     }
     assert_eq!(
         count, 1,
-        "a single ship.config.ts edit must author exactly one config.file_changed"
+        "a single stack.config.ts edit must author exactly one config.file_changed"
     );
 }

@@ -5,7 +5,7 @@
 //! Post format-migration Wave 5: the leaf no longer reads `.ship/mcp.jsonc`,
 //! `.ship/rules/*.md`, `.ship/agents/*.jsonc`, or `.ship/skills/<id>/SKILL.md`.
 //! All four nouns arrive via the corresponding `define*` declare-forms in
-//! the space's `ship.config.ts`, harvested by the resolver's TS eval and
+//! the space's `stack.config.ts`, harvested by the resolver's TS eval and
 //! merged into `ExtensionLibrary` (see
 //! `crates/core/ship-resolver/src/lib_tests.rs::every_declare_form_round_trips_through_resolve_compose_descriptor`
 //! for the full descriptor test). The leaf returns all four vectors
@@ -20,7 +20,7 @@ use stack_model::{ExtensionLibrary, load_library};
 fn load_library_returns_empty_noun_vectors_post_wave5() {
     // No `.ship/` fixture: the leaf no longer reads any noun from disk
     // — the four compose-time noun vectors (mcp_servers, rules, skills,
-    // agent_profiles) all arrive via `ship.config.ts` declare-forms.
+    // agent_profiles) all arrive via `stack.config.ts` declare-forms.
     // A `.ship/` with just `hooks.jsonc` / `permissions.jsonc` would
     // populate those two; the other four stay empty regardless.
     let tmp = tempfile::tempdir().expect("tempdir");

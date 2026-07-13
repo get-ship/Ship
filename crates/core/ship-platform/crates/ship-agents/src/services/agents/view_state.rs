@@ -7,7 +7,7 @@
 //! (helmd) that constructs its `AgentsService` via `with_roots` and never
 //! mounts an `AgentDefIndex`. Post format-migration Wave 5 there is no
 //! `.ship/agents/*.jsonc` two-scope directory scan to fall back to — agents
-//! only exist as `defineAgent` declare-forms in `ship.config.ts`, so the
+//! only exist as `defineAgent` declare-forms in `stack.config.ts`, so the
 //! no-index fallback resolves through the SAME composed world as the
 //! index-backed path: `ship_resolver::roll_up_registered_blocking` from the project
 //! space root (the `compile_project` W5 pattern). The UserGlobal-tier
@@ -605,7 +605,7 @@ fn list_rule_files(ship_dir: &Path) -> Vec<CatalogEntry> {
 /// runtime CRUD service (`ship_agents::services::permissions`) was
 /// removed — no live UI consumer invokes it, and the named-preset
 /// layer is now sourced from
-/// `defineConfig.agents.permissions.presets` in `ship.config.ts`
+/// `defineConfig.agents.permissions.presets` in `stack.config.ts`
 /// (the resolver's `merge_ts_declarations` populates
 /// `ExtensionLibrary::permissions_presets`). This catalog helper
 /// always falls through to the three canonical tiers; the

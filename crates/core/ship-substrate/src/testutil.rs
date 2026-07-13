@@ -13,7 +13,7 @@ use std::sync::{Mutex, MutexGuard, OnceLock};
 pub use crate::project::STACK_CONFIG_FILENAME;
 
 /// Create a minimal STACK at `base_dir` suitable for L0 tests: a bare
-/// `ship.config.ts` manifest (presence-only; L0 never evals it). Returns
+/// `stack.config.ts` manifest (presence-only; L0 never evals it). Returns
 /// the STACK ROOT. Identity lives in the runtime registry, never the tree.
 pub fn init_project_minimal(base_dir: impl AsRef<Path>) -> Result<PathBuf> {
     let base_dir = base_dir.as_ref();

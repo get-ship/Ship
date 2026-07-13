@@ -55,7 +55,7 @@ struct ComposedType {
 ///
 /// Falls back to the raw `.ship/` on any materialization error so composition
 /// never breaks a load that worked before deps were introduced.
-/// ship.lock lives at the STACK ROOT beside ship.config.ts (the
+/// ship.lock lives at the STACK ROOT beside stack.config.ts (the
 /// lockfile-beside-manifest convention; ruled 2026-07-12). ONE location,
 /// no legacy fallback. Callers hand us the `.ship/` dir; the lock is at
 /// its parent.

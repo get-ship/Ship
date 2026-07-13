@@ -11,14 +11,14 @@
 //!
 //! Post Wave 5 + dot-ship close-out: there is no on-disk skill walk in
 //! this crate. Skills arrive via `defineSkill` declare-forms in
-//! `ship.config.ts` and land in `ExtensionLibrary::skills` through
+//! `stack.config.ts` and land in `ExtensionLibrary::skills` through
 //! `ship_resolver::merge_ts_declarations` (one layer up). The
 //! `space.skill_paths` ship.jsonc field died with the cutover; the
 //! option moved to `defineConfig({ skills: { paths } })` in each
-//! extension's `ship.config.ts` (per-extension-project manifest; the
+//! extension's `stack.config.ts` (per-extension-project manifest; the
 //! default-export form is purely for ecosystem conformance — the
 //! emit is what the harvest reads), resolved per-extension against
-//! the dir containing that `ship.config.ts`. The resolver rolls
+//! the dir containing that `stack.config.ts`. The resolver rolls
 //! the per-extension values into `ExtensionLibrary::skill_paths`
 //! post-eval and walks them for on-disk skills. The only on-disk
 //! skill path used by this crate is the unified default
@@ -68,7 +68,7 @@ fn collect_embedded_files_unused() {}
 // `load_compile_skills` retired with Wave 5. The compile-time skill
 // pool used to be disk + embedded; post format-migration Wave 5 the
 // project-side skills arrive via `defineSkill` declare-forms in the
-// space's `ship.config.ts` and land in
+// space's `stack.config.ts` and land in
 // `ExtensionLibrary::skills` through
 // `ship_resolver::merge_ts_declarations`. The embedded SDK
 // capability-skills path stays (the future ship-sdk-skills dep wires
@@ -85,7 +85,7 @@ pub use stack_model::skill_parser::parse_skill;
 
 // `load_skills` (the agent-def disk-authoring skill walker) retired
 // with Wave 5. The skill bodies now arrive via `defineSkill`
-// declare-forms in the space's `ship.config.ts` and land in
+// declare-forms in the space's `stack.config.ts` and land in
 // `ExtensionLibrary::skills` through
 // `ship_resolver::merge_ts_declarations`. The `SkillService` CRUD
 // surface in `ship-agents` still writes `SKILL.md` files (the
@@ -187,7 +187,7 @@ mod sdk_skill_tests {
     // `compile_pool_includes_embedded_for_a_clean_project` retired
     // with Wave 5: the `load_compile_skills` compile-pool fn is gone
     // (project skills now arrive via `defineSkill` declare-forms in
-    // `ship.config.ts`; the embedded capability-skills path is the
+    // `stack.config.ts`; the embedded capability-skills path is the
     // future `ship-sdk-skills` dep — see the `embedded_capability_skills`
     // doc comment above for the deferred `include_dir!` /
     // `ship-sdk-skills` migration).

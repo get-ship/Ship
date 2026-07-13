@@ -192,7 +192,7 @@ pub fn install_skill_from_source(
             // to `ship_config::project::save_config`'s `config.agent.skills`
             // array was a side effect of the dead ship.jsonc manifest model
             // — skills arrive via `defineSkill` declare-forms in
-            // `ship.config.ts`; the roll-up re-materializes the descriptor
+            // `stack.config.ts`; the roll-up re-materializes the descriptor
             // post-install. No config write is necessary.
             install_skill_from_source_into_dir(&dest_root, source, skill_id, force)
         }

@@ -1,5 +1,41 @@
 # Changelog
 
+## Unreleased — stack marker rename (job/marker-rename)
+
+The stack manifest filename flips from `ship.config.ts` to
+`stack.config.ts`. The unit is the STACK; the previous name carried
+the product family. The resolver recognizes only `stack.config.ts`
+post-cut; the working file at the repo root remains `ship.config.ts`
+until the integrator's coordinated cutover rolls.
+
+- **Stack marker constant flipped.**
+  `ship_paths::project::STACK_CONFIG_FILENAME` and the
+  resolver-side `SHIP_CONFIG_FILENAME` mirror both carry
+  `"stack.config.ts"`. The discovery walker, the space loader's
+  `read_ship_config_ts` (now resolves the new name internally), and
+  the per-space `service.register_stack` marker check all read
+  through the constant — the rename is one literal each, the
+  callers roll forward automatically.
+- **Compile fixture renamed.** `apps/helmd/tests/compile_fixture/ship.config.ts`
+  → `stack.config.ts` via `git mv`; the `compile.rs` test that
+  copies it into the temp repo follows.
+- **All hard-coded `ship.config.ts` literals replaced.** Doc
+  comments, error messages, watcher filters, event payload paths,
+  fixture writes, and the `Path::new("ship.config.ts")` example in
+  `agent-config-eval` — every constant/string carrying the literal
+  flips to `stack.config.ts` (60 files). Gate 1: zero hits in
+  `crates/` + `apps/` `*.rs` files.
+- **Tests depending on the working file's name carry
+  `#[ignore]`.** Three tests that walk the repo root for
+  `stack.config.ts` are marked pending the integrator's cutover:
+  `ship-resolver::tests::real_manifest::repo_manifest_rolls_up_with_all_nouns_present`,
+  `ship-resolver::tests::fm_b2a_helm_manifest::fm_b2a_real_manifest_no_longer_declares_working_in_helm`,
+  `ship-triggers::schema_tests::trigger_schema_is_valid_json_schema` and
+  `view_manifest_schema_is_valid_json_schema`,
+  `helmd::tests::parity_capture::capture_full_compile_output_against_worktree_root`.
+  The ignore messages cite this commit; removing the annotation
+  is part of the integrator's cutover.
+
 ## Unreleased — heal-tooling (job/heal-tooling)
 
 Claim c-2026-07-11T01-30-00 (destruction-drill). Close the four

@@ -9,7 +9,7 @@
 //! ## What this crate does
 
 //! Generalizes the Phase-0 resolver (compiler leaf + agent-config-eval) from
-//! single-manifest to **space shape**: a `ship.config.ts` at the space root, a
+//! single-manifest to **space shape**: a `stack.config.ts` at the space root, a
 //! `skills/` + `rules/` directory convention, the on-disk permissions +
 //! hooks reads. The result is a fully-populated [`stack_model::ExtensionLibrary`]
 //! (disk state) and a [`stack_model::ResolvedConfig`] (resolved state) — the
@@ -365,7 +365,7 @@ pub(crate) fn merge_ts_declarations(
     // (`ship-readonly` / `ship-standard` / `ship-autonomous` /
     // `ship-elevated`) moves to
     // `defineConfig({ agents: { permissions: { presets: { ... } } } })`
-    // in `ship.config.ts`. The per-module map is harvested by walking
+    // in `stack.config.ts`. The per-module map is harvested by walking
     // `declarations.config` (root-last-wins, same as the skills/rules
     // dir overrides), converting each `PermissionPresetDeclare` into
     // a `stack_model::PermissionPreset` via field-for-field clone, and

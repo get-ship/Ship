@@ -1,7 +1,7 @@
 //! Typed stack-root resolver.
 //!
 //! `ProjectRoot::discover()` is the canonical answer to "given a cwd, what
-//! is the stack root?": the nearest ancestor containing `ship.config.ts`.
+//! is the stack root?": the nearest ancestor containing `stack.config.ts`.
 //! No git awareness — worktree flows pass explicit roots (ship-code's
 //! concern); the `.boundary` sentinel died with the marker cutover.
 
@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 
 use crate::project::resolve_stack_root;
 
-/// A discovered stack root — the directory containing `ship.config.ts`.
+/// A discovered stack root — the directory containing `stack.config.ts`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProjectRoot(PathBuf);
 
@@ -36,7 +36,7 @@ mod tests {
         let tmp = tempdir().unwrap();
         let root = tmp.path().join("proj");
         fs::create_dir_all(root.join("src")).unwrap();
-        fs::write(root.join("ship.config.ts"), "export default {};\n").unwrap();
+        fs::write(root.join("stack.config.ts"), "export default {};\n").unwrap();
 
         let got = ProjectRoot::discover(&root.join("src")).unwrap();
         assert_eq!(

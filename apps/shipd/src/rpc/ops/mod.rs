@@ -139,7 +139,7 @@ pub fn router(state: ApiState) -> axum::Router {
     // (`ship_agents::services::permissions::PermissionsWire` +
     // `PermissionsServiceImpl`) was removed — no live UI consumer
     // invokes it, and the named-preset layer is now sourced from
-    // `defineConfig.agents.permissions.presets` in `ship.config.ts`
+    // `defineConfig.agents.permissions.presets` in `stack.config.ts`
     // (the resolver's `merge_ts_declarations` populates
     // `ExtensionLibrary::permissions_presets`). The proto remains
     // in `ship-contracts/proto/ship/ops/v1/permissions.proto` —

@@ -138,11 +138,11 @@ Skills
 
 Skills are markdown files that add domain knowledge or workflow instructions
 to an agent. They live in <space-root>/skills/<skill-id>/SKILL.md (the
-space root is the directory containing ship.config.ts).
+space root is the directory containing stack.config.ts).
 
   Create a new skill:    mkdir skills/my-skill && edit SKILL.md
 
-Skills are declared in the space's ship.config.ts via `defineSkill(...)`
+Skills are declared in the space's stack.config.ts via `defineSkill(...)`
 declare-forms (post Wave 5). The on-disk convention here is the
 compilation / KV-vars surface; the live `defineSkill` path is what the
 resolver harvests into ExtensionLibrary::skills.

@@ -33,7 +33,7 @@ fn write(dir: &Path, rel: &str, content: &str) {
 
 /// Bare-minimum `.ship/` scaffold for tests that need to exercise `ship use`.
 fn scaffold_ship_dir(root: &Path) {
-    write(root, "ship.config.ts", "export default {};\n");
+    write(root, "stack.config.ts", "export default {};\n");
     write(
         root,
         "agents/dev.jsonc",
@@ -109,7 +109,7 @@ fn use_nonexistent_agent_with_no_agents_dir_suggests_create() {
 // `compile_broken_mcp_warns_about_file` retired with format-migration Wave 4
 // phase A (`3bf8bd82e`): `.ship/mcp.jsonc` is no longer parsed by the compile
 // pipeline at all — MCP servers are authored ONLY as `defineMcpServer`
-// declare-forms in `ship.config.ts`, harvested by `ship_resolver`'s TS eval.
+// declare-forms in `stack.config.ts`, harvested by `ship_resolver`'s TS eval.
 // There is no raw-file reader left to be lenient about a broken raw file;
 // the leniency behavior this test pinned down has no equivalent in the
 // current architecture. Deleted, not "fixed," per
@@ -120,7 +120,7 @@ fn use_nonexistent_agent_with_no_agents_dir_suggests_create() {
 #[test]
 fn success_exits_zero() {
     let tmp = TempDir::new().unwrap();
-    write(tmp.path(), "ship.config.ts", "export default {};\n");
+    write(tmp.path(), "stack.config.ts", "export default {};\n");
     write(tmp.path(), "rules/style.md", "Use types.");
     ship()
         .args(["compile", "--harness", "claude", "--path", tmp.path().to_str().unwrap()])

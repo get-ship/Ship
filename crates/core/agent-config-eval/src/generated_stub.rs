@@ -65,7 +65,7 @@ export function defineView(config) {
 }
 
 // Per-extension-project options, declared as a default export from each
-// extension's `ship.config.ts`:
+// extension's `stack.config.ts`:
 //   export default defineConfig({
 //     dependencies: { "github.com/owner/package": "main" },
 //     agents_dir: "agents", skills_dir: "skills", rules_dir: "rules",
@@ -77,7 +77,7 @@ export function defineView(config) {
 // shape is purely for ecosystem conformance; the side-effecting emit is
 // what the resolver rolls up. Zero-or-one per module; each scalar key
 // is the single directory (no trailing slash) where on-disk entries live
-// relative to the dir containing the `ship.config.ts` declaring it.
+// relative to the dir containing the `stack.config.ts` declaring it.
 // Defaults are applied by the resolver: skills → "skills/", rules → "rules/",
 // agents → "agents/", collections → "collections/", pipelines → "pipelines/",
 // triggers → "triggers/", hooks → "hooks/". The `agents.mcp` block holds

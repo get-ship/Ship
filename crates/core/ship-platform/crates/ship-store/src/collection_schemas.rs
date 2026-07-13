@@ -2,7 +2,7 @@
 //! Wave 4 phase A). Pre-W4: file overlay (`load_schemas_merged` walked
 //! `.ship/collections/*.jsonc` and `hydrate_registry` called it on
 //! boot). Post-W4: collection definitions arrive via
-//! `defineCollection` declare-forms in the space's `ship.config.ts` and
+//! `defineCollection` declare-forms in the space's `stack.config.ts` and
 //! land in `ExtensionLibrary::collections` (a `Vec<stack_model::CollectionDef>`).
 //! This module maps the descriptor's collection definitions onto the
 //! runtime `SchemaRegistry`'s `SchemaDoc` shape and registers them.

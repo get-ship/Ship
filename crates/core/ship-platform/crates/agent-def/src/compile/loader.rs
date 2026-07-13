@@ -127,7 +127,7 @@ impl McpFile {
 ///
 /// Post format-migration Wave 5: reads mcp, permissions, hooks, rules
 /// from disk. Agent profiles and skills no longer arrive from disk —
-/// they land via `ship.config.ts` declare-forms (`defineAgent` /
+/// they land via `stack.config.ts` declare-forms (`defineAgent` /
 /// `defineSkill`) through the resolver's `merge_ts_declarations` step
 /// (census-format-migration.md §4 row 3, last paragraph). The leaf
 /// returns the two noun vectors empty; the roll-up is the only door
@@ -209,7 +209,7 @@ fn load_mcp_servers(ship_dir: &Path) -> Result<Vec<McpServerConfig>> {
 /// `.ship/permissions.jsonc` — the file died with the dot-ship
 /// close-out, and the preset definitions now live in
 /// `defineConfig({ agents: { permissions: { presets: { ... } } } })`
-/// in `ship.config.ts` (harvested by the resolver into
+/// in `stack.config.ts` (harvested by the resolver into
 /// `ExtensionLibrary::permissions_presets`).
 ///
 /// Returns `None` if the map has no entry for `name` — the
@@ -283,7 +283,7 @@ pub fn parse_rule(file_name: &str, raw: &str) -> Rule {
 
 // `.ship/agents/*.jsonc` is no longer read by this loader. Post
 // format-migration Wave 5, agent profiles arrive via `defineAgent`
-// declare-forms in the space's `ship.config.ts` and land in
+// declare-forms in the space's `stack.config.ts` and land in
 // `ExtensionLibrary::agent_profiles` through
 // `ship_resolver::merge_ts_declarations` — see
 // `census-format-migration.md` §4 row 3 (last paragraph). The

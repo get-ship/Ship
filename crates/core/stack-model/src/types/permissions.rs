@@ -92,7 +92,7 @@ fn allow_all_default() -> Vec<String> {
 /// `ship-standard` / etc.) is the SSOT for the four-tier continuum;
 /// presets are authored under
 /// `defineConfig({ agents: { permissions: { presets: { ... } } } })`
-/// in `ship.config.ts` and harvested by the resolver into
+/// in `stack.config.ts` and harvested by the resolver into
 /// `ExtensionLibrary::permissions_presets` for the compile path to
 /// consume.
 #[cfg_attr(feature = "specta", derive(specta::Type))]

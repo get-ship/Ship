@@ -9,7 +9,7 @@ fn write_minimal_space() -> (TempDir, std::path::PathBuf) {
     let root = tmp.path().to_path_buf();
 
     // `.ship/` is empty post format-migration Wave 4 phase A — rules,
-    // collections, triggers, MCP all live in `ship.config.ts` as
+    // collections, triggers, MCP all live in `stack.config.ts` as
     // declare-forms. Slice 2c: rules moved to on-disk `rules/<id>.md`
     // files (the resolver walks `defineConfig({ rules_dir })`); agents
     // moved to on-disk `agents/<id>.ts` files (the resolver enumerates
@@ -18,13 +18,13 @@ fn write_minimal_space() -> (TempDir, std::path::PathBuf) {
     let ship = root.join(".ship");
     std::fs::create_dir_all(&ship).unwrap();
 
-    // ship.config.ts at the space root is now a thin POINTER manifest
+    // stack.config.ts at the space root is now a thin POINTER manifest
     // (slice 2c). No declare-form calls in it — the only `defineConfig`
     // keys we'd author here (skills_dir, rules_dir, the per-noun dir
     // pointers) use their defaults, so an empty `export default
     // defineConfig({})` suffices.
     std::fs::write(
-        root.join("ship.config.ts"),
+        root.join("stack.config.ts"),
         r#"
 import { defineConfig } from "ship";
 
@@ -81,7 +81,7 @@ async fn resolve_space_with_no_globals_yields_resolved_config() {
     // Phase-2 contract: TS agents appear in the active-agent-shaped
     // list (the leaf's resolve step pulls from `library.agents`).
     // The .ts path populates that list via this crate's merge step.
-    // The rule from `ship.config.ts` `defineRule` reaches the resolved
+    // The rule from `stack.config.ts` `defineRule` reaches the resolved
     // config. The W3 harvest maps `id` → `file_name` and `applyScope`
     // → `always_apply` (the `applyScope: "always"` tag is the always-apply
     // case; a `globs: [...]` object is the conditional case).
@@ -145,7 +145,7 @@ async fn load_root_library_omits_resolve_step() {
     // raw disk shape has no rules to find until the
     // `merge_ts_declarations` step runs the `walk_rules_dir`).
     assert!(lib.rules.is_empty());
-    // Slice 2c: the imported_modules vec carries `ship.config.ts`
+    // Slice 2c: the imported_modules vec carries `stack.config.ts`
     // (the manifest) + every `agents/<id>.ts` file in the per-noun
     // source dir. The minimal fixture has one agent (`demo`), so
     // exactly 2 modules: the manifest + the agent file.
@@ -591,7 +591,7 @@ async fn define_config_dependencies_do_not_change_cached_dep_descriptor() {
     let baseline_descriptor = descriptor::extension_library_canonical(&baseline.library).unwrap();
 
     std::fs::write(
-        root.join("ship.config.ts"),
+        root.join("stack.config.ts"),
         r#"
 import { defineConfig } from "ship";
 
@@ -626,13 +626,13 @@ export default defineConfig({
 // (`ShipHome::library_dir()` flat layout) composing a same-id agent
 // authored under `library_root/agents/<id>.jsonc`. Post Wave 5:
 //   - `.ship/agents/*.jsonc` authoring is gone (the leaf no longer
-//     reads them; the source authoring surface is `ship.config.ts`).
+//     reads them; the source authoring surface is `stack.config.ts`).
 //   - The enabled library tier's `stack_model::load_library` call
 //     (`ship-resolver/src/lib.rs`) does NOT route through the
 //     `space_loader` TS-eval seam — it calls the leaf directly, and
-//     the leaf never read `ship.config.ts` (that's the resolver's
+//     the leaf never read `stack.config.ts` (that's the resolver's
 //     job). So the enabled tier has no working authoring surface
-//     post Wave 5: `.jsonc` is dead, `ship.config.ts` is unwired.
+//     post Wave 5: `.jsonc` is dead, `stack.config.ts` is unwired.
 // The operator-enabled library tier's authoring surface is a
 // separate piece of work (it predates Wave 5: the existing tier was
 // `roll_up` -> `stack_model::load_library(library_root)`, which would
@@ -675,13 +675,13 @@ async fn roll_up_missing_library_dir_is_empty_not_error() {
 
 // `roll_up_source_shadows_enabled_agent_on_id_collision` retired with
 // format-migration Wave 5 (partial). The source-side authoring moved
-// to `ship.config.ts` declare-forms (the source's `writer` agent
+// to `stack.config.ts` declare-forms (the source's `writer` agent
 // would land via `defineAgent` in the space root), but the
 // enabled-library tier's `library_root` is loaded via
 // `stack_model::load_library(library_root)` in `roll_up` — a direct leaf
 // call that doesn't route through the TS-eval seam (the
-// `space_loader` path that harvests `ship.config.ts`). The
-// enabled-tier's `ship.config.ts` is therefore unwired post Wave 5;
+// `space_loader` path that harvests `stack.config.ts`). The
+// enabled-tier's `stack.config.ts` is therefore unwired post Wave 5;
 // the operator-enabled library tier needs a follow-on wiring
 // (`roll_up` -> `space_loader::load_space_library(library_root)`
 // instead of `stack_model::load_library(library_root)`) to gain the
@@ -796,7 +796,7 @@ async fn every_declare_form_round_trips_through_resolve_compose_descriptor() {
     // their per-noun source dirs (or on-disk `rules/`, `skills/`
     // for the disk-shaped ones).
     std::fs::write(
-        root.join("ship.config.ts"),
+        root.join("stack.config.ts"),
         r#"
 import { defineConfig } from "ship";
 
@@ -1114,7 +1114,7 @@ async fn roll_up_content_hash_changes_when_a_source_define_view_changes() {
     // exactly one view, so the on-disk source library's views field
     // is non-empty after merge.
     std::fs::write(
-        root.join("ship.config.ts"),
+        root.join("stack.config.ts"),
         r#"
 import { defineAgent, defineView } from "ship";
 
@@ -1148,7 +1148,7 @@ defineView({
     // source descriptor's content hash moves; the composed
     // library's cache key must follow.
     std::fs::write(
-        root.join("ship.config.ts"),
+        root.join("stack.config.ts"),
         r#"
 import { defineAgent, defineView } from "ship";
 
@@ -1321,7 +1321,7 @@ async fn roll_up_two_extensions_views_compose_deterministically_under_distinct_p
 async fn roll_up_view_prefix_subtree_is_correct() {
     let (tmp, root) = write_minimal_space();
     std::fs::write(
-        root.join("ship.config.ts"),
+        root.join("stack.config.ts"),
         r#"
 import { defineView } from "ship";
 
@@ -1386,7 +1386,7 @@ async fn roll_up_two_extensions_compose_with_pin() {
     //    one wins on collision).
     let (_tmp, root) = write_minimal_space();
     // The minimal fixture already laid down `agents/demo.ts` + an empty
-    // `ship.config.ts`. Replace the agent set: delete the demo file,
+    // `stack.config.ts`. Replace the agent set: delete the demo file,
     // add `root-only` + `shared` (the colliding id).
     std::fs::remove_file(root.join("agents/demo.ts")).unwrap();
     std::fs::write(
@@ -1411,13 +1411,13 @@ defineAgent({ agent: { id: "shared", name: "Root Shared" } });
     // 2. Child dir with `agents/<id>.ts` files defining a `child-only`
     //    agent and a SAME-ID `shared` agent (this one loses on
     //    collision). The child extension carries its own
-    // `ship.config.ts` (a thin pointer manifest — empty
+    // `stack.config.ts` (a thin pointer manifest — empty
     // `defineConfig({})`) and its own `agents/` dir.
     let child = root.join("extension-a");
     std::fs::create_dir_all(child.join(".ship")).unwrap();
     std::fs::create_dir_all(child.join("agents")).unwrap();
     std::fs::write(
-        child.join("ship.config.ts"),
+        child.join("stack.config.ts"),
         r#"
 import { defineConfig } from "ship";
 
@@ -1561,7 +1561,7 @@ defineAgent({ agent: { id: "shared", name: "Child Shared" } });
     )
     .unwrap();
     std::fs::write(
-        child.join("ship.config.ts"),
+        child.join("stack.config.ts"),
         r#"
 import { defineConfig } from "ship";
 
@@ -1612,7 +1612,7 @@ defineAgent({ agent: { id: "child-b-only", name: "Child B Only" } });
 // resolver rolls the per-module `paths` into
 // `ExtensionLibrary::skill_paths` post-eval and re-walks them for
 // on-disk skills. This test exercises the end-to-end shape: a
-// `ship.config.ts` declaring a custom `paths` value, an on-disk skill
+// `stack.config.ts` declaring a custom `paths` value, an on-disk skill
 // in that custom dir, and the assertion that the composed library
 // surfaces both the path AND the walked skill record.
 #[tokio::test(flavor = "current_thread")]
@@ -1621,13 +1621,13 @@ async fn defineConfig_custom_skill_paths_walk_finds_on_disk_skill() {
     let root = tmp.path().to_path_buf();
     std::fs::create_dir_all(root.join(".ship")).unwrap();
 
-    // `ship.config.ts` declares a custom skills dir via the
+    // `stack.config.ts` declares a custom skills dir via the
     // per-extension-project `defineConfig` default-export form.
     // `skills_dir` is a single directory name (no trailing slash)
-    // relative to the dir containing this `ship.config.ts`
+    // relative to the dir containing this `stack.config.ts`
     // (the space root here).
     std::fs::write(
-        root.join("ship.config.ts"),
+        root.join("stack.config.ts"),
         r#"
 import { defineConfig, defineAgent } from "ship";
 
@@ -1692,7 +1692,7 @@ async fn roll_up_members_composes_explicit_roots_without_scanning() {
     for name in ["a", "b", "c"] {
         std::fs::create_dir_all(parent.join(name)).unwrap();
         std::fs::write(
-            parent.join(name).join("ship.config.ts"),
+            parent.join(name).join("stack.config.ts"),
             "import { defineConfig } from \"ship\";\nexport default defineConfig({});\n",
         )
         .unwrap();
@@ -1716,7 +1716,7 @@ defineAgent({
     // Member B: the skill, plus a hook payload (push content — fenced) and a
     // named permission preset (a PULL definition agents reference — survives).
     std::fs::write(
-        parent.join("b").join("ship.config.ts"),
+        parent.join("b").join("stack.config.ts"),
         r#"
 import { defineConfig } from "ship";
 export default defineConfig({

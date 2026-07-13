@@ -12,13 +12,13 @@
 //! `<hooks_dir>/<event>.<ext>` (walked by the resolver), and named permission
 //! presets are authored under
 //! `defineConfig({ agents: { permissions: { presets: { ... } } } })` in
-//! `ship.config.ts` (harvested by the resolver's `merge_ts_declarations`).
+//! `stack.config.ts` (harvested by the resolver's `merge_ts_declarations`).
 //! The leaf returns `permissions` + `hooks` + `permissions_presets` empty so
 //! the resolver is the single source of truth for every noun post slice 3.
 //!
 //! mcp / rules / skills / agents used to be read from this leaf. They now
 //! arrive via `defineMcpServer` / `defineRule` / `defineSkill` / `defineAgent`
-//! declare-forms in the space's `ship.config.ts`, harvested by the
+//! declare-forms in the space's `stack.config.ts`, harvested by the
 //! Phase-2 resolver (`ship_resolver::merge_ts_declarations`). The leaf returns
 //! them empty so the TS-resolver merge is the single source of truth — see
 //! `census-format-migration.md` Section 4 row 3 + Wave 5.
@@ -39,7 +39,7 @@ use crate::resolve::ExtensionLibrary;
 // (`.ship/mcp.jsonc` and `.ship/rules/*.md` are no longer read by the
 // leaf loader. Post format-migration Wave 4 phase A, MCP server and
 // rule definitions arrive via `defineMcpServer` / `defineRule`
-// declare-forms in the space's `ship.config.ts` and land in
+// declare-forms in the space's `stack.config.ts` and land in
 // `ExtensionLibrary::mcp_servers` / `ExtensionLibrary::rules` through
 // `ship_resolver::merge_ts_declarations` — see
 // `census-format-migration.md` Section 4 row 3.)
@@ -47,7 +47,7 @@ use crate::resolve::ExtensionLibrary;
 // (`.ship/agents/*.jsonc` and `.ship/skills/<id>/SKILL.md` are no
 // longer read by the leaf loader. Post format-migration Wave 5,
 // agent and skill definitions arrive via `defineAgent` / `defineSkill`
-// declare-forms in the space's `ship.config.ts` and land in
+// declare-forms in the space's `stack.config.ts` and land in
 // `ExtensionLibrary::agent_profiles` / `ExtensionLibrary::skills`
 // through the same resolver merge. The duplicate walk the leaf kept
 // for the disk-authoring fallback dies with this wave — see
@@ -58,7 +58,7 @@ use crate::resolve::ExtensionLibrary;
 // hooks arrive via the per-extension-project `<hooks_dir>/<event>.<ext>`
 // convention walked by the resolver, and named permission presets arrive
 // via `defineConfig({ agents: { permissions: { presets: { ... } } } })`
-// in `ship.config.ts` and land in
+// in `stack.config.ts` and land in
 // `ExtensionLibrary::permissions_presets` through
 // `ship_resolver::merge_ts_declarations`. The leaf's `load_hooks` +
 // `load_permissions` (presence-only stub) die with this slice — see
@@ -71,7 +71,7 @@ use crate::resolve::ExtensionLibrary;
 /// Post dot-ship close-out slice 3: the leaf is a no-op. Every noun the
 /// resolver composes (mcp_servers, rules, skills, agent_profiles, hooks,
 /// permissions, permissions_presets) arrives via the space's
-/// `ship.config.ts` declare-forms (`defineMcpServer`, `defineRule`,
+/// `stack.config.ts` declare-forms (`defineMcpServer`, `defineRule`,
 /// `defineSkill`, `defineAgent`, `defineConfig({ agents: { mcp, permissions } })`)
 /// and lands through `ship_resolver::merge_ts_declarations`. The leaf
 /// returns the disk-side bulk empty (only `skill_paths` keeps its
@@ -104,7 +104,7 @@ pub fn load_library(ship_dir: &Path) -> Result<ExtensionLibrary> {
 
 // `.ship/rules/*.md` is no longer read by the leaf loader. Post format-
 // migration Wave 4 phase A, rule definitions arrive via `defineRule`
-// declare-forms in the space's `ship.config.ts` and land in
+// declare-forms in the space's `stack.config.ts` and land in
 // `ExtensionLibrary::rules` through
 // `ship_resolver::merge_ts_declarations` — see
 // `census-format-migration.md` Section 4 row 3. The compile path
@@ -117,7 +117,7 @@ pub fn load_library(ship_dir: &Path) -> Result<ExtensionLibrary> {
 /// The default skill dir path, relative to the space root (`<root>/skills/`).
 ///
 /// The skill dir sits at the space root, NOT under `.ship/`. Authoring is
-/// exclusively via `defineSkill` declare-forms in `ship.config.ts` (Wave 5);
+/// exclusively via `defineSkill` declare-forms in `stack.config.ts` (Wave 5);
 /// the on-disk convention exists for compile-pipeline skill-VAR resolution
 /// (`agent_def::skill_vars`) and the skills view (`ship_agents::view_state`).
 /// agent-def's [`read_skill_paths`](ship_platform/crates/agent-def/src/skill_paths.rs)
@@ -126,7 +126,7 @@ pub const DEFAULT_SPACE_SKILL_PATH: &str = "skills/";
 // `.ship/skills/<id>/SKILL.md` and `.ship/agents/<id>.jsonc` are no
 // longer read by the leaf loader. Post format-migration Wave 5,
 // skill + agent definitions arrive via `defineSkill` / `defineAgent`
-// declare-forms in the space's `ship.config.ts` and land in
+// declare-forms in the space's `stack.config.ts` and land in
 // `ExtensionLibrary::skills` / `ExtensionLibrary::agent_profiles`
 // through `ship_resolver::merge_ts_declarations` — see
 // `census-format-migration.md` Section 4 row 3 (last paragraph).
@@ -143,10 +143,10 @@ mod tests {
         // No `.ship/` fixture: the leaf no longer reads any noun from disk
         // — every compose-time noun vector (mcp_servers, rules, skills,
         // agent_profiles, hooks, permissions, permissions_presets) arrives
-        // via `ship.config.ts` declare-forms or the on-disk hooks-dir walk
+        // via `stack.config.ts` declare-forms or the on-disk hooks-dir walk
         // in the resolver. A `.ship/` with nothing in it is the common
         // post-slice-3 case: the resolver still produces a non-empty
-        // library when `ship.config.ts` carries agents + mcp + permissions.
+        // library when `stack.config.ts` carries agents + mcp + permissions.
         let tmp = tempfile::tempdir().expect("tempdir");
         let ship_dir = tmp.path().join(".ship");
         std::fs::create_dir_all(&ship_dir).unwrap();

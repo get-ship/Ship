@@ -194,7 +194,7 @@ impl ShipRuntime {
         // Hydrate user-authored collection schemas from the descriptor into
         // the shared registry so they are queryable alongside the built-ins.
         // Post format-migration Wave 4 phase A: collections arrive via
-        // `defineCollection` declare-forms in the space's `ship.config.ts`
+        // `defineCollection` declare-forms in the space's `stack.config.ts`
         // and land in the descriptor's `library.collections` (a
         // `Vec<stack_model::CollectionDef>`). `hydrate_registry` converts
         // those to `SchemaDoc` and registers them; the previous
@@ -287,7 +287,7 @@ impl ShipRuntime {
             // was removed — no live UI consumer invokes it, and the
             // named-preset layer is now sourced from
             // `defineConfig.agents.permissions.presets` in
-            // `ship.config.ts`. The proto remains for the
+            // `stack.config.ts`. The proto remains for the
             // environment-design / space-model work that will
             // re-introduce the path when runtime permissions become
             // a real thing; the wire is not mounted for now.

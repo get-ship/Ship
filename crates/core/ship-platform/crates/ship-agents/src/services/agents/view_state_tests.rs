@@ -13,22 +13,22 @@ use tempfile::tempdir;
 // `<ship>/library/agents/*.jsonc` two-scope scan fixtures) retired with the
 // format-migration Wave 5 follow-up (job-spec-fm-w5b-dispatch-index.md):
 // the no-index posture no longer scans either directory — agents arrive
-// exclusively as `defineAgent` declare-forms in `ship.config.ts`, composed
+// exclusively as `defineAgent` declare-forms in `stack.config.ts`, composed
 // via `ship_resolver::roll_up_blocking` (see `write_ts_space` below).
 
 /// A minimal Ship space: `.ship/` (required for `ShipHome::project_ship_dir`
-/// discovery) plus a `ship.config.ts` at the space root. `ts_body` is the
-/// FULL `ship.config.ts` source (import + `defineAgent(...)` calls) — the
+/// discovery) plus a `stack.config.ts` at the space root. `ts_body` is the
+/// FULL `stack.config.ts` source (import + `defineAgent(...)` calls) — the
 /// no-index posture's only agent-authoring surface post format-migration
 /// Wave 5.
 fn write_ts_space(root: &Path, ts_body: &str) {
     std::fs::create_dir_all(root.join(".ship")).unwrap();
-    std::fs::write(root.join("ship.config.ts"), ts_body).unwrap();
+    std::fs::write(root.join("stack.config.ts"), ts_body).unwrap();
 }
 
 /// Regression (job-spec-fm-w5b-dispatch-index.md acceptance): a `with_roots`
 /// (no `AgentDefIndex`) service resolves an agent declared ONLY in
-/// `ship.config.ts` — there is no `.ship/agents/` directory anywhere on
+/// `stack.config.ts` — there is no `.ship/agents/` directory anywhere on
 /// disk. Exercises the exact shape `agent_id_exists` (the dispatch-gate
 /// check) and the summary/detail reads use.
 #[test]

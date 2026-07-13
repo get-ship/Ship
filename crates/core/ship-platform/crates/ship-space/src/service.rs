@@ -106,7 +106,7 @@ impl SpaceService {
 
     /// Register `root_path` as a member stack of the space. Membership is
     /// REGISTRATION — the composed space is exactly the registered set. The
-    /// root must carry the stack marker (`ship.config.ts`); registration is
+    /// root must carry the stack marker (`stack.config.ts`); registration is
     /// idempotent (re-registering bumps `registered_at`).
     pub async fn register_stack(
         &self,
@@ -123,7 +123,7 @@ impl SpaceService {
         let marker = root_path.join(ship_substrate::project::STACK_CONFIG_FILENAME);
         if !marker.is_file() {
             return Err(SpaceError::BadArgs(format!(
-                "not a stack root: no ship.config.ts in {}",
+                "not a stack root: no stack.config.ts in {}",
                 root_path.display()
             )));
         }

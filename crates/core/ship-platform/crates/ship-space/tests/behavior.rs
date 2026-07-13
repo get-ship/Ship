@@ -257,7 +257,7 @@ async fn resolve_active_space_reads_the_spaces_projection() {
     let tmp = tempfile::tempdir().unwrap();
     let root = tmp.path().join("proj");
     std::fs::create_dir_all(&root).unwrap();
-    std::fs::write(root.join("ship.config.ts"), "export default {};\n").unwrap(); // the marker
+    std::fs::write(root.join("stack.config.ts"), "export default {};\n").unwrap(); // the marker
     std::fs::create_dir_all(root.join("src")).unwrap();
 
     // Discoverable but unopened → space-less.
@@ -357,7 +357,7 @@ async fn stack_membership_is_registration_not_scanning() {
         let d = tmp.path().join(name);
         std::fs::create_dir_all(&d).unwrap();
         if marker {
-            std::fs::write(d.join("ship.config.ts"), "export default {}\n").unwrap();
+            std::fs::write(d.join("stack.config.ts"), "export default {}\n").unwrap();
         }
         d
     };

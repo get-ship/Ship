@@ -1,6 +1,6 @@
 //! V8 eval fan-out for the project-shape resolver.
 //!
-//! The resolver's TS surface is multi-file in Phase 3 (`ship.config.ts` +
+//! The resolver's TS surface is multi-file in Phase 3 (`stack.config.ts` +
 //! `agents.ts` + per-domain modules — the orchestrator lean from
 //! `design-interview-2026-07-05.md:97-119`). Phase 2 takes the seam from
 //! the shipd ingest — one source string per `imported_modules` entry — and
@@ -33,7 +33,7 @@
 //! deny-by-default module loader (`ship-js/src/deno/module_loader.rs`):
 //! only `"ship"` resolves. Any other import — `node:fs`, `http`, even a
 //! project-relative `./agents.ts` — fails to load. So Phase 2's TS path
-//! is exactly the single-`ship.config.ts` semantics shipd's ingest has today:
+//! is exactly the single-`stack.config.ts` semantics shipd's ingest has today:
 //! one source string, one V8 eval, N `defineAgent` calls rolled up to N
 //! profiles.
 //!
@@ -65,7 +65,7 @@ fn merge_declarations(all: &mut Declarations, module: Declarations) {
 
 /// Evaluate every TS module in `imported_modules` and return the merged
 /// declare-form roll-up across all of them, in declared order — every
-/// noun a `ship.config.ts` can declare (`defineAgent`, `defineMcpServer`,
+/// noun a `stack.config.ts` can declare (`defineAgent`, `defineMcpServer`,
 /// `defineSkill`, `definePipeline`, `defineTrigger`, `defineCollection`,
 /// `defineRule`), not just agents (format-migration Wave 3).
 ///
@@ -177,7 +177,7 @@ mod tests {
         // a single AgentProfile out. Mirrors the rollup fixture at
         // `agent-config-eval/tests/fixtures/rollup.ship.ts`.
         let module = empty_module(
-            "ship.config.ts",
+            "stack.config.ts",
             r#"
 import { defineAgent } from "ship";
 
@@ -198,7 +198,7 @@ defineAgent({
         // preserve that — the descriptor cache will store the N profiles
         // for warm reads.
         let module = empty_module(
-            "ship.config.ts",
+            "stack.config.ts",
             r#"
 import { defineAgent } from "ship";
 
@@ -228,8 +228,8 @@ import { defineAgent } from "ship";
 defineAgent({ agent: { id: "x", name: "X" } });
 defineAgent({ agent: { id: "y", name: "Y" } });
 "#;
-        let m1 = empty_module("ship.config.ts", source);
-        let m2 = empty_module("ship.config.ts", source);
+        let m1 = empty_module("stack.config.ts", source);
+        let m2 = empty_module("stack.config.ts", source);
         let d1 = resolve_ts_files(&[m1], &Value::Null).await.unwrap();
         let d2 = resolve_ts_files(&[m2], &Value::Null).await.unwrap();
         let ids1: Vec<&str> = d1.agents.iter().map(|p| p.agent.id.as_str()).collect();
@@ -278,7 +278,7 @@ defineAgent({ agent: { id: "b2", name: "B2" } });
     #[tokio::test(flavor = "current_thread")]
     async fn every_declare_form_lands_in_its_noun_field() {
         let module = empty_module(
-            "ship.config.ts",
+            "stack.config.ts",
             r#"
 import {
   defineAgent,

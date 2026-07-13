@@ -12,7 +12,7 @@
 //! read and `view_state::list_agents` ride. Post format-migration Wave 5
 //! there is no `.ship/agents/*.jsonc` two-scope directory scan in the
 //! read path: agents only exist as `defineAgent` declare-forms in
-//! `ship.config.ts`, so the roll-up IS the canonical read. Helmd's
+//! `stack.config.ts`, so the roll-up IS the canonical read. Helmd's
 //! `Get { id: "rust-lane" }` returning bare `id` (the W5 follow-up
 //! symptom) was a `state::Error::NotFound` mapped through `rpc_wire.rs:392`
 //! — that path is now composed and the message is formatted as

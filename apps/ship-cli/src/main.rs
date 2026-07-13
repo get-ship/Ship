@@ -199,7 +199,7 @@ fn run_use(agent_id: Option<&str>, path: Option<PathBuf>, extra_skills: Vec<Stri
             let sd = std::fs::canonicalize(p)?;
             anyhow::ensure!(
                 sd.join(ship_substrate::project::STACK_CONFIG_FILENAME).exists(),
-                "no ship.config.ts found in {} — not a stack root.",
+                "no stack.config.ts found in {} — not a stack root.",
                 p.display()
             );
             sd
@@ -223,7 +223,7 @@ fn run_compile_cmd(harness: Option<&str>, dry_run: bool, path: Option<PathBuf>) 
         .unwrap_or_else(|| std::env::current_dir().unwrap());
 
     if !space_root.join(ship_substrate::project::STACK_CONFIG_FILENAME).exists() {
-        anyhow::bail!("no ship.config.ts found in {} — not a stack root.", space_root.display());
+        anyhow::bail!("no stack.config.ts found in {} — not a stack root.", space_root.display());
     }
 
     let state = profile::SpaceState::load(&space_root);

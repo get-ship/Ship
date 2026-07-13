@@ -12,14 +12,14 @@ fn write(dir: &Path, rel: &str, content: &str) {
 
 fn setup_minimal_space(tmp: &TempDir) {
     // Slice 2c close-out: rules + MCP servers are NOT inlined in
-    // `ship.config.ts` any more. The rule lives on disk at
+    // `stack.config.ts` any more. The rule lives on disk at
     // `rules/style.md`; the MCP registration lives under
     // `defineConfig({ agents: { mcp: { ... } } })` in the manifest
     // (the per-extension-project config block — slice 2c's
     // new home for the per-call `defineMcpServer` form).
     write(
         tmp.path(),
-        "ship.config.ts",
+        "stack.config.ts",
         r#"
 import { defineConfig } from "ship";
 

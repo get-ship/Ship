@@ -1,4 +1,4 @@
-//! Harvest every declare-form kind emitted by a `ship.config.ts` eval — not just
+//! Harvest every declare-form kind emitted by a `stack.config.ts` eval — not just
 //! `defineAgent`. [`generated_stub::SDK_STUB`] tags each declare-form's
 //! emitted value with a `__kind` discriminant (`{ __kind, value }`); this
 //! module routes each tagged value to its noun's harvest shape.
@@ -60,13 +60,13 @@ use stack_model::{
 use serde::Deserialize;
 use serde_json::Value;
 
-/// Every declare-form's harvested output from one `ship.config.ts` eval, merged
+/// Every declare-form's harvested output from one `stack.config.ts` eval, merged
 /// in call order. [`crate::resolve_agents_with_globals`] is a thin filter
 /// over `.agents`; `ts_resolver::resolve_ts_files` merges these again
 /// across multiple modules.
 ///
 /// Slice 2c: `skills` / `rules` / `mcp_servers` are no longer declared per-
-/// call from a `ship.config.ts`. Skills + rules live on disk
+/// call from a `stack.config.ts`. Skills + rules live on disk
 /// (`skills/<id>/SKILL.md`, `rules/<id>.md`); MCP servers live under
 /// `defineConfig({ agents: { mcp: {…} } })` and are pushed into
 /// `ExtensionLibrary::mcp_servers` by
@@ -157,7 +157,7 @@ pub fn harvest(out: &mut Declarations, index: usize, raw: Value) -> Result<()> {
         "config" => {
             // The `defineConfig` value carries the per-extension-project
             // `skills_dir` (single dir name, no trailing slash, relative
-            // to the dir containing the `ship.config.ts` declaring it) +
+            // to the dir containing the `stack.config.ts` declaring it) +
             // the slice-2c additions: `rules_dir`, `agents_dir`,
             // `collections_dir`, `pipelines_dir`, `triggers_dir`, and the
             // `agents.mcp` block (the MCP server registrations; the
@@ -266,7 +266,7 @@ impl McpServerDeclare {
 //
 // The `defineConfig({ … })` value (a per-extension-project authoring shape,
 // declared as `export default defineConfig({...})` from each extension's
-// `ship.config.ts` for ecosystem conformance). The Rust harvest pushes one
+// `stack.config.ts` for ecosystem conformance). The Rust harvest pushes one
 // entry per `defineConfig` call into `Declarations::config`; the resolver's
 // `merge_ts_declarations` walks that vec and threads each per-module value
 // into the matching `ExtensionLibrary` field.
@@ -275,7 +275,7 @@ impl McpServerDeclare {
 //   - `agents_dir` / `collections_dir` / `pipelines_dir` / `triggers_dir`:
 //     the per-extension-project dir pointers for the agent / collection /
 //     pipeline / trigger source dirs. The default is the dir name beside
-//     the `ship.config.ts` (`agents/`, `collections/`, `pipelines/`,
+//     the `stack.config.ts` (`agents/`, `collections/`, `pipelines/`,
 //     `triggers/`). The space_loader enumerates these dirs' `*.ts` files
 //     and appends them as `ModuleDescriptor`s into `imported_modules` —
 //     the resolver's `resolve_ts_files` already iterates the vec, so the
@@ -293,7 +293,7 @@ impl McpServerDeclare {
 //     dead per-call form (first wins).
 //
 // All scalar dir values are SINGLE dir names (no trailing slash), relative
-// to the dir containing the `ship.config.ts` declaring them. The last
+// to the dir containing the `stack.config.ts` declaring them. The last
 // `defineConfig` wins for each scalar (root-last-wins). An empty
 // `defineConfig({})` is valid — the resolver sees an empty `ConfigDeclare`
 // and falls through to the unified defaults.

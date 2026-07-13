@@ -1,7 +1,7 @@
 //! Hook definition types — the trigger engine's internal shape. Post
 //! format-migration Wave 4 phase A, populated from the descriptor's
 //! `Vec<stack_model::TriggerDef>` (the `defineTrigger` declare-form in
-//! `ship.config.ts`) via [`HookDef::try_from_def`] — not from
+//! `stack.config.ts`) via [`HookDef::try_from_def`] — not from
 //! `.ship/triggers/*.jsonc` files (census-format-migration.md §4 row 3).
 
 use serde::{Deserialize, Serialize};
@@ -227,7 +227,7 @@ impl HookDef {
 
 /// `stack_model::TriggerEventMatch.event` is a required string in the TS-facing
 /// shape — there is no way to author a source-only trigger (cron/file/webhook,
-/// no `event`) from `ship.config.ts` today. That's a real gap in Wave 1/3's
+/// no `event`) from `stack.config.ts` today. That's a real gap in Wave 1/3's
 /// shape, not something this cutover can fix; when a `source` is present it
 /// wins and `event` is dropped, so a descriptor author who sets both gets
 /// source-triggered behavior rather than a hard validation error.

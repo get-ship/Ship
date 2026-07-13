@@ -21,7 +21,7 @@ fn scaffold_ship_dir(tmp: &TempDir) {
     let root = tmp.path();
     let ship_dir = root.to_path_buf(); // stack root
     fs::create_dir_all(ship_dir.join("agents")).unwrap();
-    fs::write(ship_dir.join("ship.config.ts"), "export default {};\n").unwrap();
+    fs::write(ship_dir.join("stack.config.ts"), "export default {};\n").unwrap();
     fs::write(
         ship_dir.join("agents/test-agent.jsonc"),
         r#"{ "agent": { "name": "Test", "id": "test-agent", "harnesses": ["claude"] } }"#,
@@ -75,7 +75,7 @@ fn install_subcommand_does_not_exist() {
 #[test]
 fn retained_compile_still_works() {
     let tmp = TempDir::new().unwrap();
-    std::fs::write(tmp.path().join("ship.config.ts"), "export default {};\n").unwrap();
+    std::fs::write(tmp.path().join("stack.config.ts"), "export default {};\n").unwrap();
     std::fs::create_dir_all(tmp.path().join("rules")).unwrap();
     std::fs::write(
         tmp.path().join("rules/style.md"),

@@ -23,7 +23,7 @@ pub use loader::{load_library, load_permission_preset, McpEntry, McpFile};
 pub use permissions::PermissionPreset;
 // `load_skills` (the agent-def disk-authoring loader) retired with
 // Wave 5 — project skills arrive via `defineSkill` declare-forms in
-// the space's `ship.config.ts` and land in `ExtensionLibrary::skills`
+// the space's `stack.config.ts` and land in `ExtensionLibrary::skills`
 // through `ship_resolver::merge_ts_declarations`. The `SkillService`
 // CRUD surface in `ship-agents` still writes `SKILL.md` files (the
 // authoring path the Studio/db-scope gate owns; Phase-6's question) —
@@ -126,7 +126,7 @@ pub fn compile_project(opts: &CompileOptions) -> Result<CompileSummary> {
     //    operator-enabled library tier into a single `ComposedLibrary`
     //    (the Phase-3 roll-up). Post format-migration Wave 5 the leaf
     //    no longer reads `.ship/agents/*.jsonc` / `.ship/skills/<id>/SKILL.md`
-    //    — those nouns only arrive via `ship.config.ts` declare-forms,
+    //    — those nouns only arrive via `stack.config.ts` declare-forms,
     //    harvested by the resolver's TS eval and merged into the
     //    composed library. The `#122` flat dep-agents merge
     //    (`ship_store::dep_skills::resolve_dep_agents`) is subsumed by
@@ -171,7 +171,7 @@ fn compile_from_library(
     // 3. Resolve dep skills from cache (github.com/ refs in ship.lock + cache)
     let all_skill_refs = collect_all_skill_refs(&library);
     if !all_skill_refs.is_empty() {
-        // ship.lock: STACK ROOT beside ship.config.ts, one location.
+        // ship.lock: STACK ROOT beside stack.config.ts, one location.
         let lock_path = stack_root.join("ship.lock");
         let dep_skills = resolve_dep_skills(
             &all_skill_refs,
@@ -188,7 +188,7 @@ fn compile_from_library(
         for skill_id in &opts.extra_skills {
             anyhow::ensure!(
                 library.skills.iter().any(|s| &s.id == skill_id),
-                "skill not found: {} — check ship.config.ts defineSkill declare-forms",
+                "skill not found: {} — check stack.config.ts defineSkill declare-forms",
                 skill_id
             );
         }

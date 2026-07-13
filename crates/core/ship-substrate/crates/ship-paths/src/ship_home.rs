@@ -61,7 +61,7 @@ use serde::{Deserialize, Serialize};
 use crate::DaemonFile;
 // The GLOBAL home directory's on-disk name (legacy `~/.ship`-style homes
 // and test fixtures). Distinct from stack discovery — the stack marker is
-// `ship.config.ts`, not a directory name.
+// `stack.config.ts`, not a directory name.
 const HOME_DIR_NAME: &str = ".ship";
 use ship_types::{Scope, Vector};
 

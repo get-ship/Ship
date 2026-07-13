@@ -157,7 +157,7 @@ impl ShipRuntime {
     /// Idempotent — subsequent calls are no-ops.
     ///
     /// Format-migration Wave 4 phase A: triggers are sourced from the
-    /// descriptor (`defineTrigger` in `ship.config.ts`), not
+    /// descriptor (`defineTrigger` in `stack.config.ts`), not
     /// `.ship/triggers/*.jsonc`. There is no live re-roll-up on change —
     /// hot-reload for triggers is deferred alongside the same gap for
     /// rules/collections/pipelines (see `ConfigWatcher`'s DOMAINS comment).
@@ -305,7 +305,7 @@ impl ShipRuntime {
             tracing::warn!("agent-def index: boot rebuild failed: {e}");
         }
 
-        // Ingest the project's Phase-3 extension roll-up (`ship.config.ts`
+        // Ingest the project's Phase-3 extension roll-up (`stack.config.ts`
         // `defineAgent` / `defineSkill` / `defineMcpServer` / `defineRule`
         // / `defineCollection` / `defineTrigger` / `definePipeline`
         // sources + locked cached packages + the operator-enabled library

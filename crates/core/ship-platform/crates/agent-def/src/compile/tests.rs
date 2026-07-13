@@ -141,10 +141,10 @@ fn rule_without_frontmatter_uses_full_content() {
 // the agent-def leaf's `.ship/agents/*.jsonc` and/or
 // `.ship/skills/<id>/SKILL.md` reads — paths the leaf no longer walks
 // (those nouns arrive exclusively via `defineAgent` / `defineSkill`
-// declare-forms in `ship.config.ts`, harvested by the resolver's TS
+// declare-forms in `stack.config.ts`, harvested by the resolver's TS
 // eval and merged into the composed library).
 // Migration path: tests that need agents / skills in the compiled
-// output must use `ship.config.ts` and route through the composed
+// output must use `stack.config.ts` and route through the composed
 // descriptor (`compile_project_from_library` /
 // `ship_resolver::roll_up`). Post slice 3, the leaf's `load_library`
 // is disk-shape for mcp + rules only — permissions + hooks +
@@ -157,10 +157,10 @@ fn rule_without_frontmatter_uses_full_content() {
 // the agent-def leaf's `.ship/agents/*.jsonc` and/or
 // `.ship/skills/<id>/SKILL.md` reads — paths the leaf no longer walks
 // (those nouns arrive exclusively via `defineAgent` / `defineSkill`
-// declare-forms in `ship.config.ts`, harvested by the resolver's TS
+// declare-forms in `stack.config.ts`, harvested by the resolver's TS
 // eval and merged into the composed library).
 // Migration path: tests that need agents / skills in the compiled
-// output must use `ship.config.ts` and route through the composed
+// output must use `stack.config.ts` and route through the composed
 // descriptor (`compile_project_from_library` /
 // `ship_resolver::roll_up`). The leaf's `load_library` is now
 // disk-shape for permissions / hooks / mcp / rules only.
@@ -170,10 +170,10 @@ fn rule_without_frontmatter_uses_full_content() {
 // the agent-def leaf's `.ship/agents/*.jsonc` and/or
 // `.ship/skills/<id>/SKILL.md` reads — paths the leaf no longer walks
 // (those nouns arrive exclusively via `defineAgent` / `defineSkill`
-// declare-forms in `ship.config.ts`, harvested by the resolver's TS
+// declare-forms in `stack.config.ts`, harvested by the resolver's TS
 // eval and merged into the composed library).
 // Migration path: tests that need agents / skills in the compiled
-// output must use `ship.config.ts` and route through the composed
+// output must use `stack.config.ts` and route through the composed
 // descriptor (`compile_project_from_library` /
 // `ship_resolver::roll_up`). The leaf's `load_library` is now
 // disk-shape for permissions / hooks / mcp / rules only.
@@ -233,10 +233,10 @@ fn load_permission_preset_empty_map_returns_none() {
 // the agent-def leaf's `.ship/agents/*.jsonc` and/or
 // `.ship/skills/<id>/SKILL.md` reads — paths the leaf no longer walks
 // (those nouns arrive exclusively via `defineAgent` / `defineSkill`
-// declare-forms in `ship.config.ts`, harvested by the resolver's TS
+// declare-forms in `stack.config.ts`, harvested by the resolver's TS
 // eval and merged into the composed library).
 // Migration path: tests that need agents / skills in the compiled
-// output must use `ship.config.ts` and route through the composed
+// output must use `stack.config.ts` and route through the composed
 // descriptor (`compile_project_from_library` /
 // `ship_resolver::roll_up`). The leaf's `load_library` is now
 // disk-shape for permissions / hooks / mcp / rules only.
@@ -255,10 +255,10 @@ fn agent_profiles_empty_when_dir_missing() {
 // the agent-def leaf's `.ship/agents/*.jsonc` and/or
 // `.ship/skills/<id>/SKILL.md` reads — paths the leaf no longer walks
 // (those nouns arrive exclusively via `defineAgent` / `defineSkill`
-// declare-forms in `ship.config.ts`, harvested by the resolver's TS
+// declare-forms in `stack.config.ts`, harvested by the resolver's TS
 // eval and merged into the composed library).
 // Migration path: tests that need agents / skills in the compiled
-// output must use `ship.config.ts` and route through the composed
+// output must use `stack.config.ts` and route through the composed
 // descriptor (`compile_project_from_library` /
 // `ship_resolver::roll_up`). The leaf's `load_library` is now
 // disk-shape for permissions / hooks / mcp / rules only.

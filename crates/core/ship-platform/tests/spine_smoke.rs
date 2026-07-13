@@ -15,7 +15,7 @@
 //!   view_state`) → a `config.file_changed` kernel event → the descriptor
 //!   cache invalidates → the next resolve recomposes with an edit visible.
 //!
-//! The fixture's rule is authored via `ship.config.ts`'s `defineRule`
+//! The fixture's rule is authored via `stack.config.ts`'s `defineRule`
 //! declare-form (format-migration Wave 4 phase A — `.ship/rules/*.md` is
 //! no longer read), so this file does touch the V8 isolate for the one
 //! `imported_modules` entry; every other noun (agents, skills) stays a
@@ -52,7 +52,7 @@ const PKG_HEX: &str = "f00dcafe";
 /// `roll_up_source_shadows_cached_agent_on_id_collision` test uses.
 const COLLIDING_ID: &str = "example.test/acme/kit/helper";
 /// One space root with a colliding source + cached-package fixture:
-/// - `ship.config.ts` (thin POINTER manifest: empty `defineConfig({})`).
+/// - `stack.config.ts` (thin POINTER manifest: empty `defineConfig({})`).
 /// - `agents/<id>.ts` — source's colliding `helper` agent.
 /// - `skills/review/SKILL.md` — the source's on-disk skill.
 /// - `rules/style.md` — the source's on-disk rule; the change leg edits
@@ -117,7 +117,7 @@ fn write_colliding_fixture() -> (tempfile::TempDir, PathBuf, PathBuf) {
 
     // 1. Thin pointer manifest.
     std::fs::write(
-        space_root.join("ship.config.ts"),
+        space_root.join("stack.config.ts"),
         SPINE_CONFIG_TS_MANIFEST,
     )
     .unwrap();
@@ -313,10 +313,10 @@ async fn spine_config_file_changed_invalidates_cache_and_recompose_sees_the_edit
     kernel.broadcast(
         EventEnvelope::new(
             event_types::CONFIG_FILE_CHANGED,
-            "ship.config.ts",
+            "stack.config.ts",
             &ConfigFileChanged {
                 domain: "source".to_string(),
-                path: "ship.config.ts".to_string(),
+                path: "stack.config.ts".to_string(),
                 content_hash: "edited".to_string(),
             },
         )

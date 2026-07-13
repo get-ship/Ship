@@ -1,5 +1,5 @@
 // agents/shipwright.ts — per-job source dir for the `shipwright` agent.
-// Migrated from `ship.config.ts`'s inline `defineAgent` call (slice 2c,
+// Migrated from `stack.config.ts`'s inline `defineAgent` call (slice 2c,
 // job-spec-manifest-extraction). Byte-same payload; no field changes.
 import { defineAgent } from "ship";
 

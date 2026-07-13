@@ -124,10 +124,10 @@ async fn descriptor_cache_hits_on_repeat_compile_and_recomputes_on_edit() {
     // clear the in-memory index.
     let envelope = EventEnvelope::new(
         CONFIG_FILE_CHANGED,
-        "ship.config.ts",
+        "stack.config.ts",
         &ConfigFileChanged {
             domain: "source".to_string(),
-            path: "ship.config.ts".to_string(),
+            path: "stack.config.ts".to_string(),
             content_hash: "edited".to_string(),
         },
     )
