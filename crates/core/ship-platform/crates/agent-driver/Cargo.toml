@@ -1,9 +1,9 @@
 [package]
-name = "harness-adapter"
+name = "agent-driver"
 version = "0.1.0"
 edition = "2024"
 publish = false
-description = "L1 harness-adapter contract: the `HarnessAdapter` trait + its value types (LaunchCommand/LaunchProfile, ServerSession). The seam every third-party agent harness implements and ship-code drives. A contract leaf below ship-harnesses/ship-code so both reach it without a cycle — and so harness concerns live in L1, out of the substrate."
+description = "L1 agent-driver contract: the `AgentDriver` trait + its value types (LaunchCommand/LaunchProfile, ServerSession). The trait every third-party agent runtime implements and ship-code drives. Peer implementations — Floki (in-process, native) and the third-party-harness drivers in `ship-harnesses` — both reach the same contract leaf without a cycle, so harness concerns live in L1, out of the substrate."
 
 [dependencies]
 anyhow = { workspace = true }

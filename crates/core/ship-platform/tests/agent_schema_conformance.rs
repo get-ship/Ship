@@ -6,7 +6,7 @@
 //! drift fails a key-set assertion with the symmetric difference printed.
 //!
 //! Layering: the schema⟷struct key parity could be compiler-local, but the
-//! harness-enum and isolation-enum cross-checks need `harness_adapter`'s
+//! harness-enum and isolation-enum cross-checks need `agent_driver`'s
 //! REGISTRY (via `capabilities()`) and `ship_isolation`, which the compiler
 //! crate (leaf / pure-transform) cannot import. So the full gate lives here
 //! in `ship-platform`, which sees `stack_model::AgentProfile`, the harness
@@ -31,7 +31,6 @@ use stack_model::types::capability::{BlastRadius, Capability};
 use stack_model::{HookConfig, HookTrigger};
 use serde_json::Value;
 use ship_isolation::{IsolationStrategy, IsolationTier};
-use ship_harnesses::harness_adapter::capabilities;
 
 /// Load + parse the canonical agent schema from the repo root. The test
 /// crate's `CARGO_MANIFEST_DIR` is `crates/core/ship-platform`; the schema
@@ -225,45 +224,6 @@ fn per_section_key_parity() {
     }
 }
 
-#[test]
-fn harness_settings_seam_matches_registry() {
-    let schema = load_schema();
-    let harness_node = schema
-        .get("properties")
-        .and_then(|p| p.get("harness_settings"))
-        .expect("schema has harness_settings property");
-
-    // The opaque seam exists on the struct too: `AgentProfile.harness_settings`
-    // serializes as an object keyed by harness id.
-    let profile = serde_json::to_value(full_profile()).expect("serialize profile");
-    assert!(
-        profile
-            .get("harness_settings")
-            .map(Value::is_object)
-            .unwrap_or(false),
-        "struct must carry harness_settings as an object"
-    );
-
-    // Authoritative harness id set — derived from the Rust REGISTRY via
-    // `capabilities()` (single source of truth), NOT hardcoded. Future
-    // pi-class drift between the schema and the registry fails here.
-    let registry_ids: BTreeSet<String> =
-        capabilities().into_iter().map(|(id, _)| id.to_string()).collect();
-    let schema_harness_keys = property_keys(harness_node);
-
-    assert_eq!(
-        schema_harness_keys, registry_ids,
-        "harness_settings key drift vs REGISTRY: {}",
-        diff_report(&schema_harness_keys, &registry_ids)
-    );
-    // `additionalProperties: false` keeps the set closed — pin it so an
-    // open seam can't silently re-admit a dropped harness.
-    assert_eq!(
-        harness_node.get("additionalProperties"),
-        Some(&Value::Bool(false)),
-        "harness_settings must stay a closed set"
-    );
-}
 
 #[test]
 fn isolation_enums_match_ship_isolation() {

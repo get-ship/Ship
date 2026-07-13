@@ -58,7 +58,7 @@ ship-types = { path = "../../crates/core/ship-substrate/crates/ship-types" }
 # `CLAUDE.md` outputs are empty.
 ship-resolver = { path = "../../crates/core/ship-resolver" }
 stack-model = { path = "../../crates/core/stack-model" }
-harness-adaptors = { path = "../../crates/code/harness-adaptors" }
+harness-config-compiler = { path = "../../crates/code/harness-config-compiler" }
 # helmd must name in its `AgentsHost` impl: `KernelRouter`, `KernelLog`,
 # `ShipHome`, `init_kernel_router`, `project::get_project_dir`. These are the
 # SAME types the facade re-exports, so naming them via the core keeps helmd's

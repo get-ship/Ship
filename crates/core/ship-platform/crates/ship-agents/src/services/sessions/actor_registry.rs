@@ -25,7 +25,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use anyhow::Result;
-use ship_harnesses::harness_adapter::HarnessEvent;
+use ship_harnesses::agent_driver::HarnessEvent;
 use process_supervisor::ProcessHandle;
 use std::path::PathBuf;
 use tokio::sync::broadcast;

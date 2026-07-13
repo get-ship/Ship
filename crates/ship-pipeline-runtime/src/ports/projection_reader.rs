@@ -14,7 +14,7 @@
 
 use async_trait::async_trait;
 
-use harness_adapter::dispatch_ports::ProjectionReader;
+use agent_driver::dispatch_ports::ProjectionReader;
 use ship_agents::services::sessions::canonical_projection::load_sessions;
 use ship_substrate::projections::actor::active_actor_ids;
 

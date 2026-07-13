@@ -30,7 +30,7 @@ use ship_substrate::events::EventEnvelope;
 #[cfg(feature = "ship-code")]
 use ship_code::dispatch_ports::SessionContext;
 #[cfg(feature = "ship-code")]
-use harness_adapter::dispatch_ports::LaunchProfile;
+use agent_driver::dispatch_ports::LaunchProfile;
 use tokio::sync::Mutex;
 
 use crate::ports::AgentPorts;

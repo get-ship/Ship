@@ -15,7 +15,7 @@ buffa = "0.5"
 # L0 substrate
 ship-substrate = { path = "../../../ship-substrate" }
 process-supervisor = { path = "../../../ship-substrate/crates/process-supervisor" }
-harness-adapter = { path = "../harness-adapter" }
+agent-driver = { path = "../agent-driver" }
 # L0 git capability — git2-backed; baseline SHA capture on the ship-code path.
 ship-git = { path = "../../../ship-git", optional = true }
 ship-types = { path = "../../../ship-substrate/crates/ship-types" }
@@ -34,7 +34,7 @@ ship-terminal = { path = "../ship-terminal" }
 ship-auth = { path = "../ship-auth" }
 # compiler crate (the engine; services/compile is only the wrapper)
 stack-model = { path = "../../../stack-model", features = ["specta"] }
-harness-adaptors = { path = "../../../../code/harness-adaptors", features = ["specta"], optional = true }
+harness-config-compiler = { path = "../../../../code/harness-config-compiler", features = ["specta"], optional = true }
 # Phase-3 space roll-up — the no-index agent read composes through the SAME
 # world `compile_project`/dispatch-compile do (format-migration W5 follow-up).
 ship-resolver = { path = "../../../ship-resolver" }
@@ -74,7 +74,7 @@ specta = []
 #                        and the `runtime` re-export are all compiled in.
 # With this feature OFF: only the floki path (FlokiRunFn + the floki branch
 #                        in dispatch.rs) is compiled; ship-code and ship-git are absent.
-ship-code = ["dep:ship-code", "dep:ship-git", "dep:harness-adaptors", "agent-def/ship-code"]
+ship-code = ["dep:ship-code", "dep:ship-git", "dep:harness-config-compiler", "agent-def/ship-code"]
 
 [lints]
 workspace = true

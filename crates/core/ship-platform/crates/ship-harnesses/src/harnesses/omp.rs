@@ -5,8 +5,8 @@
 //! (`pi` → `omp`). Keeping it a delegation (not a fork of pi's logic) means
 //! pi's flag/parse behavior stays the single source of truth.
 
-use harness_adapter::dispatch_ports::{LaunchCommand, LaunchProfile};
-use harness_adapter::{HarnessAdapter, HarnessCapabilities, HarnessEvent, ResumeError};
+use agent_driver::dispatch_ports::{LaunchCommand, LaunchProfile};
+use agent_driver::{AgentDriver, HarnessCapabilities, HarnessEvent, ResumeError};
 
 use super::pi::PiAdapter;
 
@@ -20,7 +20,7 @@ fn rebin(mut c: LaunchCommand) -> LaunchCommand {
 pub struct OmpAdapter;
 
 #[async_trait::async_trait]
-impl HarnessAdapter for OmpAdapter {
+impl AgentDriver for OmpAdapter {
     fn id(&self) -> &str { "omp" }
 
     fn matches(&self, id: &str) -> bool { id == "omp" }

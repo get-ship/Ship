@@ -7,7 +7,7 @@
 
 use serde_json::Value;
 
-use harness_adapter::server_session::SessionEvent;
+use agent_driver::server_session::SessionEvent;
 
 /// Locate the end of the next SSE frame (double-newline). Returns the
 /// byte index **up to but not including** the separator so the caller

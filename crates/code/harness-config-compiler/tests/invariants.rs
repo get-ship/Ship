@@ -4,7 +4,7 @@
 /// No `proptest`/`quickcheck` in Cargo.toml, so these are deterministic
 /// parameterised tests as permitted by the job spec.
 use stack_model::{AgentProfile, ExtensionLibrary, McpRefs, McpServerConfig, PluginRefs, ProfileMeta, ProfilePermissions, ProfileRules, Rule, Skill, SkillRefs, resolve_library};
-use harness_adaptors::{compile, list_harnesses};
+use harness_config_compiler::{compile, list_harnesses};
 
 // ─── Fixture helpers ──────────────────────────────────────────────────────────
 

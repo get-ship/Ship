@@ -18,8 +18,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::dispatch_ports::{ExecutorHandle, SessionContext, SessionExecutor, LaunchProfile};
-use ship_harnesses::harness_adapter::capabilities;
-use harness_adapter::server_session::StubSession;
+use ship_harnesses::agent_driver::capabilities;
+use agent_driver::server_session::StubSession;
 
 use super::routing::{RouteKind, RoutingExecutor, ServerSessionRegistry};
 use super::server::ServerExecutor;

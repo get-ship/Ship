@@ -46,10 +46,10 @@ dependencies = [
 name = "agent-def"
 version = "0.1.0"
 dependencies = [
+ "agent-driver",
  "anyhow",
  "chrono",
- "harness-adapter",
- "harness-adaptors",
+ "harness-config-compiler",
  "home",
  "include_dir",
  "inventory",
@@ -59,7 +59,6 @@ dependencies = [
  "serde_yaml",
  "sha2",
  "ship-config",
- "ship-harnesses",
  "ship-kernel",
  "ship-platform",
  "ship-resolver",
@@ -74,6 +73,19 @@ dependencies = [
  "toml 0.8.2",
  "tracing",
  "walkdir",
+]
+
+[[package]]
+name = "agent-driver"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "serde",
+ "serde_json",
+ "ship-types",
+ "thiserror 2.0.18",
+ "tokio",
 ]
 
 [[package]]
@@ -3132,20 +3144,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "harness-adapter"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "serde",
- "serde_json",
- "ship-types",
- "thiserror 2.0.18",
- "tokio",
-]
-
-[[package]]
-name = "harness-adaptors"
+name = "harness-config-compiler"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -7894,6 +7893,7 @@ name = "ship-agents"
 version = "0.1.0"
 dependencies = [
  "agent-def",
+ "agent-driver",
  "anyhow",
  "async-stream",
  "async-trait",
@@ -7901,8 +7901,7 @@ dependencies = [
  "buffa",
  "chrono",
  "connectrpc",
- "harness-adapter",
- "harness-adaptors",
+ "harness-config-compiler",
  "home",
  "json-patch 4.2.0",
  "process-supervisor",
@@ -8023,7 +8022,7 @@ dependencies = [
  "clap",
  "connectrpc",
  "dhat",
- "harness-adaptors",
+ "harness-config-compiler",
  "home",
  "http",
  "libc",
@@ -8066,11 +8065,11 @@ name = "ship-code"
 version = "0.1.0"
 dependencies = [
  "agent-def",
+ "agent-driver",
  "anyhow",
  "async-trait",
  "chrono",
  "futures-util",
- "harness-adapter",
  "home",
  "isolation-port",
  "libc",
@@ -8186,8 +8185,8 @@ dependencies = [
 name = "ship-files"
 version = "0.1.0"
 dependencies = [
+ "agent-driver",
  "anyhow",
- "harness-adapter",
  "json-patch 4.2.0",
  "serde",
  "serde_json",
@@ -8228,10 +8227,10 @@ dependencies = [
 name = "ship-harnesses"
 version = "0.1.0"
 dependencies = [
+ "agent-driver",
  "anyhow",
  "async-trait",
  "chrono",
- "harness-adapter",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
@@ -8340,11 +8339,11 @@ dependencies = [
 name = "ship-pipeline-runtime"
 version = "0.1.0"
 dependencies = [
+ "agent-driver",
  "anyhow",
  "async-trait",
  "chrono",
  "connectrpc",
- "harness-adapter",
  "json-patch 4.2.0",
  "minijinja",
  "serde",
@@ -8382,6 +8381,7 @@ name = "ship-platform"
 version = "0.1.0"
 dependencies = [
  "agent-def",
+ "agent-driver",
  "anyhow",
  "async-trait",
  "base64 0.22.1",
@@ -8391,8 +8391,7 @@ dependencies = [
  "futures-util",
  "getrandom 0.2.17",
  "globset",
- "harness-adapter",
- "harness-adaptors",
+ "harness-config-compiler",
  "home",
  "include_dir",
  "indexmap 2.14.0",
@@ -8421,7 +8420,6 @@ dependencies = [
  "ship-device",
  "ship-files",
  "ship-gateway-client",
- "ship-harnesses",
  "ship-isolation",
  "ship-kernel",
  "ship-platform",
@@ -8646,9 +8644,9 @@ dependencies = [
 name = "ship-terminal"
 version = "0.1.0"
 dependencies = [
+ "agent-driver",
  "anyhow",
  "chrono",
- "harness-adapter",
  "libc",
  "process-supervisor",
  "serde",

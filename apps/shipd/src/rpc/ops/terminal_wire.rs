@@ -281,7 +281,7 @@ impl TerminalService for TerminalWire {
     // ── SessionEvents (server-streaming) ────────────────────────────────
     // The legacy `/api/v1/sessions/{id}/events` handler returned typed
     // `HarnessEvent`s as JSON. The actor registry wires the
-    // harness-adapter broadcast; the PTY-registry per-turn path also
+    // agent-driver broadcast; the PTY-registry per-turn path also
     // publishes here (see `agent_actor::run_headless_turn`). Shells
     // (no harness) return a closed stream.
     #[allow(refining_impl_trait)]

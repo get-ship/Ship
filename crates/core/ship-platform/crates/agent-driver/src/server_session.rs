@@ -46,7 +46,7 @@ pub enum SessionEvent {
 /// closed session.
 #[async_trait]
 pub trait ServerSession: Send + Sync {
-    /// Harness id (matches `HarnessAdapter::id`).
+    /// Harness id (matches `AgentDriver::id`).
     fn harness(&self) -> &str;
 
     /// Submit a turn; returns the turn id immediately. Streamed events

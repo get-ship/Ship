@@ -1,9 +1,9 @@
 [package]
-name = "harness-adaptors"
+name = "harness-config-compiler"
 version = "0.1.0"
 edition = "2024"
 publish = false
-description = "Third-party-harness driver box — emits and mines harness-native config trees (.claude/, codex, opencode, pi)"
+description = "Third-party-harness config compiler — emits and reads back the harness-native config trees (.claude/, codex, opencode, pi) that ship-code installs alongside agent runs."
 
 [features]
 default = []

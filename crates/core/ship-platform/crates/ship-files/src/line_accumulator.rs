@@ -3,7 +3,7 @@
 //! Harness adapters parse newline-delimited stream-json. The reader loops
 //! that feed them (`process` executor, agent-actor reader middleware,
 //! per-turn headless reader) accumulate raw bytes until a `\n` appears,
-//! then hand each complete line to `HarnessAdapter::parse_output`.
+//! then hand each complete line to `AgentDriver::parse_output`.
 //!
 //! On a real PTY — which the process executor uses so claude/codex see
 //! `isatty()` and stay in structured-output mode — an *interactive* harness

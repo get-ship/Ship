@@ -65,7 +65,7 @@ pub struct SessionMeta {
 
 pub mod private {
     use super::*;
-    use ship_harnesses::harness_adapter::HarnessEvent;
+    use ship_harnesses::agent_driver::HarnessEvent;
     use process_supervisor::ChildHandle;
 
     use std::path::PathBuf;
@@ -128,7 +128,7 @@ impl PtySession {
     /// Shell sessions return a receiver that will never produce.
     pub fn subscribe_events(
         &self,
-    ) -> tokio::sync::broadcast::Receiver<ship_harnesses::harness_adapter::HarnessEvent> {
+    ) -> tokio::sync::broadcast::Receiver<ship_harnesses::agent_driver::HarnessEvent> {
         self.0.event_tx.subscribe()
     }
 }

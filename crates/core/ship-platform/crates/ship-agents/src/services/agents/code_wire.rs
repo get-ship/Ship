@@ -201,7 +201,7 @@ impl CodeServiceTrait for CodeWire {
         // harness is structural, not an error (a coding agent naming
         // an unprovided harness fails ordinary validation upstream
         // and is not listed).
-        let items: Vec<String> = harness_adaptors::compile::harness::list_harnesses()
+        let items: Vec<String> = harness_config_compiler::compile::harness::list_harnesses()
             .iter()
             .map(|d| d.id.to_string())
             .collect();

@@ -29,8 +29,8 @@ use anyhow::Result;
 use async_trait::async_trait;
 use ship_substrate::events::KernelRouter;
 use crate::dispatch_ports::{ExecutorHandle, InvocationMode, SessionContext, SessionExecutor};
-use ship_harnesses::harness_adapter::adapter_for_or_default;
-use harness_adapter::server_session::ServerSession;
+use ship_harnesses::agent_driver::adapter_for_or_default;
+use agent_driver::server_session::ServerSession;
 use tokio::sync::Mutex;
 
 use super::{ProcessExecutor, ServerExecutor, TmuxWindowExecutor};

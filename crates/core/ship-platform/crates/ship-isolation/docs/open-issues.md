@@ -159,8 +159,10 @@ and broaden.
 10. **Broaden — backends, wizard, CI.** WSL2 / LimaVm / FlyMachines
     impls (declared, no code; cloud = Tier 4, protocol-ready);
     `<sui-isolation-wizard>` + per-OS install helper for non-coders;
-    Tier 1 (harness × OS) enforcement matrix in CI. Folds in the
-    deferred A1 (harness-adapter relocation into the unified runtime).
+    Tier 1 (harness × OS) enforcement matrix in CI. The previous A1
+    (harness-adapter → agent-driver rename) has landed — the contract
+    is now shared by Floki's in-process driver and the third-party
+    harness implementations in `ship-harnesses`).
 
 ## Decided defaults (revisit only on real signal)
 

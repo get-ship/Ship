@@ -14,7 +14,7 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use harness_adapter::dispatch_ports::{AgentPlatform, Authority, SpawnPolicy};
+use agent_driver::dispatch_ports::{AgentPlatform, Authority, SpawnPolicy};
 
 /// Read-only lookup of declared agent roles from the resolved descriptor.
 ///

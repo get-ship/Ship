@@ -32,7 +32,7 @@ pub use permissions::PermissionPreset;
 pub use projection::{CompileStateProjection, ProjectCompileState};
 
 use anyhow::{Context, Result};
-use harness_adaptors::CompileOutput;
+use harness_config_compiler::CompileOutput;
 use std::path::{Path, PathBuf};
 
 /// Deliver each included sdk-skill's `references/docs/*.mdoc` pages beside the
@@ -236,7 +236,7 @@ fn compile_from_library(
     // 7. Compile per harness
     let mut outputs = Vec::new();
     for harness_id in &harnesses {
-        let Some(mut output) = harness_adaptors::compile(&resolved, harness_id) else {
+        let Some(mut output) = harness_config_compiler::compile(&resolved, harness_id) else {
             eprintln!("warning: unknown harness '{}', skipping", harness_id);
             continue;
         };
@@ -247,7 +247,7 @@ fn compile_from_library(
     // 8. Write + post-compile steps (skipped in dry-run mode)
     if !opts.dry_run {
         for (harness_id, output) in &outputs {
-            harness_adaptors::write_output(output_root, harness_id, output)
+            harness_config_compiler::write_output(output_root, harness_id, output)
                 .with_context(|| format!("failed to write {} output", harness_id))?;
         }
         for harness_id in &harnesses {

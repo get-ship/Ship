@@ -3,15 +3,15 @@
 use std::collections::HashMap;
 
 
-use harness_adapter::dispatch_ports::{LaunchCommand, LaunchProfile};
-use harness_adapter::{
-    HarnessAdapter, HarnessCapabilities, HarnessEvent, ResumeError,
+use agent_driver::dispatch_ports::{LaunchCommand, LaunchProfile};
+use agent_driver::{
+    AgentDriver, HarnessCapabilities, HarnessEvent, ResumeError,
 };
 
 pub struct OpenCodeAdapter;
 
 #[async_trait::async_trait]
-impl HarnessAdapter for OpenCodeAdapter {
+impl AgentDriver for OpenCodeAdapter {
     fn id(&self) -> &str { "opencode" }
 
     /// OpenCode runs a server (`opencode serve`) we hold as a persistent
@@ -20,7 +20,7 @@ impl HarnessAdapter for OpenCodeAdapter {
     /// is rewritten for the new prompt API — see `caps`.)
     async fn spawn_server_session(
         &self,
-    ) -> Option<std::sync::Arc<dyn harness_adapter::server_session::ServerSession>> {
+    ) -> Option<std::sync::Arc<dyn agent_driver::server_session::ServerSession>> {
         match super::opencode_session::OpenCodeSession::spawn().await {
             Ok(session) => Some(std::sync::Arc::new(session)),
             Err(err) => {
@@ -48,7 +48,7 @@ impl HarnessAdapter for OpenCodeAdapter {
             hooks: false,
             session_resume: true,
             persistent_session: true,
-            push_mechanism: harness_adapter::PushMechanism::Stdin,
+            push_mechanism: agent_driver::PushMechanism::Stdin,
         }
     }
 

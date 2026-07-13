@@ -655,7 +655,7 @@ fn map_repo_status(status: ship_git::state::RepoStatus) -> RepoStatusResponse {
 pub struct HarnessImpl;
 
 impl HarnessService for HarnessImpl {
-    // ListHarnesses — REAL, leaf-clean: a pure read off `harness_adaptors::list_harnesses()`
+    // ListHarnesses — REAL, leaf-clean: a pure read off `harness_config_compiler::list_harnesses()`
     // (the static HARNESSES table). No `.ship/` load, no filesystem. This is the
     // proof op: the harness compiler is reachable as a dev-RPC op on helmd while
     // helmd stays leaf-clean (mirrors GitService.Overview).
@@ -665,7 +665,7 @@ impl HarnessService for HarnessImpl {
         _ctx: RequestContext,
         _req: OwnedListHarnessesRequestView,
     ) -> ServiceResult<ListHarnessesResponse> {
-        let harnesses = harness_adaptors::list_harnesses()
+        let harnesses = harness_config_compiler::list_harnesses()
             .iter()
             .map(|h| Harness {
                 id: h.id.to_string(),
@@ -695,7 +695,7 @@ impl HarnessService for HarnessImpl {
     //   3. `stack_model::resolve_library(&lib, None, active_agent)` — turns
     //      the library into the resolved runtime config.
     //   4. For each requested harness (or the resolved config's selected
-    //      harnesses), call `harness_adaptors::compile(&resolved, harness_id)` to
+    //      harnesses), call `harness_config_compiler::compile(&resolved, harness_id)` to
     //      produce a `CompileOutput`, then flatten into `CompiledFile` rows.
     //   5. When `dry_run` is false, write the files to `repo_path` (the
     //      same set the CLI's `ship compile` would lay down).
@@ -827,7 +827,7 @@ impl HarnessService for HarnessImpl {
                 (Some(space), Some(cache)) => Arc::clone(
                     &cache
                         .get_or_load(space, &content_hash, h, || async {
-                            harness_adaptors::compile(&resolved, h).ok_or_else(|| {
+                            harness_config_compiler::compile(&resolved, h).ok_or_else(|| {
                                 anyhow::anyhow!("compile: no output for harness {h}")
                             })
                         })
@@ -839,7 +839,7 @@ impl HarnessService for HarnessImpl {
                 // No active space → bypass the cache entirely and
                 // compile straight (preserves the pre-cache behavior for
                 // unopened/non-ship spaces).
-                _ => match harness_adaptors::compile(&resolved, h) {
+                _ => match harness_config_compiler::compile(&resolved, h) {
                     Some(out) => Arc::new(out),
                     None => {
                         // Unknown harness id — skip with no-files. Caller
@@ -879,12 +879,12 @@ impl HarnessService for HarnessImpl {
     }
 }
 
-/// Flatten a `harness_adaptors::CompileOutput` into the per-file rows the wire
+/// Flatten a `harness_config_compiler::CompileOutput` into the per-file rows the wire
 /// carries (each `CompiledFile` is `harness_id + project-relative path +
 /// full content`). Mirrors the CLI's `ship compile` file layout.
 fn flatten_compile_output(
     harness_id: &str,
-    out: &harness_adaptors::CompileOutput,
+    out: &harness_config_compiler::CompileOutput,
     files: &mut Vec<CompiledFile>,
 ) {
     // MCP server config (standalone file, not merged into settings).

@@ -10,7 +10,7 @@ description = "L1 platform primitives — agents, collections, artifacts, trigge
 agent-def = { path = "crates/agent-def", optional = true }
 ship-substrate = { path = "../ship-substrate" }
 process-supervisor = { path = "../ship-substrate/crates/process-supervisor" }
-harness-adapter = { path = "crates/harness-adapter" }
+agent-driver = { path = "crates/agent-driver" }
 # Device domain — the isolation-execution sandbox (moved from this crate
 # as part of the supervisor→platform cycle break, c2-sandbox-device) plus
 # the window-management service. Re-exported below for back-compat with
@@ -54,11 +54,8 @@ ship-types = { path = "../ship-substrate/crates/ship-types" }
 # pipelines→agents coupling). No cycle: ship-agents depends on ship-substrate/
 # ship-types, not on ship-platform.
 ship-agents = { path = "crates/ship-agents" }
-# Harness adapter registry + concrete adapters (claude/codex/cursor/opencode/pi).
-# Carved here so ship-agents (and future L2 consumers) can depend on harnesses
-# without pulling in all of ship-platform. Re-exported below for back-compat.
-ship-harnesses = { path = "crates/ship-harnesses" }
 # FilesService + jsonc/path_tolerant/line_accumulator carved here so downstream
+
 # crates (ship-agents, …) can import them without pulling in all of ship-platform.
 ship-files = { path = "crates/ship-files" }
 ship-store = { path = "crates/ship-store" }
@@ -138,7 +135,7 @@ ship-code = ["ship-agents/ship-code", "dep:agent-def", "agent-def/ship-code"]
 # The compile-spine integration test (tests/spine_smoke.rs) exercises
 # emission end-to-end; dev-deps of a dependency never enter a consumer's
 # graph, so the standard/code seam holds.
-harness-adaptors = { path = "../../code/harness-adaptors" }
+harness-config-compiler = { path = "../../code/harness-config-compiler" }
 tokio = { workspace = true, features = ["test-util"] }
 # Self-dep so integration tests (tests/) see the `testutil` module. cfg(test)
 # does not apply to the lib when building integration-test targets, so without

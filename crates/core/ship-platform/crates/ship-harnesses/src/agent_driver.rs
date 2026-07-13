@@ -1,13 +1,14 @@
-//! Harness adapter registry — maps harness names to their adapters.
+//! Third-party-harness driver registry — maps harness names to the
+//! concrete adapter structs that implement the `AgentDriver` contract.
 //!
-//! The trait/types live in `harness_adapter` (L0). This module
-//! owns the REGISTRY slice that references the concrete adapter structs and
-//! exposes the resolver helpers (`adapter_for`, `capabilities`). It re-exports
-//! all L0 types so existing `ship_harnesses::harness_adapter::*` consumers
-//! continue to compile without change.
+//! The trait + value types live in the `agent_driver` crate (an L1
+//! contract leaf below this one and ship-code). This module owns the
+//! `REGISTRY` slice and exposes the resolver helpers (`adapter_for`,
+//! `capabilities`). It re-exports the contract types so existing
+//! `ship_harnesses::agent_driver::*` consumers keep compiling.
 
-pub use harness_adapter::{
-    HarnessAdapter, HarnessCapabilities, HarnessEvent, PushMechanism, ResumeError, SubmitMode,
+pub use agent_driver::{
+    AgentDriver, HarnessCapabilities, HarnessEvent, PushMechanism, ResumeError, SubmitMode,
 };
 
 /// The single source of truth for which harnesses exist.
@@ -16,7 +17,7 @@ pub use harness_adapter::{
 /// a sweep across parallel match arms and enumerations. Adapters are zero-
 /// sized unit structs, so this is a `&'static` slice of const-promoted refs
 /// with no allocation.
-const REGISTRY: &[&dyn HarnessAdapter] = &[
+const REGISTRY: &[&dyn AgentDriver] = &[
     &crate::harnesses::claude::ClaudeAdapter,
     &crate::harnesses::codex::CodexAdapter,
     &crate::harnesses::opencode::OpenCodeAdapter,
@@ -36,7 +37,7 @@ fn known_ids() -> String {
 /// Resolve a harness name to its adapter.
 /// Returns Err for unknown harnesses (no silent default) so a `foo-typo`
 /// config doesn't silently run as Claude with weird flags.
-pub fn adapter_for(harness: &str) -> Result<&'static dyn HarnessAdapter, String> {
+pub fn adapter_for(harness: &str) -> Result<&'static dyn AgentDriver, String> {
     REGISTRY
         .iter()
         .copied()
@@ -48,7 +49,7 @@ pub fn adapter_for(harness: &str) -> Result<&'static dyn HarnessAdapter, String>
 /// Used by executors that want a default for unconfigured pipelines.
 pub fn adapter_for_or_default(
     harness: Option<&str>,
-) -> Result<&'static dyn HarnessAdapter, String> {
+) -> Result<&'static dyn AgentDriver, String> {
     adapter_for(harness.unwrap_or("claude"))
 }
 

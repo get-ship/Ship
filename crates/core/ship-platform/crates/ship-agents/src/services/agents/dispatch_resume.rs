@@ -187,12 +187,12 @@ pub fn load_and_validate_session_file(
     // Verify the adapter actually supports resume before promising the
     // caller it'll work. Cursor will fail here; the dispatch path
     // then never hands off to the executor.
-    let adapter = ship_harnesses::harness_adapter::adapter_for(&session_file.harness)
+    let adapter = ship_harnesses::agent_driver::adapter_for(&session_file.harness)
         .map_err(|e| ResumeResolveError::Status {
             status: 400,
             message: format!("resume: {e}"),
         })?;
-    let profile = harness_adapter::dispatch_ports::LaunchProfile {
+    let profile = agent_driver::dispatch_ports::LaunchProfile {
         harness: Some(session_file.harness.clone()),
         persist_session: true,
         ..Default::default()

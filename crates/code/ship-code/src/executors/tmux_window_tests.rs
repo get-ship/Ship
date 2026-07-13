@@ -394,7 +394,7 @@ fn wait_for_ready_sticks_when_pattern_already_in_pane() {
 #[test]
 fn wait_for_ready_matches_omp_pi_glyph_ready_pattern() {
     use ship_harnesses::harnesses::omp::OmpAdapter;
-    use harness_adapter::HarnessAdapter;
+    use agent_driver::AgentDriver;
 
     let mut reader = FakePaneReader {
         buf: vec![
@@ -424,7 +424,7 @@ fn wait_for_ready_matches_omp_pi_glyph_ready_pattern() {
 #[test]
 fn wait_for_ready_matches_claude_bypass_permissions_marker() {
     use ship_harnesses::harnesses::claude::ClaudeAdapter;
-    use harness_adapter::HarnessAdapter;
+    use agent_driver::AgentDriver;
 
     let mut reader = FakePaneReader {
         buf: vec![format!(

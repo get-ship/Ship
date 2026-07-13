@@ -58,7 +58,7 @@ pub fn spawn_shell(
 
     let (output_tx, _) = broadcast::channel::<Vec<u8>>(OUTPUT_CHANNEL_CAP);
     let (event_tx, _) =
-        broadcast::channel::<ship_harnesses::harness_adapter::HarnessEvent>(EVENT_CHANNEL_CAP);
+        broadcast::channel::<ship_harnesses::agent_driver::HarnessEvent>(EVENT_CHANNEL_CAP);
 
     let now = Utc::now();
     let meta = SessionMeta {

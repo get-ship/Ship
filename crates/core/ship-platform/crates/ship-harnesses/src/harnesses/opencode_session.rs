@@ -26,7 +26,7 @@ use serde_json::{Value, json};
 use tokio::process::{Child, Command};
 use tokio::sync::{Mutex, mpsc};
 
-use harness_adapter::server_session::{ServerSession, SessionEvent};
+use agent_driver::server_session::{ServerSession, SessionEvent};
 
 /// Default port used by `opencode serve` when `--port` is omitted.
 const DEFAULT_PORT: u16 = 4096;

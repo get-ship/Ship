@@ -1,7 +1,7 @@
 //! Terminal presentation for compile output — dry-run printing and session gitignore.
 
 use anyhow::Result;
-use harness_adaptors::{CompileOutput, get_harness};
+use harness_config_compiler::{CompileOutput, get_harness};
 use std::path::Path;
 
 // ── Dry-run printing ─────────────────────────────────────────────────────────

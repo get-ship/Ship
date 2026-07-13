@@ -10,7 +10,7 @@
 //! read/write over `mcp.jsonc` instead of round-tripping through a
 //! `SpaceManifest`. The MCP server types move inline.
 //!
-//! [`McpServerConfig`] is the same shape `harness_adaptors::compile::harness` reads
+//! [`McpServerConfig`] is the same shape `harness_config_compiler::compile::harness` reads
 //! from the resolved descriptor's `mcp_servers` field — duplicated here only
 //! because `ship-config` no longer `pub use stack_model::*` (the unified
 //! descriptor surface lands with slice 5+).
@@ -39,7 +39,7 @@ impl std::fmt::Display for McpServerType {
     }
 }
 /// MCP server registration. The runtime stitches one of these into the
-/// resolved descriptor's `mcp_servers`; `harness_adaptors::compile::harness`
+/// resolved descriptor's `mcp_servers`; `harness_config_compiler::compile::harness`
 /// materializes it for the harness (`.mcp.json` for Claude, etc.).
 ///
 /// A2: the legacy `name/scope/disabled/timeout_secs` UI-facing fields

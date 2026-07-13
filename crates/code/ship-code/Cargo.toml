@@ -18,7 +18,7 @@ ship-resolver = { path = "../../core/ship-resolver" }
 ship-substrate = { path = "../../core/ship-substrate" }
 process-supervisor = { path = "../../core/ship-substrate/crates/process-supervisor" }
 isolation-port = { path = "../../core/ship-substrate/crates/isolation-port" }
-harness-adapter = { path = "../../core/ship-platform/crates/harness-adapter" }
+agent-driver = { path = "../../core/ship-platform/crates/agent-driver" }
 ship-harnesses = { path = "../../core/ship-platform/crates/ship-harnesses" }
 ship-auth = { path = "../../core/ship-platform/crates/ship-auth" }
 ship-isolation = { path = "../../core/ship-platform/crates/ship-isolation", default-features = false }

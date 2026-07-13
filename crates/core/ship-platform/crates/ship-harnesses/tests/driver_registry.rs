@@ -1,7 +1,7 @@
 //! Tests for the harness adapter registry and trait contract.
 
-use harness_adapter::dispatch_ports::LaunchProfile;
-use ship_harnesses::harness_adapter::{adapter_for, adapter_for_or_default};
+use agent_driver::dispatch_ports::LaunchProfile;
+use ship_harnesses::agent_driver::{adapter_for, adapter_for_or_default};
 
 fn default_profile() -> LaunchProfile {
     LaunchProfile { persist_session: true, ..Default::default() }

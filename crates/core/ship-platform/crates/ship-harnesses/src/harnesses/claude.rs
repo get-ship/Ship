@@ -3,9 +3,9 @@
 use std::collections::HashMap;
 
 
-use harness_adapter::dispatch_ports::{LaunchCommand, LaunchProfile};
-use harness_adapter::{
-    HarnessAdapter, HarnessCapabilities, HarnessEvent, ResumeError, SubmitMode,
+use agent_driver::dispatch_ports::{LaunchCommand, LaunchProfile};
+use agent_driver::{
+    AgentDriver, HarnessCapabilities, HarnessEvent, ResumeError, SubmitMode,
 };
 
 pub struct ClaudeAdapter;
@@ -106,7 +106,7 @@ impl ClaudeAdapter {
 }
 
 #[async_trait::async_trait]
-impl HarnessAdapter for ClaudeAdapter {
+impl AgentDriver for ClaudeAdapter {
     fn id(&self) -> &str { "claude" }
 
     /// Claude Code's CLI is invoked as `claude`; configs also name it
@@ -126,7 +126,7 @@ impl HarnessAdapter for ClaudeAdapter {
             // job corrects it now that build_resume_args is wired.
             session_resume: true,
             persistent_session: true,
-            push_mechanism: harness_adapter::PushMechanism::Channel,
+            push_mechanism: agent_driver::PushMechanism::Channel,
         }
     }
 

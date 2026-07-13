@@ -8,8 +8,8 @@
 use std::collections::HashMap;
 
 
-use harness_adapter::dispatch_ports::{LaunchCommand, LaunchProfile};
-use harness_adapter::{HarnessAdapter, HarnessCapabilities, HarnessEvent, ResumeError};
+use agent_driver::dispatch_ports::{LaunchCommand, LaunchProfile};
+use agent_driver::{AgentDriver, HarnessCapabilities, HarnessEvent, ResumeError};
 
 /// Shared headless arg prefix: non-interactive (`--print`) + JSON event
 /// stream (`--mode json`). Verified against pi v0.75.4.
@@ -32,7 +32,7 @@ fn headless_base(profile: &LaunchProfile) -> Vec<String> {
 pub struct PiAdapter;
 
 #[async_trait::async_trait]
-impl HarnessAdapter for PiAdapter {
+impl AgentDriver for PiAdapter {
     fn id(&self) -> &str { "pi" }
 
     fn caps(&self) -> HarnessCapabilities {
@@ -50,7 +50,7 @@ impl HarnessAdapter for PiAdapter {
             // also -c/-r). Verified in `pi --help` v0.75.4.
             session_resume: true,
             persistent_session: true,
-            push_mechanism: harness_adapter::PushMechanism::Stdin,
+            push_mechanism: agent_driver::PushMechanism::Stdin,
         }
     }
 

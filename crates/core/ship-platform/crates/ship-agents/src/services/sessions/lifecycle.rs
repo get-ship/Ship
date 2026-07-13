@@ -10,8 +10,8 @@ use std::sync::{Arc, Mutex as StdMutex};
 
 use anyhow::{anyhow, bail, Context, Result};
 use chrono::Utc;
-use harness_adapter::dispatch_ports::LaunchProfile;
-use ship_harnesses::harness_adapter::adapter_for;
+use agent_driver::dispatch_ports::LaunchProfile;
+use ship_harnesses::agent_driver::adapter_for;
 use tokio::sync::broadcast;
 
 use ship_config::agents_index::AgentDefIndex;
@@ -165,7 +165,7 @@ pub async fn send_agent_message(
         let session_id = session.0.meta.lock().unwrap().id.clone();
         tracing::error!(session = %session_id, error = %e, "headless turn spawn failed");
         let _ = session.0.event_tx.send(
-            ship_harnesses::harness_adapter::HarnessEvent::Message {
+            ship_harnesses::agent_driver::HarnessEvent::Message {
                 text: format!("[ship] turn failed: {e}"),
             },
         );

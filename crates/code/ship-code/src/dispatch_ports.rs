@@ -1,8 +1,8 @@
 //! Port types for job dispatch — moved from L0 ship-substrate to L1 ship-code.
 //!
 //! `LaunchCommand` and `LaunchProfile` remain in `ship-substrate` (they are used
-//! by `harness_adapter` (the L1 contract leaf)). Everything else that was
-//! in `harness_adapter::dispatch_ports` lives here.
+//! by `agent_driver` (the L1 contract leaf)). Everything else that was
+//! in `agent_driver::dispatch_ports` lives here.
 //!
 //! `LaunchCommand` and `LaunchProfile` are re-exported here so callers can use
 //! `ship_code::dispatch_ports::*` for all dispatch-port types.
@@ -15,12 +15,12 @@ use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::Mutex;
 use std::sync::Arc;
 
-// Re-export the harness value and shared port types from the harness-adapter leaf.
+// Re-export the harness value and shared port types from the agent-driver leaf.
 pub use agent_def::InvocationMode;
-pub use harness_adapter::dispatch_ports::{
+pub use agent_driver::dispatch_ports::{
     AgentPlatform, Authority, LaunchCommand, LaunchProfile, ProjectionReader, SpawnPolicy,
 };
-pub use harness_adapter::server_session::ServerSession;
+pub use agent_driver::server_session::ServerSession;
 
 // ── Value types ────────────────────────────────────────────────────────────────
 

@@ -55,6 +55,7 @@ const L0_SIBLINGS: &[&str] = &[
     "ship-gateway-client",
     "ship-sidecar-proto",
     "stack-model",
+    "agent-config-eval",
 ];
 
 /// Classify a workspace-relative crate directory into a layer.
@@ -63,13 +64,21 @@ const L0_SIBLINGS: &[&str] = &[
 /// R1 orphan error (the taxonomy decision is forced rather than guessed).
 pub fn classify(rel_dir: &str) -> Option<Layer> {
     // The code world (crates/code/) — ship-code's tier assignments carry
-    // over from their pre-move homes: harness-adaptors was an L0 sibling
+    // over from their pre-move homes: harness-config-compiler was an L0 sibling
     // (pure logic), ship-code an L1 platform crate. The standard/code
     // boundary itself is lint-boundary's (path-based, transitive); tiers
     // here only feed the R2 ordering checks.
-    if rel_dir == "crates/code/harness-adaptors"
-        || rel_dir.starts_with("crates/code/harness-adaptors/")
+    if rel_dir == "crates/code/harness-config-compiler"
+        || rel_dir.starts_with("crates/code/harness-config-compiler/")
     {
+        return Some(Layer::L0);
+    }
+    if rel_dir == "crates/code/ship-harnesses"
+        || rel_dir.starts_with("crates/code/ship-harnesses/")
+    {
+        // Concrete third-party-harness driver impls (L0 sibling — peer to
+        // `agent-driver`'s contract; depends on ship-substrate, not on
+        // ship-platform).
         return Some(Layer::L0);
     }
     if rel_dir == "crates/code/ship-code" || rel_dir.starts_with("crates/code/ship-code/") {
@@ -92,6 +101,14 @@ pub fn classify(rel_dir: &str) -> Option<Layer> {
         || rel_dir.starts_with("crates/core/ship-platform/")
         || rel_dir == "crates/ship-pipeline-runtime"
     {
+        return Some(Layer::L1);
+    }
+    // L1 — ship-resolver (Phase-2 space-shape resolver; orchestrates
+    // substrate ports + stack-model). Carved from ship-platform but lives
+    // at the L0 sibling root for cycle reasons (depends on
+    // ship-store/ship-substrate/compiler, NOT on ship-platform), so it
+    // gets its own explicit entry.
+    if rel_dir == "crates/core/ship-resolver" {
         return Some(Layer::L1);
     }
     // L2 — apps, packages, tests, examples, plus xtask + build-info tooling.

@@ -1,7 +1,7 @@
-//! `harness-adaptors` — the third-party-harness driver box.
+//! `harness-config-compiler` — the third-party-harness config compiler.
 //!
 //! Emits harness-native config trees (`compile`: .claude/, codex,
-//! opencode, pi) and mines existing harness configs back into Ship's
+//! opencode, pi) and reads existing harness configs back into Ship's
 //! format (`decompile`). Depends on `stack-model` for every config type
 //! and the resolved library shape; the model never knows this crate
 //! exists.
@@ -9,7 +9,6 @@
 //! Boundary: ship-code's world. Floki runs agents natively and never
 //! emits — lint_layers R3 holds floki and this crate apart; the standard
 //! shipd graph must not carry it (lint-boundary).
-
 pub mod compile;
 pub mod decompile;
 pub mod output;

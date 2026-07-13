@@ -3,15 +3,15 @@
 use std::collections::HashMap;
 
 
-use harness_adapter::dispatch_ports::{LaunchCommand, LaunchProfile};
-use harness_adapter::{
-    HarnessAdapter, HarnessCapabilities, HarnessEvent, ResumeError,
+use agent_driver::dispatch_ports::{LaunchCommand, LaunchProfile};
+use agent_driver::{
+    AgentDriver, HarnessCapabilities, HarnessEvent, ResumeError,
 };
 
 pub struct CodexAdapter;
 
 #[async_trait::async_trait]
-impl HarnessAdapter for CodexAdapter {
+impl AgentDriver for CodexAdapter {
     fn id(&self) -> &str { "codex" }
 
     /// Codex ships an app-server (`codex app-server`) we hold as a persistent
@@ -19,7 +19,7 @@ impl HarnessAdapter for CodexAdapter {
     /// one-shot `codex exec` path.
     async fn spawn_server_session(
         &self,
-    ) -> Option<std::sync::Arc<dyn harness_adapter::server_session::ServerSession>> {
+    ) -> Option<std::sync::Arc<dyn agent_driver::server_session::ServerSession>> {
         match crate::harnesses::codex_session::CodexSession::spawn().await {
             Ok(session) => Some(std::sync::Arc::new(session)),
             Err(err) => {
@@ -39,7 +39,7 @@ impl HarnessAdapter for CodexAdapter {
             hooks: true,
             session_resume: true,
             persistent_session: true,
-            push_mechanism: harness_adapter::PushMechanism::Stdin,
+            push_mechanism: agent_driver::PushMechanism::Stdin,
         }
     }
 

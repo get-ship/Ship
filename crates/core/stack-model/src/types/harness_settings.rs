@@ -1,7 +1,7 @@
 //! Per-harness typed settings deltas — DATA, not codegen. These ride
 //! inside [`crate::resolve::ResolvedConfig`], which is why they live in
 //! the stack model: the model owns the resolved-config shape; the
-//! harness-adaptors crate consumes these types to emit.
+//! harness-config-compiler crate consumes these types to emit.
 
 /// Claude's typed settings delta from the Ship agent.
 #[derive(Debug, Clone, Default)]

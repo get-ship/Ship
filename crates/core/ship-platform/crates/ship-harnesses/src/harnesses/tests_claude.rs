@@ -1,7 +1,7 @@
 //! Tests for ClaudeAdapter — the Claude Code CLI harness adapter.
 
-use harness_adapter::dispatch_ports::LaunchProfile;
-use harness_adapter::{HarnessAdapter, HarnessEvent};
+use agent_driver::dispatch_ports::LaunchProfile;
+use agent_driver::{AgentDriver, HarnessEvent};
 use super::ClaudeAdapter;
 
 fn default_profile() -> LaunchProfile {
@@ -363,7 +363,7 @@ fn build_resume_args_includes_fork_session() {
 
 #[test]
 fn build_resume_args_rejects_empty_session_id() {
-    use harness_adapter::ResumeError;
+    use agent_driver::ResumeError;
     let adapter = ClaudeAdapter;
     let err = adapter
         .build_resume_args("my-job", "", &default_profile())

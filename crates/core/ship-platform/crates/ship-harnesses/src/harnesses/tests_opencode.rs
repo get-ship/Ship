@@ -1,7 +1,7 @@
 //! Tests for OpenCodeAdapter — the OpenCode CLI harness adapter.
 
-use harness_adapter::dispatch_ports::LaunchProfile;
-use harness_adapter::HarnessAdapter;
+use agent_driver::dispatch_ports::LaunchProfile;
+use agent_driver::AgentDriver;
 use super::OpenCodeAdapter;
 
 fn default_profile() -> LaunchProfile {
@@ -112,7 +112,7 @@ fn parse_output_returns_none_for_garbage() {
 
 #[test]
 fn parse_output_captures_session_id_from_step_start() {
-    use harness_adapter::HarnessEvent;
+    use agent_driver::HarnessEvent;
     let adapter = OpenCodeAdapter;
     let line = r#"{"type":"step_start","sessionID":"ses_abc123","part":{"id":"prt_x","type":"step-start"}}"#;
     match adapter.parse_output(line) {
@@ -125,7 +125,7 @@ fn parse_output_captures_session_id_from_step_start() {
 
 #[test]
 fn parse_output_emits_message_for_text() {
-    use harness_adapter::HarnessEvent;
+    use agent_driver::HarnessEvent;
     let adapter = OpenCodeAdapter;
     let line = r#"{"type":"text","sessionID":"ses_x","part":{"type":"text","text":"hello"}}"#;
     match adapter.parse_output(line) {
@@ -136,7 +136,7 @@ fn parse_output_emits_message_for_text() {
 
 #[test]
 fn parse_output_emits_turn_usage_from_step_finish() {
-    use harness_adapter::HarnessEvent;
+    use agent_driver::HarnessEvent;
     let adapter = OpenCodeAdapter;
     let line = r#"{"type":"step_finish","sessionID":"ses_x","part":{"type":"step-finish","reason":"stop","tokens":{"total":19596,"input":100,"output":73,"reasoning":95,"cache":{"write":12,"read":19328}}}}"#;
     match adapter.parse_output(line) {
@@ -162,7 +162,7 @@ fn parse_output_emits_turn_usage_from_step_finish() {
 
 #[test]
 fn parse_output_emits_tool_use_for_tool_part() {
-    use harness_adapter::HarnessEvent;
+    use agent_driver::HarnessEvent;
     let adapter = OpenCodeAdapter;
     let line = r#"{"type":"tool_use","sessionID":"ses_x","part":{"type":"tool","tool":"Bash","state":{"status":"completed","input":{"command":"ls"}}}}"#;
     match adapter.parse_output(line) {
@@ -204,7 +204,7 @@ fn build_resume_args_emits_session_flag() {
 
 #[test]
 fn build_resume_args_rejects_empty_session_id() {
-    use harness_adapter::ResumeError;
+    use agent_driver::ResumeError;
     let adapter = OpenCodeAdapter;
     let err = adapter
         .build_resume_args("my-job", "", &default_profile())

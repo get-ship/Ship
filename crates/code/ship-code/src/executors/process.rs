@@ -48,7 +48,7 @@ pub(crate) fn merge_session_env_into_launch(
     }
 }
 use ship_substrate::events::emit::persist_and_route;
-use ship_harnesses::harness_adapter::{adapter_for_or_default, HarnessAdapter};
+use ship_harnesses::agent_driver::{adapter_for_or_default, AgentDriver};
 use process_supervisor::{spawn_process, ProcessHandle, ProcessKind, ProcessProfile, TransportKind};
 /// Kept in ProcessExecutor (the headless spawn path) because only
 /// non-interactive runs need an autostart; interactive tmux sessions are
@@ -59,7 +59,7 @@ const DEFAULT_AUTOSTART_PROMPT: &str = "Read .artifacts/job-spec.md and execute 
 /// when the profile doesn't carry one. Extracted so tests can assert the
 /// harness-dispatch shape without actually spawning a process.
 fn build_headless_with_default_prompt(
-    adapter: &dyn HarnessAdapter,
+    adapter: &dyn AgentDriver,
     slug: &str,
     profile: &LaunchProfile,
 ) -> anyhow::Result<LaunchCommand> {
@@ -1029,7 +1029,7 @@ impl SessionExecutor for ProcessExecutor {
                                 let Some(ev) = adapter.parse_output(&line) else {
                                     continue;
                                 };
-                                use ship_harnesses::harness_adapter::HarnessEvent;
+                                use ship_harnesses::agent_driver::HarnessEvent;
                                 match ev {
                                     HarnessEvent::SessionStarted { session_id } => {
                                         if !session_written {

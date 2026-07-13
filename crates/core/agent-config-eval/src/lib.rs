@@ -1,10 +1,17 @@
-//! Evaluate a `ship.config.ts` config — authored with `defineAgent` and, per
-//! format-migration Wave 3, the sibling declare-forms (`defineMcpServer`,
-//! `defineSkill`, `definePipeline`, `defineTrigger`, `defineCollection`,
-//! `defineRule`) — in a locked-down ship-js isolate and harvest the result
-//! as [`Declarations`].
+//! **Tier: L0 sibling.** Pure eval leaf over `ship-js` — runs user-authored
+//! `ship.config.ts` through a locked-down isolate (TS-strip → JS → ship-js
+//! with deny-by-default loader + `DenyAll` host wire) and harvests the
+//! declared `defineAgent` + sibling `defineMcpServer` / `defineSkill` /
+//! `definePipeline` / `defineTrigger` / `defineCollection` / `defineRule`
+//! calls into typed [`Declarations`].
+//!
+//! The engine is closed-world: it only knows the `ship` module served from
+//! [`SDK_STUB`] (GENERATED from `@ship/stack` — `cargo xtask gen-eval-stub`).
+//! No knowledge of ship's config types leaks into `ship-js`; this crate
+//! supplies everything ship-specific.
 //!
 //! # The boundary
+//!
 //!
 //! `ship-js` is a standalone JS engine with **zero** knowledge of ship's config
 //! types. THIS crate supplies everything ship-specific — the TypeScript strip

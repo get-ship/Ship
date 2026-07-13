@@ -1,7 +1,7 @@
 //! Boundary lint — the ship-standard / ship-code architecture invariant.
 //!
 //! The code world lives under `crates/code/` on disk (ship-code,
-//! harness-adaptors, and whatever joins them). Two graphs must never
+//! harness-config-compiler, and whatever joins them). Two graphs must never
 //! carry it:
 //!
 //! 1. **Ship standard** — shipd with default features OFF. The standard
@@ -11,7 +11,7 @@
 //!    third-party-harness world are two runtimes that must never
 //!    cross-depend (lint-layers R3 holds the direct edges; this check
 //!    holds the TRANSITIVE closure — the gap that let
-//!    floki → agent-def → harness-adaptors ride undetected while the
+//!    floki → agent-def → harness-config-compiler ride undetected while the
 //!    emission crate was named `compiler`).
 //!
 //! Mechanism: the deny-set is derived from the WORKSPACE PATH — every

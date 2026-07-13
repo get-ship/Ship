@@ -25,7 +25,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use harness_adaptors::compile;
+use harness_config_compiler::compile;
 use stack_model::{ExtSource, resolve_library};
 use ship_agents::services::agents::view_state::{list_agents_from_index, load_agent_from_index};
 use ship_config::agents_index::{AgentDefIndex, AgentDefQuery};
@@ -195,7 +195,7 @@ async fn make_index(ship_dir: &Path, db_name: &str) -> AgentDefIndex {
 async fn resolve_claude_output(
     space_root: &Path,
     cache_root: &Path,
-) -> anyhow::Result<harness_adaptors::CompileOutput> {
+) -> anyhow::Result<harness_config_compiler::CompileOutput> {
     let composed = roll_up_members(&[space_root.to_path_buf()], Some(cache_root), None).await?;
     let resolved = resolve_library(&composed.library, None, None);
     compile(&resolved, "claude").ok_or_else(|| anyhow::anyhow!("compile: no output for claude"))

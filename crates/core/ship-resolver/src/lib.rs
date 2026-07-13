@@ -1,7 +1,13 @@
 //! `ship-resolver` — the Phase-2 space-shape resolver.
 //!
-//! ## What this crate does
+//! **Tier: L1.** Orchestrates `ship_substrate` ports (FsBroker, KernelLog)
+//! and `stack_model` (the descriptor types). Classified in place — lives
+//! at `crates/core/ship-resolver/` rather than under `ship-platform/` for
+//! cycle reasons (depends on ship-store/ship-substrate/compiler, NOT on
+//! ship-platform).
 //!
+//! ## What this crate does
+
 //! Generalizes the Phase-0 resolver (compiler leaf + agent-config-eval) from
 //! single-manifest to **space shape**: a `ship.config.ts` at the space root, a
 //! `skills/` + `rules/` directory convention, the on-disk permissions +

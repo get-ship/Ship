@@ -2,7 +2,7 @@
 //!
 //! Wraps the L0 `process_supervisor::spawn_process` primitive with
 //! session-flavored sidecar metadata (workspace, agent, harness, status)
-//! and harness-adapter wiring (stream-json parsing, channels delivery).
+//! and agent-driver wiring (stream-json parsing, channels delivery).
 //! Per the charter: actor lifecycle + supervision are L0; agent profiles
 //! plus compilation to harness config are L1 — that's this module.
 //!

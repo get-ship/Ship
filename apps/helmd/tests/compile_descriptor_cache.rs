@@ -22,7 +22,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 
 use axum::body::Body;
 use axum::http::Request;
-use harness_adaptors::compile;
+use harness_config_compiler::compile;
 use http_body_util::BodyExt;
 use ship_resolver::cache::DescriptorCache;
 use ship_resolver::descriptor::canonical_content_hash;
@@ -192,7 +192,7 @@ async fn roll_up_and_cache(
     let hash = canonical_content_hash(&(&composed.library, &None::<String>, &no_rules))
         .map_err(|e| anyhow::anyhow!("content_hash failed: {e}"))?;
     // Resolve once (cheap; `resolve_library` is pure). The resolved
-    // config is what `harness_adaptors::compile` consumes — the same
+    // config is what `harness_config_compiler::compile` consumes — the same
     // shape the Compile handler passes through.
     let resolved = resolve_library(&composed.library, None, None);
     let harness_str = harness.to_string();

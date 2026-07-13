@@ -3,7 +3,7 @@
 //!
 //! Owns the manifest, lockfile, skill parsing, library types, and the
 //! compose law (`compose_space`). Standard-tier: shared by floki and
-//! ship-code alike. Harness codegen lives in `harness-adaptors` (the
+//! ship-code alike. Harness codegen lives in `harness-config-compiler` (the
 //! third-party-harness driver box), which depends on this crate — never
 //! the reverse.
 //!

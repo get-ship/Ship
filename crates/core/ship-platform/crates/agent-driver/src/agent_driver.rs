@@ -1,15 +1,16 @@
-//! Harness adapter trait — single interface between executors and harness CLIs.
+//! Agent driver trait — single interface between executors and any agent
+//! runtime (Floki in-process, or a third-party harness CLI).
 //!
-//! Each harness implements this trait once. Executors use the trait methods
-//! without knowing which harness they're running.
+//! Each runtime implements this trait once. Executors use the trait methods
+//! without knowing which runtime is in front of them.
 //!
 //! # What lives here vs. elsewhere
 //!
-//! This module is L0: it defines only trait/type contracts. Concrete adapter
-//! structs (ClaudeAdapter, CodexAdapter, …) live in ship-platform where they
-//! can reference platform-level types (LaunchProfile, dispatch_ports). The
-//! registry helpers (`adapter_for`, `capabilities`) also live in ship-platform
-//! because they reference the concrete struct impls.
+//! This module defines only trait/type contracts. Concrete driver structs
+//! (Floki's native driver, plus ClaudeAdapter/CodexAdapter/… in
+//! `ship-harnesses`) live with their implementation. The registry helpers
+//! (`adapter_for`, `capabilities`) live with whichever crate owns the
+//! concrete struct impls.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -18,7 +19,7 @@ use async_trait::async_trait;
 use crate::dispatch_ports::{LaunchCommand, LaunchProfile};
 use crate::server_session::ServerSession;
 
-/// Errors returned from `HarnessAdapter::build_resume_args`.
+/// Errors returned from `AgentDriver::build_resume_args`.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum ResumeError {
     /// The harness has no session-resume capability. Dispatch should reject
@@ -113,7 +114,7 @@ pub enum PushMechanism {
 }
 
 /// How the autostart message + Enter should reach the harness TUI.
-/// See [`HarnessAdapter::submit_mode`].
+/// See [`AgentDriver::submit_mode`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum SubmitMode {
     /// Type `<msg> Enter` as a single `tmux send-keys` argv burst.
@@ -148,7 +149,7 @@ impl HarnessCapabilities {
 
 /// Complete lifecycle adapter for a harness CLI.
 #[async_trait]
-pub trait HarnessAdapter: Send + Sync {
+pub trait AgentDriver: Send + Sync {
     /// Harness identifier (e.g. "claude", "codex").
     fn id(&self) -> &str;
 
@@ -246,7 +247,7 @@ mod tests {
     struct StubAdapter;
 
     #[async_trait]
-    impl HarnessAdapter for StubAdapter {
+    impl AgentDriver for StubAdapter {
         fn id(&self) -> &str {
             "stub"
         }
