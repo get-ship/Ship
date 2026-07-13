@@ -4,14 +4,15 @@ use std::path::Path;
 use anyhow::Context;
 
 /// Files excluded from content hashing.
-fn should_exclude(rel_path: &str) -> bool {
+pub(crate) fn should_exclude(rel_path: &str) -> bool {
     let parts: Vec<&str> = rel_path.split('/').collect();
     // Exclude anything under .git/
     if parts.first() == Some(&".git") {
         return true;
     }
-    // Exclude ship.lock (registry lockfile, not part of package content)
-    if rel_path == "ship.lock" {
+    // Exclude transport metadata and the dependency lockfile. The archive
+    // header contains this tree hash, so including it would be recursive.
+    if matches!(rel_path, "ship.json" | "ship.lock") {
         return true;
     }
     // Exclude .ship/state/ — user/project variable state, not package content.
@@ -93,7 +94,6 @@ pub fn compute_file_hash(path: &Path) -> anyhow::Result<String> {
     let content = std::fs::read(path).with_context(|| format!("reading {}", path.display()))?;
     Ok(format!("sha256:{}", hex::encode_sha256(&content)))
 }
-
 
 /// Per-export content hashes and a combined top-level hash.
 #[derive(Debug, Clone, PartialEq)]

@@ -10,6 +10,7 @@
 //! - [`types`] — minimal `ShipManifest`/`Dependency` view for the install
 //!   pipeline; the full lockfile types live in `stack_model::lockfile`.
 
+pub mod archive;
 pub mod bundle_sig;
 pub mod cache;
 pub mod collection_schemas;
@@ -22,12 +23,14 @@ pub mod init_deps;
 pub mod install;
 pub mod install_bundle;
 mod install_helpers;
+pub mod publish_walk;
 pub mod resolver;
 pub mod tracking;
 pub mod types;
 pub mod url_encode;
 pub mod verify;
 
+pub use archive::{pack_stack, unpack_stack};
 pub use cache::{CachedPackage, PackageCache};
 pub use compose::materialize_space;
 pub use constraint::{VersionConstraint, parse_constraint};
@@ -36,6 +39,7 @@ pub use init_deps::{
     DEFAULT_INIT_DEPS, SeedResult, seed_default_dependencies, try_install_init_deps,
 };
 pub use install::{InstallOptions, InstallResult, resolve_and_fetch};
+pub use publish_walk::validate_publishable_stack;
 pub use resolver::{ResolvedVersion, resolve_alias, resolve_version};
 pub use types::{Dependency, ShipManifest, SyncStatus, diff_manifest_against_lock};
 // Canonical lockfile types live in `stack_model::lockfile`; re-export the names

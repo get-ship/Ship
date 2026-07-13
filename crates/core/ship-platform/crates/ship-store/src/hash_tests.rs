@@ -64,6 +64,19 @@ fn tree_hash_excludes_ship_lock() -> anyhow::Result<()> {
 }
 
 #[test]
+fn tree_hash_excludes_archive_header() -> anyhow::Result<()> {
+    let dir = make_tree(&[("stack.config.ts", "export default {};\n")])?;
+    let h_before = compute_tree_hash(dir.path())?;
+    fs::write(dir.path().join("ship.json"), r#"{"hash":"sha256:pending"}"#)?;
+    let h_after = compute_tree_hash(dir.path())?;
+    assert_eq!(
+        h_before, h_after,
+        "ship.json archive metadata must be excluded"
+    );
+    Ok(())
+}
+
+#[test]
 fn tree_hash_excludes_swp_files() -> anyhow::Result<()> {
     let dir = make_tree(&[("a.txt", "data")])?;
     let h_before = compute_tree_hash(dir.path())?;

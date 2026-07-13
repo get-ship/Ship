@@ -11,6 +11,7 @@
 //! resolution), `compose` (the space compose law), `loader`, `manifest`,
 //! `lockfile`, `skill_parser`.
 
+pub mod archive_header;
 pub mod compose;
 pub mod events;
 pub mod jsonc;
@@ -25,9 +26,10 @@ pub mod vars;
 
 // ─── Top-level re-exports ─────────────────────────────────────────────────────
 
+pub use archive_header::ArchiveHeader;
 pub use jsonc::{merge_json, merge_json_file};
-pub use types::compile_output::CompileOutput;
 pub use loader::load_library;
+pub use types::compile_output::CompileOutput;
 
 pub use compose::{ComposedLibrary, NounKind, ShadowRecord, compose_space};
 pub use resolve::{
@@ -58,4 +60,3 @@ pub fn gen_nanoid() -> String {
     ];
     nanoid::format(nanoid::rngs::default, &alphabet, 8)
 }
-

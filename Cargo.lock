@@ -8588,6 +8588,7 @@ dependencies = [
  "sha2",
  "ship-collection",
  "ship-substrate",
+ "ship-types",
  "stack-model",
  "tar",
  "tempfile",
