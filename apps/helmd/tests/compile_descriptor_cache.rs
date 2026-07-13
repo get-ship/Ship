@@ -25,7 +25,7 @@ use axum::http::Request;
 use harness_adaptors::compile;
 use http_body_util::BodyExt;
 use ship_resolver::cache::DescriptorCache;
-use ship_resolver::descriptor::extension_library_content_hash;
+use ship_resolver::descriptor::canonical_content_hash;
 use ship_resolver::roll_up_registered_blocking;
 use ship_substrate::events::EventEnvelope;
 use ship_substrate::events::new_isolated_for_test;
@@ -164,7 +164,7 @@ async fn descriptor_cache_hits_on_repeat_compile_and_recomputes_on_edit() {
     );
     // Sanity: determinism (`inv-fmt-deterministic-eval`) — same input
     // produces the same canonical-JSON bytes. This is what makes the
-    // cache key (`extension_library_content_hash`) meaningful.
+    // cache key (`canonical_content_hash` over the compile input) meaningful.
     let first_bytes = serde_json::to_vec(&*first).expect("serialize first");
     let third_bytes = serde_json::to_vec(&*third).expect("serialize third");
     assert_eq!(
@@ -185,7 +185,11 @@ async fn roll_up_and_cache(
 ) -> anyhow::Result<Arc<CompileOutput>> {
     let composed = roll_up_registered_blocking(repo, None, None)
         .map_err(|e| anyhow::anyhow!("roll_up failed: {e}"))?;
-    let hash = extension_library_content_hash(&composed.library)
+    // Mirror the handler's composite key — (library, active-agent
+    // override, space rules); this fixture has neither an override nor
+    // space rules, so the last two dimensions are empty.
+    let no_rules: Vec<stack_model::Rule> = Vec::new();
+    let hash = canonical_content_hash(&(&composed.library, &None::<String>, &no_rules))
         .map_err(|e| anyhow::anyhow!("content_hash failed: {e}"))?;
     // Resolve once (cheap; `resolve_library` is pure). The resolved
     // config is what `harness_adaptors::compile` consumes — the same

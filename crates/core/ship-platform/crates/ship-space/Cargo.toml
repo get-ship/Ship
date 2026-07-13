@@ -10,6 +10,16 @@ ship-substrate = { path = "../../../ship-substrate" }
 ship-types = { path = "../../../ship-substrate/crates/ship-types" }
 ship-reactive = { path = "../ship-reactive" }
 ship-ops-rpc = { path = "../../../ship-ops-rpc" }
+# `rules::list_space_rules` reads the per-space `settings_overlay` partition
+# through ship-config's overlay accessor (the typed reader over the
+# substrate's DataStore port, shared by the SPACE/ACCOUNT SettingsService
+# scopes). No circular dep — ship-config stays ship-space-free.
+ship-config = { path = "../ship-config" }
+# `rules::SpaceRule::into_stack_rule` projects into the `stack_model::Rule`
+# shape the harness compile flow consumes (the same struct
+# `ExtensionLibrary::rules` carries). stack-model stays leaf (no ship-*
+# back-edge), so this is a one-way dep.
+stack-model = { path = "../../../stack-model" }
 
 async-trait = { workspace = true }
 async-stream = "0.3"
@@ -33,6 +43,7 @@ ship-substrate = { path = "../../../ship-substrate" }
 ship-collection = { path = "../ship-collection" }
 ship-artifacts = { path = "../ship-artifacts" }
 ship-reactive = { path = "../ship-reactive" }
+ship-config = { path = "../ship-config" }
 
 [lints]
 workspace = true

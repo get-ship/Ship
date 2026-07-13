@@ -67,8 +67,18 @@ pub fn extension_library_canonical(library: &ExtensionLibrary) -> serde_json::Re
 /// (`ship-config/src/agents_index.rs:111-125`) so the cache invalidation
 /// key is consistent with the rest of the config tier.
 pub fn extension_library_content_hash(library: &ExtensionLibrary) -> serde_json::Result<String> {
-    let bytes = extension_library_canonical(library)?;
-    Ok(sha256_hex(&bytes))
+    canonical_content_hash(library)
+}
+
+/// SHA-256 hex digest of ANY `Serialize` value's canonical JSON form.
+///
+/// The descriptor cache keys on the full compile input, not the library
+/// alone — the Compile handler hashes the `(library, active-agent
+/// override, space-rule rows)` triple through this fn, because the
+/// override and the runtime rule rows shape the output without touching
+/// a file (a library-only key would serve stale hits across them).
+pub fn canonical_content_hash<T: Serialize>(value: &T) -> serde_json::Result<String> {
+    Ok(sha256_hex(&to_canonical_json(value)?))
 }
 
 /// SHA-256 hex digest of a [`ComposedLibrary`]'s canonical JSON form —
@@ -189,6 +199,29 @@ mod tests {
         let ha = extension_library_content_hash(&a).unwrap();
         let hb = extension_library_content_hash(&b).unwrap();
         assert_ne!(ha, hb, "content hash must change when the library changes");
+    }
+
+    #[test]
+    fn canonical_content_hash_covers_every_tuple_element() {
+        // The Compile handler's cache key is a triple hash — each element
+        // changing alone must produce a distinct key.
+        let lib = ExtensionLibrary::default();
+        let rules: Vec<stack_model::Rule> = Vec::new();
+        let base = canonical_content_hash(&(&lib, &None::<String>, &rules)).unwrap();
+
+        let with_agent =
+            canonical_content_hash(&(&lib, &Some("commander".to_string()), &rules)).unwrap();
+        assert_ne!(base, with_agent, "active-agent override must change the key");
+
+        let space_rules = vec![stack_model::Rule {
+            file_name: "space:tone".to_string(),
+            content: "be blunt".to_string(),
+            always_apply: true,
+            globs: Vec::new(),
+            description: None,
+        }];
+        let with_rules = canonical_content_hash(&(&lib, &None::<String>, &space_rules)).unwrap();
+        assert_ne!(base, with_rules, "space rules must change the key");
     }
 
     #[test]

@@ -110,7 +110,7 @@ use axum::http::StatusCode;
 use axum::routing;
 use connectrpc::{RequestContext, Response, Router, ServiceResult};
 use ship_resolver::cache::DescriptorCache;
-use ship_resolver::descriptor::extension_library_content_hash;
+use ship_resolver::descriptor::canonical_content_hash;
 use ship_substrate::ShipHome;
 use ship_substrate::ports::{KernelLog, SpaceId};
 use tokio::net::TcpListener;
@@ -738,7 +738,67 @@ impl HarnessService for HarnessImpl {
         } else {
             Some(req.active_agent.to_string())
         };
-        let resolved = stack_model::resolve_library(&lib, None, active_agent_override.as_deref());
+        let mut resolved = stack_model::resolve_library(&lib, None, active_agent_override.as_deref());
+
+        // Step 2b: the active space, resolved ONCE — the rules read and the
+        // descriptor cache both key on it. A repo_path that has never been
+        // opened as a space reads `None`: spaceless compiles stay unchanged
+        // (no rules, no cache — the pre-cutover Compile behavior).
+        let space_id: Option<SpaceId> =
+            ship_substrate::project::resolve_active_space(&repo).map(SpaceId::new);
+
+        // Step 2c: fetch the space's runtime policy rows (`rules.<name>` in
+        // the per-space `settings_overlay` partition). Appended to the
+        // resolved rule set below — AFTER the cache key hashes them — so the
+        // harness adaptor's context materializer emits them alongside any
+        // project rule bodies. The `space:` provenance lives in
+        // `Rule::file_name`; the body travels verbatim (always_apply=true).
+        //
+        // `list_space_rules` is an ensure-free read (a never-opened space
+        // returns empty), so a missing db can't make a Compile call fail.
+        // The error path is intentionally non-fatal (logged + skipped) so a
+        // corrupt rule row can't block a compile — the daemon's invariant is
+        // "compiles succeed", with degraded rule coverage as the only
+        // observable signal.
+        let space_rules: Vec<stack_model::Rule> = match space_id.as_ref() {
+            Some(space) => match ship_space::rules::list_space_rules(space.as_str()).await {
+                Ok(rules) => {
+                    if !rules.is_empty() {
+                        tracing::debug!(
+                            space = %space.as_str(),
+                            count = rules.len(),
+                            "helmd: appending space rules to resolved compile set",
+                        );
+                    }
+                    rules
+                        .into_iter()
+                        .map(ship_space::rules::SpaceRule::into_stack_rule)
+                        .collect()
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        space = %space.as_str(),
+                        error = %e,
+                        "helmd: failed to read space rules; compiling without them",
+                    );
+                    Vec::new()
+                }
+            },
+            None => Vec::new(),
+        };
+
+        // Cache key — a hash over the compile's FULL input: the composed
+        // library, the active-agent override, and the space-rule rows. The
+        // library hash alone under-keys: an agent override or a rule edit
+        // changes the output with no file change, and a library-only key
+        // would serve stale hits across both.
+        let content_hash: String =
+            canonical_content_hash(&(&lib, &active_agent_override, &space_rules)).map_err(|e| {
+                connectrpc::ConnectError::invalid_argument(format!(
+                    "canonical_content_hash failed: {e}"
+                ))
+            })?;
+        resolved.rules.extend(space_rules);
 
         // Step 3: pick harnesses. The request may pin a single harness; if
         // not, use the resolved config's selected harnesses (default: claude).
@@ -760,14 +820,7 @@ impl HarnessService for HarnessImpl {
         // we always compile inline when no active space resolves
         // (spaceless compiles are valid; carving the cache bypass keeps
         // first-against-an-unregistered-project safe and zero-config).
-        let space_id: Option<SpaceId> =
-            ship_substrate::project::resolve_active_space(&repo).map(SpaceId::new);
         let cache = space_id.as_ref().map(|_| descriptor_cache());
-        let content_hash: String = extension_library_content_hash(&lib).map_err(|e| {
-            connectrpc::ConnectError::invalid_argument(format!(
-                "extension_library_content_hash failed: {e}"
-            ))
-        })?;
         let mut files: Vec<CompiledFile> = Vec::new();
         for h in &harnesses {
             let compiled = match (space_id.as_ref(), cache.as_ref()) {
