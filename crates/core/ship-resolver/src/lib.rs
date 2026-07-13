@@ -75,7 +75,8 @@ pub mod space_loader;
 pub mod ts_resolver;
 
 pub use members::{
-    resolve_member_roots, roll_up_members, roll_up_registered, roll_up_registered_blocking,
+    resolve_member_roots, roll_up_members, roll_up_members_blocking, roll_up_registered,
+    roll_up_registered_blocking,
 };
 
 use std::collections::HashSet;

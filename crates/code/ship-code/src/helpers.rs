@@ -88,7 +88,8 @@ pub fn compile_agent_config(
     // ingests, so a dispatch-compiled agent sees what the index sees
     // instead of a single-source `.ship/` read. `roll_up` is async
     // (V8 TS eval); `roll_up_registered_blocking` bridges the sync trait boundary.
-    let composed = ship_resolver::roll_up_registered_blocking(worktree_path, None, None)
+    let member_roots = member_roots_for_worktree(worktree_path);
+    let composed = ship_resolver::roll_up_members_blocking(&member_roots, None, None)
         .map_err(|e| anyhow::anyhow!("roll-up failed for agent '{agent_id}': {e}"))?;
 
     // In-process compile via the agent-def engine — the same pipeline
@@ -290,5 +291,99 @@ mod tests {
             Some("medium"),
             "gap 2: dispatched worktree must carry effortLevel: medium"
         );
+    }
+}
+
+/// The member roots a WORKTREE composes with: the worktree STANDS IN for
+/// its origin repo among the origin's registered space members. Membership
+/// is registration (never a scan) — this helper only decides which
+/// registered member the worktree replaces:
+///
+/// - a plain root (`.git` is a directory) composes as itself via the
+///   registry (`resolve_member_roots`);
+/// - a linked worktree (`.git` is a gitfile) resolves its ORIGIN root,
+///   takes the origin's registered members, and substitutes itself for
+///   the origin — so a dispatched agent sees its own worktree's content
+///   plus the space's other members, exactly what the space anchor sees;
+/// - an unregistered origin composes the worktree alone (the degenerate
+///   single-stack case).
+fn member_roots_for_worktree(worktree: &std::path::Path) -> Vec<std::path::PathBuf> {
+    let gitfile = worktree.join(".git");
+    if !gitfile.is_file() {
+        // Not a linked worktree — a plain root composes as itself.
+        return ship_resolver::resolve_member_roots(worktree);
+    }
+    let Some(origin) = origin_repo_root(&gitfile) else {
+        return vec![worktree.to_path_buf()];
+    };
+    let origin = std::fs::canonicalize(&origin).unwrap_or(origin);
+    let wt = std::fs::canonicalize(worktree).unwrap_or_else(|_| worktree.to_path_buf());
+    let mut roots = ship_resolver::resolve_member_roots(&origin);
+    for r in roots.iter_mut() {
+        let canon = std::fs::canonicalize(&*r).unwrap_or_else(|_| r.clone());
+        if canon == origin {
+            *r = wt.clone();
+        }
+    }
+    roots
+}
+
+/// Parse a linked worktree's gitfile (`gitdir: <origin>/.git/worktrees/<name>`)
+/// back to the origin repo root. Returns `None` for any shape that isn't a
+/// standard linked-worktree gitdir.
+fn origin_repo_root(gitfile: &std::path::Path) -> Option<std::path::PathBuf> {
+    let content = std::fs::read_to_string(gitfile).ok()?;
+    let gitdir = content.strip_prefix("gitdir:")?.trim();
+    let p = std::path::Path::new(gitdir);
+    let worktrees_dir = p.parent()?; // .../.git/worktrees
+    if worktrees_dir.file_name()? != "worktrees" {
+        return None;
+    }
+    let git_dir = worktrees_dir.parent()?; // .../.git
+    if git_dir.file_name()? != ".git" {
+        return None;
+    }
+    Some(git_dir.parent()?.to_path_buf())
+}
+
+#[cfg(test)]
+mod worktree_standin_tests {
+    use super::origin_repo_root;
+
+    fn write_gitfile(dir: &std::path::Path, content: &str) -> std::path::PathBuf {
+        let f = dir.join(".git");
+        std::fs::write(&f, content).unwrap();
+        f
+    }
+
+    #[test]
+    fn standard_linked_worktree_gitfile_resolves_origin() {
+        let tmp = tempfile::tempdir().unwrap();
+        let f = write_gitfile(
+            tmp.path(),
+            "gitdir: /home/dev/origin/.git/worktrees/my-job
+",
+        );
+        assert_eq!(
+            origin_repo_root(&f).unwrap(),
+            std::path::PathBuf::from("/home/dev/origin")
+        );
+    }
+
+    #[test]
+    fn non_worktree_gitdir_shapes_resolve_none() {
+        let tmp = tempfile::tempdir().unwrap();
+        for content in [
+            "gitdir: /somewhere/else
+",              // no worktrees/ segment
+            "gitdir: /repo/.git
+",                   // bare gitdir
+            "not a gitfile at all",                   // no prefix
+            "gitdir: /repo/.hg/worktrees/x
+",        // wrong dir name
+        ] {
+            let f = write_gitfile(tmp.path(), content);
+            assert!(origin_repo_root(&f).is_none(), "content: {content:?}");
+        }
     }
 }

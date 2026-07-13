@@ -94,6 +94,26 @@ pub fn roll_up_registered_blocking(
     }
 }
 
+/// Synchronous bridge over [`roll_up_members`] — same contract as
+/// [`roll_up_registered_blocking`], for callers that computed their own
+/// member roots (e.g. ship-code's worktree stand-in).
+pub fn roll_up_members_blocking(
+    member_roots: &[PathBuf],
+    cache_root: Option<&Path>,
+    library_root: Option<&Path>,
+) -> Result<ComposedLibrary> {
+    match tokio::runtime::Handle::try_current() {
+        Ok(handle) => tokio::task::block_in_place(|| {
+            handle.block_on(roll_up_members(member_roots, cache_root, library_root))
+        }),
+        Err(_) => tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .context("roll_up_members_blocking: building fallback runtime")?
+            .block_on(roll_up_members(member_roots, cache_root, library_root)),
+    }
+}
+
 /// Compose a space from explicit member stack roots.
 pub async fn roll_up_members(
     member_roots: &[PathBuf],
