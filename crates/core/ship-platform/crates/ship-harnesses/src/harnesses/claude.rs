@@ -36,9 +36,8 @@ impl ClaudeAdapter {
             // channel is declared, but server: entries are inactive
             // (claude logs "server: entries need
             // --dangerously-load-development-channels"). Push via Channel
-            // mechanism HTTP-202s and emits studio.chat_turn, but
-            // delivery to claude's MCP subscriber doesn't actually
-            // happen.
+            // mechanism HTTP-202s, but delivery to claude's MCP
+            // subscriber doesn't actually happen.
             //
             // Proper fix: PTY-side dialog auto-dismissal in the
             // supervisor when keepalive=true. Substantial work; tracked.

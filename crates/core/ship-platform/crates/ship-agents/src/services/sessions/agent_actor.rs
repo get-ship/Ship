@@ -88,11 +88,8 @@ pub fn spawn_or_attach(
         harness: Some(harness.to_string()),
         parent_actor_id: None,
         log_dir: Some(log_dir),
-        // Channel-listening lives in the MCP-side actor_spawn path
-        // (it captures the mailbox for SSE drain). We deliberately
-        // leave subscribe_namespaces empty here: the long-lived
-        // claude binary has its own MCP child that registers itself
-        // as an actor and owns chat_turn delivery.
+        // The long-lived Claude binary has its own MCP child actor, so this
+        // process does not subscribe through the supervisor mailbox.
         subscribe_namespaces: vec![],
     };
 
@@ -189,19 +186,6 @@ fn spawn_reader_middleware(
                                                 "session_file write failed: {e}"
                                             );
                                         }
-                                    }
-                                    // Studio.reply parity: long-lived
-                                    // non-Claude harnesses (codex,
-                                    // opencode, cursor via stdin
-                                    // push) emit Message events here.
-                                    // Claude has its own chat_reply
-                                    // path; emitting again would be a
-                                    // double — but parse_output rarely
-                                    // produces Message from a Claude
-                                    // TUI rendering, so the duplicate
-                                    // case is unlikely in practice.
-                                    if let HarnessEvent::Message { text } = &ev {
-                                        emit_studio_reply(&actor_id, text);
                                     }
                                     let _ = event_tx.send(ev);
                                 }
@@ -325,17 +309,6 @@ pub fn run_headless_turn(
                                 let mut m = session_clone.0.meta.lock().unwrap();
                                 m.harness_session_id = Some(session_id.clone());
                             }
-                            // Studio.reply parity: emit a kernel event on
-                            // every Message HarnessEvent so the chat
-                            // thread sees codex/opencode/cursor
-                            // replies on the same rail Claude uses via
-                            // chat_reply. Best-effort; in-memory event_tx
-                            // broadcast still fires below for SSE
-                            // consumers tailing /events.
-                            if let HarnessEvent::Message { text: msg } = &ev {
-                                let parent_id = session_clone.0.meta.lock().unwrap().id.clone();
-                                emit_studio_reply(&parent_id, msg);
-                            }
                             let _ = session_clone.0.event_tx.send(ev);
                             let mut m = session_clone.0.meta.lock().unwrap();
                             m.last_activity = chrono::Utc::now();
@@ -368,38 +341,6 @@ pub fn run_headless_turn(
     });
 
     Ok(())
-}
-
-/// Emit a `studio.reply` kernel event for `text` keyed on `actor_id`.
-/// Fire-and-forget — we're inside a non-async parse loop and don't
-/// want to block on kernel availability. Spawned on a std::thread so
-/// the block_on inside the kernel router doesn't deadlock the tokio
-/// runtime that's driving the reader.
-fn emit_studio_reply(actor_id: &str, text: &str) {
-    let actor_id = actor_id.to_string();
-    let text = text.to_string();
-    std::thread::spawn(move || {
-        let Some(kr) = ship_substrate::events::kernel_router() else { return };
-        let payload = serde_json::json!({ "actor_id": &actor_id, "text": text });
-        let envelope = match ship_substrate::events::EventEnvelope::new(
-            ship_substrate::events::types::event_types::STUDIO_REPLY,
-            &actor_id,
-            &payload,
-        ) {
-            Ok(e) => e.with_actor_id(&actor_id).with_target(&actor_id),
-            Err(e) => {
-                tracing::warn!(actor = %actor_id, "studio.reply envelope failed: {e}");
-                return;
-            }
-        };
-        // Directed studio.reply — space absent by design. Daemon-internal mint.
-        let ctx = ship_substrate::events::EmitContext::daemon_internal(None);
-        if let Err(e) = ship_substrate::db::block_on_anyhow(async move {
-            kr.lock().await.emit(envelope, &ctx).await
-        }) {
-            tracing::warn!(actor = %actor_id, "studio.reply emit failed: {e}");
-        }
-    });
 }
 
 #[derive(Default)]

@@ -41,8 +41,8 @@ pub struct ProcessProfile {
     /// Kernel subscription namespaces for this actor. Empty = no
     /// broadcast subscriptions (the actor still receives directed
     /// events via target_actor_id). Agents typically subscribe to
-    /// studio.chat_turn / studio.reply / inbox.* / human.* /
-    /// mesh.message; shells and pipelines often want nothing.
+    /// inbox.* / human.* / mesh.message; shells and pipelines often want
+    /// nothing.
     pub subscribe_namespaces: Vec<String>,
 }
 

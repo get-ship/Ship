@@ -20,12 +20,12 @@ pub(super) fn ev(event_type: &str) -> EventEnvelope {
     EventEnvelope::new(event_type, "entity-1", &serde_json::json!({})).unwrap()
 }
 
-pub(super) fn studio_config() -> ActorConfig {
+pub(super) fn neutral_config() -> ActorConfig {
     ActorConfig {
-        namespace: "studio".into(),
-        write_namespaces: vec!["studio.".into()],
-        read_namespaces: vec!["studio.".into(), "session.".into()],
-        subscribe_namespaces: vec!["studio.".into()],
+        namespace: "neutral".into(),
+        write_namespaces: vec!["neutral.".into()],
+        read_namespaces: vec!["neutral.".into(), "session.".into()],
+        subscribe_namespaces: vec!["neutral.".into()],
         see_directed_events: false,
     }
 }
@@ -47,9 +47,9 @@ async fn kernel_emits_rejects_write_outside_namespace() {
         binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
         session_id: None,
     };
-    router.spawn_actor("studio", studio_config()).unwrap();
+    router.spawn_actor("neutral", neutral_config()).unwrap();
     let mut ev_session = ev("session.started");
-    ev_session.actor_id = Some("studio".into());
+    ev_session.actor_id = Some("neutral".into());
     let err = router
         .emit(ev_session, &mcp_ctx)
         .await
@@ -69,9 +69,9 @@ async fn kernel_emits_allows_write_inside_namespace() {
         binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
         session_id: None,
     };
-    router.spawn_actor("studio", studio_config()).unwrap();
+    router.spawn_actor("neutral", neutral_config()).unwrap();
     router
-        .emit(ev("studio.canvas_updated"), &mcp_ctx)
+        .emit(ev("neutral.canvas_updated"), &mcp_ctx)
         .await
         .unwrap();
 }
@@ -95,13 +95,13 @@ fn kernel_query_rejects_read_outside_namespace() {
 #[test]
 fn kernel_query_rejects_namespace_violation() {
     let (_tmp, mut router) = setup();
-    router.spawn_actor("studio", studio_config()).unwrap();
+    router.spawn_actor("neutral", neutral_config()).unwrap();
     let filter = EventFilter {
         event_type: Some("actor.created".into()),
         ..Default::default()
     };
     let err = router
-        .query_actor_events("studio", &filter)
+        .query_actor_events("neutral", &filter)
         .unwrap_err();
     assert!(
         err.to_string().contains("read namespace violation"),
@@ -118,16 +118,16 @@ async fn kernel_query_allows_read_in_permitted_namespace() {
         binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
         session_id: None,
     };
-    router.spawn_actor("studio", studio_config()).unwrap();
-    let mut ev_canvas = ev("studio.canvas_updated");
-    ev_canvas.actor_id = Some("studio".into());
+    router.spawn_actor("neutral", neutral_config()).unwrap();
+    let mut ev_canvas = ev("neutral.canvas_updated");
+    ev_canvas.actor_id = Some("neutral".into());
     router.emit(ev_canvas, &mcp_ctx).await.unwrap();
-    // studio. is in read_namespaces
+    // neutral. is in read_namespaces
     let filter = EventFilter {
-        event_type: Some("studio.canvas_updated".into()),
+        event_type: Some("neutral.canvas_updated".into()),
         ..Default::default()
     };
-    let results = router.query_actor_events("studio", &filter).unwrap();
+    let results = router.query_actor_events("neutral", &filter).unwrap();
     assert_eq!(results.len(), 1);
     // session. is also in read_namespaces
     let filter = EventFilter {
@@ -136,7 +136,7 @@ async fn kernel_query_allows_read_in_permitted_namespace() {
     };
     // The event was not emitted, so the result must be empty, but the call
     // must succeed (no namespace violation).
-    let results = router.query_actor_events("studio", &filter).unwrap();
+    let results = router.query_actor_events("neutral", &filter).unwrap();
     assert!(results.is_empty());
 }
 
@@ -149,13 +149,13 @@ async fn kernel_query_unfiltered_scopes_to_actor() {
         binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
         session_id: None,
     };
-    router.spawn_actor("studio", studio_config()).unwrap();
+    router.spawn_actor("neutral", neutral_config()).unwrap();
     // Stamp the event with the actor's id so it shows up in the actor's view.
-    let mut e = ev("studio.ready");
-    e.actor_id = Some("studio".into());
+    let mut e = ev("neutral.ready");
+    e.actor_id = Some("neutral".into());
     router.emit(e, &mcp_ctx).await.unwrap();
     let results = router
-        .query_actor_events("studio", &EventFilter::default())
+        .query_actor_events("neutral", &EventFilter::default())
         .unwrap();
     assert_eq!(results.len(), 1);
 }
@@ -205,9 +205,9 @@ async fn actors_cannot_read_each_others_stores() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn route_delivers_to_subscribed_mailbox() {
     let (_tmp, mut router) = setup();
-    let mut mb = router.spawn_actor("studio", studio_config()).unwrap();
+    let mut mb = router.spawn_actor("neutral", neutral_config()).unwrap();
 
-    let event = ev("studio.canvas_updated");
+    let event = ev("neutral.canvas_updated");
     router.emit(event.clone(), &runtime_ctx()).await.unwrap();
 
     let received = mb.try_recv().expect("mailbox should have an event");
@@ -226,9 +226,9 @@ async fn route_skips_unsubscribed_mailbox() {
     };
     let mut mb = router.spawn_actor("agent-1", agent_cfg).unwrap();
 
-    // studio event — agent-1 is not subscribed to "studio."
+    // neutral event — agent-1 is not subscribed to "neutral."
     router
-        .emit(ev("studio.canvas_updated"), &runtime_ctx())
+        .emit(ev("neutral.canvas_updated"), &runtime_ctx())
         .await
         .unwrap();
 
@@ -245,15 +245,15 @@ async fn route_delivers_to_multiple_subscribers() {
     let sub_cfg = |id: &str| ActorConfig {
         namespace: id.into(),
         write_namespaces: vec![format!("{id}.")],
-        read_namespaces: vec![format!("{id}."), "studio.".into()],
-        subscribe_namespaces: vec!["studio.".into()],
+        read_namespaces: vec![format!("{id}."), "neutral.".into()],
+        subscribe_namespaces: vec!["neutral.".into()],
         see_directed_events: false,
     };
 
     let mut mb1 = router.spawn_actor("watcher-1", sub_cfg("watcher-1")).unwrap();
     let mut mb2 = router.spawn_actor("watcher-2", sub_cfg("watcher-2")).unwrap();
 
-    let event = ev("studio.canvas_updated");
+    let event = ev("neutral.canvas_updated");
     router.emit(event.clone(), &runtime_ctx()).await.unwrap();
 
     assert_eq!(mb1.try_recv().unwrap().id, event.id);
@@ -298,10 +298,10 @@ async fn kernel_store_receives_system_events() {
 #[test]
 fn stop_actor_removes_mailbox_and_subscriptions() {
     let (_tmp, mut router) = setup();
-    router.spawn_actor("studio", studio_config()).unwrap();
+    router.spawn_actor("neutral", neutral_config()).unwrap();
     assert_eq!(router.actor_count(), 1);
 
-    router.stop_actor("studio").unwrap();
+    router.stop_actor("neutral").unwrap();
     assert_eq!(router.actor_count(), 0);
 }
 
@@ -314,28 +314,28 @@ fn stop_actor_errors_on_unknown_actor() {
 #[test]
 fn spawn_actor_rejects_duplicate_id() {
     let (_tmp, mut router) = setup();
-    router.spawn_actor("studio", studio_config()).unwrap();
-    assert!(router.spawn_actor("studio", studio_config()).is_err());
+    router.spawn_actor("neutral", neutral_config()).unwrap();
+    assert!(router.spawn_actor("neutral", neutral_config()).is_err());
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn refine_actor_preserves_mailbox_through_wrapper() {
     let (_tmp, mut router) = setup();
-    let mut mb = router.spawn_actor("studio", studio_config()).unwrap();
+    let mut mb = router.spawn_actor("neutral", neutral_config()).unwrap();
 
     // Refine to a different namespace; the wrapper must keep the sender
     // intact so the original Mailbox handle stays receivable.
     let new_cfg = ActorConfig {
-        namespace: "studio".into(),
+        namespace: "neutral".into(),
         write_namespaces: vec!["other.".into()],
         read_namespaces: vec!["other.".into()],
         subscribe_namespaces: vec!["other.".into()],
         see_directed_events: false,
     };
-    router.refine_actor("studio", new_cfg).unwrap();
+    router.refine_actor("neutral", new_cfg).unwrap();
 
     let mut event = ev("other.hello");
-    event.target_actor_id = Some("studio".into());
+    event.target_actor_id = Some("neutral".into());
     router.emit(event, &runtime_ctx()).await.unwrap();
     let recv = mb.try_recv().expect("mailbox should receive directed event");
     assert_eq!(recv.event_type, "other.hello");
@@ -344,7 +344,7 @@ async fn refine_actor_preserves_mailbox_through_wrapper() {
 #[test]
 fn refine_actor_errors_on_unknown_through_wrapper() {
     let (_tmp, mut router) = setup();
-    let err = router.refine_actor("ghost", studio_config()).unwrap_err();
+    let err = router.refine_actor("ghost", neutral_config()).unwrap_err();
     assert!(matches!(
         err,
         crate::errors::KernelError::ActorNotFound { .. }
@@ -354,9 +354,9 @@ fn refine_actor_errors_on_unknown_through_wrapper() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn stopped_actor_mailbox_is_closed() {
     let (_tmp, mut router) = setup();
-    let mut mb = router.spawn_actor("studio", studio_config()).unwrap();
+    let mut mb = router.spawn_actor("neutral", neutral_config()).unwrap();
 
-    router.stop_actor("studio").unwrap();
+    router.stop_actor("neutral").unwrap();
 
     // Sender was dropped — recv returns None.
     assert!(mb.recv().await.is_none());

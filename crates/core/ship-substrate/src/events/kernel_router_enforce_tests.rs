@@ -2,7 +2,7 @@
 //!
 //! These go THROUGH `KernelRouter::emit(...).await` (not the pure `enforce_scope`
 //! fn) and assert the PERSISTED envelope, proving the wiring — not just the rule.
-//! Shared fixtures (`setup`/`ev`/`studio_config`) are borrowed from the sibling
+//! Shared fixtures (`setup`/`ev`/`neutral_config`) are borrowed from the sibling
 //! `kernel_router_tests` module.
 
 use ship_types::envelope::EventEnvelope;
@@ -12,7 +12,7 @@ use ship_types::event_registry::EventScope;
 use ship_types::identity::{AccountId, DeviceId, SpaceId};
 use ship_types::{Authority, ScopeBinding, ScopeViolation};
 
-use super::kernel_router_tests::{ev, setup, studio_config};
+use super::kernel_router_tests::{ev, setup, neutral_config};
 
 /// A session binding bound to `space`, carrying device + account identity.
 fn space_binding(space: &str) -> ScopeBinding {
@@ -76,7 +76,7 @@ fn read_back(tmp: &tempfile::TempDir, id: &str) -> Option<EventEnvelope> {
 async fn emit_stamps_space_key_and_author_from_binding() {
     let (tmp, router) = setup();
     // Space event with NO scope_key, emitted under a space-bound binding.
-    let event = ev("studio.canvas_updated").with_scope(EventScope::Space, None);
+    let event = ev("test.scope_event").with_scope(EventScope::Space, None);
     let id = event.id.clone();
     router
         .emit(event, &ctx_with(space_binding("space-A")))
@@ -94,10 +94,10 @@ async fn emit_stamps_space_key_and_author_from_binding() {
 async fn emit_rejects_cross_space_and_does_not_persist() {
     let (tmp, mut router) = setup();
     // Subscribe an actor so we can also assert non-delivery.
-    let mut mb = router.spawn_actor("studio", studio_config()).unwrap();
+    let mut mb = router.spawn_actor("neutral", neutral_config()).unwrap();
 
     // Space event keyed to space-B, but binding is space-A → CrossSpace reject.
-    let event = ev("studio.canvas_updated").with_scope(EventScope::Space, Some("space-B"));
+    let event = ev("test.scope_event").with_scope(EventScope::Space, Some("space-B"));
     let id = event.id.clone();
     let err = router
         .emit(event, &ctx_with(space_binding("space-A")))
@@ -115,7 +115,7 @@ async fn emit_rejects_cross_space_and_does_not_persist() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn emit_rejects_space_event_from_space_unbound_binding() {
     let (tmp, router) = setup();
-    let event = ev("studio.canvas_updated").with_scope(EventScope::Space, None);
+    let event = ev("test.scope_event").with_scope(EventScope::Space, None);
     let id = event.id.clone();
     let err = router
         .emit(event, &ctx_with(spaceless_binding()))
@@ -139,8 +139,6 @@ use ship_types::event_registry::allowed_scopes;
 /// allowed element → membership passes, key stamped. Behavior-preserving proof
 /// for the size-1 set.
 /// Uses `daemon.owner.bound` — an Account-singleton that is L0-registered.
-/// (studio.annotation.created, previously used here, moved to ship-agents L1
-/// in keystone-A de-bucket 2026-06-10; no Space-only events remain at L0.)
 #[test]
 fn allowed_set_chosen_in_set_and_authorized_passes() {
     assert_eq!(
@@ -218,14 +216,14 @@ async fn emit_stamps_non_space_keys_without_cross_check() {
     let binding = space_binding("space-A");
 
     // Account → account key.
-    let acct = ev("studio.canvas_updated").with_scope(EventScope::Account, None);
+    let acct = ev("test.scope_event").with_scope(EventScope::Account, None);
     let acct_id = acct.id.clone();
     router.emit(acct, &ctx_with(binding.clone())).await.unwrap();
     let p = read_back_scope(&tmp, &acct_id, EventScope::Account, None).unwrap();
     assert_eq!(p.scope_key.as_deref(), Some("acct-1"));
 
     // Runtime → machine/device key, no cross-check.
-    let rt = ev("studio.canvas_updated").with_scope(EventScope::Runtime, None);
+    let rt = ev("test.scope_event").with_scope(EventScope::Runtime, None);
     let rt_id = rt.id.clone();
     router.emit(rt, &ctx_with(binding)).await.unwrap();
     let p = read_back_scope(&tmp, &rt_id, EventScope::Runtime, None).unwrap();

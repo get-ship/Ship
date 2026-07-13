@@ -66,7 +66,6 @@ pub const KERNEL_NAMESPACES: &[&str] = &[
     "runtime.",
     "session.",
     "settings.",
-    "studio.", // L1-owned: registrations in ship-agents/src/event_registrations.rs
     "supervisor.",
     "sync.",      // L1-owned: registrations in ship-cloud/src/event_registrations.rs
     "workspace.", // L1-owned: registrations in ship-space/src/event_registrations.rs
@@ -95,7 +94,6 @@ pub const RESERVED_NAMESPACES: &[&str] = &[
     "session.",
     "settings.",
     "skill.",
-    "studio.",
     "supervisor.",
     "sync.",
     "workspace.",

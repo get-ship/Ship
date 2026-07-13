@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use ship_types::event_registry::{EventScope, Retention, registry};
+use shipd as _;
 
 // ── Wire event record ─────────────────────────────────────────────────────────
 

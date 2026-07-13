@@ -47,19 +47,6 @@ pub const ARTIFACT_UPDATED: &str = "artifact.updated";
 pub const ARTIFACT_MOVED: &str = "artifact.moved";
 pub const ARTIFACT_DELETED: &str = "artifact.deleted";
 
-/// Emitted when a user sends a turn in a Ship command-bar chat session.
-/// Scoped to the originating Ship `session_id` via `EventEnvelope.session_id`
-/// so per-session filtering in the MCP `EventRelay` can route the turn only
-/// to the intended long-lived agent. Payload: `{ session_id, text, agent_id? }`.
-pub const STUDIO_CHAT_TURN: &str = "studio.chat_turn";
-
-/// Emitted when an agent replies into a Ship chat. The `entity_id` carries
-/// the target actor's id; the payload is `{ actor_id, text }`. Dashboards
-/// and views tail this event to render reply bubbles. Replaces the
-/// in-memory event_tx broadcast that only worked for registry-backed
-/// PtySessions.
-pub const STUDIO_REPLY: &str = "studio.reply";
-
 /// Emitted by `ship compile` at end of a successful run. Records what was
 /// compiled (active agent, harness, plugins, ship version) for the
 /// `project_compile_state` projection. `entity_id` is the space_id.
@@ -136,16 +123,6 @@ pub const SETTINGS_CHANGED: &str = "settings.changed";
 /// Agent — a dispatched task ran to completion. `entity_id` is the task id.
 pub const AGENT_TASK_COMPLETE: &str = "agent.task.complete";
 
-
-/// Studio — a user annotation was created on a session or artifact.
-/// `entity_id` is the annotation id.
-/// A1: space, durable.
-pub const STUDIO_ANNOTATION_CREATED: &str = "studio.annotation.created";
-
-/// Studio — a feedback record was created (thumbs-up/down, rating, etc.).
-/// `entity_id` is the feedback id.
-/// A1: space, durable.
-pub const STUDIO_FEEDBACK_CREATED: &str = "studio.feedback.created";
 
 /// Sync — a push to the remote sync target failed.
 /// A1: device, durable.

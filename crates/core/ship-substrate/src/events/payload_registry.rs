@@ -203,12 +203,6 @@ register_event!("process.killed", [EventScope::Runtime], Retention::Durable, Sta
 // `space.setting.changed` family was dissolved in S4 — per-space overrides now
 // author `settings.changed` (Space scope) from the SettingsService wire.
 
-// ── studio.* ────────────────────────────────────────────────────────────────
-// Moved to ship-agents/src/event_registrations.rs (keystone-A de-bucket,
-// 2026-06-10): studio.annotation.created / studio.chat_turn /
-// studio.feedback.created / studio.reply — the STUDIO domain owns its
-// events at L1 in ship-agents (the dominant emitter for 3 of 4 events).
-
 // ── supervisor.* ────────────────────────────────────────────────────────────
 // The 4 supervisor.sweep_*/drift/coherence registrations moved to
 // ship-pipeline-runtime/src/sweep_events.rs (keystone-A, 2026-06-10) — the

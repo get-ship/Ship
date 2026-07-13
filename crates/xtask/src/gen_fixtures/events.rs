@@ -34,8 +34,7 @@ const NEEDS_AUTHOR_PAYLOADS: &[&str] = &[
 /// Only payload types that can be generated fully automatically are here.
 /// NEEDS_AUTHOR types get a generic stub with the marker comment embedded
 /// in the `_note` field of the JSON.
-fn payload_stub(payload_type: &str, event_name: &str) -> Value {
-    let slug = event_name.replace('.', "-");
+fn payload_stub(payload_type: &str) -> Value {
     match payload_type {
         // ── Empty-payload events (unit structs) ───────────────────────────────
         "ActorWoke"
@@ -208,12 +207,6 @@ fn payload_stub(payload_type: &str, event_name: &str) -> Value {
         "SkillCompleted" => json!({ "skill_id": "test-skill", "duration_ms": 1234 }),
         "SkillFailed" => json!({ "skill_id": "test-skill", "error": "test failure" }),
 
-        // ── Studio events ────────────────────────────────────────────────────
-        "StudioAnnotationCreated" => json!({ "annotation_id": "test-annotation", "session_id": "test-session", "text": "test annotation" }),
-        "StudioFeedbackCreated" => json!({ "feedback_id": "test-feedback", "rating": 5, "comment": "great" }),
-        "StudioChatTurn" => json!({ "session_id": "test-session", "text": "tell me about this code" }),
-        "StudioReply" => json!({ "actor_id": "test-actor", "text": "here is the analysis" }),
-
         // ── Supervisor events ────────────────────────────────────────────────
         "SupervisorShuttingDown" => json!({ "reason": "graceful-shutdown" }),
         "CoherenceRestoredPayload" => json!({ "actor_id": "test-actor" }),
@@ -323,7 +316,7 @@ fn is_needs_author(payload_type: &str) -> bool {
 
 /// Build the payload fixture JSON for one event.
 fn make_payload_fixture(event: &EventEntry) -> Value {
-    let payload = payload_stub(event.payload_type, event.name);
+    let payload = payload_stub(event.payload_type);
     json!({
         "_meta": {
             "event": event.name,
@@ -339,7 +332,7 @@ fn make_payload_fixture(event: &EventEntry) -> Value {
 
 /// Build the EventEnvelope fixture JSON for one event.
 fn make_envelope_fixture(event: &EventEntry) -> Value {
-    let payload = payload_stub(event.payload_type, event.name);
+    let payload = payload_stub(event.payload_type);
     json!({
         "_meta": {
             "event": event.name,

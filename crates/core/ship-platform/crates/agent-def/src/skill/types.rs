@@ -101,7 +101,6 @@ pub struct Skill {
     #[serde(default)]
     pub source: SkillSource,
     /// Artifact types this skill produces (e.g. `["html", "adr"]`).
-    /// Used by the runtime to infer event subscriptions — see `events_for_artifact`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub artifacts: Vec<String>,
 }

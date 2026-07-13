@@ -206,18 +206,18 @@ fn crash_event_is_stamped_and_scoped() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn stable_path_mailbox_full_drops_silently() {
     let (_tmp, mut router) = setup();
-    let _mb = router.spawn_actor("studio", ActorConfig {
-        namespace: "studio".into(),
-        write_namespaces: vec!["studio.".into()],
-        read_namespaces: vec!["studio.".into()],
-        subscribe_namespaces: vec!["studio.".into()],
+    let _mb = router.spawn_actor("neutral", ActorConfig {
+        namespace: "neutral".into(),
+        write_namespaces: vec!["neutral.".into()],
+        read_namespaces: vec!["neutral.".into()],
+        subscribe_namespaces: vec!["neutral.".into()],
         see_directed_events: false,
     }).unwrap();
 
     // Fill the mailbox.
     for i in 0..256 {
         let event = EventEnvelope::new(
-            "studio.tick",
+            "neutral.tick",
             "entity",
             &serde_json::json!({ "seq": i }),
         )
@@ -226,7 +226,7 @@ async fn stable_path_mailbox_full_drops_silently() {
     }
 
     // Overflow event: route() returns Ok (delivery-only, best-effort — drop on full).
-    let overflow = ev("studio.overflow");
+    let overflow = ev("neutral.overflow");
     let result = router.emit(overflow, &runtime_ctx()).await;
     assert!(result.is_ok(), "route() must not error on mailbox full (best-effort delivery)");
 }

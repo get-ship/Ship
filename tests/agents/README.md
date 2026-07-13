@@ -19,12 +19,11 @@ and runs everything.
 | `harness-compat/hooks.test.ts` | Each harness's hook mechanism fires turn / tool-use / session-end callbacks. | planned |
 | `harness-compat/pty.test.ts` | WebSocket attach (`/api/v1/agent_sessions/{slug}/attach`) round-trip per PTY-backed harness. | planned |
 | `ui-endpoints.test.ts` | Daemon HTTP routes the agent UI calls (`/api/v1/mesh`, `/actors/{id}`, `/sessions/{id}/message`, etc.). Shape-validates responses without a browser. | planned |
-| `channels.test.ts` | Claude push round-trip: dispatch → studio.chat_turn → notifications/claude/channel → reply via mesh. | planned |
 | `annotations.test.ts` | `POST /sessions/{id}/message` with annotations renders to `<context>` XML wrapper and reaches a running agent. | planned |
 
 `harness-compat/` is **nested** under the umbrella because the harness
 conformance matrix is a sub-concern; non-compat slices (UI endpoints,
-channels, annotations) live as siblings.
+annotations) live as siblings.
 
 ## Harness tiers
 

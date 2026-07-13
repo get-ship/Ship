@@ -122,7 +122,7 @@ fn domain_catalog() -> Vec<DomainMeta> {
             display: "Artifacts",
             event_prefixes: vec!["artifact."],
             services: vec!["ArtifactsService"],
-            description: "Blob storage primitive: content-addressed local filesystem backend with GC, metadata projection, and studio integration.",
+            description: "Blob storage primitive: content-addressed local filesystem backend with GC and metadata projection.",
             coverage_audit_docs: vec![],
         },
         DomainMeta {
@@ -216,13 +216,9 @@ fn domain_catalog() -> Vec<DomainMeta> {
         DomainMeta {
             key: "studio",
             display: "Studio",
-            // The legacy `human.response` event was removed (theme-A
-            // contain A8); the inbound half is a messaging fast-follow.
-            // Chat gutted in agents-arc E6 (read-projection over the
-            // deprecated `studio.message` event, no real gated RPC).
-            event_prefixes: vec!["studio."],
-            services: vec!["DashboardService", "FeedbackService", "AnnotationService"],
-            description: "Studio UI primitives: chat turns, agent replies, dashboard state, feedback, and annotation events.",
+            event_prefixes: vec![],
+            services: vec![],
+            description: "Studio configures agents, settings, MCP servers, skills, rules, pipelines, and UI views through their owning domain contracts; it exposes no event namespace or Connect-RPC service.",
             coverage_audit_docs: vec![".artifacts/specs/module-audits/apps/shipd.md", ".artifacts/specs/module-audits/L1-platform/sessions.md", ".artifacts/specs/module-audits/L0-substrate/ship-substrate.md"],
         },
         DomainMeta {

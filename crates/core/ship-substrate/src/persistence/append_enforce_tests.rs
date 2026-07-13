@@ -49,7 +49,7 @@ fn append_enforced_stamps_space_key_and_author_from_binding() {
     let store = space_store(&tmp, "space-A");
     // Space event with NO scope_key — append_enforced must stamp it from the
     // binding, plus the author identity, before persisting.
-    let event = EventEnvelope::new("studio.canvas_updated", "entity-1", &serde_json::json!({}))
+    let event = EventEnvelope::new("session.started", "entity-1", &serde_json::json!({}))
         .unwrap()
         .with_scope(EventScope::Space, None);
     let id = event.id.clone();
@@ -75,7 +75,7 @@ fn append_enforced_rejects_cross_space_and_does_not_persist() {
     // Store is space-B; binding is space-A → CrossSpace reject. We target the
     // space-B store directly (its db is where a key=space-B event would land).
     let store = space_store(&tmp, "space-B");
-    let event = EventEnvelope::new("studio.canvas_updated", "entity-1", &serde_json::json!({}))
+    let event = EventEnvelope::new("session.started", "entity-1", &serde_json::json!({}))
         .unwrap()
         .with_scope(EventScope::Space, Some("space-B"));
     let id = event.id.clone();
@@ -98,7 +98,7 @@ fn append_enforced_rejects_cross_space_and_does_not_persist() {
 fn append_enforced_rejects_space_event_from_space_unbound_binding() {
     let tmp = tempfile::tempdir().unwrap();
     let store = space_store(&tmp, "space-A");
-    let event = EventEnvelope::new("studio.canvas_updated", "entity-1", &serde_json::json!({}))
+    let event = EventEnvelope::new("session.started", "entity-1", &serde_json::json!({}))
         .unwrap()
         .with_scope(EventScope::Space, None);
     let id = event.id.clone();

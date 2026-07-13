@@ -7,9 +7,7 @@ use super::harness::HarnessDescriptor;
 
 /// Compute the deduplicated set of event subscription namespaces for a list of skills.
 ///
-/// Returns `{skill.id}.` for each skill. Studio-emitted events (`studio.*`) are
-/// already covered by the base subscription actors register — no additional prefix
-/// is emitted here.
+/// Returns `{skill.id}.` for each skill.
 pub(super) fn resolve_event_subscriptions(skills: &[Skill]) -> Vec<String> {
     let mut subs: Vec<String> = Vec::new();
     for skill in skills {
@@ -288,7 +286,6 @@ mod tests {
         let mut skill = base_skill();
         skill.artifacts = vec!["html".to_string()];
         let subs = resolve_event_subscriptions(&[skill]);
-        assert!(!subs.iter().any(|s| s.starts_with("studio.")));
         assert!(!subs.iter().any(|s| s.starts_with("ship.")));
         assert!(subs.contains(&"my-skill.".to_string()));
     }
