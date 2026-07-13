@@ -109,7 +109,10 @@ use std::sync::Arc;
 use axum::http::StatusCode;
 use axum::routing;
 use connectrpc::{RequestContext, Response, Router, ServiceResult};
+use ship_resolver::cache::DescriptorCache;
+use ship_resolver::descriptor::extension_library_content_hash;
 use ship_substrate::ShipHome;
+use ship_substrate::ports::{KernelLog, SpaceId};
 use tokio::net::TcpListener;
 
 use proto::{
@@ -749,15 +752,51 @@ impl HarnessService for HarnessImpl {
             vec!["claude".to_string()]
         };
 
-        // Step 4: compile each harness + flatten to CompiledFile rows.
+        // Step 4: compile each harness + flatten to CompiledFile rows. The
+        // descriptor cache (J5) memoizes the per-harness `CompileOutput`
+        // against `(space_id, content_hash, harness_id)` — the spec's
+        // "resolve-on-change" lever (a hash bump or an event tick busts
+        // the in-memory entry on the next read). The cache is read-through:
+        // we always compile inline when no active space resolves
+        // (spaceless compiles are valid; carving the cache bypass keeps
+        // first-against-an-unregistered-project safe and zero-config).
+        let space_id: Option<SpaceId> =
+            ship_substrate::project::resolve_active_space(&repo).map(SpaceId::new);
+        let cache = space_id.as_ref().map(|_| descriptor_cache());
+        let content_hash: String = extension_library_content_hash(&lib).map_err(|e| {
+            connectrpc::ConnectError::invalid_argument(format!(
+                "extension_library_content_hash failed: {e}"
+            ))
+        })?;
         let mut files: Vec<CompiledFile> = Vec::new();
         for h in &harnesses {
-            let Some(out) = harness_adaptors::compile(&resolved, h) else {
-                // Unknown harness id — skip with no-files. Caller still
-                // sees the id in `harnesses` and can disambiguate.
-                continue;
+            let compiled = match (space_id.as_ref(), cache.as_ref()) {
+                (Some(space), Some(cache)) => Arc::clone(
+                    &cache
+                        .get_or_load(space, &content_hash, h, || async {
+                            harness_adaptors::compile(&resolved, h).ok_or_else(|| {
+                                anyhow::anyhow!("compile: no output for harness {h}")
+                            })
+                        })
+                        .await
+                        .map_err(|e| {
+                            connectrpc::ConnectError::internal(format!("compile({h}): {e}"))
+                        })?,
+                ),
+                // No active space → bypass the cache entirely and
+                // compile straight (preserves the pre-cache behavior for
+                // unopened/non-ship spaces).
+                _ => match harness_adaptors::compile(&resolved, h) {
+                    Some(out) => Arc::new(out),
+                    None => {
+                        // Unknown harness id — skip with no-files. Caller
+                        // still sees the id in `harnesses` and can
+                        // disambiguate.
+                        continue;
+                    }
+                },
             };
-            flatten_compile_output(h, &out, &mut files);
+            flatten_compile_output(h, &compiled, &mut files);
         }
 
         // Step 5: unless dry_run, lay the files down at `repo_path`.
@@ -1014,6 +1053,49 @@ fn boot_heal(ship_dir: PathBuf) -> anyhow::Result<()> {
             anyhow::bail!("helmd boot heal: events corruption → refusing to start: {details}")
         }
     }
+}
+/// Process-wide descriptor cache (`ship_resolver::cache::DescriptorCache`,
+/// J5) — the per-harness `CompileOutput` memoization that turns
+/// `HarnessService.Compile` into a resolve-on-change read-through. Built
+/// once on first compile request: cache root is `ShipHome::cache_dir()`,
+/// the same XDG path the rest of the platform caches land under; the
+/// module adds its own `resolver/` namespace, so the wire stays out of
+/// `<cache_root>/composed` / `<cache_root>/objects` (the store tier's
+/// subdirs).
+///
+/// The invalidation subscriber is spawned once: it subscribes to the
+/// KERNEL-LOG broadcast (the `ship_substrate::events::kernel_router`
+/// global that `agents::mount` / `code::mount` already initialized) and
+/// evicts the in-memory index on `config.file_changed`. Cache reads remain
+/// correct even without a live kernel — a process that reaches the
+/// compiler before `agents::mount` boots still serves hits; it just
+/// won't invalidate on event ticks until the kernel comes up (operator
+/// OK: the next compile re-reads the roll-up, so content-hash drift
+/// catches the edit anyway — see `spine_smoke`'s invalidation leg).
+///
+/// `LazyLock` (not `OnceLock` + accessor) so the initializer lives next
+/// to the static — no second site that can forget to call it.
+static DESCRIPTOR_CACHE: std::sync::LazyLock<DescriptorCache> = std::sync::LazyLock::new(|| {
+    use ship_substrate::events::kernel_router;
+    let cache_root = ShipHome::from_env().cache_dir().to_path_buf();
+    // Best-effort kernel binding: in tests and in short-lived CLIs
+    // (no agents/code mount yet) the global router may be unset; the
+    // cache handles `None` by serving hits without auto-invalidation
+    // (the next compile's content-hash compares still surface edits).
+    let kernel = kernel_router().map(|router| Arc::new(KernelLog::new(router)));
+    let cache =
+        DescriptorCache::open(cache_root, kernel.clone()).expect("helmd: descriptor cache open");
+    // Spawn the subscriber fresh per process. Without a kernel the
+    // subscriber is an immediately-completing task (cache.rs's contract).
+    let _sub = cache.spawn_invalidation_subscriber();
+    cache
+});
+
+/// Public accessor for the descriptor cache singleton. The accessor is
+/// tiny on purpose: every caller goes through it, and the lazy static
+/// is the one place that decides the cache root + kernel wiring.
+pub(crate) fn descriptor_cache() -> DescriptorCache {
+    DESCRIPTOR_CACHE.clone()
 }
 
 #[tokio::main]
