@@ -24,7 +24,7 @@ ship-types = { path = "../core/ship-substrate/crates/ship-types", features = ["s
 # Path-dep smell: build only worked if sui was at a specific local
 # path. Replaced with a version pin (0.1.0-dev) to draw attention
 # to the smell. See .artifacts/handoff-post-cleanup.md.
-deck = { path = "/home/madvib/dev/Ship/sui/crates/deck/deck", features = ["specta"] }
+deck = { git = "https://github.com/get-ship/sui.git", branch = "feat/next", features = ["specta"] }
 # `shipd` is in apps/, not crates/ — used for fixtures only.
 shipd = { path = "../../apps/shipd", features = ["specta"] }
 # validate fixtures against the wire SSOT.

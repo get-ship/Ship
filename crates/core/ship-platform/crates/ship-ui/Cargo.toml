@@ -19,7 +19,7 @@ ship-ops-rpc = { path = "../../../ship-ops-rpc" }
 # local path. Replaced with a version pin (0.1.0-dev) to draw
 # attention to the smell — build is broken on any machine until sui
 # publishes the crate. See .artifacts/handoff-post-cleanup.md.
-sui-compiler = { path = "/home/madvib/dev/Ship/sui/crates/sui/compiler" }
+sui-compiler = { git = "https://github.com/get-ship/sui.git", branch = "feat/next" }
 
 async-trait = { workspace = true }
 chrono = { workspace = true }

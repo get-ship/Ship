@@ -76,9 +76,9 @@ http = "1"
 # the main checkout AND any helmd worktree depth (Ship/worktrees/<n>). The
 # duplicate ship-js member removal (not the path style) is what killed the
 # lockfile collision; with deck-ssr → ship-exec there is one ship-js for everyone.
-deck = { path = "/home/madvib/dev/Ship/sui/crates/deck/deck", features = ["specta"] }
-deck-core = { path = "/home/madvib/dev/Ship/sui/crates/deck/deck-core" }
-deck-ssr = { path = "/home/madvib/dev/Ship/sui/crates/deck/deck-ssr", optional = true }
+deck = { git = "https://github.com/get-ship/sui.git", branch = "feat/next", features = ["specta"] }
+deck-core = { git = "https://github.com/get-ship/sui.git", branch = "feat/next" }
+deck-ssr = { git = "https://github.com/get-ship/sui.git", branch = "feat/next", optional = true }
 chrono = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tokio-util = { workspace = true, features = ["full"] }
