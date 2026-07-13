@@ -8137,6 +8137,7 @@ dependencies = [
  "serde",
  "serde_json",
  "ship-ops-rpc",
+ "ship-proto",
  "ship-reactive",
  "ship-substrate",
  "ship-types",
@@ -8155,6 +8156,7 @@ dependencies = [
  "anyhow",
  "serde_json",
  "ship-ops-rpc",
+ "ship-proto",
  "ship-substrate",
  "ship-types",
 ]

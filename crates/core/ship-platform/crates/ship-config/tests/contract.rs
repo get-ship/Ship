@@ -113,11 +113,10 @@ fn settings_service_has_exactly_four_rpcs() {
 fn settings_fixtures_deserialize_against_their_proto_types() {
     use ship_ops_rpc::WatchEvent;
 
-    // The proto SSOT is the ship-contracts repo; PROTO_ROOT is baked by
-    // build.rs from the MANDATORY SHIP_PROTO_DIR env var, which points at
-    // ship-contracts' proto/ dir itself — the same contract the other three
-    // PROTO_ROOT consumers use. Per-service contract fixtures live under
-    // `<proto>/fixtures/`.
+    // PROTO_ROOT is baked by this crate's build.rs. Default =
+    // DEP_SHIP_PROTO_PROTO_DIR (the proto SSOT path published by ship-proto's
+    // own build.rs via `links = "ship-proto"`), so a normal build needs no
+    // env var. SHIP_PROTO_DIR is the explicit override for alternate layouts.
     let settings_path = std::path::Path::new(env!("PROTO_ROOT"))
         .join("fixtures/settings_service.json");
     let settings: serde_json::Value = serde_json::from_slice(

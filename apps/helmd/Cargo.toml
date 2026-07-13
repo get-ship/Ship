@@ -59,6 +59,12 @@ ship-types = { path = "../../crates/core/ship-substrate/crates/ship-types" }
 ship-resolver = { path = "../../crates/core/ship-resolver" }
 stack-model = { path = "../../crates/core/stack-model" }
 harness-config-compiler = { path = "../../crates/code/harness-config-compiler" }
+# Direct dep on ship-proto so build.rs can read DEP_SHIP_PROTO_PROTO_DIR
+# (the canonical proto root, propagated via `links = "ship-proto"` from
+# ship-proto's own build.rs). Without this, helmd's build.rs would need a
+# hand-set SHIP_PROTO_DIR. The compile-time footprint is unchanged — ship-proto
+# is already in the transitive graph via ship-ops-rpc + ship-config.
+ship-proto = { git = "https://github.com/get-ship/ship-contracts.git", branch = "feat/next" }
 # helmd must name in its `AgentsHost` impl: `KernelRouter`, `KernelLog`,
 # `ShipHome`, `init_kernel_router`, `project::get_project_dir`. These are the
 # SAME types the facade re-exports, so naming them via the core keeps helmd's

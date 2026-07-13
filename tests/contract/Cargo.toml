@@ -16,6 +16,10 @@ path = "src/roundtrip.rs"
 [dependencies]
 anyhow = { workspace = true }
 serde_json = { workspace = true }
+# Direct dep so this build.rs can read `DEP_SHIP_PROTO_PROTO_DIR` and resolve
+# `<proto>/fixtures/` without a hand-set SHIP_PROTO_DIR. Mirrors the
+# git+branch shape used by every other proto-binding consumer.
+ship-proto = { git = "https://github.com/get-ship/ship-contracts.git", branch = "feat/next" }
 ship-ops-rpc = { path = "../../crates/core/ship-ops-rpc" }
 ship-types = { path = "../../crates/core/ship-substrate/crates/ship-types" }
 ship-substrate = { path = "../../crates/core/ship-substrate" }

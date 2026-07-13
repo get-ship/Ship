@@ -55,10 +55,11 @@ jobs:
       # Proto contract fixtures now live in the ship-contracts repo (the
       # proto SSOT post-multi-repo-cleanup). Drift detection for them
       # moved to ship-contracts CI; the contract tests in this repo
-      # read fixtures via the `PROTO_ROOT` env var (set by build.rs from
-      # `SHIP_PROTO_DIR`, default = ship-contracts sibling-repo). Each
-      # test crate has its own build.rs that re-bakes the env var and
-      # tracks the fixtures dir for incremental rebuilds.
+      # read fixtures via the `PROTO_ROOT` env var (set by build.rs
+      # from `DEP_SHIP_PROTO_PROTO_DIR` — the proto root published by
+      # ship-proto's own build.rs via `links = "ship-proto"`). No env
+      # var is required for a normal build; `SHIP_PROTO_DIR` is the
+      # supported override for alternate layouts.
       # In-repo lints: layer boundaries + import direction + anti-theater.
       - name: Lint layer boundaries
         run: cargo run -p xtask --quiet -- lint-layers

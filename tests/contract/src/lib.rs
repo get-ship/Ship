@@ -6,10 +6,14 @@
 use std::path::{Path, PathBuf};
 
 /// Locate the `fixtures/` directory under the proto SSOT (ship-contracts
-/// repo). The path is baked at build time by tests/contract/build.rs from
-/// the `SHIP_PROTO_DIR` env var (default = ship-contracts sibling-repo
-/// absolute path). Post-multi-repo-cleanup, the fixtures live in
-/// ship-contracts/proto, not in the ship repo.
+/// repo). The path is baked at build time by tests/contract/build.rs: default
+/// = `DEP_SHIP_PROTO_PROTO_DIR` (the `cargo:proto_dir` metadata published by
+/// the ship-proto crate's build.rs), set when this crate's direct ship-proto
+/// dep is built. `SHIP_PROTO_DIR` is the explicit override for alternate layouts.
+/// Post-multi-repo-cleanup, the fixtures live in ship-contracts/proto, not in
+/// the ship repo — the build.rs default already points at the ship-contracts
+/// checkout via the dep graph (git dep or local [patch] to the sibling repo),
+/// so no env var is required for a normal build.
 pub fn fixtures_dir() -> PathBuf {
     Path::new(env!("PROTO_ROOT")).join("fixtures")
 }

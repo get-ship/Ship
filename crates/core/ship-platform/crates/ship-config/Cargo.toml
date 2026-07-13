@@ -6,6 +6,11 @@ publish = false
 description = "SettingsService home — unified scope-discriminated settings (SPACE/ACCOUNT/RUNTIME) over substrate ports + the legacy declarative-tier file projection (agents/watcher over FsBroker). Implements settings.proto's 4 RPCs, event-sourced via settings.changed; ZERO raw fs. (Crate-name rename ship-config→ship-settings is deferred to S4.)"
 
 [dependencies]
+# Generated proto bindings (ship-contracts SSOT). Direct dep so the build.rs
+# can read `DEP_SHIP_PROTO_PROTO_DIR` and resolve `<proto>/fixtures/` without
+# a hand-set SHIP_PROTO_DIR — the same git+branch shape used by the other
+# proto-binding consumers (ship-ops-rpc, ship-gateway-client, ship-sidecar-proto).
+ship-proto = { git = "https://github.com/get-ship/ship-contracts.git", branch = "feat/next" }
 ship-substrate = { path = "../../../ship-substrate" }
 fs-watch = { path = "../../../ship-substrate/crates/fs-watch" }
 ship-types = { path = "../../../ship-substrate/crates/ship-types" }
