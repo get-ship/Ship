@@ -37,6 +37,9 @@ pub fn install_collection_projection() {
                 // ListStacks reads the space_stacks projection).
                 Box::new(ship_space::SpacesProjection),
                 Box::new(ship_space::SpaceStacksProjection),
+                // Library rows: folds stack.installed / stack.unregistered
+                // so SpaceService's ListInstalled reads the projection.
+                Box::new(ship_space::LibraryProjection),
             ]
         }));
     });

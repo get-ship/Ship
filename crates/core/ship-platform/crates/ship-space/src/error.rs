@@ -36,3 +36,9 @@ impl From<ship_substrate::errors::KernelError> for SpaceError {
         SpaceError::Internal(e.to_string())
     }
 }
+
+impl From<anyhow::Error> for SpaceError {
+    fn from(e: anyhow::Error) -> Self {
+        SpaceError::Internal(e.to_string())
+    }
+}

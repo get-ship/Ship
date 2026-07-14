@@ -3,13 +3,18 @@ name = "ship-space"
 version = "0.1.0"
 edition = "2024"
 publish = false
-description = "SpaceService — space identity + per-space config overlay + space registry (L1). Implements space.proto's 7 RPCs via DataStore + KernelLog; no direct sqlite/raw-fs access."
+description = "SpaceService — space identity + per-space config overlay + space registry + install lifecycle (L1). Implements space.proto's RPCs via DataStore + KernelLog; no direct sqlite/raw-fs access."
 
 [dependencies]
 ship-substrate = { path = "../../../ship-substrate" }
 ship-types = { path = "../../../ship-substrate/crates/ship-types" }
 ship-reactive = { path = "../ship-reactive" }
 ship-ops-rpc = { path = "../../../ship-ops-rpc" }
+# `install_stack` / `unregister_stack` / `list_installed` consume the
+# `ship_store::Registry` trait + `install_stack` orchestrator. The wire
+# trait exposes them via `Arc<dyn Registry + Send + Sync>` so the install
+# pipeline can be mocked (the round-trip test in ship-store uses this seam).
+ship-store = { path = "../ship-store" }
 # `rules::list_space_rules` reads the per-space `settings_overlay` partition
 # through ship-config's overlay accessor (the typed reader over the
 # substrate's DataStore port, shared by the SPACE/ACCOUNT SettingsService
@@ -44,6 +49,7 @@ ship-collection = { path = "../ship-collection" }
 ship-artifacts = { path = "../ship-artifacts" }
 ship-reactive = { path = "../ship-reactive" }
 ship-config = { path = "../ship-config" }
+ship-store = { path = "../ship-store" }
 
 [lints]
 workspace = true

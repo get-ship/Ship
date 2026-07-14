@@ -210,3 +210,93 @@ pub fn list_stacks_at(ship_dir: &Path, space_id: &str) -> Result<Vec<StackRow>> 
         })
         .collect())
 }
+
+/// A library row — a registry-installed stack sitting on this device under
+/// the managed library dir. Folded from `stack.installed` /
+/// `stack.unregistered` events by `ship_space::library_projection`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct InstalledStack {
+    pub path: String,
+    pub version: String,
+    pub root_path: String,
+    pub content_hash: String,
+    pub installed_at: String,
+    pub enabled: bool,
+}
+
+impl InstalledStack {
+    fn from_row(row: &sqlx::sqlite::SqliteRow) -> Self {
+        use sqlx::Row as _;
+        let enabled_int: i64 = row.get("enabled");
+        Self {
+            path: row.get("path"),
+            version: row.get("version"),
+            root_path: row.get("root_path"),
+            content_hash: row.get("content_hash"),
+            installed_at: row.get("installed_at"),
+            enabled: enabled_int != 0,
+        }
+    }
+}
+
+/// List every library row in the global runtime db (no filter — these are
+/// device-local, every space sees the same set; the `space_id` filter on the
+/// wire is dropped at L1 to match the runtime-scoped projection).
+pub fn list_installed() -> Result<Vec<InstalledStack>> {
+    let ship_dir = get_global_dir()?;
+    list_installed_at(&ship_dir)
+}
+
+/// List every library row under `ship_dir`, newest install first.
+pub fn list_installed_at(ship_dir: &Path) -> Result<Vec<InstalledStack>> {
+    let mut conn = open_runtime_conn_at(ship_dir)?;
+    let rows = block_on(async {
+        sqlx::query(
+            "SELECT path, version, root_path, content_hash, installed_at, enabled \
+             FROM library ORDER BY installed_at DESC",
+        )
+        .fetch_all(&mut conn)
+        .await
+    })?;
+    Ok(rows.iter().map(InstalledStack::from_row).collect())
+}
+
+/// Look up a library row by `(path, version)` under `ship_dir`.
+pub fn find_installed_at(
+    ship_dir: &Path,
+    path: &str,
+    version: &str,
+) -> Result<Option<InstalledStack>> {
+    let mut conn = open_runtime_conn_at(ship_dir)?;
+    let row = block_on(async {
+        sqlx::query(
+            "SELECT path, version, root_path, content_hash, installed_at, enabled \
+             FROM library WHERE path = ? AND version = ?",
+        )
+        .bind(path)
+        .bind(version)
+        .fetch_optional(&mut conn)
+        .await
+    })?;
+    Ok(row.as_ref().map(InstalledStack::from_row))
+}
+
+/// Look up a library row by `root_path` (the absolute stack root on disk).
+/// Used by the wire layer's `unregister_stack` to resolve the row from the
+/// proto's `root_path` field.
+pub fn find_installed_at_root(
+    ship_dir: &Path,
+    root_path: &str,
+) -> Result<Option<InstalledStack>> {
+    let mut conn = open_runtime_conn_at(ship_dir)?;
+    let row = block_on(async {
+        sqlx::query(
+            "SELECT path, version, root_path, content_hash, installed_at, enabled \
+             FROM library WHERE root_path = ?",
+        )
+        .bind(root_path)
+        .fetch_optional(&mut conn)
+        .await
+    })?;
+    Ok(row.as_ref().map(InstalledStack::from_row))
+}

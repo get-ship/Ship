@@ -1736,6 +1736,8 @@ dependencies = [
  "http",
  "http-body",
  "http-body-util",
+ "jsonwebtoken",
+ "parking_lot",
  "protoc-bin-vendored",
  "serde",
  "serde_json",
@@ -4891,6 +4893,7 @@ dependencies = [
  "ship-config",
  "ship-ops-rpc",
  "ship-reactive",
+ "ship-store",
  "ship-substrate",
  "ship-types",
  "sqlx",
@@ -4905,6 +4908,7 @@ name = "ship-store"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "base64",
  "content-scan",
  "flate2",
@@ -4917,10 +4921,13 @@ dependencies = [
  "serde_json",
  "sha2",
  "ship-collection",
+ "ship-gateway-client",
  "ship-substrate",
+ "ship-types",
  "stack-model",
  "tar",
  "tempfile",
+ "thiserror 2.0.18",
  "tracing",
  "walkdir",
 ]

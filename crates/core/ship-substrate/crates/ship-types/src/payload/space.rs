@@ -38,3 +38,30 @@ pub struct StackRegistered {
     /// RFC3339 timestamp of registration.
     pub registered_at: String,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct StackInstalled {
+    /// Registry-issued package path (the install identity).
+    pub path: String,
+    /// Resolved version (the registry-stated exact version).
+    pub version: String,
+    /// Absolute stack root on this device — the unpacked library row.
+    pub root_path: String,
+    /// Canonical content hash — matches the registry attestation AND the
+    /// cache key. The single hash that flows registry ↔ attestation ↔ disk.
+    pub content_hash: String,
+    /// RFC3339 timestamp of installation.
+    pub installed_at: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct StackUnregistered {
+    /// Registry-issued package path (the install identity).
+    pub path: String,
+    /// Resolved version (the registry-stated exact version).
+    pub version: String,
+    /// Absolute stack root the library row materialised at.
+    pub root_path: String,
+    /// RFC3339 timestamp of unregistration.
+    pub unregistered_at: String,
+}

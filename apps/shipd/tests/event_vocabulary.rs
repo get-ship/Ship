@@ -26,7 +26,7 @@ use ship_types::event_types::canonical_session::{ALL_CANONICAL_OP, ALL_CANONICAL
 fn full_registry_count_is_pinned() {
     let n = event_registry::all_names().len();
     assert_eq!(
-        n, 82,
+        n, 84,
         "the full event vocabulary changed size. Bump this pin with your event addition/removal so vocabulary changes stay conscious. (B-wave2 / 2026-06-20: -3 kernel.actor events cut (snapshot, suspended, restored), -1 space.setting.changed cut, -1 actor.mailbox_full cut. 114 - 5 = 109. 2026-07-03: registry had drifted to 108 without a pin bump — re-synced; then -3 dead mesh.* events (message/register/deregister) cut → 105. 2026-07-10 space cutover: -3 project.* events (registered/seen/switched) cut, +2 space.* (opened/seen) added → 104. 2026-07-10 engine cut: -15 engine-emitted pipeline.* registrations + -4 supervisor.* registrations → 85. 2026-07-12 stack membership: +1 stack.registered → 86. 2026-07-13 studio cut: -4 studio.* events → 82. Future bumps land here with a dated note.)"
     );
 }

@@ -131,13 +131,16 @@ anyhow = "1.0"
 # The integration test (`tests/compile.rs`) mounts the ConnectRPC router
 # in-process via the generated `HarnessServiceExt::register`. Needs the
 # axum tower::ServiceExt::oneshot, http_body_util for body collection, and
-# serde_json for request/response shapes.
-axum = { version = "0.8", features = ["macros"] }
 http-body-util = "0.1"
 serde_json = { version = "1.0", features = ["preserve_order"] }
 tower = { version = "0.5", features = ["util"] }
 tempfile = "3"
-# Parity-capture test SHA-256s every emitted CompiledFile.
+ship-store = { path = "../../crates/core/ship-platform/crates/ship-store" }
+ship-proto = { git = "https://github.com/get-ship/ship-contracts.git", branch = "feat/next" }
+ship-substrate = { path = "../../crates/core/ship-substrate" }
+stack-model = { path = "../../crates/core/stack-model" }
+parking_lot = "0.12"
+jsonwebtoken = "9"
 sha2 = "0.10"
 
 [build-dependencies]
