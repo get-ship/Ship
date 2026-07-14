@@ -79,6 +79,7 @@ pub mod members;
 pub mod descriptor;
 pub mod space_loader;
 pub mod ts_resolver;
+pub mod dtsgen;
 
 pub use members::{
     resolve_member_roots, roll_up_members, roll_up_members_blocking, roll_up_registered,
