@@ -18,8 +18,30 @@ impl SyncClient {
         }
     }
 
-    /// Return the normalised base URL. Test-only — surfaces the private field
-    /// so integration tests outside this file can assert URL shaping without
+    /// Cap a `reqwest::blocking::Response` body to
+    /// `bundle_limits::MAX_BUNDLE_DOWNLOAD` bytes, then parse it as JSON.
+    /// The cap is the binding check (content-length is a hint, not a
+    /// guarantee) — a hostile cloud gateway cannot OOM the daemon by
+    /// returning a multi-GB body.
+    fn json_capped<T: serde::de::DeserializeOwned>(
+        mut resp: reqwest::blocking::Response,
+    ) -> Result<T> {
+        // Early reject when the server advertises an oversized body.
+        if let Some(declared) = resp.content_length()
+            && declared > bundle_limits::MAX_BUNDLE_DOWNLOAD
+        {
+            anyhow::bail!(
+                "cloud sync response declared {declared} bytes, \
+                 exceeds MAX_BUNDLE_DOWNLOAD ({} bytes)",
+                bundle_limits::MAX_BUNDLE_DOWNLOAD
+            );
+        }
+        let mut body = Vec::new();
+        bundle_limits::copy_capped(&mut resp, &mut body, bundle_limits::MAX_BUNDLE_DOWNLOAD)
+            .context("reading cloud sync response body")?;
+        serde_json::from_slice(&body).context("parsing cloud sync response body as JSON")
+    }
+
     /// Return the normalised base URL. Test-only — surfaces the private field
     /// so the integration tests in `tests/integration_client.rs` can assert
     /// URL shaping without making live HTTP calls. `pub` rather than
@@ -39,16 +61,14 @@ impl SyncClient {
         let body = PushRequest {
             events: events.to_vec(),
         };
-        let resp: PushResponse = self
+        let resp = self
             .agent
             .post(&url)
             .header("x-project-id", space_id)
             .json(&body)
             .send()
-            .context("sync push request failed")?
-            .json()
-            .context("sync push response parse failed")?;
-        Ok(resp)
+            .context("sync push request failed")?;
+        Self::json_capped(resp)
     }
 
     /// Pull platform events from cloud since cursor.
@@ -61,15 +81,13 @@ impl SyncClient {
         if let Some(c) = cursor {
             url.push_str(&format!("?since={c}"));
         }
-        let resp: PullResponse = self
+        let resp = self
             .agent
             .get(&url)
             .header("x-project-id", space_id)
             .send()
-            .context("sync pull request failed")?
-            .json()
-            .context("sync pull response parse failed")?;
-        Ok(resp)
+            .context("sync pull request failed")?;
+        Self::json_capped(resp)
     }
 
     /// Push workspace-scoped events to cloud.
@@ -91,16 +109,14 @@ impl SyncClient {
         let body = PushRequest {
             events: events.to_vec(),
         };
-        let resp: PushResponse = self
+        let resp = self
             .agent
             .post(&url)
             .header("x-project-id", space_id)
             .json(&body)
             .send()
-            .context("workspace sync push failed")?
-            .json()
-            .context("workspace sync push response parse failed")?;
-        Ok(resp)
+            .context("workspace sync push failed")?;
+        Self::json_capped(resp)
     }
 
     /// Pull workspace-scoped events from cloud since cursor.
@@ -117,15 +133,13 @@ impl SyncClient {
         if let Some(c) = cursor {
             url.push_str(&format!("?since={c}"));
         }
-        let resp: PullResponse = self
+        let resp = self
             .agent
             .get(&url)
             .header("x-project-id", space_id)
             .send()
-            .context("workspace sync pull failed")?
-            .json()
-            .context("workspace sync pull response parse failed")?;
-        Ok(resp)
+            .context("workspace sync pull failed")?;
+        Self::json_capped(resp)
     }
 }
 

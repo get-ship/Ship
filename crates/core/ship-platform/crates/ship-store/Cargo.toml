@@ -24,6 +24,7 @@ ship-collection = { path = "../ship-collection" }
 # FetchBundle}` through it (the bundle bytes download from the signed
 # CDN URL the FetchBundle response returns).
 ship-gateway-client = { path = "../../../ship-gateway-client" }
+bundle-limits = { path = "../bundle-limits" }
 stack-model = { path = "../../../stack-model" }
 anyhow = { workspace = true }
 serde = { workspace = true }

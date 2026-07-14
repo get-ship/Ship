@@ -884,6 +884,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5d20789868f4b01b2f2caec9f5c4e0213b41e3e5702a50157d699ae31ced2fcb"
 
 [[package]]
+name = "bundle-limits"
+version = "0.1.0"
+dependencies = [
+ "flate2",
+ "tar",
+ "tempfile",
+]
+
+[[package]]
 name = "bytecount"
 version = "0.6.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8049,6 +8058,7 @@ name = "ship-cloud"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bundle-limits",
  "chrono",
  "reqwest 0.12.28",
  "serde",
@@ -8578,6 +8588,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "base64 0.22.1",
+ "bundle-limits",
  "content-scan",
  "flate2",
  "home",

@@ -584,6 +584,65 @@ fn cache_keeps_distinct_bundles_per_version() {
     assert_eq!(v2_contents, b"v2 contents -- different body");
 }
 
+// ---------------------------------------------------------------------------
+// Tests: decompressed-size cap (defense against decompression bombs)
+// ---------------------------------------------------------------------------
+
+/// Build a gzip-tarball whose declared entry size is many GiB — the
+/// decompression-bomb shape. The actual body is a single byte; the
+/// unpack cap sums declared sizes and must reject before the body
+/// would be allocated.
+fn make_oversized_tarball(declared_size: u64) -> Vec<u8> {
+    let mut tar_buf = Vec::new();
+    {
+        let mut builder = tar::Builder::new(&mut tar_buf);
+        let mut header = tar::Header::new_gnu();
+        header.set_size(declared_size);
+        header.set_mode(0o644);
+        header.set_cksum();
+        let tiny = b"x";
+        builder.append_data(&mut header, "big.bin", &tiny[..]).unwrap();
+        builder.finish().unwrap();
+    }
+    let mut gz = Vec::new();
+    {
+        use std::io::Write;
+        let mut enc = flate2::write::GzEncoder::new(&mut gz, flate2::Compression::default());
+        enc.write_all(&tar_buf).unwrap();
+        enc.finish().unwrap();
+    }
+    gz
+}
+
+#[test]
+fn fetch_rejects_decompression_bomb_with_limit_named() {
+    // 4 GiB declared entry — well past MAX_BUNDLE_UNPACKED.
+    let bomb = make_oversized_tarball(4 * 1024 * 1024 * 1024);
+    let entry = signed_entry("ship/x", "1.0.0", "^0.1.0", "https://cdn/bomb.tgz", &bomb);
+
+    let fetcher = MockFetcher::new();
+    fetcher.put(&entry.url, &bomb);
+    let cache_root = tempdir().expect("cache tempdir");
+    let cache = PackageCache::with_root(cache_root.path().to_path_buf());
+
+    let err = fetch_platform_bundle(
+        &entry,
+        "stable",
+        &cache,
+        &fetcher,
+        &product_trusted_key(),
+    )
+    .expect_err("bomb rejected");
+    match err {
+        FetchError::Extract(msg) => {
+            assert!(
+                msg.contains("MAX_BUNDLE_UNPACKED") || msg.contains("exceeded limit"),
+                "err should name the limit: {msg}"
+            );
+        }
+        other => panic!("expected Extract, got {other:?}"),
+    }
+}
 /// Build a tarball that includes the stack manifest plus one file at
 /// `path_in_archive` with `body` content — the shape a real pack
 /// produces, so the new `compute_tree_hash` reads it the same way

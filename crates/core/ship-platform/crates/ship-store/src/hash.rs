@@ -23,8 +23,9 @@ pub fn compute_tree_hash(root: &Path) -> anyhow::Result<String> {
 
     let manifest_full = root.join(crate::archive::MANIFEST_PATH);
     if manifest_full.is_file() {
-        let content = std::fs::read(&manifest_full)
-            .with_context(|| format!("reading {}", manifest_full.display()))?;
+        // Cap the per-file read at MAX_BUNDLE_FILE — a single huge
+        // manifest must not be slurped into memory.
+        let content = read_file_capped(&manifest_full)?;
         file_entries.push((
             crate::archive::MANIFEST_PATH.to_string(),
             content.len() as u64,
@@ -60,9 +61,10 @@ pub fn compute_tree_hash(root: &Path) -> anyhow::Result<String> {
                 .collect::<Vec<_>>()
                 .join("/");
 
-            let content = std::fs::read(entry.path())
-                .with_context(|| format!("reading {}", entry.path().display()))?;
-
+            // Cap the per-file read at MAX_BUNDLE_FILE — a single
+            // multi-GB member must not be slurped into a single
+            // allocation.
+            let content = read_file_capped(entry.path())?;
             let byte_len = content.len() as u64;
             let file_hash = hex::encode_sha256(&content);
             file_entries.push((rel_str, byte_len, file_hash));
@@ -89,8 +91,29 @@ pub fn compute_tree_hash(root: &Path) -> anyhow::Result<String> {
 /// Compute SHA-256 hash of a single file.
 /// Returns `"sha256:<lowercase-hex>"`.
 pub fn compute_file_hash(path: &Path) -> anyhow::Result<String> {
-    let content = std::fs::read(path).with_context(|| format!("reading {}", path.display()))?;
+    let content = read_file_capped(path)?;
     Ok(format!("sha256:{}", hex::encode_sha256(&content)))
+}
+
+/// Read a file's contents with the install pipeline's per-file ceiling
+/// (a multi-GB member must not be read into one allocation). Centralised
+/// so the cap is named once and the streaming helper is the only path
+/// the install side uses for slurping.
+fn read_file_capped(path: &Path) -> anyhow::Result<Vec<u8>> {
+    let f = std::fs::File::open(path).with_context(|| format!("opening {}", path.display()))?;
+    match bundle_limits::read_capped(f, bundle_limits::MAX_BUNDLE_FILE) {
+        Ok(bytes) => Ok(bytes),
+        Err(e) => {
+            // Surface the bound name in the top-level error message so
+            // the failure points at the policy, not the symptom.
+            Err(anyhow::anyhow!(
+                "reading {} exceeded MAX_BUNDLE_FILE ({} bytes): {}",
+                path.display(),
+                bundle_limits::MAX_BUNDLE_FILE,
+                e
+            ))
+        }
+    }
 }
 
 mod hex {

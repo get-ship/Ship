@@ -212,3 +212,23 @@ fn file_hash_missing_file_fails() {
     let result = compute_file_hash(&dir.path().join("nonexistent.txt"));
     assert!(result.is_err());
 }
+
+fn file_hash_refuses_oversized_file_with_limit_named() -> anyhow::Result<()> {
+    // The per-file cap (MAX_BUNDLE_FILE) is the binding check. A
+    // single multi-GiB member must not be slurped whole into a single
+    // allocation. Simulate by patching the read with a small limit
+    // override: we cannot trivially construct a multi-GiB file in
+    // tests, so we test the helper at a tight bound by writing a
+    // small file and checking the per-file cap machinery fires when
+    // the limit is below the file size.
+    let dir = make_tree(&[("big.bin", "some content")])?;
+    // Read directly via the cap helper, with a 1-byte limit, to
+    // confirm the cap error message names the limit.
+    let f = std::fs::File::open(dir.path().join("big.bin")).unwrap();
+    let err = bundle_limits::read_capped(f, 1).unwrap_err();
+    assert!(
+        err.to_string().contains("limit 1"),
+        "cap error must name the limit: {err}"
+    );
+    Ok(())
+}

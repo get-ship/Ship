@@ -71,7 +71,7 @@ enum PackageShape {
 fn try_github_tarball(owner: &str, repo: &str, commit: &str, dest: &Path) -> anyhow::Result<()> {
     let url = format!("https://api.github.com/repos/{owner}/{repo}/tarball/{commit}");
 
-    let resp = reqwest::blocking::Client::new()
+    let mut resp = reqwest::blocking::Client::new()
         .get(&url)
         .header("Accept", "application/vnd.github+json")
         .header("User-Agent", "ship-pkg/0.1")
@@ -82,24 +82,53 @@ fn try_github_tarball(owner: &str, repo: &str, commit: &str, dest: &Path) -> any
         anyhow::bail!("GitHub tarball returned HTTP {}", resp.status());
     }
 
-    let body = resp
-        .bytes()
-        .context("reading tarball body")?
-        .to_vec();
+    // Early reject when the server advertises an oversized body.
+    if let Some(declared) = resp.content_length()
+        && declared > bundle_limits::MAX_BUNDLE_DOWNLOAD
+    {
+        anyhow::bail!(
+            "GitHub tarball from {url} declared {declared} bytes, \
+             exceeds MAX_BUNDLE_DOWNLOAD ({} bytes)",
+            bundle_limits::MAX_BUNDLE_DOWNLOAD
+        );
+    }
+    // Stream the body so a hostile tarball cannot OOM the daemon.
+    // content-length is a hint, not a guarantee; the cap is the
+    // binding check.
+    let mut body = Vec::new();
+    bundle_limits::copy_capped(&mut resp, &mut body, bundle_limits::MAX_BUNDLE_DOWNLOAD)
+        .context("reading tarball body")?;
 
     // First pass: detect package shape by scanning entry paths.
     let shape = detect_shape_from_tarball(&body)?;
 
-    // Second pass: extract based on detected shape.
+    // Second pass: extract based on detected shape. Two safety rails:
+    // (1) sum entry sizes against MAX_BUNDLE_UNPACKED so a gzip bomb
+    //     fails mid-stream, and (2) reject any entry path that contains
+    //     `..` or an absolute component before it touches the
+    //     filesystem — tar's safe `.unpack()` would do this for us, but
+    //     the shape-filtered loop hand-joins `dest.join(rel)`, so the
+    //     path validation MUST live here.
     let gz = flate2::read::GzDecoder::new(body.as_slice());
     let mut archive = tar::Archive::new(gz);
     let mut found_content = false;
+    let mut total_bytes: u64 = 0;
 
     for entry in archive.entries().context("reading tar entries")? {
         let mut entry = entry.context("reading tar entry")?;
         let path = entry.path().context("reading entry path")?.into_owned();
         let path_str = path.to_string_lossy();
 
+        // Reject any path component that's `..` or absolute. tar's
+        // `.unpack()` rejects these on its own, but the
+        // shape-filtered hand-join below does not, so this check is
+        // the zip-slip guard.
+        if !path_stays_in_dest(&path) {
+            anyhow::bail!(
+                "tar entry path {} escapes destination",
+                path.display()
+            );
+        }
         // Determine the relative path to extract based on package shape.
         let rel = match shape {
             PackageShape::ShipNative => match find_ship_segment(&path_str) {
@@ -111,6 +140,28 @@ fn try_github_tarball(owner: &str, repo: &str, commit: &str, dest: &Path) -> any
                 _ => continue,
             },
         };
+        // Re-validate the shape-derived `rel` too — a hostile
+        // tarball could yield a `rel` like `../../etc` via a
+        // prefix-stripped path.
+        let rel_path = std::path::Path::new(&rel);
+        if !path_stays_in_dest(rel_path) {
+            anyhow::bail!(
+                "tar entry rel path {} escapes destination",
+                rel_path.display()
+            );
+        }
+
+        // Sum declared entry size first — refuse before writing.
+
+
+        let entry_size = entry.header().entry_size().unwrap_or(0);
+        total_bytes = total_bytes.saturating_add(entry_size);
+        if total_bytes > bundle_limits::MAX_BUNDLE_UNPACKED {
+            anyhow::bail!(
+                "tarball unpack exceeded MAX_BUNDLE_UNPACKED ({} bytes)",
+                bundle_limits::MAX_BUNDLE_UNPACKED
+            );
+        }
 
         found_content = true;
         let target = dest.join(&rel);
@@ -124,7 +175,9 @@ fn try_github_tarball(owner: &str, repo: &str, commit: &str, dest: &Path) -> any
             }
             let mut file = std::fs::File::create(&target)
                 .with_context(|| format!("creating file {}", target.display()))?;
-            std::io::copy(&mut entry, &mut file)
+            // Cap the per-file read so a single huge member can't
+            // bypass the total cap.
+            bundle_limits::copy_capped(&mut entry, &mut file, bundle_limits::MAX_BUNDLE_FILE)
                 .with_context(|| format!("writing {}", target.display()))?;
         }
     }
@@ -186,6 +239,23 @@ fn find_ship_segment(path: &str) -> Option<usize> {
         return Some(pos + 1);
     }
     None
+}
+
+/// Reject any tar entry path that, when joined to `dest`, would escape
+/// `dest`. The check covers `..`, absolute paths, and Windows drive
+/// prefixes — the same ZIP-SLIP class tar's safe `.unpack()` rejects,
+/// which the shape-filtered hand-join in this file would not.
+pub(crate) fn path_stays_in_dest(path: &std::path::Path) -> bool {
+    use std::path::Component;
+    for comp in path.components() {
+        if matches!(
+            comp,
+            Component::ParentDir | Component::RootDir | Component::Prefix(_)
+        ) {
+            return false;
+        }
+    }
+    true
 }
 
 /// Strip the GitHub tarball prefix directory from a path.
@@ -452,5 +522,27 @@ mod tests {
         assert!(dst.path().join("out/file.txt").exists());
         assert!(!dst.path().join("out/.git").exists());
         Ok(())
+    }
+
+    // ── ZIP-SLIP guard ───────────────────────────────────────────
+
+    #[test]
+    fn path_stays_in_dest_accepts_normal_paths() {
+        assert!(path_stays_in_dest(std::path::Path::new("a/b/c.txt")));
+        assert!(path_stays_in_dest(std::path::Path::new("a.txt")));
+        assert!(path_stays_in_dest(std::path::Path::new("deeply/nested/dir/file")));
+    }
+
+    #[test]
+    fn path_stays_in_dest_rejects_parent_traversal() {
+        // The original ZIP-SLIP class: `..` components escape dest.
+        assert!(!path_stays_in_dest(std::path::Path::new("../escaped.txt")));
+        assert!(!path_stays_in_dest(std::path::Path::new("a/../../etc/passwd")));
+        assert!(!path_stays_in_dest(std::path::Path::new("a/b/../..")));
+    }
+
+    #[test]
+    fn path_stays_in_dest_rejects_absolute_paths() {
+        assert!(!path_stays_in_dest(std::path::Path::new("/etc/passwd")));
     }
 }

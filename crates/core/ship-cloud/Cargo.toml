@@ -19,6 +19,7 @@ chrono = { workspace = true }
 # reqwest — reqwest::blocking runs its transport on a dedicated background
 # thread, so it doesn't nest a runtime inside the caller's tokio worker.
 reqwest = { workspace = true, features = ["blocking", "json", "rustls-tls"] }
+bundle-limits = { path = "../ship-platform/crates/bundle-limits" }
 tracing = { workspace = true }
 
 [features]

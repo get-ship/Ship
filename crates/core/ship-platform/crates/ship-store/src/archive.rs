@@ -111,7 +111,7 @@ pub fn pack_stack(
 /// The destination must be empty. The extracted tree is re-hashed and must
 /// match the header before success is returned.
 pub fn unpack_stack(bytes: &[u8], dest: &Path) -> anyhow::Result<ArchiveHeader> {
-    use flate2::read::GzDecoder;
+
     if dest.exists()
         && fs::read_dir(dest)
             .context("reading archive destination")?
@@ -122,13 +122,11 @@ pub fn unpack_stack(bytes: &[u8], dest: &Path) -> anyhow::Result<ArchiveHeader> 
     }
     fs::create_dir_all(dest)
         .with_context(|| format!("creating archive destination {}", dest.display()))?;
-
-    let decoder = GzDecoder::new(bytes);
-    let mut archive = tar::Archive::new(decoder);
-    archive
-        .unpack(dest)
+    // Stream-extract with a decompressed-size cap. `tar::Archive::unpack`
+    // rejects `..` and absolute paths on its own; the cap is the bomb
+    // guard so a malicious archive cannot exhaust disk.
+    bundle_limits::extract_tar_capped(bytes, dest, bundle_limits::MAX_BUNDLE_UNPACKED)
         .with_context(|| format!("unpacking stack archive into {}", dest.display()))?;
-
     let header = read_header(&dest.join(HEADER_PATH))?;
     let actual = compute_tree_hash(dest).context("hashing unpacked stack tree")?;
     if header.hash != actual {

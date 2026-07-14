@@ -226,7 +226,7 @@ impl Default for ReqwestFetcher {
 
 impl BundleFetcher for ReqwestFetcher {
     fn fetch(&self, url: &str) -> anyhow::Result<Vec<u8>> {
-        let resp = self
+        let mut resp = self
             .client
             .get(url)
             .header("User-Agent", &self.user_agent)
@@ -236,10 +236,24 @@ impl BundleFetcher for ReqwestFetcher {
         if !status.is_success() {
             return Err(anyhow!("HTTP {status} fetching {url}"));
         }
-        let bytes = resp
-            .bytes()
+        // Early reject when the server advertises an oversized body.
+        if let Some(declared) = resp.content_length()
+            && declared > bundle_limits::MAX_BUNDLE_DOWNLOAD
+        {
+            return Err(anyhow!(
+                "platform bundle download from {url} declared {declared} bytes, \
+                 exceeds MAX_BUNDLE_DOWNLOAD ({} bytes)",
+                bundle_limits::MAX_BUNDLE_DOWNLOAD
+            ));
+        }
+        // Stream the body so a hostile or oversized response cannot OOM
+        // the daemon. `resp` impls `Read`; the streaming helper caps the
+        // allocation at the limit. content-length is a hint, not a
+        // guarantee, so the cap is the binding check.
+        let mut out = Vec::new();
+        bundle_limits::copy_capped(&mut resp, &mut out, bundle_limits::MAX_BUNDLE_DOWNLOAD)
             .with_context(|| format!("reading body of {url}"))?;
-        Ok(bytes.to_vec())
+        Ok(out)
     }
 }
 
@@ -329,9 +343,9 @@ fn check_content_hash(expected: &str, actual_bytes: &[u8]) -> Result<(), FetchEr
 }
 
 fn extract_tarball(bytes: &[u8], dest: &Path) -> Result<(), FetchError> {
-    let gz = flate2::read::GzDecoder::new(bytes);
-    let mut archive = tar::Archive::new(gz);
-    archive.unpack(dest).map_err(|e| FetchError::Extract(e.to_string()))
+    bundle_limits::extract_tar_capped(bytes, dest, bundle_limits::MAX_BUNDLE_UNPACKED)
+        .map_err(|e| FetchError::Extract(e.to_string()))?;
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------

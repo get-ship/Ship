@@ -144,10 +144,35 @@ impl BundleFetcher for ReqwestBundleFetcher {
         if !resp.status().is_success() {
             anyhow::bail!("bundle download returned {}", resp.status());
         }
-        let bytes = resp
-            .bytes()
+        // Early reject when the server advertises an oversized body.
+        if let Some(declared) = resp.content_length()
+            && (declared as u64) > bundle_limits::MAX_BUNDLE_DOWNLOAD
+        {
+            anyhow::bail!(
+                "bundle download from {url} declared {declared} bytes, \
+                 exceeds MAX_BUNDLE_DOWNLOAD ({} bytes)",
+                bundle_limits::MAX_BUNDLE_DOWNLOAD
+            );
+        }
+        // Cap the streaming read so a hostile or oversized body cannot
+        // OOM the daemon. content-length is a hint, not a guarantee.
+        let mut out = Vec::new();
+        let mut stream = resp;
+        let mut total: u64 = 0;
+        while let Some(chunk) = stream
+            .chunk()
             .await
-            .with_context(|| format!("reading bundle body from {url}"))?;
-        Ok(bytes.to_vec())
+            .with_context(|| format!("reading bundle chunk from {url}"))?
+        {
+            total = total.saturating_add(chunk.len() as u64);
+            if total > bundle_limits::MAX_BUNDLE_DOWNLOAD {
+                anyhow::bail!(
+                    "bundle download from {url} exceeded MAX_BUNDLE_DOWNLOAD ({} bytes)",
+                    bundle_limits::MAX_BUNDLE_DOWNLOAD
+                );
+            }
+            out.extend_from_slice(&chunk);
+        }
+        Ok(out)
     }
 }
