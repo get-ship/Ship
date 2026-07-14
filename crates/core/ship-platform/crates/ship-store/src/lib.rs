@@ -26,9 +26,10 @@ pub mod hash;
 pub mod init_deps;
 pub mod install;
 pub mod install_bundle;
-pub mod install_stack;
 mod install_helpers;
+pub mod install_stack;
 pub mod platform_bundles;
+pub mod publish_first_party;
 pub mod publish_walk;
 pub mod registry;
 pub mod resolver;
@@ -38,7 +39,9 @@ pub mod url_encode;
 pub mod verify;
 
 pub use archive::{pack_stack, unpack_stack};
-pub use bundle_sig::{BundleClaim, BundleVerifyError, TrustedKey};
+pub use bundle_sig::{
+    BundleClaim, BundleVerifyError, TrustedKey, sign_bundle_attestation, verify_bundle_attestation,
+};
 pub use cache::{CachedPackage, PackageCache};
 pub use compose::materialize_space;
 pub use constraint::{VersionConstraint, parse_constraint};
@@ -47,13 +50,14 @@ pub use init_deps::{
     DEFAULT_INIT_DEPS, SeedResult, seed_default_dependencies, try_install_init_deps,
 };
 pub use install::{InstallOptions, InstallResult, resolve_and_fetch};
+pub use install_bundle::{InstallBundleError, extract_and_verify_bundle};
 pub use install_stack::{
     InstallError, InstalledStack, install_stack, library_root, remove_installed,
 };
+pub use publish_first_party::{SignedBundle, publish_first_party};
 pub use publish_walk::validate_publishable_stack;
 pub use registry::{
-    BundleFetcher, FetchedBundle, HttpRegistry, Registry, RegistryVersion,
-    ReqwestBundleFetcher,
+    BundleFetcher, FetchedBundle, HttpRegistry, Registry, RegistryVersion, ReqwestBundleFetcher,
 };
 pub use resolver::{ResolvedVersion, resolve_alias, resolve_version};
 pub use types::{Dependency, ShipManifest, SyncStatus, diff_manifest_against_lock};

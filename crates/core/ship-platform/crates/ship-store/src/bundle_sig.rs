@@ -16,7 +16,9 @@
 //! `Validation::new(Algorithm::EdDSA)`. Bundles do not expire, so expiry
 //! validation is disabled and no aud/iss is required in this slice.
 
-use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
+use jsonwebtoken::{
+    Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, decode_header, encode,
+};
 use serde::{Deserialize, Serialize};
 
 /// Baked-in first-party publisher key id.
@@ -27,6 +29,35 @@ use serde::{Deserialize, Serialize};
 /// against once the real key is baked in. It is an obviously-fake value and
 /// MUST be replaced before any first-party bundle is gated on it.
 ///
+/// # Trust set at verify time
+///
+/// The install-side verifier
+/// ([`crate::install_bundle::extract_and_verify_bundle`]) accepts a bundle if
+/// its attestation JWT was signed by ANY key in the `TrustedKey` set the
+/// caller passes in. The daemon assembles that set as the UNION of:
+///
+/// 1. The baked-in first-party public key, identified by this constant
+///    ([`FIRST_PARTY_KID`]). When the real key is provisioned, the matching
+///    `x_base64url` is baked into the same release that hard-codes the kid —
+///    they ship together. Today the constant is a PLACEHOLDER, so this entry
+///    is intentionally untrusted: the runtime guard in
+///    [`verify_bundle_attestation`] rejects attestations that select it.
+/// 2. Per-publisher keys fetched from the gateway JWKS
+///    ([`trusted_keys_from_jwks`] — same source `auth::attest` uses).
+///
+/// In other words, a first-party-signed bundle (one whose JWT carries a `kid`
+/// equal to [`FIRST_PARTY_KID`]) is trusted only when:
+///   - this constant is no longer the PLACEHOLDER, AND
+///   - the matching `x_base64url` is also baked into the install-time trust
+///     set alongside it.
+///
+/// Until release-engineering provisions both halves, first-party bundles
+/// minted by [`crate::publish_first_party::publish_first_party`] (or
+/// [`sign_bundle_attestation`] directly) only verify when the verifier is
+/// given a corresponding `TrustedKey` explicitly — i.e. through the per-call
+/// `trusted_keys` argument, not through the baked-in anchor. The integration
+/// test suite uses this path today.
+///
 /// # Release gate
 ///
 /// When building with `--features release` (required for official release cuts),
@@ -34,7 +65,9 @@ use serde::{Deserialize, Serialize};
 /// Dev builds (no feature) compile without restriction.
 ///
 /// Replace this string with the real Ed25519 pubkey kid before enabling `release`.
-// TODO(release-eng): replace with the real first-party Ed25519 pubkey kid + x.
+// TODO(release-eng): replace with the real first-party Ed25519 pubkey kid + x,
+// and add the matching public `x_base64url` to a corresponding
+// `FIRST_PARTY_PUB_X` constant co-located with this one.
 pub const FIRST_PARTY_KID: &str = "ship-first-party-PLACEHOLDER-do-not-trust";
 
 /// Compile-time guard: fail if FIRST_PARTY_KID still carries the PLACEHOLDER
@@ -167,14 +200,13 @@ pub fn verify_bundle_attestation(
     validation.validate_exp = false;
     validation.required_spec_claims.clear();
 
-    let token = decode::<BundleClaim>(jwt, &decoding_key, &validation).map_err(|e| {
-        match e.kind() {
+    let token =
+        decode::<BundleClaim>(jwt, &decoding_key, &validation).map_err(|e| match e.kind() {
             jsonwebtoken::errors::ErrorKind::InvalidSignature => {
                 BundleVerifyError::SignatureInvalid
             }
             _ => BundleVerifyError::Malformed,
-        }
-    })?;
+        })?;
     let claim = token.claims;
 
     if claim.sha256 != tarball_sha256 {
@@ -213,17 +245,42 @@ pub fn trusted_keys_from_jwks(jwks_json: &str) -> Vec<TrustedKey> {
         .filter_map(|k| {
             let is_ed = k.kty.as_deref() == Some("OKP") && k.crv.as_deref() == Some("Ed25519");
             match (is_ed, k.kid, k.x) {
-                (true, Some(kid), Some(x)) => Some(TrustedKey { kid, x_base64url: x }),
+                (true, Some(kid), Some(x)) => Some(TrustedKey {
+                    kid,
+                    x_base64url: x,
+                }),
                 _ => None,
             }
         })
         .collect()
 }
 
+/// Mint a detached bundle attestation JWT.
+///
+/// Mirrors the test `sign` helper at the bottom of this file but is a real,
+/// non-`#[cfg(test)]` entry point used by the first-party publish path
+/// ([`crate::publish_first_party::publish_first_party`]). Encodes the claim
+/// as a JWS with `alg = EdDSA` and a `kid` header selecting the
+/// publisher/first-party key the verifier will resolve against.
+///
+/// Pair with [`verify_bundle_attestation`] on the install side: the claim's
+/// `sha256` is the canonical tree hash of the bundle tarball; the verifier
+/// computes the same hash on the extracted content and rejects any mismatch.
+///
+/// The PEM is the PKCS8 private key (`-----BEGIN PRIVATE KEY-----`); the
+/// matching public `x` lives in the JWK published alongside the kid. Test
+/// fixtures under `tests/` use the same encoding.
+pub fn sign_bundle_attestation(claim: &BundleClaim, signing_key_pem: &str, kid: &str) -> String {
+    let key = EncodingKey::from_ed_pem(signing_key_pem.as_bytes())
+        .expect("signing_key_pem is a valid PKCS8 Ed25519 private key");
+    let mut header = Header::new(Algorithm::EdDSA);
+    header.kid = Some(kid.to_string());
+    encode(&header, claim, &key).expect("signing EdDSA JWT")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use jsonwebtoken::{EncodingKey, Header};
 
     // Test-only Ed25519 keypairs, generated offline with
     // `openssl genpkey -algorithm ed25519`. The trusted-key `x` (raw 32-byte
@@ -244,15 +301,17 @@ mod tests {
         -----END PRIVATE KEY-----\n";
 
     fn trusted() -> Vec<TrustedKey> {
-        vec![TrustedKey { kid: TEST_KID.to_string(), x_base64url: TEST_PUB_X.to_string() }]
+        vec![TrustedKey {
+            kid: TEST_KID.to_string(),
+            x_base64url: TEST_PUB_X.to_string(),
+        }]
     }
 
     /// Sign a `BundleClaim` JWT with the given Ed25519 PKCS8 PEM and `kid`.
+    /// Thin wrapper over the production [`sign_bundle_attestation`] so tests
+    /// keep their compact call sites but exercise the real entry point.
     fn sign(claim: &BundleClaim, priv_pem: &str, kid: &str) -> String {
-        let key = EncodingKey::from_ed_pem(priv_pem.as_bytes()).expect("valid ed25519 pem");
-        let mut header = Header::new(Algorithm::EdDSA);
-        header.kid = Some(kid.to_string());
-        jsonwebtoken::encode(&header, claim, &key).expect("sign jwt")
+        sign_bundle_attestation(claim, priv_pem, kid)
     }
 
     fn sample_claim(sha256: &str) -> BundleClaim {
@@ -387,9 +446,7 @@ mod tests {
 
         // And conversely, selecting the placeholder kid is still rejected.
         let placeholder_jwt = sign(&claim, TEST_PRIV_PEM, FIRST_PARTY_KID);
-        let err =
-            verify_bundle_attestation(&hash, &placeholder_jwt, &keys).unwrap_err();
+        let err = verify_bundle_attestation(&hash, &placeholder_jwt, &keys).unwrap_err();
         assert_eq!(err, BundleVerifyError::UntrustedKey);
     }
-
 }
