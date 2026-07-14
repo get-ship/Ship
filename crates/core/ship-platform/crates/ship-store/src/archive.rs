@@ -14,14 +14,13 @@ const HEADER_PATH: &str = "ship.json";
 
 /// Hard ceiling on the uncompressed content a single stack may pack.
 ///
-/// Packing is an in-memory operation (the tar and the gzip output are both
-/// `Vec<u8>`), so an unbounded tree is an unbounded allocation — a stack root
-/// that is also a repo root once carried 180+ GB of build artifacts and packing
-/// it took the machine down. `NEVER_PACK_DIRS` keeps that content out; this
-/// ceiling is the backstop for everything else (a giant asset dir, a vendored
-/// blob), and it FAILS LOUD with the offending path instead of dying silently.
+/// Packing is an in-memory operation — the tar and the gzip output are both
+/// `Vec<u8>` — so an unbounded tree is an unbounded allocation. A stack root
+/// may sit at a repo root, where a single unpacked directory can exceed
+/// available memory. This ceiling fails loud with the offending path rather
+/// than allocating until the machine dies.
 ///
-/// A stack is agents, skills, and config — 256 MiB is already generous.
+/// A stack is agents, skills, and config: 256 MiB is already generous.
 const MAX_STACK_BYTES: u64 = 256 * 1024 * 1024;
 
 /// Pack a stack tree as a deterministic gzip-compressed tar archive.

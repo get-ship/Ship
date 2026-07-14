@@ -128,13 +128,10 @@ fn pack_raw_tree(root: &Path) -> (Vec<u8>, ()) {
     (encoder.finish().unwrap(), ())
 }
 
-// ── Regression: the pack that took the machine down ─────────────────────────
-//
-// A stack root that is ALSO a repo root (the ship repo carries stack.config.ts
-// beside a 180+ GB `target/`) used to pack every build artifact into memory:
-// pack reads each entry with `fs::read` and accumulates the tar in a `Vec<u8>`,
-// so an unbounded tree is an unbounded allocation. It OOM'd the machine.
-// Build output and fetched dependencies are never stack content.
+// A stack root may sit at a repo root, beside build output and fetched
+// dependencies that dwarf the stack itself. Those are regenerated artifacts,
+// never stack content, and packing reads every admitted entry into memory —
+// so admitting them is an unbounded allocation, not merely wrong content.
 
 #[test]
 fn pack_stack_never_packs_build_output_or_dependencies() {
