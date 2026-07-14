@@ -3,11 +3,40 @@ use std::path::Path;
 
 use anyhow::Context;
 
+/// Directory names that never belong in a stack package: build output and
+/// fetched dependencies. These are REGENERATED artifacts, not stack content,
+/// and they are unbounded — a repo root that is also a stack root can carry
+/// hundreds of gigabytes of `target/`. Packing reads every entry into memory,
+/// so admitting these is not merely wrong content, it is an OOM.
+///
+/// Excluded at ANY depth: a nested crate's `target/` is as fatal as the root's.
+pub(crate) const NEVER_PACK_DIRS: &[&str] = &[
+    "target",
+    "node_modules",
+    "dist",
+    ".next",
+    ".venv",
+    "__pycache__",
+    ".turbo",
+    ".cache",
+];
+
+/// True when a walk should not DESCEND into this directory entry. Pruning at
+/// the walk level (not just filtering entries afterwards) keeps a stack root
+/// that is also a repo root from traversing millions of build-artifact inodes.
+pub(crate) fn should_prune(name: &std::ffi::OsStr) -> bool {
+    name == ".git" || NEVER_PACK_DIRS.iter().any(|d| name == *d)
+}
+
 /// Files excluded from content hashing.
 pub(crate) fn should_exclude(rel_path: &str) -> bool {
     let parts: Vec<&str> = rel_path.split('/').collect();
     // Exclude anything under .git/
     if parts.first() == Some(&".git") {
+        return true;
+    }
+    // Exclude build output / fetched dependencies at any depth.
+    if parts.iter().any(|p| NEVER_PACK_DIRS.contains(p)) {
         return true;
     }
     // Exclude transport metadata and the dependency lockfile. The archive
@@ -40,7 +69,7 @@ pub fn compute_tree_hash(root: &Path) -> anyhow::Result<String> {
     for entry in walkdir::WalkDir::new(root)
         .sort_by_file_name()
         .into_iter()
-        .filter_entry(|e| e.file_name() != ".git")
+        .filter_entry(|e| !should_prune(e.file_name()))
     {
         let entry = entry.context("walking package tree")?;
         if !entry.file_type().is_file() {

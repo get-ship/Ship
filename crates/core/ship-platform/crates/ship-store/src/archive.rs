@@ -8,9 +8,21 @@ use anyhow::{Context, bail};
 use flate2::{Compression, GzBuilder, read::GzDecoder};
 use stack_model::ArchiveHeader;
 
-use crate::hash::{compute_tree_hash, should_exclude};
+use crate::hash::{compute_tree_hash, should_exclude, should_prune};
 
 const HEADER_PATH: &str = "ship.json";
+
+/// Hard ceiling on the uncompressed content a single stack may pack.
+///
+/// Packing is an in-memory operation (the tar and the gzip output are both
+/// `Vec<u8>`), so an unbounded tree is an unbounded allocation — a stack root
+/// that is also a repo root once carried 180+ GB of build artifacts and packing
+/// it took the machine down. `NEVER_PACK_DIRS` keeps that content out; this
+/// ceiling is the backstop for everything else (a giant asset dir, a vendored
+/// blob), and it FAILS LOUD with the offending path instead of dying silently.
+///
+/// A stack is agents, skills, and config — 256 MiB is already generous.
+const MAX_STACK_BYTES: u64 = 256 * 1024 * 1024;
 
 /// Pack a stack tree as a deterministic gzip-compressed tar archive.
 ///
@@ -29,11 +41,30 @@ pub fn pack_stack(root: &Path) -> anyhow::Result<(Vec<u8>, ArchiveHeader)> {
         let mut builder = tar::Builder::new(&mut tar_bytes);
         builder.mode(tar::HeaderMode::Deterministic);
         append_bytes(&mut builder, Path::new(HEADER_PATH), &header_bytes, 0o644)?;
+        let mut packed_bytes: u64 = 0;
         for rel in entries {
             let full = root.join(&rel);
             if full.is_dir() {
                 append_dir(&mut builder, &rel)?;
             } else {
+                // Check the size BEFORE reading: the whole point is not to pull
+                // an unbounded file into memory to discover it was too big.
+                let len = fs::metadata(&full)
+                    .with_context(|| format!("stat archive entry {}", full.display()))?
+                    .len();
+                packed_bytes = packed_bytes.saturating_add(len);
+                if packed_bytes > MAX_STACK_BYTES {
+                    bail!(
+                        "stack at {} exceeds the {} MiB packing limit (hit at {}). \
+                         A stack is agents, skills, and config — build output and \
+                         dependencies ({}) are never packed. If this is real stack \
+                         content, split the stack.",
+                        root.display(),
+                        MAX_STACK_BYTES / (1024 * 1024),
+                        rel.display(),
+                        crate::hash::NEVER_PACK_DIRS.join(", "),
+                    );
+                }
                 let bytes = fs::read(&full)
                     .with_context(|| format!("reading archive entry {}", full.display()))?;
                 append_bytes(&mut builder, &rel, &bytes, file_mode(&full)?)?;
@@ -96,7 +127,7 @@ fn collect_entries(root: &Path) -> anyhow::Result<Vec<PathBuf>> {
         .min_depth(1)
         .follow_links(false)
         .into_iter()
-        .filter_entry(|entry| entry.file_name() != ".git")
+        .filter_entry(|entry| !should_prune(entry.file_name()))
     {
         let entry = entry.context("walking stack tree")?;
         let rel = entry
