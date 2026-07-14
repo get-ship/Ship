@@ -17,8 +17,6 @@ fn parse_minimal_manifest() {
     assert!(m.module.as_ref().unwrap().description.is_none());
     assert!(m.module.as_ref().unwrap().license.is_none());
     assert!(m.dependencies.is_empty());
-    assert!(m.exports.skills.is_empty());
-    assert!(m.exports.agents.is_empty());
 }
 
 #[test]
@@ -64,13 +62,7 @@ fn parse_full_manifest() {
     assert_eq!(dep_d.version, "~2.1.0");
     assert_eq!(dep_d.grant, vec!["Bash", "Read"]);
 
-    assert_eq!(m.exports.skills, vec!["agents/skills/my-skill"]);
-    assert_eq!(m.exports.agents, vec!["agents/profiles/my-agent.jsonc"]);
     // The full traveling set — a package bundles any combination (#122 / store).
-    assert_eq!(m.exports.views, vec!["views/dashboard"]);
-    assert_eq!(m.exports.pipelines, vec!["pipelines/ship-feature.jsonc"]);
-    assert_eq!(m.exports.triggers, vec!["triggers/on-push.jsonc"]);
-    assert_eq!(m.exports.collections, vec!["collections/notes.jsonc"]);
 }
 
 #[test]
@@ -171,12 +163,6 @@ fn resolved_deps_normalises_shorthand() {
     assert!(deps[0].1.grant.is_empty());
 }
 
-#[test]
-fn omitting_exports_is_valid() {
-    let m = ShipManifest::from_jsonc_str(minimal_jsonc()).unwrap();
-    assert!(m.exports.skills.is_empty());
-    assert!(m.exports.agents.is_empty());
-}
 
 #[test]
 fn name_rejects_uppercase() {

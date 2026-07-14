@@ -13,8 +13,6 @@ fn archive_header_round_trips_the_golden_fixture() {
         header.hash,
         "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     );
-    assert_eq!(header.exports.skills, ["skills/review"]);
-    assert_eq!(header.exports.agents, ["agents/reviewer.ts"]);
     assert_eq!(
         header.dependencies["github.com/ship/base-stack"]
             .clone()
@@ -42,7 +40,6 @@ fn archive_header_defaults_recommendations_for_older_headers() {
             "version": "0.1.0",
             "commit": "abcdef",
             "hash": "sha256:deadbeef",
-            "exports": {},
             "dependencies": {}
         }"#,
     )

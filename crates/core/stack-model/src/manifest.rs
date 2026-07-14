@@ -1,12 +1,17 @@
 //! Ship manifest parser. JSONC only.
 //!
-//! Parses and validates the three-section manifest format:
+//! Parses and validates the two-section manifest format:
 //! - `module`        — package identity (name, version, description, license)
 //! - `dependencies`  — direct dependency map (path → version or full object)
-//! - `exports`       — skills and agent paths this module exports
 //!
-//! The compiler is pure (no I/O) except for `from_file`.
-//! Validation is eager and returns actionable errors.
+//! The on-disk source itself is described by `stack.config.ts` (the
+//! manifest filename); the noun entries (skills, agents, views, etc.) are
+//! discovered by walking the canonical domain dirs in
+//! `stack_model::DOMAIN_DIRS`, not by a declared `exports` list. The dirs
+//! are the registration.
+//!
+//! The compiler is pure (no I/O) except for `from_file`. Validation is
+//! eager and returns actionable errors.
 
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
@@ -90,42 +95,6 @@ impl ManifestDepValue {
     }
 }
 
-// ── Exports section ────────────────────────────────────────────────────────────
-
-/// Paths exported by this module — the full traveling artifact set a package can
-/// ship. Validated at publish time, not parse time. A package is ONE bundle
-/// regardless of which combination it carries (skills, an app's views, the lot).
-/// The composition engine (#122) consumes each list, namespaced by package.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
-pub struct ManifestExports {
-    /// Skill directory paths relative to `.ship/` (must contain SKILL.md).
-    #[serde(default)]
-    pub skills: Vec<String>,
-    /// Agent file paths relative to `.ship/` (must end in .jsonc).
-    #[serde(default)]
-    pub agents: Vec<String>,
-    /// View directory paths relative to `.ship/` (a `.sui` template + optional
-    /// paired controller). Composed under the package namespace (routes).
-    #[serde(default)]
-    pub views: Vec<String>,
-    /// Pipeline file paths relative to `.ship/` (.jsonc).
-    #[serde(default)]
-    pub pipelines: Vec<String>,
-    /// Trigger file paths relative to `.ship/` (.jsonc).
-    #[serde(default)]
-    pub triggers: Vec<String>,
-    /// Collection-schema file paths relative to `.ship/` (.jsonc). Same-name
-    /// schema collision across packages is an error (not silently merged).
-    #[serde(default)]
-    pub collections: Vec<String>,
-    /// Component directory paths relative to `.ship/` — each holds a
-    /// `<tag>/<tag>.sui` custom-element source. Composed under the package
-    /// namespace so a space resolves a dep'd component's `.sui` from its
-    /// composed root (not the monorepo workspace).
-    #[serde(default)]
-    pub components: Vec<String>,
-}
-
 // ── Raw manifest for deserialisation ──────────────────────────────────────────
 
 #[derive(Debug, Deserialize)]
@@ -133,8 +102,6 @@ struct RawShipManifest {
     module: Option<RawManifestModule>,
     #[serde(default)]
     dependencies: IndexMap<String, ManifestDepValue>,
-    #[serde(default)]
-    exports: ManifestExports,
 }
 
 // ── Root manifest ──────────────────────────────────────────────────────────────
@@ -149,8 +116,6 @@ pub struct ShipManifest {
     pub module: Option<ManifestModule>,
     #[serde(default)]
     pub dependencies: IndexMap<String, ManifestDepValue>,
-    #[serde(default)]
-    pub exports: ManifestExports,
 }
 
 impl ShipManifest {
@@ -220,7 +185,6 @@ impl ShipManifest {
         Ok(ShipManifest {
             module,
             dependencies: raw.dependencies,
-            exports: raw.exports,
         })
     }
 

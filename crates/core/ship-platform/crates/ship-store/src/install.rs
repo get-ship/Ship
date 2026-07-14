@@ -134,7 +134,6 @@ pub fn resolve_and_fetch(
             // cutover (see report-registry-shapes.md Q4). Until then every
             // locked package here rides the stack rail.
             rails: Rails::Stack,
-            export_hashes: Default::default(),
         });
 
         let mut child_ancestors = ancestors.clone();

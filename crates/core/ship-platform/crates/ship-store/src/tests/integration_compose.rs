@@ -29,7 +29,6 @@ fn lock_pkg(path: &str, hex: &str) -> LockPackage {
         commit: "a".repeat(40),
         hash: format!("sha256:{hex}"),
         rails: Rails::Stack,
-        export_hashes: BTreeMap::new(),
     }
 }
 

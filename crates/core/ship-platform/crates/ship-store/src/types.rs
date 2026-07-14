@@ -98,7 +98,6 @@ mod tests {
                 commit: "a".repeat(40),
                 hash: "sha256:abc".into(),
                 rails: Rails::Stack,
-                export_hashes: Default::default(),
             }],
         };
         assert!(diff_manifest_against_lock(&manifest, &lock).is_in_sync());
@@ -134,7 +133,6 @@ mod tests {
                 commit: "a".repeat(40),
                 hash: "sha256:abc".into(),
                 rails: Rails::Stack,
-                export_hashes: Default::default(),
             }],
         };
         let status = diff_manifest_against_lock(&manifest, &lock);

@@ -2,30 +2,28 @@ use std::fs;
 use std::path::Path;
 
 use ship_store::{pack_stack, unpack_stack};
-use stack_model::{ArchiveHeader, manifest::ManifestExports};
+use stack_model::ArchiveHeader;
 
 fn write_stack(root: &Path, files: &[(&str, &str)]) {
-    let header = ArchiveHeader {
-        path: "github.com/ship/demo-stack".into(),
-        version: "1.2.3".into(),
-        commit: "0123456789abcdef0123456789abcdef01234567".into(),
-        hash: String::new(),
-        exports: ManifestExports::default(),
-        dependencies: Default::default(),
-        recommended_agents: vec!["reviewer".into()],
-        recommended_skills: vec![],
-    };
-    fs::write(
-        root.join("ship.json"),
-        serde_json::to_vec_pretty(&header).expect("serialize source header"),
-    )
-    .expect("write source header");
+    fs::create_dir_all(root).expect("create stack root");
     for (path, content) in files {
         let full = root.join(path);
         if let Some(parent) = full.parent() {
             fs::create_dir_all(parent).expect("create fixture parent");
         }
         fs::write(full, content).expect("write fixture file");
+    }
+}
+
+fn fixture_header() -> ArchiveHeader {
+    ArchiveHeader {
+        path: "github.com/ship/demo-stack".into(),
+        version: "1.2.3".into(),
+        commit: "0123456789abcdef0123456789abcdef01234567".into(),
+        hash: String::new(),
+        dependencies: Default::default(),
+        recommended_agents: vec!["reviewer".into()],
+        recommended_skills: vec![],
     }
 }
 
@@ -47,14 +45,18 @@ fn pack_stack_is_byte_deterministic_for_the_same_tree() {
             ("stack.config.ts", "export default {};\n"),
         ],
     );
+    // Non-stack content at the stack root — the allow-list must
+    // exclude it from both the archive and the hash.
     fs::write(first.path().join("ship.lock"), "first local lock\n").unwrap();
     fs::write(second.path().join("ship.lock"), "different local lock\n").unwrap();
-    fs::create_dir_all(first.path().join("state")).unwrap();
-    fs::write(first.path().join("state/local.json"), "local state\n").unwrap();
+    fs::create_dir_all(first.path().join("contrib")).unwrap();
+    fs::write(first.path().join("contrib/notes.md"), "scratch\n").unwrap();
     fs::write(second.path().join(".DS_Store"), "local noise\n").unwrap();
 
-    let (first_bytes, first_header) = pack_stack(first.path()).expect("pack first tree");
-    let (second_bytes, second_header) = pack_stack(second.path()).expect("pack second tree");
+    let (first_bytes, first_header) =
+        pack_stack(first.path(), fixture_header()).expect("pack first tree");
+    let (second_bytes, second_header) =
+        pack_stack(second.path(), fixture_header()).expect("pack second tree");
 
     assert_eq!(first_header, second_header);
     assert_eq!(
@@ -74,7 +76,8 @@ fn unpack_stack_round_trips_content_and_header() {
             ("agents/reviewer.ts", "agent\n"),
         ],
     );
-    let (bytes, expected) = pack_stack(source.path()).expect("pack tree");
+    let (bytes, expected) =
+        pack_stack(source.path(), fixture_header()).expect("pack tree");
     let dest = tempfile::tempdir().unwrap();
 
     let actual = unpack_stack(&bytes, dest.path()).expect("unpack tree");
@@ -98,7 +101,8 @@ fn unpack_stack_rejects_content_tampering() {
         source.path(),
         &[("stack.config.ts", "export default {};\n")],
     );
-    let (bytes, _) = pack_stack(source.path()).expect("pack tree");
+    let (bytes, _) =
+        pack_stack(source.path(), fixture_header()).expect("pack tree");
 
     let decoder = flate2::read::GzDecoder::new(bytes.as_slice());
     let mut archive = tar::Archive::new(decoder);
@@ -108,7 +112,8 @@ fn unpack_stack_rejects_content_tampering() {
     let (tampered, _) = pack_raw_tree(extracted.path());
 
     let dest = tempfile::tempdir().unwrap();
-    let error = unpack_stack(&tampered, dest.path()).expect_err("tampering must fail");
+    let error =
+        unpack_stack(&tampered, dest.path()).expect_err("tampering must fail");
     assert!(
         error.to_string().contains("tree hash mismatch"),
         "{error:#}"
@@ -129,15 +134,21 @@ fn pack_raw_tree(root: &Path) -> (Vec<u8>, ()) {
 }
 
 // A stack root may sit at a repo root, beside build output and fetched
-// dependencies that dwarf the stack itself. Those are regenerated artifacts,
-// never stack content, and packing reads every admitted entry into memory —
-// so admitting them is an unbounded allocation, not merely wrong content.
+// dependencies that dwarf the stack itself. The allow-list is what
+// guarantees the archive is small — `target/`, `node_modules/`, `dist/`,
+// etc. are not domain dirs, so the walk never descends into them.
 
 #[test]
 fn pack_stack_never_packs_build_output_or_dependencies() {
     let src = tempfile::tempdir().expect("tempdir");
-    write_stack(src.path(), &[("agents/reviewer.ts", "export default {}")]);
-    // The artifacts that must be pruned — at the root and nested.
+    write_stack(
+        src.path(),
+        &[
+            ("stack.config.ts", "export default {};\n"),
+            ("agents/reviewer.ts", "export default {}"),
+        ],
+    );
+    // The artifacts that must be excluded — at the root and nested.
     for junk in [
         "target/debug/huge.rlib",
         "node_modules/left-pad/index.js",
@@ -148,10 +159,12 @@ fn pack_stack_never_packs_build_output_or_dependencies() {
     ] {
         let full = src.path().join(junk);
         fs::create_dir_all(full.parent().unwrap()).expect("create junk parent");
-        fs::write(&full, "BUILD ARTIFACT — must never be packed").expect("write junk");
+        fs::write(&full, "BUILD ARTIFACT — must never be packed")
+            .expect("write junk");
     }
 
-    let (bytes, _header) = pack_stack(src.path()).expect("pack");
+    let (bytes, _header) =
+        pack_stack(src.path(), fixture_header()).expect("pack");
     let dest = tempfile::tempdir().expect("dest tempdir");
     let out = dest.path().join("unpacked");
     unpack_stack(&bytes, &out).expect("unpack");
@@ -178,22 +191,72 @@ fn pack_stack_never_packs_build_output_or_dependencies() {
 #[test]
 fn pack_stack_refuses_a_tree_over_the_size_ceiling() {
     let src = tempfile::tempdir().expect("tempdir");
-    write_stack(src.path(), &[("agents/a.ts", "x")]);
-    // One file past the 256 MiB ceiling — sparse, so the test stays fast.
-    let big = src.path().join("assets/blob.bin");
-    fs::create_dir_all(big.parent().unwrap()).expect("create assets");
+    write_stack(
+        src.path(),
+        &[
+            ("stack.config.ts", "export default {};\n"),
+            ("agents/a.ts", "x"),
+        ],
+    );
+    // One file past the 256 MiB ceiling — sparse, so the test stays
+    // fast. Placed under `skills/` (a domain dir) so the allow-list
+    // admits it and the size ceiling — the defence-in-depth backstop —
+    // is the thing that catches it.
+    let big = src.path().join("skills/blob.bin");
+    fs::create_dir_all(big.parent().unwrap()).expect("create skills");
     let f = fs::File::create(&big).expect("create blob");
     f.set_len(257 * 1024 * 1024).expect("size the blob");
     drop(f);
 
-    let err = pack_stack(src.path()).expect_err("oversized stack must be refused");
+    let err = pack_stack(src.path(), fixture_header())
+        .expect_err("oversized stack must be refused");
     let msg = err.to_string();
     assert!(
         msg.contains("packing limit"),
         "error must name the packing limit; got: {msg}"
     );
     assert!(
-        msg.contains("assets/blob.bin"),
+        msg.contains("skills/blob.bin"),
         "error must name the offending path; got: {msg}"
+    );
+}
+
+#[test]
+fn pack_stack_omits_non_allow_list_top_level_entries() {
+    // The spec: pack contains ONLY the manifest + domain dirs. A
+    // top-level file that is not the manifest (README, justfile,
+    // ship.lock, .DS_Store, .git/) is not stack content and is
+    // never packed.
+    let src = tempfile::tempdir().expect("tempdir");
+    write_stack(
+        src.path(),
+        &[
+            ("stack.config.ts", "export default {};\n"),
+            ("README.md", "Project notes\n"),
+            ("justfile", "default:\n\techo hi\n"),
+        ],
+    );
+    fs::create_dir_all(src.path().join("contrib")).unwrap();
+    fs::write(src.path().join("contrib/notes.md"), "scratch\n").unwrap();
+    fs::create_dir_all(src.path().join("ops")).unwrap();
+    fs::write(src.path().join("ops/runbook.md"), "ops\n").unwrap();
+    fs::create_dir_all(src.path().join("scripts")).unwrap();
+    fs::write(src.path().join("scripts/build.sh"), "#!/bin/sh\n").unwrap();
+
+    let (bytes, _) =
+        pack_stack(src.path(), fixture_header()).expect("pack");
+    let dest = tempfile::tempdir().expect("dest");
+    let out = dest.path().join("unpacked");
+    unpack_stack(&bytes, &out).expect("unpack");
+
+    let mut entries: Vec<String> = fs::read_dir(&out)
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().to_string())
+        .collect();
+    entries.sort();
+    assert_eq!(
+        entries,
+        vec!["ship.json", "stack.config.ts"],
+        "top-level entries must be ship.json + manifest only (no domain dirs in the source)"
     );
 }

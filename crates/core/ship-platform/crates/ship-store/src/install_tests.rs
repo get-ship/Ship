@@ -90,7 +90,6 @@ fn test_install_aborts_on_hash_mismatch() -> anyhow::Result<()> {
             commit: "a".repeat(40),
             hash: "sha256:0000000000000000000000000000000000000000000000000000000000000000".into(),
             rails: Rails::Stack,
-            export_hashes: Default::default(),
         }],
     };
     write_lock_atomic(&lock_path, &lock)?;

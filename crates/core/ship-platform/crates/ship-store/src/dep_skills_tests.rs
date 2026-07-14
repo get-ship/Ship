@@ -63,7 +63,6 @@ fn load_cached_extensions_bundles_per_package() {
                 commit: "deadbeef".to_string(),
                 hash: format!("sha256:{hex1}"),
                 rails: Rails::Stack,
-                export_hashes: Default::default(),
             },
             LockPackage {
                 path: "github.com/o/p".to_string(),
@@ -71,7 +70,6 @@ fn load_cached_extensions_bundles_per_package() {
                 commit: "cafebabe".to_string(),
                 hash: format!("sha256:{hex2}"),
                 rails: Rails::Stack,
-                export_hashes: Default::default(),
             },
         ],
     };
@@ -140,7 +138,6 @@ fn load_cached_extensions_skips_missing_manifest() {
                 commit: "a".repeat(40),
                 hash: format!("sha256:{hex1}"),
                 rails: Rails::Stack,
-                export_hashes: Default::default(),
             },
             LockPackage {
                 path: "github.com/p/two".to_string(),
@@ -148,7 +145,6 @@ fn load_cached_extensions_skips_missing_manifest() {
                 commit: "b".repeat(40),
                 hash: "sha256:missing".to_string(),
                 rails: Rails::Stack,
-                export_hashes: Default::default(),
             },
         ],
     };
@@ -353,7 +349,6 @@ fn make_lock(path: &str, hash: &str) -> ShipLock {
             commit: "a".repeat(40),
             hash: hash.to_string(),
             rails: Rails::Stack,
-            export_hashes: Default::default(),
         }],
     }
 }

@@ -307,11 +307,17 @@ pub struct TransitiveCapabilities {
     pub unmet: Vec<String>,
 }
 
-/// Compute the transitive capability surface of the dep tree (#119): walk each
-/// locked package's `exports.skills`, load them from the cache (reusing
-/// `resolve_dep_skill`), and union their `requires`/`grants`. `unmet` is what
-/// the tree demands that it doesn't grant itself. Surfaced at install for
-/// approval. Returns empty when there is no lockfile.
+/// Compute the transitive capability surface of the dep tree (#119): walk
+/// each locked package's `skills/` dir, parse every `SKILL.md` via
+/// [`stack_model::skill_parser::parse_skill`] (the canonical parser shared
+/// with the compile path), and union their `requires`/`grants`. `unmet` is
+/// what the tree demands that it doesn't grant itself. Surfaced at install
+/// for approval. Returns empty when there is no lockfile.
+///
+/// The walk is the same shape a member stack's resolver uses
+/// (`ship_resolver::space_loader::walk_skills_dir`); the dep cache is a
+/// content-addressed mirror of the same dir tree, so one code path
+/// suffices.
 pub fn transitive_capabilities(
     lock_path: &Path,
     cache_root: Option<&Path>,
@@ -326,8 +332,8 @@ pub fn transitive_capabilities(
     let cache_root = match cache_root {
         Some(p) => p,
         None => {
-            // See `resolve_dep_skills`: route through ShipHome so SHIP_HOME
-            // and the test-context isolation gate are honored.
+            // See `resolve_dep_skills`: route through ShipHome so SHIP_HOME is
+            // honored and the test-context isolation gate kicks in.
             default_cache = ship_substrate::ShipHome::from_env().cache_dir().to_path_buf();
             &default_cache
         }
@@ -337,28 +343,21 @@ pub fn transitive_capabilities(
     let mut granted: Vec<String> = Vec::new();
     for pkg in &lock.packages {
         let hex = pkg.hash.strip_prefix("sha256:").unwrap_or(&pkg.hash);
-        let manifest_path = cache_root.join("objects").join(hex).join("ship.jsonc");
-        if !manifest_path.exists() {
+        let cache_dir = cache_root.join("objects").join(hex);
+        let skills_dir = cache_dir.join("skills");
+        if !skills_dir.is_dir() {
+            // No skills dir — the package may not export any skills, or
+            // the cache may be partially installed. Either way, this
+            // package contributes no capability surface to the union.
             continue;
         }
-        let manifest = match stack_model::manifest::ShipManifest::from_file(&manifest_path) {
-            Ok(m) => m,
-            Err(e) => {
-                tracing::warn!("transitive caps: skipping {} — manifest: {e}", pkg.path);
+        for (skill_id, skill_md) in find_leaf_skills(&skills_dir) {
+            let Ok(raw) = std::fs::read_to_string(&skill_md) else {
                 continue;
-            }
-        };
-        for skill_export in &manifest.exports.skills {
-            let ref_str = format!("{}/{}", pkg.path, skill_export);
-            match resolve_dep_skill(&ref_str, &lock, cache_root) {
-                Ok(skills) => {
-                    for s in skills {
-                        required.extend(s.requires.iter().cloned());
-                        granted.extend(s.grants.iter().cloned());
-                    }
-                }
-                Err(e) => tracing::warn!("transitive caps: {ref_str}: {e}"),
-            }
+            };
+            let skill = parse_dep_skill(&skill_id, &raw);
+            required.extend(skill.requires.iter().cloned());
+            granted.extend(skill.grants.iter().cloned());
         }
     }
     required.sort();
@@ -417,12 +416,18 @@ pub struct CachedExtension {
     pub views: Vec<stack_model::types::ViewDescriptor>,
 }
 
-/// Load every locked package's exports as a per-package bundle, suitable for
-/// the Phase-3 roll-up's `ExtensionDescriptor` construction.
+/// Load every locked package's content as a per-package bundle, suitable
+/// for the Phase-3 roll-up's `ExtensionDescriptor` construction.
 ///
-/// Returns an empty vec when there is no lockfile (no deps installed). Skips
-/// packages whose `ship.jsonc` is missing or malformed — bad packages get
-/// a `tracing::warn` and the roll-up continues with the rest.
+/// The walk is the same shape a member stack's resolver uses
+/// (`ship_resolver::space_loader::PER_NOUN_SOURCE_DIRS` + the `walk_*_dir`
+/// helpers). For each locked package we walk the cache's domain dirs in
+/// `stack_model::DOMAIN_DIRS` order, the same way pack decides what is
+/// content. The manifest's `exports` declaration is dead — the dirs are
+/// the truth. Missing or unreadable files log a `tracing::warn` and the
+/// roll-up continues with the rest.
+///
+/// Returns an empty vec when there is no lockfile (no deps installed).
 ///
 /// `lock_path`  — `.ship/ship.lock`
 /// `cache_root` — `~/.ship/cache/` (pass `None` to use the default)
@@ -451,94 +456,128 @@ pub fn load_cached_extensions(
     for pkg in &lock.packages {
         let hex = pkg.hash.strip_prefix("sha256:").unwrap_or(&pkg.hash).to_string();
         let cache_dir = cache_root.join("objects").join(&hex);
-        let manifest_path = cache_dir.join("ship.jsonc");
-        if !manifest_path.exists() {
-            // No manifest in the cache — the package may be partially
-            // installed; skip silently so the roll-up continues. A
-            // follow-on `ship install` fills the gap.
+        if !cache_dir.is_dir() {
+            // No cache object — the package is partially installed; skip
+            // silently. A follow-on `ship install` fills the gap.
             continue;
         }
-        let manifest = match stack_model::manifest::ShipManifest::from_file(&manifest_path) {
-            Ok(m) => m,
-            Err(e) => {
-                tracing::warn!(
-                    "load_cached_extensions: skipping {} — manifest parse: {e}",
-                    pkg.path
-                );
-                continue;
-            }
-        };
 
+        // agents: walk `agents/<id>.jsonc` (or `.ts` per the parse
+        // capability), parse each as `AgentProfile`, namespace the id
+        // by `pkg_path` so dep agents never collide with on-disk
+        // source or with other packages.
         let mut agent_profiles = Vec::new();
-        for agent_rel in &manifest.exports.agents {
-            let agent_path = cache_dir.join(agent_rel);
-            let content = match std::fs::read_to_string(&agent_path) {
-                Ok(c) => c,
-                Err(e) => {
-                    tracing::warn!(
-                        "load_cached_extensions: {}::{agent_rel} unreadable: {e}",
-                        pkg.path
-                    );
+        let agents_dir = cache_dir.join("agents");
+        if agents_dir.is_dir() {
+            for entry in walkdir::WalkDir::new(&agents_dir)
+                .min_depth(1)
+                .max_depth(2)
+                .into_iter()
+                .filter_map(|e| e.ok())
+            {
+                let path = entry.path();
+                if !path.is_file() {
                     continue;
                 }
-            };
-            match stack_model::jsonc::from_jsonc_str::<stack_model::AgentProfile>(&content) {
-                Ok(mut profile) => {
-                    profile.agent.id = format!("{}/{}", pkg.path, profile.agent.id);
-                    agent_profiles.push(profile);
+                let is_jsonc = path.extension().and_then(|e| e.to_str()) == Some("jsonc");
+                if !is_jsonc {
+                    continue;
                 }
-                Err(e) => tracing::warn!(
-                    "load_cached_extensions: {}::{agent_rel} parse: {e}",
-                    pkg.path
-                ),
+                let rel = path.strip_prefix(&cache_dir).unwrap_or(path);
+                let rel_str = rel
+                    .components()
+                    .map(|c| c.as_os_str().to_string_lossy().into_owned())
+                    .collect::<Vec<_>>()
+                    .join("/");
+                let content = match std::fs::read_to_string(path) {
+                    Ok(c) => c,
+                    Err(e) => {
+                        tracing::warn!(
+                            "load_cached_extensions: {}::{rel_str} unreadable: {e}",
+                            pkg.path
+                        );
+                        continue;
+                    }
+                };
+                match stack_model::jsonc::from_jsonc_str::<stack_model::AgentProfile>(&content) {
+                    Ok(mut profile) => {
+                        profile.agent.id = format!("{}/{}", pkg.path, profile.agent.id);
+                        agent_profiles.push(profile);
+                    }
+                    Err(e) => tracing::warn!(
+                        "load_cached_extensions: {}::{rel_str} parse: {e}",
+                        pkg.path
+                    ),
+                }
             }
         }
 
+        // skills: walk `skills/<id>/SKILL.md`, parse each via the
+        // canonical skill parser, namespace the id by `pkg_path`. The
+        // within-package path (`skills/<id>`) is preserved so the
+        // namespaced id format matches the old `manifest.exports.skills`
+        // contract downstream consumers were built against.
         let mut skills = Vec::new();
-        for skill_export in &manifest.exports.skills {
-            let ref_str = format!("{}/{}", pkg.path, skill_export);
-            match resolve_dep_skill(&ref_str, &lock, cache_root) {
-                Ok(skilled) => skills.extend(skilled),
-                Err(e) => tracing::warn!(
-                    "load_cached_extensions: {ref_str}: {e}"
-                ),
+        let skills_dir = cache_dir.join("skills");
+        if skills_dir.is_dir() {
+            for (skill_id, skill_md) in find_leaf_skills(&skills_dir) {
+                let namespaced = format!("{}/skills/{}", pkg.path, skill_id);
+                let Ok(raw) = std::fs::read_to_string(&skill_md) else {
+                    continue;
+                };
+                skills.push(parse_dep_skill(&namespaced, &raw));
             }
         }
 
-        // Views: each `exports.views` entry is a directory holding the
-        // view's SUI template; the per-view data the roll-up needs
-        // (`route`, `component_ref`) lives in a `view.jsonc` sidecar. The
+        // views: each `views/<id>/` dir carries a `view.jsonc` sidecar
+        // with the per-view data (`route`, `component_ref`). The
         // `prefix` is set to `pkg.path` so dep views mount under the
         // package's own namespace and never collide with the on-disk
-        // source or with other packages — `compose_space`'s namespace-
-        // prefix merge keys on `(prefix, route)`. A sidecar that doesn't
-        // exist is silently skipped (the same lenient contract agents +
-        // skills have: a dep is partial-installable; missing sidecars
-        // don't break the roll-up).
+        // source or with other packages — `compose_space`'s
+        // namespace-prefix merge keys on `(prefix, route)`. A sidecar
+        // that doesn't exist is silently skipped (a dep is
+        // partial-installable; missing sidecars don't break the
+        // roll-up).
         let mut views = Vec::new();
-        for view_rel in &manifest.exports.views {
-            let sidecar_path = cache_dir.join(view_rel).join("view.jsonc");
-            let content = match std::fs::read_to_string(&sidecar_path) {
-                Ok(c) => c,
-                Err(_) => {
-                    // No sidecar — the view directory is the .sui bundle
-                    // only; skip silently. The future on-disk view format
-                    // is its own design pass.
+        let views_dir = cache_dir.join("views");
+        if views_dir.is_dir() {
+            for entry in walkdir::WalkDir::new(&views_dir)
+                .min_depth(1)
+                .max_depth(1)
+                .into_iter()
+                .filter_map(|e| e.ok())
+            {
+                let view_dir = entry.path();
+                if !view_dir.is_dir() {
                     continue;
                 }
-            };
-            match stack_model::jsonc::from_jsonc_str::<ViewSidecar>(&content) {
-                Ok(sidecar) => {
-                    views.push(stack_model::types::ViewDescriptor {
-                        prefix: pkg.path.clone(),
-                        route: sidecar.route,
-                        component_ref: sidecar.component_ref,
-                    });
+                let sidecar_path = view_dir.join("view.jsonc");
+                let content = match std::fs::read_to_string(&sidecar_path) {
+                    Ok(c) => c,
+                    Err(_) => {
+                        // No sidecar — the view directory is the .sui
+                        // bundle only; skip silently. The future
+                        // on-disk view format is its own design pass.
+                        continue;
+                    }
+                };
+                match stack_model::jsonc::from_jsonc_str::<ViewSidecar>(&content) {
+                    Ok(sidecar) => {
+                        views.push(stack_model::types::ViewDescriptor {
+                            prefix: pkg.path.clone(),
+                            route: sidecar.route,
+                            component_ref: sidecar.component_ref,
+                        });
+                    }
+                    Err(e) => tracing::warn!(
+                        "load_cached_extensions: {}::{}/view.jsonc parse: {e}",
+                        pkg.path,
+                        view_dir
+                            .strip_prefix(&cache_dir)
+                            .unwrap_or(view_dir)
+                            .display()
+                    ),
                 }
-                Err(e) => tracing::warn!(
-                    "load_cached_extensions: {}::{}/view.jsonc parse: {e}",
-                    pkg.path, view_rel
-                ),
             }
         }
 

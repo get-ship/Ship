@@ -542,8 +542,15 @@ fn cache_keeps_distinct_bundles_per_version() {
     let cache_root = tempdir().expect("cache tempdir");
     let cache = PackageCache::with_root(cache_root.path().to_path_buf());
 
-    let v1 = make_tarball("v.sui", b"v1 contents");
-    let v2 = make_tarball("v.sui", b"v2 contents -- different body");
+    // Each tarball carries the manifest + a domain-dir file with
+    // version-specific content. The new allow-list hash reads both, so
+    // the two versions hash to distinct values (the same property the
+    // old deny-list hash provided by accident).
+    let v1 = make_tarball_with_manifest("views/x/page.sui", b"v1 contents");
+    let v2 = make_tarball_with_manifest(
+        "views/x/page.sui",
+        b"v2 contents -- different body",
+    );
     let entry_v1 = signed_entry("ship/x", "1.0.0", "^0.1.0", "https://cdn/x-1.0.0.tgz", &v1);
     let entry_v2 = signed_entry("ship/x", "2.0.0", "^0.1.0", "https://cdn/x-2.0.0.tgz", &v2);
 
@@ -569,16 +576,48 @@ fn cache_keeps_distinct_bundles_per_version() {
     .expect("v2 fetched");
 
     assert_ne!(c1.hash, c2.hash);
-    assert_eq!(
-        c1.dir.join("v.sui"),
-        c1.dir.join("v.sui")
-    );
-    let v1_contents =
-        std::fs::read(c1.dir.join("v.sui")).expect("v1 body readable");
-    let v2_contents =
-        std::fs::read(c2.dir.join("v.sui")).expect("v2 body readable");
+    let v1_contents = std::fs::read(c1.dir.join("views/x/page.sui"))
+        .expect("v1 body readable");
+    let v2_contents = std::fs::read(c2.dir.join("views/x/page.sui"))
+        .expect("v2 body readable");
     assert_eq!(v1_contents, b"v1 contents");
     assert_eq!(v2_contents, b"v2 contents -- different body");
+}
+
+/// Build a tarball that includes the stack manifest plus one file at
+/// `path_in_archive` with `body` content — the shape a real pack
+/// produces, so the new `compute_tree_hash` reads it the same way
+/// (`stack.config.ts` + entries under domain dirs).
+fn make_tarball_with_manifest(path_in_archive: &str, body: &[u8]) -> Vec<u8> {
+    let manifest_bytes = b"export default {};\n";
+    let mut tar_buf = Vec::new();
+    {
+        let mut builder = tar::Builder::new(&mut tar_buf);
+        let mut manifest_header = tar::Header::new_gnu();
+        manifest_header.set_size(manifest_bytes.len() as u64);
+        manifest_header.set_mode(0o644);
+        manifest_header.set_cksum();
+        builder
+            .append_data(&mut manifest_header, "stack.config.ts", &manifest_bytes[..])
+            .unwrap();
+        let mut header = tar::Header::new_gnu();
+        header.set_size(body.len() as u64);
+        header.set_mode(0o644);
+        header.set_cksum();
+        builder
+            .append_data(&mut header, path_in_archive, body)
+            .unwrap();
+        builder.finish().unwrap();
+    }
+    let mut gz = Vec::new();
+    {
+        use std::io::Write;
+        let mut enc =
+            flate2::write::GzEncoder::new(&mut gz, flate2::Compression::default());
+        enc.write_all(&tar_buf).unwrap();
+        enc.finish().unwrap();
+    }
+    gz
 }
 
 // ---------------------------------------------------------------------------

@@ -21,7 +21,6 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use stack_model::lockfile::ShipLock;
-use stack_model::manifest::ShipManifest;
 
 /// The four non-library traveling types — `views` was a fifth and is now
 /// composed by the resolver (`stack_model::compose::compose_space`'s
@@ -147,16 +146,6 @@ fn resolve_cache_root(cache_root: Option<&Path>) -> Result<PathBuf> {
     }
 }
 
-fn exports_for<'a>(manifest: &'a ShipManifest, dir: &str) -> &'a [String] {
-    match dir {
-        "views"       => &manifest.exports.views,
-        "pipelines"   => &manifest.exports.pipelines,
-        "triggers"    => &manifest.exports.triggers,
-        "collections" => &manifest.exports.collections,
-        "components"  => &manifest.exports.components,
-        _             => &[],
-    }
-}
 
 fn compute_input_hash(ship_dir: &Path, lock: &ShipLock) -> Result<String> {
     let mut acc = String::new();
@@ -209,30 +198,54 @@ fn build_overlay(
     for pkg in &lock.packages {
         let hex = pkg.hash.strip_prefix("sha256:").unwrap_or(&pkg.hash);
         let obj_dir = cache_root.join("objects").join(hex);
-        let manifest_path = obj_dir.join("ship.jsonc");
-        if !manifest_path.exists() {
+        if !obj_dir.is_dir() {
+            // Partial install — the dep's cache object isn't on disk
+            // yet. The roll-up continues with the rest of the deps.
             continue;
         }
-        let manifest = ShipManifest::from_file(&manifest_path)
-            .with_context(|| format!("reading dep manifest {}", manifest_path.display()))?;
 
         for ct in COMPOSED_TYPES {
-            for export_rel in exports_for(&manifest, ct.dir) {
-                let src = obj_dir.join(export_rel);
-                if !src.exists() {
-                    anyhow::bail!(
-                        "dep '{}' exports {} '{}' but it is absent from the cache at {}",
-                        pkg.path, ct.dir, export_rel, src.display()
-                    );
+            let dep_dir = obj_dir.join(ct.dir);
+            if !dep_dir.is_dir() {
+                // The dep may not export any files of this type.
+                // Walk-on: nothing to compose for this dir.
+                continue;
+            }
+            for entry in walkdir::WalkDir::new(&dep_dir)
+                .min_depth(1)
+                .into_iter()
+                .filter_map(|e| e.ok())
+            {
+                let entry_path = entry.path();
+                let entry_type = entry.file_type();
+                // A dep's content is the truth: copy what the
+                // dep shipped. Symlinks and special files are not
+                // stack content (the pack allow-list rejects them at
+                // publish time; defensive checks here in case a
+                // hand-laid cache object is non-conformant).
+                if entry_type.is_symlink() {
+                    continue;
                 }
-                let basename = Path::new(export_rel)
-                    .file_name()
-                    .map(|n| n.to_string_lossy().into_owned())
-                    .unwrap_or_else(|| export_rel.clone());
-                if ct.dir == "collections" && !seen_collections.insert(basename.clone()) {
+                if !entry_type.is_dir() && !entry_type.is_file() {
+                    continue;
+                }
+                let basename = entry_path
+                    .strip_prefix(&dep_dir)
+                    .unwrap_or(entry_path)
+                    .components()
+                    .next()
+                    .map(|c| c.as_os_str().to_string_lossy().into_owned())
+                    .unwrap_or_default();
+                if basename.is_empty() {
+                    continue;
+                }
+                if ct.dir == "collections"
+                    && !entry_type.is_dir()
+                    && !seen_collections.insert(basename.clone())
+                {
                     anyhow::bail!(
-                        "collection-schema collision: two packages export a \
-                         same-name collection schema '{}'",
+                        "collection-schema collision: two packages export \
+                         a same-name collection schema '{}'",
                         basename
                     );
                 }
@@ -244,16 +257,30 @@ fn build_overlay(
                 }
                 match ct.granularity {
                     Granularity::Dir => {
-                        std::fs::create_dir_all(&target).with_context(|| {
-                            format!("creating composed dir {}", target.display())
-                        })?;
-                        copy_dir_all(&src, &target).with_context(|| {
-                            format!("copying dep {} '{}'", ct.dir, export_rel)
-                        })?;
+                        if !target.exists() {
+                            std::fs::create_dir_all(&target).with_context(|| {
+                                format!("creating composed dir {}", target.display())
+                            })?;
+                        }
+                        if entry_type.is_dir() {
+                            // Continue the walk — sub-entries copy
+                            // themselves via their own iteration.
+                            continue;
+                        }
+                        std::fs::copy(entry_path, target.join(entry_path.file_name().unwrap()))
+                            .with_context(|| {
+                                format!("copying dep {} entry '{}'", ct.dir, basename)
+                            })?;
                     }
                     Granularity::File => {
-                        std::fs::copy(&src, &target).with_context(|| {
-                            format!("copying dep {} '{}'", ct.dir, export_rel)
+                        if !entry_type.is_file() {
+                            // Skip dirs and special entries under a
+                            // File-granularity composed dir (the
+                            // convention is one file per basename).
+                            continue;
+                        }
+                        std::fs::copy(entry_path, &target).with_context(|| {
+                            format!("copying dep {} file '{}'", ct.dir, basename)
                         })?;
                     }
                 }

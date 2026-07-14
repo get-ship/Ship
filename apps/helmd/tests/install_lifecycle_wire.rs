@@ -18,7 +18,6 @@ use ship_ops_rpc::SpaceServiceExt;
 use ship_space::{LibraryProjection, SpaceStacksProjection, SpaceWire, SpacesProjection};
 use ship_store::{FetchedBundle, Registry, RegistryVersion, TrustedKey};
 use stack_model::ArchiveHeader;
-use stack_model::manifest::ManifestExports;
 use tower::ServiceExt;
 
 const TEST_KID: &str = "test-publisher-1";
@@ -92,18 +91,13 @@ fn write_signed_bundle() -> (Vec<u8>, String, String) {
         version: "1.2.3".into(),
         commit: "0123456789abcdef0123456789abcdef01234567".into(),
         hash: String::new(),
-        exports: ManifestExports::default(),
         dependencies: Default::default(),
         recommended_agents: vec![],
         recommended_skills: vec![],
     };
-    std::fs::write(
-        src.path().join("ship.json"),
-        serde_json::to_vec_pretty(&header).unwrap(),
-    )
-    .unwrap();
 
-    let (tar_bytes, header) = ship_store::pack_stack(src.path()).unwrap();
+    let (tar_bytes, header) =
+        ship_store::pack_stack(src.path(), header).unwrap();
     let tree_hash = header.hash.clone();
 
     let mut jwt_header = Header::new(Algorithm::EdDSA);

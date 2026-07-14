@@ -3,7 +3,7 @@
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::manifest::{ManifestDepValue, ManifestExports};
+use crate::manifest::ManifestDepValue;
 
 /// The self-describing header for a published stack archive.
 ///
@@ -19,9 +19,6 @@ pub struct ArchiveHeader {
     pub commit: String,
     /// Canonical `sha256:<hex>` tree hash.
     pub hash: String,
-    /// Noun paths exported by this stack.
-    #[serde(default)]
-    pub exports: ManifestExports,
     /// Direct stack dependencies and their version constraints.
     #[serde(default)]
     pub dependencies: IndexMap<String, ManifestDepValue>,

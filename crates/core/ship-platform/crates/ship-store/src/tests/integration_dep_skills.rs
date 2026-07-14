@@ -23,7 +23,6 @@ fn lock_with_one(path: &str, hex: &str) -> ShipLock {
             commit: "a".repeat(40),
             hash: format!("sha256:{hex}"),
             rails: Rails::Stack,
-            export_hashes: Default::default(),
         }],
     }
 }

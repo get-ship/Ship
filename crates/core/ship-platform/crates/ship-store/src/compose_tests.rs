@@ -2,7 +2,6 @@ use std::path::Path;
 
 use super::*;
 use stack_model::lockfile::{LockPackage, Rails, ShipLock};
-use std::collections::BTreeMap;
 use tempfile::TempDir;
 
 // ── helpers ───────────────────────────────────────────────────────────
@@ -29,7 +28,6 @@ fn pkg(path: &str, hex: &str) -> LockPackage {
         commit: "a".repeat(40),
         hash: format!("sha256:{hex}"),
         rails: Rails::Stack,
-        export_hashes: BTreeMap::new(),
     }
 }
 

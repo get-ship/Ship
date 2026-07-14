@@ -45,7 +45,7 @@ pub use bundle_sig::{
 pub use cache::{CachedPackage, PackageCache};
 pub use compose::materialize_space;
 pub use constraint::{VersionConstraint, parse_constraint};
-pub use hash::{ExportHashes, compute_export_hashes, compute_file_hash, compute_tree_hash};
+pub use hash::{compute_file_hash, compute_tree_hash};
 pub use init_deps::{
     DEFAULT_INIT_DEPS, SeedResult, seed_default_dependencies, try_install_init_deps,
 };

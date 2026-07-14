@@ -19,7 +19,6 @@
 //! NOTE: `.ship/ship.state` (formerly `.ship/ship.lock`) stores workspace state
 //! (active_profile, compiled_at). These are completely separate files.
 
-use std::collections::BTreeMap;
 use std::path::Path;
 
 use anyhow::Context;
@@ -140,17 +139,12 @@ pub struct LockPackage {
     pub version: String,
     /// Exact 40-char hex commit SHA.
     pub commit: String,
-    /// Content hash in `sha256:<hex>` format (combined export hash).
+    /// Content hash in `sha256:<hex>` format (canonical tree hash).
     pub hash: String,
     /// Which rail this entry rides. Defaults to [`Rails::Stack`] for entries
     /// written under v1 (the field is absent in v1 lockfiles).
     #[serde(default)]
     pub rails: Rails,
-    /// Per-export integrity hashes: export path -> `"sha256:<hex>"`.
-    /// Present for packages published with per-export hashing (v0.1+).
-    /// Absent for legacy lockfiles — deserialized as empty map.
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub export_hashes: BTreeMap<String, String>,
 }
 
 /// The parsed `ship.lock` file (stack root).
@@ -442,7 +436,6 @@ fn strip_jsonc(input: &str) -> String {
 mod tests {
     use super::*;
     use crate::manifest::ShipManifest;
-    use std::collections::BTreeMap;
 
     fn sample_lock() -> ShipLock {
         ShipLock {
@@ -454,7 +447,6 @@ mod tests {
                     commit: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".into(),
                     hash: "sha256:bbbb".into(),
                     rails: Rails::Stack,
-                    export_hashes: BTreeMap::new(),
                 },
                 LockPackage {
                     path: "github.com/a/first".into(),
@@ -462,7 +454,6 @@ mod tests {
                     commit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
                     hash: "sha256:aaaa".into(),
                     rails: Rails::Stack,
-                    export_hashes: BTreeMap::new(),
                 },
             ],
         }
@@ -545,7 +536,6 @@ mod tests {
                 commit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
                 hash: "sha256:aaaa".into(),
                 rails: Rails::Stack,
-                export_hashes: BTreeMap::new(),
             }],
         };
         let manifest = ShipManifest::from_jsonc_str(minimal_manifest_jsonc()).unwrap();
@@ -665,7 +655,6 @@ mod tests {
                     commit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
                     hash: "sha256:aaaa".into(),
                     rails: Rails::Stack,
-                    export_hashes: BTreeMap::new(),
                 },
                 LockPackage {
                     path: "@ship/sui-runtime".into(),
@@ -673,7 +662,6 @@ mod tests {
                     commit: String::new(),
                     hash: "sha512:bbb".into(),
                     rails: Rails::Npm,
-                    export_hashes: BTreeMap::new(),
                 },
             ],
         };
@@ -701,7 +689,6 @@ mod tests {
                 commit: "a".repeat(40),
                 hash: "sha256:a".into(),
                 rails: Rails::Npm,
-                export_hashes: BTreeMap::new(),
             }],
         };
         let s = lock.to_json_string().unwrap();
@@ -839,7 +826,6 @@ mod tests {
             commit: commit.into(),
             hash: hash.into(),
             rails,
-            export_hashes: BTreeMap::new(),
         }
     }
 

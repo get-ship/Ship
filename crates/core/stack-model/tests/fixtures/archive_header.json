@@ -3,19 +3,6 @@
   "version": "1.2.3",
   "commit": "0123456789abcdef0123456789abcdef01234567",
   "hash": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-  "exports": {
-    "skills": [
-      "skills/review"
-    ],
-    "agents": [
-      "agents/reviewer.ts"
-    ],
-    "views": [],
-    "pipelines": [],
-    "triggers": [],
-    "collections": [],
-    "components": []
-  },
   "dependencies": {
     "github.com/ship/base-stack": "^2.0.0"
   },

@@ -46,21 +46,27 @@ pub struct SignedBundle {
 
 /// Pack a stack tree and mint a first-party attestation over its content hash.
 ///
-/// `root` is the stack source directory (must contain a publishable
-/// `ship.json` — see [`crate::publish_walk::validate_publishable_stack`]). The
+/// `root` is the stack source directory (must contain a manifest at
+/// `stack.config.ts` — see [`crate::publish_walk::validate_publishable_stack`]).
+/// `header` carries the publisher-stated identity (path, version, commit,
+/// recommended agents/skills). ship-store does not parse `stack.config.ts`
+/// (layering — the leaf stays TS-eval-free); the caller is responsible for
+/// producing the header. The `hash` field on the header is overwritten with
+/// the canonical tree hash [`pack_stack`] computed before the attestation
+/// is built, so the install-side verify step can recompute the same hash
+/// from the extracted content and require an exact match.
+///
 /// `signing_key_pem` is the PKCS8 Ed25519 private key for the first-party
 /// publisher; `kid` is the JWK `kid` callers want the verifier to select
-/// against on the install side. The attestation's claim is built from
-/// `header.path`, `header.version`, and `header.hash` (the canonical tree
-/// hash [`pack_stack`] computed) so the install-side verify step can recompute
-/// the same hash from the extracted content and require an exact match.
+/// against on the install side.
 pub fn publish_first_party(
     root: &Path,
+    header: ArchiveHeader,
     signing_key_pem: &str,
     kid: &str,
 ) -> anyhow::Result<SignedBundle> {
     let (bytes, header) =
-        pack_stack(root).with_context(|| format!("packing stack at {}", root.display()))?;
+        pack_stack(root, header).with_context(|| format!("packing stack at {}", root.display()))?;
 
     let iat = SystemTime::now()
         .duration_since(UNIX_EPOCH)

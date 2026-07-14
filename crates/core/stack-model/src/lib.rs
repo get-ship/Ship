@@ -13,6 +13,7 @@
 
 pub mod archive_header;
 pub mod compose;
+pub mod domain_dirs;
 pub mod events;
 pub mod jsonc;
 pub mod loader;
@@ -25,8 +26,8 @@ pub mod types;
 pub mod vars;
 
 // ─── Top-level re-exports ─────────────────────────────────────────────────────
-
 pub use archive_header::ArchiveHeader;
+pub use domain_dirs::{DOMAIN_DIRS, is_domain_dir};
 pub use jsonc::{merge_json, merge_json_file};
 pub use loader::load_library;
 pub use types::compile_output::CompileOutput;

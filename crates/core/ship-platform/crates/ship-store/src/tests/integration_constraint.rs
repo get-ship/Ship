@@ -71,7 +71,6 @@ fn pkg(path: &str) -> LockPackage {
         commit: "a".repeat(40),
         hash: "sha256:abc".into(),
         rails: Rails::Stack,
-        export_hashes: Default::default(),
     }
 }
 

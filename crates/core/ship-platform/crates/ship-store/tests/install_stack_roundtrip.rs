@@ -9,11 +9,10 @@ use async_trait::async_trait;
 use jsonwebtoken::{Algorithm, EncodingKey, Header};
 use parking_lot::Mutex;
 use ship_store::{
-    BundleFetcher, FetchedBundle, InstallError, InstalledStack, Registry, RegistryVersion,
-    TrustedKey, install_stack, remove_installed,
+    FetchedBundle, InstallError, InstalledStack, Registry, RegistryVersion, TrustedKey,
+    install_stack, remove_installed,
 };
 use stack_model::ArchiveHeader;
-use stack_model::manifest::ManifestExports;
 
 const TEST_KID: &str = "test-publisher-1";
 // Offline-generated Ed25519 keypair (test-only). The private half signs the
@@ -69,32 +68,27 @@ impl Registry for MockRegistry {
 }
 
 fn write_stack_tree(root: &std::path::Path) {
-    // Files that mirror a real stack: a stack marker + a skill. The header
-    // is written separately below — pack_stack requires a `ship.json`
-    // carrying the publisher-stated version/commit; the install pipeline
-    // re-hashes the extracted tree and verifies the attestation binds that
-    // hash (not the header's `hash`, which is overwritten by pack_stack).
+    // Files that mirror a real stack: a stack marker + a skill. The
+    // header is built in memory and passed to `pack_stack`, which
+    // stamps the canonical tree hash on it before writing the
+    // archive. The install pipeline re-hashes the extracted tree and
+    // verifies the attestation binds that hash.
+    std::fs::create_dir_all(root).expect("create stack root");
     std::fs::write(root.join("stack.config.ts"), "export default {};\n").unwrap();
     std::fs::create_dir_all(root.join("skills/review")).unwrap();
     std::fs::write(root.join("skills/review/SKILL.md"), "# Review skill\n").unwrap();
+}
 
-    let header = ArchiveHeader {
+fn fixture_header() -> ArchiveHeader {
+    ArchiveHeader {
         path: "github.com/ship/test-stack".into(),
         version: "1.2.3".into(),
         commit: "0123456789abcdef0123456789abcdef01234567".into(),
-        // pack_stack overwrites this with the canonical tree hash; the
-        // publisher writes a placeholder and lets the pack step set it.
         hash: String::new(),
-        exports: ManifestExports::default(),
         dependencies: Default::default(),
         recommended_agents: vec!["reviewer".into()],
         recommended_skills: vec![],
-    };
-    std::fs::write(
-        root.join("ship.json"),
-        serde_json::to_vec_pretty(&header).unwrap(),
-    )
-    .unwrap();
+    }
 }
 
 /// Build a gzip-tarball containing a valid stack tree + a publisher-signed
@@ -104,7 +98,8 @@ fn build_signed_bundle() -> (Vec<u8>, String, String) {
     let src = tempfile::tempdir().unwrap();
     write_stack_tree(src.path());
 
-    let (tar_bytes, header) = ship_store::pack_stack(src.path()).unwrap();
+    let (tar_bytes, header) =
+        ship_store::pack_stack(src.path(), fixture_header()).unwrap();
     let tree_hash = header.hash.clone();
 
     let mut jwt_header = Header::new(Algorithm::EdDSA);

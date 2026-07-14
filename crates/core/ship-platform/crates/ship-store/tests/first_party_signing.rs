@@ -3,7 +3,7 @@
 //! Exercises the new `publish_first_party` helper end-to-end against the
 //! `verify_bundle_attestation` -> `unpack_stack` pipeline:
 //!
-//! 1. Build a ship-meta-shaped stack tree on disk.
+//! 1. Build a ship-meta-shaped stack tree on disk (manifest + skills/agents).
 //! 2. `publish_first_party` packs it, mints a JWT over the canonical tree
 //!    hash, and returns the bundle + attestation.
 //! 3. `extract_and_verify_bundle` re-hashes the extracted content and
@@ -27,12 +27,13 @@ use ship_store::{
     BundleVerifyError, TrustedKey, extract_and_verify_bundle, pack_stack, publish_first_party,
     unpack_stack, verify_bundle_attestation,
 };
-use stack_model::{ArchiveHeader, manifest::ManifestExports};
+use stack_model::ArchiveHeader;
 
 const FIRST_PARTY_KID: &str = "test-first-party-1";
 const FIRST_PARTY_PRIV_PEM: &str = "-----BEGIN PRIVATE KEY-----\n\
     MC4CAQAwBQYDK2VwBCIEIAFISiAspm6fXMD6Gg3dlW8qtiRFxoiHbiCjCuys/rg5\n\
-    -----END PRIVATE KEY-----\n";
+    -----END PRIVATE KEY-----\n\
+";
 // `openssl pkey -pubout -outform DER | tail -c 32 | basenc --base64url`
 // over the same key (the trailing 32 DER bytes are the raw Ed25519 point).
 const FIRST_PARTY_PUB_X: &str = "mZAmshQk4uLsAab8Rhqqt9kJGbP9F6hZZ39eyfUncAQ";
@@ -52,9 +53,10 @@ fn first_party_trusted() -> Vec<TrustedKey> {
 }
 
 /// Write a ship-meta-shaped stack fixture: a stack marker, a skill, an agent
-/// script, and a `ship.json` carrying the publisher-stated version/commit.
-/// `pack_stack` overwrites the placeholder `hash` with the canonical tree hash.
+/// script. The header is built in memory and passed to `pack_stack` (which
+/// stamps the canonical tree hash on it before writing the archive).
 fn write_first_party_fixture(root: &Path) {
+    fs::create_dir_all(root).expect("create stack root");
     fs::write(root.join("stack.config.ts"), "export default {};\n").unwrap();
     fs::create_dir_all(root.join("skills/review")).unwrap();
     fs::write(root.join("skills/review/SKILL.md"), "# Review skill\n").unwrap();
@@ -64,22 +66,18 @@ fn write_first_party_fixture(root: &Path) {
         "export default { id: 'reviewer' };\n",
     )
     .unwrap();
+}
 
-    let header = ArchiveHeader {
+fn fixture_header() -> ArchiveHeader {
+    ArchiveHeader {
         path: "github.com/ship/ship-meta".into(),
         version: "0.4.0".into(),
         commit: "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef".into(),
         hash: String::new(),
-        exports: ManifestExports::default(),
         dependencies: Default::default(),
         recommended_agents: vec!["reviewer".into()],
         recommended_skills: vec!["review".into()],
-    };
-    fs::write(
-        root.join("ship.json"),
-        serde_json::to_vec_pretty(&header).expect("serialize header"),
-    )
-    .unwrap();
+    }
 }
 
 #[test]
@@ -88,8 +86,13 @@ fn first_party_round_trip_pack_sign_verify_unpack() {
     write_first_party_fixture(src.path());
 
     // Publish: pack + sign under the first-party key.
-    let signed =
-        publish_first_party(src.path(), FIRST_PARTY_PRIV_PEM, FIRST_PARTY_KID).expect("publish");
+    let signed = publish_first_party(
+        src.path(),
+        fixture_header(),
+        FIRST_PARTY_PRIV_PEM,
+        FIRST_PARTY_KID,
+    )
+    .expect("publish");
 
     // The header carries the canonical tree hash the attestation binds.
     assert!(signed.header.hash.starts_with("sha256:"));
@@ -125,7 +128,8 @@ fn first_party_round_trip_pack_sign_verify_unpack() {
     // The verified content extracts cleanly via `unpack_stack` — same header
     // shape round-trips, and the on-disk files match the source fixture.
     let dest = tempfile::tempdir().unwrap();
-    let extracted = unpack_stack(&signed.bytes, dest.path()).expect("unpack verified bundle");
+    let extracted =
+        unpack_stack(&signed.bytes, dest.path()).expect("unpack verified bundle");
     assert_eq!(extracted, signed.header);
     assert_eq!(
         fs::read_to_string(dest.path().join("agents/reviewer.ts")).unwrap(),
@@ -145,7 +149,7 @@ fn first_party_signed_bundle_rejects_signature_from_unrelated_key() {
     // Mint the bundle locally, then re-sign the SAME claim under an
     // unrelated key (carrying the trusted kid in the JWT header) so the
     // verifier selects a key from the trust set but the signature fails.
-    let (bytes, header) = pack_stack(src.path()).expect("pack");
+    let (bytes, header) = pack_stack(src.path(), fixture_header()).expect("pack");
     let mut claim = ship_store::BundleClaim {
         path: header.path.clone(),
         version: header.version.clone(),
@@ -192,8 +196,13 @@ fn first_party_signed_bundle_rejects_tampered_content_with_hash_mismatch() {
     let src = tempfile::tempdir().unwrap();
     write_first_party_fixture(src.path());
 
-    let signed =
-        publish_first_party(src.path(), FIRST_PARTY_PRIV_PEM, FIRST_PARTY_KID).expect("publish");
+    let signed = publish_first_party(
+        src.path(),
+        fixture_header(),
+        FIRST_PARTY_PRIV_PEM,
+        FIRST_PARTY_KID,
+    )
+    .expect("publish");
     let original_hash = signed.header.hash.clone();
 
     // Tamper with the BUNDLE CONTENT: extract the tarball, modify a
@@ -212,10 +221,11 @@ fn first_party_signed_bundle_rejects_tampered_content_with_hash_mismatch() {
     )
     .expect("overwrite payload file");
     let tampered_bytes = {
-        // Re-pack from the tampered tree; ship.json still carries the
-        // ORIGINAL hash (header.hash), but pack_stack will overwrite it
-        // with the recomputed tree hash. To keep the header's hash as
-        // it was at publish time, we restore the original header first.
+        // Re-pack from the tampered tree; the synthesized ship.json
+        // carries the ORIGINAL hash (header.hash), but pack_stack will
+        // overwrite it with the recomputed tree hash. To keep the
+        // header's hash as it was at publish time, we restore the
+        // original header first.
         let header_path = extract_dir.path().join("ship.json");
         let mut original_header: ArchiveHeader =
             serde_json::from_slice(&fs::read(&header_path).unwrap()).unwrap();
@@ -227,7 +237,8 @@ fn first_party_signed_bundle_rejects_tampered_content_with_hash_mismatch() {
             serde_json::to_vec_pretty(&original_header).unwrap(),
         )
         .unwrap();
-        let (bytes, _) = pack_stack(extract_dir.path()).expect("re-pack tampered tree");
+        let (bytes, _) = pack_stack(extract_dir.path(), original_header)
+            .expect("re-pack tampered tree");
         // pack_stack overwrites header.hash with the new tree hash; the
         // attestation's claim still binds the ORIGINAL hash.
         bytes
@@ -240,7 +251,8 @@ fn first_party_signed_bundle_rejects_tampered_content_with_hash_mismatch() {
     let gz = flate2::read::GzDecoder::new(tampered_bytes.as_slice());
     let mut archive = tar::Archive::new(gz);
     archive.unpack(re.path()).expect("re-extract tampered");
-    let tampered_tree_hash = ship_store::compute_tree_hash(re.path()).expect("recompute hash");
+    let tampered_tree_hash =
+        ship_store::compute_tree_hash(re.path()).expect("recompute hash");
     assert_ne!(
         tampered_tree_hash, original_hash,
         "tampered content must produce a different tree hash than the signed one"
