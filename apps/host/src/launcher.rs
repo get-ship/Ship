@@ -69,39 +69,42 @@ pub fn macos_info_plist(spec: &LauncherSpec, stub_name: &str) -> String {
     )
 }
 
-/// Install a native launcher for `spec`, returning the path of the entry written.
-/// Dispatches to the host OS implementation.
-pub fn install(spec: &LauncherSpec) -> std::io::Result<PathBuf> {
+/// Install a native launcher for `spec` under `home`, returning the path of the
+/// entry written. The home directory is an explicit input rather than read from
+/// the process env, so callers own where the launcher lands and the install
+/// path stays free of process-global state. `home` is `None` when the OS
+/// reports no home directory. Dispatches to the host OS implementation.
+pub fn install_under(spec: &LauncherSpec, home: Option<&Path>) -> std::io::Result<PathBuf> {
     let exe = std::env::current_exe()?;
-    install_for_host(spec, &exe)
+    install_for_host(spec, &exe, home)
 }
 
 #[cfg(target_os = "linux")]
-fn install_for_host(spec: &LauncherSpec, exe: &Path) -> std::io::Result<PathBuf> {
-    let dir = dirs_applications_linux()?;
+fn install_for_host(spec: &LauncherSpec, exe: &Path, home: Option<&Path>) -> std::io::Result<PathBuf> {
+    let dir = applications_dir(require_home(home)?);
     std::fs::create_dir_all(&dir)?;
     let path = dir.join(format!("ship-{}.desktop", spec.app_id));
     std::fs::write(&path, desktop_entry(spec, exe))?;
     Ok(path)
 }
 
-/// `~/.local/share/applications` — the per-user freedesktop launcher dir.
+/// `<home>/.local/share/applications` — the per-user freedesktop launcher dir.
 #[cfg(target_os = "linux")]
-fn dirs_applications_linux() -> std::io::Result<PathBuf> {
-    let home = std::env::var_os("HOME")
-        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "HOME unset"))?;
-    Ok(PathBuf::from(home)
-        .join(".local")
-        .join("share")
-        .join("applications"))
+fn applications_dir(home: &Path) -> PathBuf {
+    home.join(".local").join("share").join("applications")
+}
+
+/// Require a home directory, mapping its absence to a `NotFound` IO error the
+/// caller can surface to the webview.
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+fn require_home(home: Option<&Path>) -> std::io::Result<&Path> {
+    home.ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "HOME unset"))
 }
 
 #[cfg(target_os = "macos")]
-fn install_for_host(spec: &LauncherSpec, exe: &Path) -> std::io::Result<PathBuf> {
+fn install_for_host(spec: &LauncherSpec, exe: &Path, home: Option<&Path>) -> std::io::Result<PathBuf> {
     use std::os::unix::fs::PermissionsExt;
-    let home = std::env::var_os("HOME")
-        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "HOME unset"))?;
-    let bundle = PathBuf::from(home)
+    let bundle = require_home(home)?
         .join("Applications")
         .join(format!("{}.app", spec.name));
     let macos_dir = bundle.join("Contents").join("MacOS");
@@ -128,7 +131,7 @@ fn install_for_host(spec: &LauncherSpec, exe: &Path) -> std::io::Result<PathBuf>
 }
 
 #[cfg(target_os = "windows")]
-fn install_for_host(_spec: &LauncherSpec, _exe: &Path) -> std::io::Result<PathBuf> {
+fn install_for_host(_spec: &LauncherSpec, _exe: &Path, _home: Option<&Path>) -> std::io::Result<PathBuf> {
     // A Windows launcher is a `.lnk` shell-link (binary format) plus an
     // AppUserModelID for distinct taskbar identity. Encoding `.lnk` correctly
     // needs a dedicated encoder (`mslnk`) or a PowerShell `WScript.Shell` call,
@@ -148,7 +151,17 @@ pub fn install_app_launcher(app_id: String, name: String, icon: String) -> Resul
         name,
         icon: PathBuf::from(icon),
     };
-    install(&spec)
+    let home = std::env::var_os("HOME").map(PathBuf::from);
+    install_launcher_result(&spec, home.as_deref())
+}
+
+/// String-result core of `install_app_launcher`: install `spec` under `home`
+/// (`None` when the OS reports no home directory) and surface any failure —
+/// including a missing home — as a webview-renderable string rather than a
+/// panic. The process env is read only by the command wrapper, so this core is
+/// drivable with explicit inputs.
+fn install_launcher_result(spec: &LauncherSpec, home: Option<&Path>) -> Result<String, String> {
+    install_under(spec, home)
         .map(|p| p.display().to_string())
         .map_err(|e| e.to_string())
 }
@@ -207,22 +220,12 @@ mod tests {
     #[cfg(target_os = "linux")]
     #[test]
     fn install_writes_desktop_file_to_temp_home() {
-        // Scope HOME to a tempdir so the test never touches the real
-        // applications dir. The restore runs in a drop-guard to make
-        // sure the env var is reset even when the test body panics.
+        // The home dir is injected, so the test targets a tempdir directly and
+        // never touches the process-global HOME or the real applications dir.
         let tmp = tempfile::TempDir::new().unwrap();
-        let prev = std::env::var_os("HOME");
-        let restore = || {
-            match &prev {
-                Some(v) => std::env::set_var("HOME", v),
-                None => std::env::remove_var("HOME"),
-            }
-        };
-        std::env::set_var("HOME", tmp.path());
-        let path_result = install(&spec());
-        restore();
-        let path = path_result.unwrap();
+        let path = install_under(&spec(), Some(tmp.path())).unwrap();
         assert!(path.ends_with("ship-daily-digest.desktop"), "{path:?}");
+        assert!(path.starts_with(tmp.path()), "launcher must land under the given home: {path:?}");
         let written = std::fs::read_to_string(&path).unwrap();
         assert!(written.contains("--app=daily-digest"));
     }
@@ -252,34 +255,19 @@ mod tests {
 
     // ---- install_app_launcher (failure paths) ----------------------------
 
-    /// The Tauri command `install_app_launcher` wraps `install`. Its
-    /// failure surface is `Result<String, String>`. Two cases are
-    /// testable without writing to the real ~/.local/share/applications
-    /// (or the real macOS ~/Applications): unset HOME on Linux, and
-    /// the Windows path which always errors. The latter is a
-    /// `#[cfg(target_os = "windows")]` test in the install function
-    /// itself; we cover it here as the Tauri command surface.
+    /// The Tauri command's string-result core surfaces failures as
+    /// `Result<String, String>`. With the home dir injected, the
+    /// no-home case is driven by passing `None` — no process-global
+    /// HOME mutation, so the test is order-independent under parallel runs.
 
     #[cfg(target_os = "linux")]
     #[test]
     fn install_app_launcher_errors_when_home_unset() {
-        let prev = std::env::var_os("HOME");
-        std::env::remove_var("HOME");
-        let result = install_app_launcher(
-            "test-app".into(),
-            "Test App".into(),
-            "/icons/test.png".into(),
-        );
-        match prev {
-            Some(v) => std::env::set_var("HOME", v),
-            None => {}
-        }
-        let err = result.expect_err("expected install_app_launcher to fail when HOME is unset");
+        let result = install_launcher_result(&spec(), None);
+        let err = result.expect_err("expected an error string when no home dir is available");
         // The error must surface as a string the webview can render
-        // (not a panic). The current path produces
-        // "HOME unset" via the dirs_applications_linux helper, but
-        // the exact message is not part of the contract — the test
-        // only requires non-empty.
+        // (not a panic). The exact wording is not part of the contract —
+        // the test only requires a non-empty, home/NotFound-mentioning string.
         assert!(!err.is_empty(), "error must be a non-empty string");
         assert!(err.to_lowercase().contains("home") || err.to_lowercase().contains("notfound"),
             "error should mention the missing HOME / NotFound, got: {err:?}");

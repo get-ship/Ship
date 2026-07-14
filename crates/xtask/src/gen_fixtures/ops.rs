@@ -45,7 +45,7 @@ fn type_validators() -> BTreeMap<&'static str, fn(&Value) -> Result<()>> {
         v!(AnalyticsSessionsResponse), v!(AnalyticsSessionResponse),
         v!(StackRegistration), v!(StackList),
         v!(AnalyticsToolUsageResponse), v!(AnalyticsSessionTurnsResponse),
-        v!(ArtifactsListResponse), v!(ArtifactRecord),
+        v!(ArtifactsListResponse), v!(ArtifactRecord), v!(ArtifactBlobResponse),
         v!(CollectionItem),
         v!(EventsListResponse),
         v!(StatusBuckets), v!(GitLogResponse), v!(GitBranchesResponse),
@@ -62,7 +62,10 @@ fn type_validators() -> BTreeMap<&'static str, fn(&Value) -> Result<()>> {
         v!(ListProcsResponse), v!(SessionsListResponse), v!(SettingValue),
         v!(SkillsIndexResponse), v!(SkillFileResponse),
         // space.* (clean SpaceService — ship-space crate): typed identity +
+        // membership + install-lifecycle + snapshot results.
         v!(Space), v!(SpaceList), v!(SpaceInfo),
+        v!(UnregisterStackResult), v!(InstallStackResult), v!(InstalledList),
+        v!(SpaceSnapshotResult),
         // settings.* (unified, scope-discriminated SettingsService — ship-config
         // crate): the settings keystone. Replaces the retired ConfigService.
         v!(Setting), v!(SettingList),
@@ -236,11 +239,12 @@ mod tests {
     use super::*;
 
     fn theme_responses() -> serde_json::Map<String, Value> {
-        let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-        let theme: Value = serde_json::from_slice(
-            &std::fs::read(root.join("proto/fixtures/fixture-seed.json")).unwrap(),
-        )
-        .unwrap();
+        // PROTO_ROOT is baked by this crate's build.rs from the ship-proto dep
+        // metadata; the fixture-seed SSOT lives under the proto checkout, not
+        // this repo.
+        let seed = std::path::Path::new(env!("PROTO_ROOT")).join("fixtures/fixture-seed.json");
+        let theme: Value =
+            serde_json::from_slice(&std::fs::read(&seed).unwrap()).unwrap();
         theme.get("responses").and_then(Value::as_object).unwrap().clone()
     }
 

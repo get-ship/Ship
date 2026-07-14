@@ -29,6 +29,10 @@ deck = { git = "https://github.com/get-ship/sui.git", branch = "feat/next", feat
 shipd = { path = "../../apps/shipd", features = ["specta"] }
 # validate fixtures against the wire SSOT.
 ship-ops-rpc = { path = "../core/ship-ops-rpc" }
+# Direct dep so build.rs reads `DEP_SHIP_PROTO_PROTO_DIR` (ship-proto's
+# `links` metadata) and bakes PROTO_ROOT — the proto/fixtures SSOT lives in
+# ship-contracts, not this repo, and travels with this dep.
+ship-proto = { git = "https://github.com/get-ship/ship-contracts.git", branch = "feat/next" }
 specta = { workspace = true, features = ["chrono", "serde_json"] }
 specta-typescript = "0.0.9"
 serde = { workspace = true }

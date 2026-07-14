@@ -167,11 +167,11 @@ mod tests {
     use tempfile::TempDir;
 
     /// Process-wide lock for the daemon_start error-path test. The test
-    /// mutates `PATH` and the cwd; the mutex serialises the body so a
-    /// parallel `cargo test` doesn't have two of the same test stepping
-    /// on each other. (Other env-mutating tests in the crate — e.g.
-    /// `launcher::tests::install_writes_desktop_file_to_temp_home` —
-    /// touch a different env var, so a shared lock isn't needed.)
+    /// mutates `PATH` and the cwd — both process-global — so the mutex
+    /// serialises its body against any concurrent run of the same test.
+    /// No other test in the crate mutates process-global state (the
+    /// launcher tests inject their inputs), so the lock is local to this
+    /// module.
     static TEST_ENV_LOCK: Mutex<()> = Mutex::new(());
 
     fn handle_in(dir: &std::path::Path, pid: Option<u32>) -> DaemonHandle {
@@ -220,11 +220,9 @@ mod tests {
     /// Run a single-threaded gated block of daemon_start error-path tests.
     /// The test is *serial* — it mutates `PATH` and the cwd, which are
     /// process-global. A static `Mutex` makes cargo's parallel test runner
-    /// serialize this test against the other daemon tests that touch the
-    /// same env (`launcher::tests::install_writes_desktop_file_to_temp_home`
-    /// mutates `HOME`, for example). The mutex is taken for the whole body
-    /// and held until the very last assertion; cargo's scheduler sees the
-    /// guard on the way in and waits.
+    /// serialize this test against any concurrent run of itself. The mutex is
+    /// taken for the whole body and held until the very last assertion;
+    /// cargo's scheduler sees the guard on the way in and waits.
     ///
     /// The happy path of `daemon_start` is *not* exercised here: it requires
     /// a real `ship` binary that brings up a daemon, which is what

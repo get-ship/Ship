@@ -12158,6 +12158,7 @@ dependencies = [
  "ship-ops-rpc",
  "ship-pipeline-runtime",
  "ship-platform",
+ "ship-proto",
  "ship-substrate",
  "ship-types",
  "ship-ui",
