@@ -178,7 +178,6 @@ mod tests {
         DaemonHandle {
             dir: dir.to_path_buf(),
             port: 9315,
-            token: "tok".into(),
             pid,
             workspace: None,
             build_sha: None,

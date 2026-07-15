@@ -30,7 +30,6 @@ use middleware::{build_header_middleware, spa_nav_middleware};
 /// cutover.
 pub fn build_router(
     rt: Arc<ship_runtime::ShipRuntime>,
-    token: Arc<String>,
     session_registry: auth::SessionRegistry,
     attestation_verifier: attest::AttestationVerifier,
     daemon_mode: deck::DaemonMode,
@@ -98,25 +97,14 @@ pub fn build_router(
         // Bind the runtime state here so the resulting `Router<()>` merges
         // cleanly with the root assembly below.
         .with_state(rt.clone());
-
-    let auth_token = token;
     let auth_registry = session_registry;
-    // Space-window registration: the launched window calls
-    // `DeviceService.RegisterWindow` (device.proto, Connect) over the host
-    // socket — a pid-bound C2 mint, kernel-attested pid from `PeerPid`.
-
-    let authenticated_routes = Router::new()
-        // Hook ingress lives at flat `/hooks/*` (authed, but OFF `/api/v1`):
-        // consumed by generated git-hook shell scripts that POST via curl and
-        // can't speak Connect, so it's a permanent ingress holdout. Kept out of
-        // `/api/v1` so that namespace can shrink to just the auth-bootstrap.
-        // Gated: hooks_api uses ship-agents PTY session state (ship-code feature).
-        ;
+    // Hook ingress lives at flat `/hooks/*` (authed, but OFF `/api/v1`):
+    // consumed by generated git-hook shell scripts that POST via curl and
+    // can't speak Connect, so it's a permanent ingress holdout. Kept out of
+    // `/api/v1` so that namespace can shrink to just the auth-bootstrap.
+    let authenticated_routes = Router::new();
     #[cfg(feature = "ship-code")]
     let authenticated_routes = authenticated_routes
-        // ConnectRPC op surface (ship.ops.v1) — additive, wrapped by
-        // auth_middleware below so the gate sees AuthContext. See rpc::ops.
-        // The authority-projection layer runs INSIDE auth_middleware (it's
         // applied here, so auth wraps it): it reads the populated AuthContext and
         // stamps the resolved `ship_types::Authority` into the request, so
         // crate-owned Connect wires (ship-account) gate on the shared authority
@@ -139,11 +127,10 @@ pub fn build_router(
                 Arc::new(crate::ports::data::ShipChangeSource::new(rt.clone())),
             ))),
         )
-        // Dry-run view interceptor runs INSIDE auth (applied before the
-        // auth layer here, which means outer->inner order wraps it with
-        // auth) so requests must carry a valid bearer before short-circuit.
+        // cookie, or — when the host socket's peer-cred layer ran — a
+        // pre-populated AuthContext.
         .layer(axum::middleware::from_fn(move |req, next| {
-            auth::auth_middleware(auth_token.clone(), auth_registry.clone(), req, next)
+            auth::auth_middleware(auth_registry.clone(), req, next)
         }))
         // Top-level DataPort Extension — deck's serve_index / serve_setup
         // read provisioning via `Option<Extension<Arc<dyn DataPort>>>`

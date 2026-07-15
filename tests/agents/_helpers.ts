@@ -67,19 +67,19 @@ async function baseUrl(): Promise<string> {
   }
 }
 
+// Agent tests authenticate via `SHIP_TOKEN`, a scoped session token
+// injected into the sandbox by the supervisor. The on-disk daemon
+// token file was cut in the auth cutover; agents present the session
+// token, not a daemon token.
 let cachedToken: string | null = null;
 export async function daemonToken(): Promise<string> {
   if (cachedToken) return cachedToken;
-  if (process.env.TOKEN) return (cachedToken = process.env.TOKEN);
-  const tokenPath = join(DAEMON_DIR, "token");
-  try {
-    cachedToken = (await readFile(tokenPath, "utf8")).trim();
-    return cachedToken;
-  } catch {
-    throw new Error(
-      `no TOKEN env and no token at ${tokenPath} — start the daemon (\`just dev\`) before running tests/agents/`,
-    );
-  }
+  const tok = process.env.SHIP_TOKEN ?? process.env.TOKEN;
+  if (tok) return (cachedToken = tok);
+  throw new Error(
+    `no SHIP_TOKEN env — agent tests require a scoped session token ` +
+    `injected by the supervisor`,
+  );
 }
 
 export type ApiResponse<T = unknown> = { status: number; body: T };

@@ -217,19 +217,13 @@ fn mode_label(opts: &LaunchOpts) -> &'static str {
 /// Returns the typed `DispatchResult` — the typed contract replaces the old
 /// `JsonResponse` blob, so the caller reads `session_id` / `slug` directly.
 fn post_dispatch(body: &serde_json::Value) -> Result<ship_ops_rpc::DispatchResult> {
-    use connectrpc::client::{ClientConfig, HttpClient};
     use ship_ops_rpc::{AgentsServiceClient, DispatchAgentRequest};
-    let (port, token) = crate::daemon::ensure_daemon()
+    let transport = crate::uds_transport::connect_transport_or_autostart()
         .map_err(|e| anyhow::anyhow!("shipd not running: {e}\nTry: ship daemon start"))?;
-    // agent.Dispatch (Connect) replaces POST /api/v1/agent_sessions/dispatch.
     // build_dispatch_body already emits the DispatchAgentRequest field shape.
     let req: DispatchAgentRequest =
         serde_json::from_value(body.clone()).context("building dispatch request")?;
-    let uri: http::Uri =
-        format!("http://127.0.0.1:{port}").parse().context("building daemon URI")?;
-    let config =
-        ClientConfig::new(uri).default_header("authorization", format!("Bearer {token}"));
-    let client = AgentsServiceClient::new(HttpClient::plaintext(), config);
+    let client = AgentsServiceClient::new(transport, crate::uds_transport::client_config());
     let rt = tokio::runtime::Runtime::new().context("starting tokio runtime")?;
     let resp = rt
         .block_on(client.dispatch(req))

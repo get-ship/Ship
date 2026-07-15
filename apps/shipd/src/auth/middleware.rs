@@ -1,5 +1,15 @@
-//! Bearer / cookie / dev-loopback auth middleware, plus the authority
-//! projection layer for crate-owned Connect wires.
+//! Cookie / dev-loopback / session-token auth middleware, plus the
+//! authority-projection layer for crate-owned Connect wires.
+//!
+//! The host unix socket's peer-cred layer (see `peer_socket`) runs OUTSIDE
+//! this middleware and inserts `AuthContext` directly — that path is
+//! honored unconditionally. The middleware below handles the rest:
+//!
+//! 1. Session token (`ship_sess_` prefix) — MCP agents, provisioned grants,
+//!    pid-attested when bound
+//! 2. Browser session cookie — paired browser session, no pid binding
+//! 3. `--unsafe-skip-auth` loopback bypass — contributor dev only,
+//!    compiled out of release builds
 
 use axum::{
     body::Body,
@@ -9,21 +19,15 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use ship_substrate::events::CallerKind;
-use std::sync::Arc;
 
 use super::context::AuthContext;
 use super::scopes::{SessionRegistry, is_session_token};
-use super::token::{is_daemon_token, tokens_equal};
 
-/// Axum middleware that validates `Authorization: Bearer <token>` on every
-/// request. Injects `AuthContext` into request extensions on success.
-///
-/// Accepts three token types:
-/// 1. **Daemon token** (64-char hex) — CLI/Studio/hooks, capped non-operator
-/// 2. **Session token** (`ship_sess_` prefix) — MCP agents, provisioned grants
-/// 3. **SDK token** (`ship_` prefix) — external SDK callers
+/// Axum middleware that authenticates a request via session token, browser
+/// cookie, or the loopback bypass. Injects `AuthContext` into request
+/// extensions on success. The peer-cred layer (host socket) inserts the
+/// context BEFORE this runs and is honored as-is.
 pub async fn auth_middleware(
-    expected_token: Arc<String>,
     session_registry: SessionRegistry,
     mut req: Request<Body>,
     next: Next,
@@ -38,15 +42,15 @@ pub async fn auth_middleware(
         return next.run(req).await;
     }
 
-    // `--dangerous` token-less loopback bypass — the contributor dev override.
+    // `--unsafe-skip-auth` token-less loopback bypass — the contributor dev override.
     //     Treat a LOOPBACK peer as an authenticated capped client (the broad C2
     //     authoring set, never the operator) with no token/cookie. Gated on BOTH
-    //     `is_dangerous_mode()` (which prints the "auth relaxed" boot banner) AND
-    //     a loopback peer, so widening `--host` to a LAN/0.0.0.0 bind can never
-    //     relax auth for a remote request — only same-machine clients. Compiled
-    //     out of release builds: a shipped daemon can never relax auth.
+    //     `is_unsafe_skip_auth_mode()` (which prints the "auth relaxed" boot banner)
+    //     AND a loopback peer, so widening `--host` to a LAN/0.0.0.0 bind can
+    //     never relax auth for a remote request — only same-machine clients.
+    //     Compiled out of release builds: a shipped daemon can never relax auth.
     #[cfg(debug_assertions)]
-    if super::dangerous::is_dangerous_mode() {
+    if super::unsafe_skip_auth::is_unsafe_skip_auth_mode() {
         let loopback = req
             .extensions()
             .get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()
@@ -122,19 +126,18 @@ pub async fn auth_middleware(
         );
     }
 
-    let token_string = match header_token {
+    let token = match header_token {
         Some(t) => t,
         None => {
             return (StatusCode::UNAUTHORIZED, "missing or malformed Authorization header")
                 .into_response();
         }
     };
-    let token = token_string.as_str();
 
     // Session tokens are validated against the session registry.
-    if is_session_token(token) {
+    if is_session_token(&token) {
         let registry = session_registry.lock().await;
-        return match registry.get(token) {
+        return match registry.get(&token) {
             Some(session) => {
                 // Pid-binding: a pid-bound token (a space window OR an operator
                 // cred, S6 #124) is bound to its registering process. The kernel
@@ -186,45 +189,11 @@ pub async fn auth_middleware(
         };
     }
 
-    // Daemon token and SDK tokens are validated against the expected token.
-    if !tokens_equal(token, expected_token.as_str()) {
-        return (StatusCode::UNAUTHORIZED, "invalid token").into_response();
-    }
-
-    let caller_kind = if is_daemon_token(token) {
-        // The daemon token is a local bootstrap credential. It is NOT a
-        // pid-attested operator cred (S6): `CallerKind::Cli` is a transport
-        // label only — it grants no elevation. Capped non-operator (C0/C1).
-        CallerKind::Cli
-    } else if token.starts_with("ship_") {
-        CallerKind::Sdk
-    } else {
-        // The token equals `expected_token` but matches neither the daemon-token
-        // format (64-char hex) nor an SDK prefix — an anomalous/misconfigured
-        // credential. Fail closed. A correct daemon token always takes the first
-        // branch, so this never fires in normal operation.
-        return (StatusCode::UNAUTHORIZED, "unrecognized credential format").into_response();
-    };
-
-    let agent_id = header_string(&req, "x-ship-agent-id");
-    let session_id = header_string(&req, "x-ship-session-id");
-
-    let auth = AuthContext {
-        caller_kind,
-        agent_id,
-        // Daemon/SDK tokens carry no session space; emits key None (no
-        // home-space fallback on the emit path, S2).
-        space_id: None,
-        session_id,
-        // No restricted grants on this path — capped non-operator.
-        grants: vec![],
-        // The daemon/SDK token is NOT a pid-attested operator cred (S6): it
-        // grants no operator authority.
-        operator_cred: false,
-    };
-
-    req.extensions_mut().insert(auth);
-    next.run(req).await
+    // No on-disk daemon token — the only Bearer tokens the daemon accepts
+    // are session tokens (above). Any other presented credential is
+    // rejected: the cut removed the legacy 64-hex daemon token and the
+    // `ship_`-prefix SDK token path.
+    (StatusCode::UNAUTHORIZED, "invalid or unsupported token").into_response()
 }
 
 fn header_string(req: &Request<Body>, name: &str) -> Option<String> {

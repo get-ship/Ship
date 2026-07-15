@@ -134,6 +134,50 @@ pub fn peer_cred(fd: std::os::unix::io::RawFd) -> Option<PeerCred> {
         None
     }
 }
+/// Windows named-pipe peer identity — read from a connected named-pipe
+/// handle. Returns the client process id from
+/// `GetNamedPipeClientProcessId`; the `uid`/`gid` fields are zeroed
+/// (the resolver gates on `uid == host_uid` only on unix). Returns
+/// `None` on any failure.
+///
+/// ## Status
+/// **`NEEDS-WINDOWS-VALIDATION`.** The Linux/WSL dev host cannot
+/// compile this path, so it is a best-effort scaffold until a
+/// Windows CI lane exercises it against a real
+/// `\\.\pipe\ship…` instance. The caller MUST treat `Some(_)` here
+/// as "the kernel attests this is the connecting process" — the
+/// daemon then maps the pid to a `PeerIdentity` via the same
+/// container resolver unix uses, falling closed on any container
+/// lookup failure.
+///
+/// ## Hardening (to wire when this path is validated)
+/// - `FILE_FLAG_FIRST_PIPE_INSTANCE` on the server end so a hostile
+///   second bind can't squat on the name.
+/// - Same-user DACL (a single ACE granting access to the daemon's
+///   own user SID) so a non-owner can't connect at all.
+/// - `ImpersonateNamedPipeClient` + `OpenProcessToken` +
+///   `GetTokenInformation` (TokenUser) for a SID identity, not just
+///   a pid. The windows-sys 0.61 surface in this crate only
+///   exposes the pid-side APIs; the SID/impersonation path lives
+///   in the higher-level `windows` crate and is the obvious
+///   next addition once validation work begins.
+#[cfg(windows)]
+pub fn peer_cred_named_pipe(
+    pipe: std::os::windows::io::RawHandle,
+) -> Option<PeerCred> {
+    use windows_sys::Win32::System::Pipes::GetNamedPipeClientProcessId;
+
+    let mut client_pid: u32 = 0;
+    // SAFETY: `pipe` is a connected named-pipe handle owned by the
+    // caller. `GetNamedPipeClientProcessId` writes the client pid
+    // to its out-pointer; non-zero return is success.
+    let ok = unsafe { GetNamedPipeClientProcessId(pipe, &mut client_pid) };
+    if ok == 0 || client_pid == 0 {
+        return None;
+    }
+    // No uid/gid on Windows — the resolver gates on uid only on unix.
+    Some(PeerCred { pid: client_pid, uid: 0, gid: 0 })
+}
 
 /// The uid Ship is running as — the operator's uid. Used to recognize a
 /// same-owner peer as the operator on platforms without a named container

@@ -80,11 +80,11 @@ mod tests {
         let home = ShipHome::for_test(tmp.path());
         ensure_layout(&home).unwrap();
 
-        let token = home.daemon_file(super::super::daemon::DaemonFile::Token);
-        std::fs::write(&token, "preserved").unwrap();
+        let port = home.daemon_file(super::super::daemon::DaemonFile::Port);
+        std::fs::write(&port, "preserved\n").unwrap();
 
         ensure_layout(&home).unwrap();
 
-        assert_eq!(std::fs::read_to_string(&token).unwrap(), "preserved");
+        assert_eq!(std::fs::read_to_string(&port).unwrap(), "preserved\n");
     }
 }

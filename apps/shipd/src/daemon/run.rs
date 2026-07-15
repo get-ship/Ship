@@ -16,10 +16,9 @@ use tokio_util::sync::CancellationToken;
 use crate::{auth, router, ship_runtime};
 
 /// Start the network daemon and block until shutdown (SIGINT/SIGTERM).
-///
-/// `dangerous` enables the token-less loopback auth bypass for contributor
-/// development (localhost-only). Never set `dangerous = true` in production; the
-/// bypass itself is compiled out of release builds.
+/// `unsafe_skip_auth` enables the token-less loopback auth bypass for
+/// contributor development (localhost-only). Never set `unsafe_skip_auth = true`
+/// in production; the bypass itself is compiled out of release builds.
 ///
 /// `daemon_mode` controls cache headers, HMR route availability, and SSR cache
 /// behavior. Default is `Development`, which preserves all existing behaviour.
@@ -32,7 +31,7 @@ use crate::{auth, router, ship_runtime};
 pub async fn run_network(
     host: String,
     port: Option<u16>,
-    dangerous: bool,
+    unsafe_skip_auth: bool,
     workspace_dir: Option<std::path::PathBuf>,
     daemon_mode: deck::DaemonMode,
     apps_config_override: Option<std::path::PathBuf>,
@@ -42,24 +41,21 @@ pub async fn run_network(
     // Override per launch via `--apps-base-dir` or `SHIP_APPS_BASE_DIR`.
     apps_base_dir_override: Option<std::path::PathBuf>,
 ) -> Result<()> {
-    if dangerous {
+    if unsafe_skip_auth {
         tracing::warn!(
             "╔══════════════════════════════════════════════════════════════════╗"
         );
         tracing::warn!(
-            "║  SHIPD --dangerous — AUTH RELAXED: loopback callers need no token ║"
+            "║  SHIPD --unsafe-skip-auth — AUTH RELAXED: loopback callers need no token ║"
         );
         tracing::warn!(
             "║  Localhost only. Contributor use ONLY. NEVER in production.       ║"
         );
-        tracing::warn!(
-            "╚══════════════════════════════════════════════════════════════════╝"
-        );
     }
     // The bypass forces a localhost bind. Agents can set SHIP_HOST env vars, but
-    // they can't flip the --dangerous flag on the daemon they didn't start.
-    let host = if dangerous { "127.0.0.1".to_string() } else { host };
-    crate::auth::dangerous::set_dangerous_mode(dangerous);
+    // they can't flip the --unsafe-skip-auth flag on the daemon they didn't start.
+    let host = if unsafe_skip_auth { "127.0.0.1".to_string() } else { host };
+    crate::auth::unsafe_skip_auth::set_unsafe_skip_auth_mode(unsafe_skip_auth);
     let global_dir = ship_substrate::project::get_global_dir()?;
     let init_started_at = std::time::Instant::now();
 
@@ -212,15 +208,6 @@ pub async fn run_network(
         })
     };
 
-    let token = match auth::read_token(&daemon_dir) {
-        Ok(existing) if !existing.is_empty() => Arc::new(existing),
-        _ => {
-            let new_token = auth::generate_token()
-                .map_err(|e| anyhow!("failed to generate daemon token: {e}"))?;
-            auth::write_token_file(&daemon_dir, &new_token).map_err(|e| anyhow!("write daemon.token: {e}"))?;
-            Arc::new(new_token)
-        }
-    };
     crate::ship_runtime::init::identity_files::write_pid_file(&daemon_dir)?;
     // Record the *worktree* this daemon serves, not the main-checkout
     // root we'd get from ProjectRoot::discover's redirect. `just status`
@@ -254,9 +241,9 @@ pub async fn run_network(
     // the session registry above.
     ship_platform::isolation::set_daemon_origin(rt.daemon_origin());
     // Hydrate any persisted paired sessions from a previous daemon lifetime.
-    // The dangerous bypass starts fresh — don't carry prior sessions across
-    // restarts.
-    if !dangerous {
+    // The unsafe-skip-auth bypass starts fresh — don't carry prior sessions
+    // across restarts.
+    if !unsafe_skip_auth {
         auth::hydrate_sessions(&session_registry).await;
     }
     // Background sweep — evict expired sessions from the in-memory
@@ -323,7 +310,6 @@ pub async fn run_network(
     }
     let app = router::build_router(
         rt.clone(),
-        token,
         session_registry,
         attestation_verifier,
         daemon_mode,

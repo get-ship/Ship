@@ -9,8 +9,8 @@ pub(super) fn daemon_status() -> Result<()> {
 
     // Try the live REST endpoint first — that's the daemon's own status,
     // richer than what a supervisor adapter can see from outside.
-    if let Some((port, token)) = daemon_info_if_healthy() {
-        return print_live_status(port, &token, &supervision_status);
+    if let Some(port) = daemon_info_if_healthy() {
+        return print_live_status(port, &supervision_status);
     }
 
     print_supervision_only(&supervision_status);
@@ -44,14 +44,14 @@ pub(super) fn print_supervision_only(s: &SupervisionStatus) {
     }
 }
 
-pub(super) fn print_live_status(port: u16, token: &str, supervision: &SupervisionStatus) -> Result<()> {
+pub(super) fn print_live_status(port: u16, supervision: &SupervisionStatus) -> Result<()> {
     let supervisor_pid = supervision.pid;
-    // /api/health carries the full status payload (pid/version/uptime/jobs/
-    // sweep) — the former authenticated /daemon/status route folded into it.
+    // /api/health is a public route — no bearer required. The probe goes over
+    // loopback TCP for now; the typed wire surface (settings / ops / agents)
+    // uses the UDS peer-cred transport.
     let url = format!("http://127.0.0.1:{port}/api/health");
     let resp = crate::http::daemon_client()
         .get(&url)
-        .header("Authorization", format!("Bearer {token}"))
         .send()
         .map_err(|e| anyhow::anyhow!("status request failed: {e}"))?;
     crate::http::check_skew(resp.headers());

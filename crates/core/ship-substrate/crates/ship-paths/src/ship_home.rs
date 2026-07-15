@@ -592,8 +592,8 @@ mod tests {
         assert_eq!(h.state_dir(), tmp.path().join(".ship/state"));
         assert_eq!(h.cache_dir(), tmp.path().join(".ship/cache"));
         assert_eq!(
-            h.daemon_file(DaemonFile::Token),
-            tmp.path().join(".ship/state/daemon/token")
+            h.daemon_file(DaemonFile::Port),
+            tmp.path().join(".ship/state/daemon/port")
         );
     }
 
@@ -606,8 +606,8 @@ mod tests {
     }
 
     /// Daemon IPC handshake files live under `state/daemon/`. The
-    /// four named slots (port / token / pid / socket) are exactly the
-    /// files `daemon` writes on start.
+    /// three named slots (port / pid / socket) are exactly the files
+    /// `daemon` writes on start.
     #[test]
     fn daemon_files() {
         let tmp = tempdir().unwrap();
@@ -615,10 +615,6 @@ mod tests {
         assert_eq!(
             h.daemon_file(DaemonFile::Port),
             tmp.path().join(".ship/state/daemon/port")
-        );
-        assert_eq!(
-            h.daemon_file(DaemonFile::Token),
-            tmp.path().join(".ship/state/daemon/token")
         );
         assert_eq!(
             h.daemon_file(DaemonFile::Pid),

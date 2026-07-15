@@ -26,7 +26,10 @@ ship-agents = { path = "../../crates/core/ship-platform/crates/ship-agents" }
 ship-ops-rpc = { path = "../../crates/core/ship-ops-rpc" }
 connectrpc = { version = "0.4", features = ["client"] }
 http = "1"
-ship-pipeline-runtime = { path = "../../crates/ship-pipeline-runtime" }
+http-body-util = "0.1"
+hyper = { version = "1", features = ["client", "http1"] }
+hyper-util = { version = "0.1", features = ["tokio", "client", "client-legacy", "http1"] }
+tower = { version = "0.5", features = ["util"] }
 ship-types = { path = "../../crates/core/ship-substrate/crates/ship-types" }
 anyhow = { workspace = true }
 serde = { workspace = true }

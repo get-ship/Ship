@@ -248,7 +248,6 @@ mod path_layout_tests {
         let daemon_dir = home.daemon_dir();
         assert_eq!(daemon_dir.join("pid"), home.daemon_file(DaemonFile::Pid));
         assert_eq!(daemon_dir.join("port"), home.daemon_file(DaemonFile::Port));
-        assert_eq!(daemon_dir.join("token"), home.daemon_file(DaemonFile::Token));
     }
 
     #[test]

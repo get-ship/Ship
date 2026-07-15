@@ -5,57 +5,8 @@ pub use attest::{AttestRequest, AttestResponse, server_attest};
 
 #[cfg(test)]
 mod tests {
-    // Token utilities live in the parent auth.rs.
-    use super::super::{AuthContext, generate_token, is_daemon_token, read_token, write_token_file};
+    use super::super::AuthContext;
     use ship_substrate::events::CallerKind;
-
-    #[test]
-    fn generate_token_is_64_hex_chars() {
-        let token = generate_token().unwrap();
-        assert_eq!(token.len(), 64);
-        assert!(token.chars().all(|c| c.is_ascii_hexdigit()));
-    }
-
-    #[test]
-    fn generate_token_is_unique() {
-        let a = generate_token().unwrap();
-        let b = generate_token().unwrap();
-        assert_ne!(a, b);
-    }
-
-    #[test]
-    fn write_and_read_token_roundtrips() {
-        let dir = tempfile::TempDir::new().unwrap();
-        let token = "abc123def456";
-        write_token_file(dir.path(), token).unwrap();
-        let read = read_token(dir.path()).unwrap();
-        assert_eq!(read, token);
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn write_token_file_sets_daemon_dir_0700() {
-        use std::os::unix::fs::PermissionsExt;
-        let dir = tempfile::TempDir::new().unwrap();
-        let nested = dir.path().join("machine").join("daemon");
-        write_token_file(&nested, "tok").unwrap();
-        let dir_mode = std::fs::metadata(&nested).unwrap().permissions().mode() & 0o777;
-        assert_eq!(dir_mode, 0o700, "daemon dir must be 0700");
-        let file_mode = std::fs::metadata(nested.join("token")).unwrap().permissions().mode() & 0o777;
-        assert_eq!(file_mode, 0o600, "token file must be 0600");
-    }
-
-    #[test]
-    fn is_daemon_token_valid() {
-        let token = generate_token().unwrap();
-        assert!(is_daemon_token(&token));
-    }
-
-    #[test]
-    fn is_daemon_token_rejects_non_hex() {
-        assert!(!is_daemon_token("ship_session_abc123"));
-        assert!(!is_daemon_token("too_short"));
-    }
 
     #[test]
     fn auth_context_to_emit_context() {

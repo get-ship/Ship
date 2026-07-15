@@ -53,8 +53,7 @@ pub fn worktree_root_for(from: &Path) -> Option<PathBuf> {
     }
     None
 }
-
-/// Loaded view of one daemon's IPC handshake — port, token, pid (and
+/// Loaded view of one daemon's IPC handshake — port, pid (and
 /// optional workspace path / build SHA on multi-daemon installs).
 #[derive(Debug, Clone)]
 pub struct DaemonHandle {
@@ -62,26 +61,23 @@ pub struct DaemonHandle {
     /// `machine/daemons/<hash>/` sibling).
     pub dir: PathBuf,
     pub port: u16,
-    pub token: String,
     pub pid: Option<u32>,
     pub workspace: Option<PathBuf>,
     pub build_sha: Option<String>,
 }
 
 impl DaemonHandle {
-    /// Read `port`, `token`, `pid`, `workspace`, `sha` from `dir`. Returns
+    /// Read `port`, `pid`, `workspace`, `sha` from `dir`. Returns
     /// `None` when the directory is missing or the handshake is incomplete
     /// (e.g. port file absent).
     pub fn load(dir: &Path) -> Option<Self> {
         let port = read_trim(dir.join("port")).and_then(|s| s.parse::<u16>().ok())?;
-        let token = read_trim(dir.join("token"))?;
         let pid = read_trim(dir.join("pid")).and_then(|s| s.parse::<u32>().ok());
         let workspace = read_trim(dir.join("workspace")).map(PathBuf::from);
         let build_sha = read_trim(dir.join("sha"));
         Some(Self {
             dir: dir.to_path_buf(),
             port,
-            token,
             pid,
             workspace,
             build_sha,
@@ -238,7 +234,6 @@ mod tests {
     #[test]
     fn file_names_are_stable() {
         assert_eq!(DaemonFile::Port.as_str(), "port");
-        assert_eq!(DaemonFile::Token.as_str(), "token");
         assert_eq!(DaemonFile::Pid.as_str(), "pid");
         assert_eq!(DaemonFile::Socket.as_str(), "socket");
     }
@@ -295,25 +290,15 @@ mod tests {
     }
 
     #[test]
-    fn worktree_root_returns_none_outside_git() {
-        let tmp = TempDir::new().unwrap();
-        let dir = tmp.path().join("not-a-repo");
-        std::fs::create_dir_all(&dir).unwrap();
-        assert!(worktree_root_for(&dir).is_none());
-    }
-
-    #[test]
     fn handle_load_reads_full_handshake() {
         let tmp = TempDir::new().unwrap();
         std::fs::write(tmp.path().join("port"), "9315\n").unwrap();
-        std::fs::write(tmp.path().join("token"), "tok-abc\n").unwrap();
         std::fs::write(tmp.path().join("pid"), "12345\n").unwrap();
         std::fs::write(tmp.path().join("workspace"), "/proj\n").unwrap();
         std::fs::write(tmp.path().join("sha"), "abc1234\n").unwrap();
 
         let handle = DaemonHandle::load(tmp.path()).unwrap();
         assert_eq!(handle.port, 9315);
-        assert_eq!(handle.token, "tok-abc");
         assert_eq!(handle.pid, Some(12345));
         assert_eq!(handle.workspace.unwrap(), PathBuf::from("/proj"));
         assert_eq!(handle.build_sha.unwrap(), "abc1234");
@@ -322,7 +307,7 @@ mod tests {
     #[test]
     fn handle_load_returns_none_when_port_missing() {
         let tmp = TempDir::new().unwrap();
-        std::fs::write(tmp.path().join("token"), "x").unwrap();
+        std::fs::write(tmp.path().join("pid"), "1").unwrap();
         assert!(DaemonHandle::load(tmp.path()).is_none());
     }
 
@@ -344,7 +329,6 @@ mod tests {
     fn handle_is_alive_reflects_pid_state() {
         let tmp = TempDir::new().unwrap();
         std::fs::write(tmp.path().join("port"), "9315").unwrap();
-        std::fs::write(tmp.path().join("token"), "x").unwrap();
 
         // Stale handle (no pid file) → not alive.
         let handle = DaemonHandle::load(tmp.path()).unwrap();

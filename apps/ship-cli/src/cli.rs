@@ -189,8 +189,8 @@ pub enum DaemonCommands {
         #[arg(long, default_value = "127.0.0.1")]
         host: String,
         /// DANGER: token-less loopback auth (contributor dev only; localhost-only; compiled out of release builds)
-        #[arg(long)]
-        dangerous: bool,
+        #[arg(long = "unsafe-skip-auth")]
+        unsafe_skip_auth: bool,
     },
     /// Stop the running daemon process
     Stop,
@@ -200,8 +200,8 @@ pub enum DaemonCommands {
         #[arg(long, default_value = "127.0.0.1")]
         host: String,
         /// DANGER: token-less loopback auth (contributor dev only; localhost-only; compiled out of release builds)
-        #[arg(long)]
-        dangerous: bool,
+        #[arg(long = "unsafe-skip-auth")]
+        unsafe_skip_auth: bool,
     },
     /// Show daemon status
     Status,
@@ -228,16 +228,16 @@ pub enum DaemonCommands {
         host: String,
         #[arg(long, default_value_t = 9315)]
         port: u16,
-        #[arg(long)]
-        dangerous: bool,
+        #[arg(long = "unsafe-skip-auth")]
+        unsafe_skip_auth: bool,
     },
     /// Internal: supervisor loop that watches and restarts the daemon on crash
     #[command(hide = true)]
     Supervise {
         #[arg(long, default_value = "0.0.0.0")]
         host: String,
-        #[arg(long)]
-        dangerous: bool,
+        #[arg(long = "unsafe-skip-auth")]
+        unsafe_skip_auth: bool,
     },
     /// Internal: register shipd with the OS service manager (called by native installers)
     #[command(hide = true, name = "install-service")]

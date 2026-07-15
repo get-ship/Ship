@@ -4,10 +4,13 @@
 //! everything else is machine-local (runtime).
 
 use anyhow::{anyhow, Context, Result};
-use connectrpc::client::{ClientConfig, HttpClient};
 use ship_ops_rpc::{
     GetSettingReq, ListSettingsReq, SetSettingReq, SettingScope, SettingsServiceClient,
 };
+
+use crate::uds_transport::{client_config, connect_transport_or_autostart};
+
+type Transport = crate::uds_transport::UdsTransport;
 
 fn scope_of(key: &str) -> SettingScope {
     if key.starts_with("identity.") || key.starts_with("defaults.") || key.starts_with("cloud.") {
@@ -17,13 +20,11 @@ fn scope_of(key: &str) -> SettingScope {
     }
 }
 
-fn connect() -> Result<(SettingsServiceClient<HttpClient>, tokio::runtime::Runtime)> {
-    let (port, token) = crate::daemon::ensure_daemon()
-        .map_err(|e| anyhow!("shipd not running: {e}\nTry: ship daemon start"))?;
-    let uri: http::Uri =
-        format!("http://127.0.0.1:{port}").parse().context("building daemon URI")?;
-    let config = ClientConfig::new(uri).default_header("authorization", format!("Bearer {token}"));
-    let client = SettingsServiceClient::new(HttpClient::plaintext(), config);
+fn connect() -> Result<(SettingsServiceClient<Transport>, tokio::runtime::Runtime)> {
+    let transport = connect_transport_or_autostart().map_err(|e| {
+        anyhow!("shipd not running: {e}\nTry: ship daemon start")
+    })?;
+    let client = SettingsServiceClient::new(transport, client_config());
     let rt = tokio::runtime::Runtime::new().context("starting tokio runtime")?;
     Ok((client, rt))
 }

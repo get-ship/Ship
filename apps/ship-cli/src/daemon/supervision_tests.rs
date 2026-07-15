@@ -172,7 +172,7 @@ fn pidfile_adapter_start_stop_round_trip() {
     use super::supervision::StartContext;
     let ctx = StartContext {
         host: "127.0.0.1".to_string(),
-        dangerous: true,
+        unsafe_skip_auth: true,
         global_dir: ship_substrate::ShipHome::from_env().data_dir().to_path_buf(),
     };
     PidfileAdapter.start(&ctx).expect("start");

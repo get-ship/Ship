@@ -1,5 +1,6 @@
 mod meta_cmd;
 mod ops_cmd;
+mod uds_transport;
 mod build;
 mod cli;
 mod compile;
@@ -128,15 +129,15 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
             use cli::DaemonCommands;
             use daemon::{DaemonCommand, run_daemon};
             let cmd = match action {
-                DaemonCommands::Start { host, dangerous } => DaemonCommand::Start { host, dangerous },
+                DaemonCommands::Start { host, unsafe_skip_auth } => DaemonCommand::Start { host, unsafe_skip_auth },
                 DaemonCommands::Stop => DaemonCommand::Stop,
-                DaemonCommands::Restart { host, dangerous } => DaemonCommand::Restart { host, dangerous },
+                DaemonCommands::Restart { host, unsafe_skip_auth } => DaemonCommand::Restart { host, unsafe_skip_auth },
                 DaemonCommands::Status => DaemonCommand::Status,
                 DaemonCommands::Dir => DaemonCommand::Dir,
                 DaemonCommands::Cleanup => DaemonCommand::Cleanup,
                 DaemonCommands::Rebuild { dry_run } => DaemonCommand::Rebuild { dry_run },
-                DaemonCommands::Run { host, port, dangerous } => DaemonCommand::Run { host, port, dangerous },
-                DaemonCommands::Supervise { host, dangerous } => DaemonCommand::Supervise { host, dangerous },
+                DaemonCommands::Run { host, port, unsafe_skip_auth } => DaemonCommand::Run { host, port, unsafe_skip_auth },
+                DaemonCommands::Supervise { host, unsafe_skip_auth } => DaemonCommand::Supervise { host, unsafe_skip_auth },
                 DaemonCommands::InstallService { shipd_path, no_start, no_autostart } => {
                     DaemonCommand::InstallService { shipd_path, no_start, no_autostart }
                 }

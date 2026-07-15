@@ -1,20 +1,18 @@
 //! Daemon IPC handshake file names.
 //!
-//! The four well-known files the daemon writes into `machine/daemon/`. This is
-//! the SSOT for the enum; the heavier discovery/handle machinery (DaemonHandle,
-//! path_hash, discover_running_daemon) stays in `ship-substrate::home::daemon`
-//! and re-exports this type.
+//! The three well-known files the daemon writes into `machine/daemon/`. This
+//! is the SSOT for the enum; the heavier discovery/handle machinery
+//! (DaemonHandle, path_hash, discover_running_daemon) stays in
+//! `ship-substrate::home::daemon` and re-exports this type.
 
 use serde::{Deserialize, Serialize};
 
-/// One of the four well-known daemon handshake files.
+/// One of the well-known daemon handshake files.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum DaemonFile {
     /// TCP port the daemon bound.
     Port,
-    /// Authentication token for CLI/MCP/hook callers.
-    Token,
     /// Daemon process ID.
     Pid,
     /// Optional Unix socket path (when used).
@@ -26,7 +24,6 @@ impl DaemonFile {
     pub fn as_str(&self) -> &'static str {
         match self {
             DaemonFile::Port => "port",
-            DaemonFile::Token => "token",
             DaemonFile::Pid => "pid",
             DaemonFile::Socket => "socket",
         }
@@ -40,7 +37,6 @@ mod tests {
     #[test]
     fn file_names_are_stable() {
         assert_eq!(DaemonFile::Port.as_str(), "port");
-        assert_eq!(DaemonFile::Token.as_str(), "token");
         assert_eq!(DaemonFile::Pid.as_str(), "pid");
         assert_eq!(DaemonFile::Socket.as_str(), "socket");
     }

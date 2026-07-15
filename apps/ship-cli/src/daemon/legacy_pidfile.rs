@@ -7,12 +7,12 @@ use crate::daemon::pid_io::{is_process_alive, read_pid, write_pid};
 /// process, which in turn owns the actual `shipd` child. Reachable only
 /// through `PidfileAdapter::start` (or `ensure_daemon` in-process) —
 /// `run_daemon` never calls this directly.
-pub(crate) fn daemon_start_inner(host: &str, dangerous: bool) -> Result<()> {
+pub(crate) fn daemon_start_inner(host: &str, unsafe_skip_auth: bool) -> Result<()> {
     let pid_path = pid_file()?;
     let log_path = log_file()?;
     let global_dir = ship_dir()?;
     // Dev mode forces localhost bind regardless of --host.
-    let host = if dangerous { "127.0.0.1".to_string() } else { host.to_string() };
+    let host = if unsafe_skip_auth { "127.0.0.1".to_string() } else { host.to_string() };
 
     // Check if already running. The pidfile lock is the source of truth;
     // a held lock means a live supervisor exists. Falling back to the legacy
@@ -53,8 +53,8 @@ pub(crate) fn daemon_start_inner(host: &str, dangerous: bool) -> Result<()> {
     let stderr = log_handle;
 
     let mut sup_args: Vec<&str> = vec!["daemon", "supervise", "--host", &host];
-    if dangerous {
-        sup_args.push("--dangerous");
+    if unsafe_skip_auth {
+        sup_args.push("--unsafe-skip-auth");
     }
     let supervisor = std::process::Command::new(&self_exe)
         .args(&sup_args)
@@ -67,7 +67,7 @@ pub(crate) fn daemon_start_inner(host: &str, dangerous: bool) -> Result<()> {
     let supervisor_pid = supervisor.id();
     write_pid(&pid_path, supervisor_pid)?;
 
-    if dangerous {
+    if unsafe_skip_auth {
         eprintln!("\x1b[1;33m⚠ SHIPD DEV MODE ENABLED — auth relaxed, localhost only. Not for production.\x1b[0m");
     }
     println!(

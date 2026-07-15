@@ -52,7 +52,10 @@ enum OpTransport {
     /// Host unix socket — local-agent path, identity via peer-cred, no token.
     #[cfg(unix)]
     Unix(std::path::PathBuf),
-    /// TCP + operator token — operator path / platforms without the socket.
+    /// TCP + bearer — operator fallback for non-unix hosts. Requires the
+    /// daemon's `--unsafe-skip-auth` mode to bypass token auth, since the
+    /// cut removed the on-disk daemon token. The Unix path is preferred
+    /// whenever the host socket exists.
     Tcp { port: u16, token: String },
 }
 
@@ -72,8 +75,10 @@ fn transport() -> Result<OpTransport> {
     if let Some(sock) = discover_socket() {
         return Ok(OpTransport::Unix(sock));
     }
-    let (port, token) = crate::daemon::ensure_daemon()?;
-    Ok(OpTransport::Tcp { port, token })
+    crate::daemon::ensure_daemon_running()?;
+    let port = crate::daemon::daemon_info_if_healthy()
+        .ok_or_else(|| anyhow::anyhow!("shipd: started but no health response"))?;
+    Ok(OpTransport::Tcp { port, token: String::new() })
 }
 
 /// HTTP `method` to `base`+`path` with a bearer token (Injected/Tcp share this).

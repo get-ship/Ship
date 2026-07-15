@@ -2,31 +2,28 @@ use anyhow::Result;
 use crate::daemon::commands::start_context;
 use crate::daemon::supervision;
 
-/// Ensure the daemon is running, starting it if needed.
-///
-/// 1. Check if daemon.port file exists and the daemon responds to health check.
-/// 2. If not, start the daemon and wait for it to become healthy.
-/// 3. Returns `(port, token)` on success.
-///
-/// Callers should prefer this over manual daemon_info() checks.
-pub fn ensure_daemon() -> Result<(u16, String)> {
-    // Fast path: daemon already running and responsive.
-    if let Some((port, token)) = daemon_info_if_healthy() {
-        return Ok((port, token));
+const HEALTH_PROBE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(1);
+const AUTOSTART_WAIT: std::time::Duration = std::time::Duration::from_secs(5);
+
+/// Ensure the daemon is running, starting it if needed. On success the
+/// host socket is bound and a follow-up `crate::uds_transport::connect_transport`
+/// will resolve. Callers that need the typed wire surface (settings / ops /
+/// agents) go through [`crate::uds_transport::connect_transport_or_autostart`],
+/// which calls this on the no-socket path and then resolves the transport.
+pub fn ensure_daemon_running() -> Result<()> {
+    if daemon_info_if_healthy().is_some() {
+        return Ok(());
     }
 
-    // Start the daemon via the adapter so systemd-managed installs use
-    // `systemctl --user start` instead of the legacy supervisor spawn.
     eprintln!("shipd: starting daemon...");
     let ctx = start_context("0.0.0.0".to_string(), false)?;
     supervision::select().start(&ctx)?;
 
-    // Wait for the daemon to become healthy (up to 5 seconds).
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    let deadline = std::time::Instant::now() + AUTOSTART_WAIT;
     while std::time::Instant::now() < deadline {
         std::thread::sleep(std::time::Duration::from_millis(200));
-        if let Some((port, token)) = daemon_info_if_healthy() {
-            return Ok((port, token));
+        if daemon_info_if_healthy().is_some() {
+            return Ok(());
         }
     }
 
@@ -39,12 +36,12 @@ pub fn ensure_daemon() -> Result<(u16, String)> {
 /// `~/.ship/machine/daemons/<hash>/port` *after* the supervisor has spawned
 /// shipd and shipd has bound its socket. We poll the discover-daemon helper
 /// for up to ~5s so the URL is the actual bound port, not the legacy
-/// `SHIPD_PORT` constant. Token is deliberately omitted — pairing is the
-/// canonical auth path; tokens on stdout would leak into shell history.
+/// `SHIPD_PORT` constant. Bearer credentials are deliberately omitted — they
+/// are not on the loopback probe path and would only leak into shell history.
 pub(crate) fn announce_daemon_url() {
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    let deadline = std::time::Instant::now() + AUTOSTART_WAIT;
     while std::time::Instant::now() < deadline {
-        if let Some((port, _token)) = daemon_info_if_healthy() {
+        if let Some(port) = daemon_info_if_healthy() {
             println!("→ http://localhost:{port}/");
             return;
         }
@@ -56,24 +53,24 @@ pub(crate) fn announce_daemon_url() {
 }
 
 /// Try to read daemon info and verify it responds to /api/v1/health.
-pub fn daemon_info_if_healthy() -> Option<(u16, String)> {
+/// Returns the port on success; `None` on any failure (no handshake,
+/// dead daemon, non-loopback bind that did not respond in time).
+pub fn daemon_info_if_healthy() -> Option<u16> {
     let cwd = std::env::current_dir().ok()?;
     let handle = ship_substrate::home::discover_running_daemon(&cwd)?;
     let port = handle.port;
-    let token = handle.token.clone();
 
-    // Quick health probe — 1 second timeout.
     let url = format!("http://127.0.0.1:{port}/api/health");
     let resp = crate::http::daemon_client()
         .get(&url)
-        .timeout(std::time::Duration::from_secs(1))
+        .timeout(HEALTH_PROBE_TIMEOUT)
         .send()
         .ok()?;
 
     crate::http::check_skew(resp.headers());
 
     if resp.status().is_success() {
-        Some((port, token))
+        Some(port)
     } else {
         None
     }

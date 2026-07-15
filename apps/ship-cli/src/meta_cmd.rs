@@ -2,19 +2,15 @@
 //! prints its version/build. The first CLI command on the Connect op surface;
 //! the rest of the registry follows this same generated-client pattern.
 
-use anyhow::{Context, Result};
-use connectrpc::client::{ClientConfig, HttpClient};
+use anyhow::{anyhow, Context, Result};
 use ship_ops_rpc::{MetaRequest, OpsServiceClient};
 
+use crate::uds_transport::{client_config, connect_transport_or_autostart};
+
 pub fn run() -> Result<()> {
-    let (port, token) = crate::daemon::ensure_daemon()?;
-    let uri: http::Uri = format!("http://127.0.0.1:{port}")
-        .parse()
-        .context("building daemon URI")?;
-    // The op surface is mounted behind auth_middleware; present the daemon token.
-    let config =
-        ClientConfig::new(uri).default_header("authorization", format!("Bearer {token}"));
-    let client = OpsServiceClient::new(HttpClient::plaintext(), config);
+    let transport = connect_transport_or_autostart()
+        .map_err(|e| anyhow!("shipd not running: {e}\nTry: ship daemon start"))?;
+    let client = OpsServiceClient::new(transport, client_config());
 
     // Commands dispatch synchronously; there is no ambient runtime here.
     let rt = tokio::runtime::Runtime::new().context("starting tokio runtime")?;
