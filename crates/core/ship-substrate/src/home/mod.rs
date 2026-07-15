@@ -22,9 +22,3 @@ pub use project::ProjectRoot;
 // keep resolving unchanged.
 pub use ship_paths::{Db, ShipHome};
 pub use device_id::read_or_generate_device_id;
-// Per modular-runtime-01, `Scope` and `Vector` live in `ship_types`. The
-// home/{scope,vector}.rs shim files have been deleted; callers should
-// import `ship_types::{Scope, Vector}` directly. This re-export stays so
-// `ship_substrate::home::{Scope, Vector}` callers transition gracefully
-// — remove when those drop to zero.
-pub use ship_types::{Scope, Vector};

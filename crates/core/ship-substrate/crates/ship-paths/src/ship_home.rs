@@ -63,7 +63,6 @@ use crate::DaemonFile;
 // and test fixtures). Distinct from stack discovery — the stack marker is
 // `stack.config.ts`, not a directory name.
 const HOME_DIR_NAME: &str = ".ship";
-use ship_types::{Scope, Vector};
 
 /// On-disk name of the config root subdir under `SHIP_HOME` (or XDG_CONFIG_HOME).
 const CONFIG_DIR: &str = "config";
@@ -348,31 +347,6 @@ impl ShipHome {
     }
 
 
-    /// Resolve a vector directory at the given scope.
-    ///
-    /// - `Scope::User` yields `<data>/library/<vector>/`; `project_root`
-    ///   is ignored.
-    /// - `Scope::Project` yields `<project_root>/.ship/<vector>/`. If
-    ///   `project_root` is `None`, returns the relative fragment
-    ///   `.ship/<vector>` (caller must resolve project discovery). This
-    ///   matches the ADR's split between user scope (absolute under
-    ///   `data/library/`) and project scope (absolute under a project
-    ///   root).
-    pub fn vector_dir(
-        &self,
-        scope: Scope,
-        vector: Vector,
-        project_root: Option<&Path>,
-    ) -> PathBuf {
-        match scope {
-            Scope::User => self.data.join("library").join(vector.as_str()),
-            Scope::Project => match project_root {
-                Some(root) => root.join(HOME_DIR_NAME).join(vector.as_str()),
-                None => PathBuf::from(HOME_DIR_NAME).join(vector.as_str()),
-            },
-        }
-    }
-
     /// Path to the singleton daemon's directory (`<runtime>/daemon/`).
     pub fn daemon_dir(&self) -> PathBuf {
         self.runtime.join(RUNTIME_DAEMON_DIR)
@@ -623,64 +597,12 @@ mod tests {
         );
     }
 
-    /// `vector_dir` for `Scope::User` lives under `data/library/<vector>/`;
-    /// `Scope::Project` lives under the project root's `.ship/<vector>/`.
-    #[test]
-    fn for_test_vector_dirs_match_user_scope() {
-        let tmp = tempdir().unwrap();
-        let h = ShipHome::for_test(tmp.path());
-        assert_eq!(
-            h.vector_dir(Scope::User, Vector::Agents, None),
-            tmp.path().join(".ship/data/library/agents")
-        );
-        let proj = tmp.path().join("proj");
-        assert_eq!(
-            h.vector_dir(Scope::Project, Vector::Skills, Some(&proj)),
-            proj.join(".ship/skills")
-        );
-    }
-
     #[test]
     fn data_and_state_dirs() {
         let tmp = tempdir().unwrap();
         let h = home(tmp.path());
         assert_eq!(h.data_dir(), tmp.path().join(".ship/data"));
         assert_eq!(h.state_dir(), tmp.path().join(".ship/state"));
-    }
-
-    /// Every canonical vector's user-scope dir lands under
-    /// `data/library/<vector>/` — the data-root layout the XDG
-    /// cutover standardised on.
-    #[test]
-    fn user_scope_vector_dirs_cover_every_canonical_vector() {
-        let tmp = tempdir().unwrap();
-        let h = home(tmp.path());
-        for v in Vector::all() {
-            let p = h.vector_dir(Scope::User, *v, None);
-            assert_eq!(
-                p,
-                tmp.path().join(".ship/data/library").join(v.as_str()),
-                "unexpected user-scope path for {:?}",
-                v
-            );
-        }
-    }
-
-    #[test]
-    fn project_scope_vector_dir_roots_under_project() {
-        let tmp = tempdir().unwrap();
-        let h = home(tmp.path());
-        let proj = tmp.path().join("myproj");
-        let p = h.vector_dir(Scope::Project, Vector::Views, Some(&proj));
-        assert_eq!(p, proj.join(".ship/views"));
-    }
-
-    #[test]
-    fn project_scope_without_root_returns_relative_fragment() {
-        let tmp = tempdir().unwrap();
-        let h = home(tmp.path());
-        let p = h.vector_dir(Scope::Project, Vector::Agents, None);
-        assert_eq!(p, PathBuf::from(".ship/agents"));
     }
 
     /// Daemon IPC handshake files live under `state/daemon/`. The

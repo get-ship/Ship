@@ -47,7 +47,7 @@ pub mod query;
 pub use path_layout;
 pub mod runtime_reads;
 pub mod snapshot;
-pub use home::{DaemonFile, Db, Scope, ShipHome, Vector};
+pub use home::{DaemonFile, Db, ShipHome};
 
 pub mod testutil;
 

@@ -3,8 +3,7 @@
 //! The lowest crate in the stack: no runtime deps (the test in this crate
 //! asserts this). Defines `AccountId`, `DeviceId`, `SpaceId`,
 //! `EventEnvelope`, `ScopeBinding` (the sole-minter auth seam), `Decision`,
-//! `EventScope`, the event registry, and the `Vector` / `Scope` types used
-//! across all layers.
+//! `EventScope`, and the event registry, used across all layers.
 
 pub mod binding;
 pub mod caller;
@@ -16,8 +15,6 @@ pub mod event_types;
 pub mod hash;
 pub mod identity;
 pub mod payload;
-pub mod scope;
-pub mod vector;
 
 // Re-export inventory so the `register_event!` macro can reference it as
 // `::ship_types::inventory::submit!` without downstream crates needing to
@@ -34,8 +31,6 @@ pub use identity::{
     local_device_id, set_local_device_id, AccountId, DeviceId,
     SpaceId,
 };
-pub use scope::Scope;
-pub use vector::Vector;
 
 #[cfg(test)]
 mod tests {
