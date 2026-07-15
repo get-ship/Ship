@@ -43,6 +43,50 @@ fn codex_context_content_contains_only_rules() {
 }
 
 #[test]
+fn context_content_contains_only_active_agent_prompt_plus_shared_rules() {
+    use stack_model::types::AgentProfile;
+    use stack_model::types::agent_profile::{ProfileMeta, ProfileRules};
+
+    let profile = |id: &str, prompt: &str| AgentProfile {
+        agent: ProfileMeta {
+            id: id.to_string(),
+            name: id.to_string(),
+            ..Default::default()
+        },
+        rules: ProfileRules {
+            inline: Some(prompt.to_string()),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let r = ResolvedConfig {
+        active_agent: Some("rust-lane".to_string()),
+        agent_profiles: vec![
+            profile("shipwright", "SHIPWRIGHT_PROMPT"),
+            profile("rust-lane", "RUST_LANE_PROMPT"),
+            profile("test-writer", "TEST_WRITER_PROMPT"),
+        ],
+        rules: vec![
+            make_rule("shipwright.md", "SHIPWRIGHT_PROMPT"),
+            make_rule("rust-lane.md", "RUST_LANE_PROMPT"),
+            make_rule("test-writer.md", "TEST_WRITER_PROMPT"),
+            make_rule("space:engineering", "SHARED_BASE_RULE"),
+        ],
+        ..resolved(vec![])
+    };
+
+    let content = compile(&r, "claude")
+        .unwrap()
+        .context_content
+        .expect("active prompt and shared rules must produce context");
+
+    assert!(content.contains("RUST_LANE_PROMPT"), "got:\n{content}");
+    assert!(content.contains("SHARED_BASE_RULE"), "got:\n{content}");
+    assert!(!content.contains("SHIPWRIGHT_PROMPT"), "got:\n{content}");
+    assert!(!content.contains("TEST_WRITER_PROMPT"), "got:\n{content}");
+}
+
+#[test]
 fn context_file_is_none_when_all_rule_content_empty() {
     let r = ResolvedConfig {
         rules: vec![
