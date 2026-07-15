@@ -59,8 +59,7 @@ defineAgent({
 async fn resolve_space_with_no_globals_yields_resolved_config() {
     let (_tmp, root) = write_minimal_space();
     let cache = TempDir::new().unwrap();
-    let library = TempDir::new().unwrap();
-    let composed = roll_up_members(&[root.clone()], Some(cache.path()), Some(library.path()))
+    let composed = roll_up_members(&[root.clone()], Some(cache.path()))
         .await
         .unwrap();
     let resolved = resolve_library(&composed.library, None, None);
@@ -105,12 +104,11 @@ async fn resolve_space_is_deterministic_across_two_runs() {
     // (J5) is the content hash of this form.
     let (_tmp, root) = write_minimal_space();
     let cache = TempDir::new().unwrap();
-    let library = TempDir::new().unwrap();
-    let a = roll_up_members(&[root.clone()], Some(cache.path()), Some(library.path()))
+    let a = roll_up_members(&[root.clone()], Some(cache.path()))
         .await
         .unwrap()
         .library;
-    let b = roll_up_members(&[root.clone()], Some(cache.path()), Some(library.path()))
+    let b = roll_up_members(&[root.clone()], Some(cache.path()))
         .await
         .unwrap()
         .library;
@@ -153,24 +151,22 @@ async fn load_root_library_omits_resolve_step() {
 // ── roll_up tests (Phase-3 J2) ─────────────────────────────────────
 
 /// The basic empty-cache contract: no `ship.lock` → no cached packages,
-/// no library dir → an empty enabled tier, the roll-up degenerates to
-/// the source-only identity. The composed library IS the source's
-/// library; `shadows` is empty; `rollup_inputs` carries the source +
-/// the (empty) enabled-tier `RollupInputs`.
+/// the roll-up degenerates to the source-only identity. The composed
+/// library IS the source's library; `shadows` is empty; `rollup_inputs`
+/// carries the source as the sole extension.
 #[tokio::test(flavor = "current_thread")]
 async fn roll_up_without_lockfile_is_source_only_identity() {
     let (_tmp, root) = write_minimal_space();
-    // Point `cache_root` / `library_root` at empty dirs so the roll-up
-    // can't accidentally read from the host's real `~/.ship/{cache,data/library}`.
+    // Point `cache_root` at an empty dir so the roll-up can't
+    // accidentally read from the host's real `~/.ship/cache`.
     let cache_root = root.join("empty_cache");
     std::fs::create_dir_all(&cache_root).unwrap();
-    let library_root = root.join("empty_library");
 
-    let composed = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
+    let composed = roll_up_members(&[root.clone()], Some(&cache_root))
         .await
         .unwrap();
 
-    // No shadows (no collision possible — the enabled tier is empty).
+    // No shadows (no collision possible — the source is the only tier).
     assert!(
         composed.shadows.is_empty(),
         "no shadows for a single populated extension"
@@ -182,16 +178,16 @@ async fn roll_up_without_lockfile_is_source_only_identity() {
     // The TS-defined `demo` agent is in the merged source.
     assert!(lib.agent_profiles.iter().any(|a| a.agent.id == "demo"));
 
-    // `rollup_inputs` carries the audit trail — the source plus the
-    // (empty) enabled tier, and the default precedence.
+    // `rollup_inputs` carries the audit trail — the source as the sole
+    // extension, and the default precedence.
     let rollup = lib
         .rollup_inputs
         .as_ref()
         .expect("roll_up must populate rollup_inputs");
     assert_eq!(
         rollup.extensions.len(),
-        2,
-        "source + the always-present (here empty) enabled tier"
+        1,
+        "source only — no cached packages, no enabled tier"
     );
     assert_eq!(
         rollup.precedence.len(),
@@ -275,8 +271,7 @@ defineAgent({
     )
     .unwrap();
 
-    let library_root = root.join("empty_library");
-    let composed = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
+    let composed = roll_up_members(&[root.clone()], Some(&cache_root))
         .await
         .unwrap();
 
@@ -314,24 +309,18 @@ async fn roll_up_with_empty_cache_is_source_only() {
     let cache_root = root.join("cache");
     std::fs::create_dir_all(&cache_root).unwrap();
     // No ship.lock → `load_cached_extensions` returns `vec![]` early.
-    let library_root = root.join("empty_library");
 
-    let composed = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
+    let composed = roll_up_members(&[root.clone()], Some(&cache_root))
         .await
         .unwrap();
     assert!(composed.shadows.is_empty());
     let rollup = composed.library.rollup_inputs.as_ref().unwrap();
     assert_eq!(
         rollup.extensions.len(),
-        2,
-        "no cached packages, but the enabled tier is always present"
+        1,
+        "no cached packages → the source is the only extension"
     );
-    assert_eq!(
-        rollup.extensions[0].source,
-        ExtSource::UserGlobal,
-        "the (empty) enabled tier"
-    );
-    assert_eq!(rollup.extensions[1].source, ExtSource::Space);
+    assert_eq!(rollup.extensions[0].source, ExtSource::Space);
 }
 
 /// Determinism: two `roll_up` calls over the same inputs produce
@@ -375,11 +364,10 @@ async fn roll_up_is_deterministic_across_two_runs() {
     )
     .unwrap();
 
-    let library_root = root.join("empty_library");
-    let a = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
+    let a = roll_up_members(&[root.clone()], Some(&cache_root))
         .await
         .unwrap();
-    let b = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
+    let b = roll_up_members(&[root.clone()], Some(&cache_root))
         .await
         .unwrap();
 
@@ -432,9 +420,8 @@ async fn roll_up_content_hash_changes_with_cached_package() {
     )
     .unwrap();
 
-    let library_root = root.join("empty_library");
     // Roll-up 1: baseline.
-    let a = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
+    let a = roll_up_members(&[root.clone()], Some(&cache_root))
         .await
         .unwrap();
     let a_hash = descriptor::extension_library_content_hash(&a.library).unwrap();
@@ -448,7 +435,7 @@ async fn roll_up_content_hash_changes_with_cached_package() {
     )
     .unwrap();
 
-    let b = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
+    let b = roll_up_members(&[root.clone()], Some(&cache_root))
         .await
         .unwrap();
     let b_hash = descriptor::extension_library_content_hash(&b.library).unwrap();
@@ -459,9 +446,9 @@ async fn roll_up_content_hash_changes_with_cached_package() {
     );
 }
 
-/// Tear test (the spec's "tear test still green"): a space with all
-/// three tiers (source + cached package + nothing else) composes
-/// without error and produces a sane `ComposedLibrary` shape.
+/// Tear test (the spec's "tear test still green"): a space with both
+/// tiers (source + cached package) composes without error and produces
+/// a sane `ComposedLibrary` shape.
 #[tokio::test(flavor = "current_thread")]
 async fn roll_up_tear_test_full_composition() {
     let (_tmp, root) = write_minimal_space();
@@ -501,8 +488,7 @@ async fn roll_up_tear_test_full_composition() {
     )
     .unwrap();
 
-    let library_root = root.join("empty_library");
-    let composed = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
+    let composed = roll_up_members(&[root.clone()], Some(&cache_root))
         .await
         .unwrap();
 
@@ -532,17 +518,15 @@ async fn roll_up_tear_test_full_composition() {
     // pass-through is the J1 contract — the source's verb is `Space`).
     assert_eq!(lib.rules.len(), 1);
     assert_eq!(lib.rules[0].file_name, "demo.md");
-    // The roll-up audit carries all three extensions: source, cached
-    // package, and the (empty) enabled tier.
+    // The roll-up audit carries both extensions: source + cached package.
     let rollup = lib.rollup_inputs.as_ref().unwrap();
     assert_eq!(
         rollup.extensions.len(),
-        3,
-        "source + one cached package + the enabled tier"
+        2,
+        "source + one cached package"
     );
     let sources: Vec<_> = rollup.extensions.iter().map(|e| e.source.clone()).collect();
     assert!(sources.iter().any(|s| matches!(s, ExtSource::Cache)));
-    assert!(sources.iter().any(|s| matches!(s, ExtSource::UserGlobal)));
     assert!(sources.iter().any(|s| matches!(s, ExtSource::Space)));
 }
 
@@ -577,8 +561,7 @@ async fn define_config_dependencies_do_not_change_cached_dep_descriptor() {
     )
     .unwrap();
 
-    let library_root = root.join("empty_library");
-    let baseline = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
+    let baseline = roll_up_members(&[root.clone()], Some(&cache_root))
         .await
         .unwrap();
     let baseline_descriptor = descriptor::extension_library_canonical(&baseline.library).unwrap();
@@ -595,7 +578,7 @@ export default defineConfig({
     )
     .unwrap();
 
-    let after = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
+    let after = roll_up_members(&[root.clone()], Some(&cache_root))
         .await
         .unwrap();
     let after_descriptor = descriptor::extension_library_canonical(&after.library).unwrap();
@@ -611,77 +594,6 @@ export default defineConfig({
         "cached dep skill still composes when dependency is declared in defineConfig: {skill_ids:?}"
     );
 }
-
-// ── enabled tier (library_dir) tests ────────────────────────────────
-
-// `roll_up_composes_the_enabled_library_tier` retired with
-// format-migration Wave 5. The test exercised the enabled library tier
-// (`ShipHome::library_dir()` flat layout) composing a same-id agent
-// authored under `library_root/agents/<id>.jsonc`. Post Wave 5:
-//   - `.ship/agents/*.jsonc` authoring is gone (the leaf no longer
-//     reads them; the source authoring surface is `stack.config.ts`).
-//   - The enabled library tier's `stack_model::load_library` call
-//     (`ship-resolver/src/lib.rs`) does NOT route through the
-//     `space_loader` TS-eval seam — it calls the leaf directly, and
-//     the leaf never read `stack.config.ts` (that's the resolver's
-//     job). So the enabled tier has no working authoring surface
-//     post Wave 5: `.jsonc` is dead, `stack.config.ts` is unwired.
-// The operator-enabled library tier's authoring surface is a
-// separate piece of work (it predates Wave 5: the existing tier was
-// `roll_up` -> `stack_model::load_library(library_root)`, which would
-// need to switch to `space_loader::load_space_library(library_root)`
-// to gain the TS-eval path). Wave 5's scope is the source authoring
-// cut; the operator-enabled library tier is left as a follow-on (the
-// `library_root` arg is still wired, just no authoring surface reads
-// it after the cut). Marking the test as retired; the `enabled` field
-// stays in the descriptor's audit trail as an empty tier for now.
-
-/// A missing library dir is an empty tier, not an error — `roll_up`
-/// must succeed even when `ShipHome::library_dir()` (or the override)
-/// points at a path that doesn't exist on disk at all.
-#[tokio::test(flavor = "current_thread")]
-async fn roll_up_missing_library_dir_is_empty_not_error() {
-    let (_tmp, root) = write_minimal_space();
-    let cache_root = root.join("empty_cache");
-    std::fs::create_dir_all(&cache_root).unwrap();
-    // Deliberately do NOT create this dir.
-    let library_root = root.join("does_not_exist_library");
-
-    let composed = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
-        .await
-        .unwrap();
-    assert!(
-        composed
-            .library
-            .agent_profiles
-            .iter()
-            .any(|a| a.agent.id == "demo")
-    );
-    let rollup = composed.library.rollup_inputs.as_ref().unwrap();
-    let enabled = rollup
-        .extensions
-        .iter()
-        .find(|e| e.source == ExtSource::UserGlobal)
-        .expect("enabled tier is present even when its dir is absent");
-    assert!(enabled.descriptor.agent_profiles.is_empty());
-}
-
-// `roll_up_source_shadows_enabled_agent_on_id_collision` retired with
-// format-migration Wave 5 (partial). The source-side authoring moved
-// to `stack.config.ts` declare-forms (the source's `writer` agent
-// would land via `defineAgent` in the space root), but the
-// enabled-library tier's `library_root` is loaded via
-// `stack_model::load_library(library_root)` in `roll_up` — a direct leaf
-// call that doesn't route through the TS-eval seam (the
-// `space_loader` path that harvests `stack.config.ts`). The
-// enabled-tier's `stack.config.ts` is therefore unwired post Wave 5;
-// the operator-enabled library tier needs a follow-on wiring
-// (`roll_up` -> `space_loader::load_space_library(library_root)`
-// instead of `stack_model::load_library(library_root)`) to gain the
-// TS-eval path. Marked retired; the test's precedence law is still
-// pinned by the cached-package equivalent
-// (`roll_up_source_shadows_cached_agent_on_id_collision`),
-// which exercises the same `Space > Cache` precedence.
 
 // ── #122 coverage-equivalence (Wave 2 acceptance, now Wave 5 retirement) ────
 
@@ -731,8 +643,7 @@ async fn roll_up_covers_every_case_resolve_dep_agents_covers() {
 
     // Case 1: populated lock + cache — the namespaced id the flat merge
     // used to produce must also appear in `roll_up`'s composed result.
-    let library_root = root.join("empty_library");
-    let composed = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
+    let composed = roll_up_members(&[root.clone()], Some(&cache_root))
         .await
         .unwrap();
     let composed_ids: std::collections::HashSet<&str> = composed
@@ -750,7 +661,7 @@ async fn roll_up_covers_every_case_resolve_dep_agents_covers() {
     // — `roll_up` must degenerate the same way (no cached agents at
     // all), not error.
     let (_tmp2, root2) = write_minimal_space();
-    let composed_empty = roll_up_members(&[root2.clone()], Some(&cache_root), Some(&library_root))
+    let composed_empty = roll_up_members(&[root2.clone()], Some(&cache_root))
         .await
         .unwrap();
     let source_ids: std::collections::HashSet<&str> = composed_empty
@@ -895,12 +806,11 @@ defineCollection({
 
     let cache_root = root.join("empty_cache");
     std::fs::create_dir_all(&cache_root).unwrap();
-    let library_root = root.join("empty_library");
 
-    let a = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
+    let a = roll_up_members(&[root.clone()], Some(&cache_root))
         .await
         .unwrap();
-    let b = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
+    let b = roll_up_members(&[root.clone()], Some(&cache_root))
         .await
         .unwrap();
 
@@ -979,12 +889,10 @@ async fn roll_up_content_hash_changes_when_a_dep_view_source_changes() {
     )
     .unwrap();
 
-    let library_root = root.join("empty_library");
-
     // Roll-up 1: baseline. The view lands with `prefix =
     // github.com/d/views-pkg` (per `load_cached_extensions`) so the
     // composed library's `views` carries exactly that one descriptor.
-    let a = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
+    let a = roll_up_members(&[root.clone()], Some(&cache_root))
         .await
         .unwrap();
     let a_hash = descriptor::composed_library_content_hash(&a).unwrap();
@@ -1002,7 +910,7 @@ async fn roll_up_content_hash_changes_when_a_dep_view_source_changes() {
     )
     .unwrap();
 
-    let b = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
+    let b = roll_up_members(&[root.clone()], Some(&cache_root))
         .await
         .unwrap();
     let b_hash = descriptor::composed_library_content_hash(&b).unwrap();
@@ -1051,8 +959,7 @@ async fn roll_up_content_hash_changes_when_a_dep_view_is_added() {
     )
     .unwrap();
 
-    let library_root = root.join("empty_library");
-    let a = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
+    let a = roll_up_members(&[root.clone()], Some(&cache_root))
         .await
         .unwrap();
     let a_hash = descriptor::composed_library_content_hash(&a).unwrap();
@@ -1075,7 +982,7 @@ async fn roll_up_content_hash_changes_when_a_dep_view_is_added() {
     )
     .unwrap();
 
-    let b = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
+    let b = roll_up_members(&[root.clone()], Some(&cache_root))
         .await
         .unwrap();
     let b_hash = descriptor::composed_library_content_hash(&b).unwrap();
@@ -1126,8 +1033,7 @@ defineView({
 
     let cache_root = tmp.path().join("empty_cache");
     std::fs::create_dir_all(&cache_root).unwrap();
-    let library_root = tmp.path().join("empty_library");
-    let a = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
+    let a = roll_up_members(&[root.clone()], Some(&cache_root))
         .await
         .unwrap();
     let a_hash = descriptor::composed_library_content_hash(&a).unwrap();
@@ -1158,7 +1064,7 @@ defineView({
     )
     .unwrap();
 
-    let b = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
+    let b = roll_up_members(&[root.clone()], Some(&cache_root))
         .await
         .unwrap();
     let b_hash = descriptor::composed_library_content_hash(&b).unwrap();
@@ -1237,15 +1143,13 @@ async fn roll_up_two_extensions_views_compose_deterministically_under_distinct_p
     )
     .unwrap();
 
-    let library_root = root.join("empty_library");
-
     // Two roll-ups, same input — the composed descriptor must be
     // byte-identical (the cache key invariant) and contain BOTH views
     // under their distinct prefixes.
-    let a = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
+    let a = roll_up_members(&[root.clone()], Some(&cache_root))
         .await
         .unwrap();
-    let b = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
+    let b = roll_up_members(&[root.clone()], Some(&cache_root))
         .await
         .unwrap();
     let a_bytes = descriptor::extension_library_canonical(&a.library).unwrap();
@@ -1329,9 +1233,8 @@ defineView({
 
     let cache_root = tmp.path().join("empty_cache");
     std::fs::create_dir_all(&cache_root).unwrap();
-    let library_root = tmp.path().join("empty_library");
 
-    let composed = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
+    let composed = roll_up_members(&[root.clone()], Some(&cache_root))
         .await
         .unwrap();
 
@@ -1442,9 +1345,8 @@ defineAgent({ agent: { id: "shared", name: "Child Shared" } });
     // multi-extension roll-up, not the cached / enabled tiers.
     let cache_root = root.join("empty_cache");
     std::fs::create_dir_all(&cache_root).unwrap();
-    let library_root = root.join("empty_library");
 
-    let composed = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
+    let composed = roll_up_members(&[root.clone()], Some(&cache_root))
         .await
         .unwrap();
 
@@ -1579,7 +1481,7 @@ defineAgent({ agent: { id: "child-b-only", name: "Child B Only" } });
     )
     .unwrap();
 
-    let composed = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
+    let composed = roll_up_members(&[root.clone()], Some(&cache_root))
         .await
         .unwrap();
     let hook_ids: Vec<&str> = composed
@@ -1650,8 +1552,7 @@ defineConfig({
 
     let cache_root = root.join("empty_cache");
     std::fs::create_dir_all(&cache_root).unwrap();
-    let library_root = root.join("empty_library");
-    let composed = roll_up_members(&[root.clone()], Some(&cache_root), Some(&library_root))
+    let composed = roll_up_members(&[root.clone()], Some(&cache_root))
         .await
         .unwrap();
     let lib = &composed.library;
@@ -1736,11 +1637,9 @@ export default defineConfig({
     .unwrap();
 
     let cache = tempfile::tempdir().unwrap();
-    let library = tempfile::tempdir().unwrap();
     let composed = roll_up_members(
         &[parent.join("a"), parent.join("b")],
         Some(cache.path()),
-        Some(library.path()),
     )
     .await
     .unwrap();

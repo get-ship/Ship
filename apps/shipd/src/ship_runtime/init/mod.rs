@@ -208,7 +208,7 @@ impl ShipRuntime {
             // collection op lands.
             let probe = workspace_dir.clone().or_else(|| std::env::current_dir().ok());
             if let Some(workspace) = probe.as_deref() {
-                match ship_resolver::roll_up_registered(workspace, None, None).await {
+                match ship_resolver::roll_up_registered(workspace, None).await {
                     Ok(composed) => {
                         ship_store::collection_schemas::hydrate_registry(
                             &schemas,

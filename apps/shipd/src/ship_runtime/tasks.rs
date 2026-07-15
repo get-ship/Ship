@@ -176,7 +176,7 @@ impl ShipRuntime {
         let (hook_ship_dir, triggers) = match &self.workspace_dir {
             Some(workspace) => {
                 let project_ship_dir = workspace.clone();
-                let triggers = match ship_resolver::roll_up_registered(workspace, None, None).await {
+                let triggers = match ship_resolver::roll_up_registered(workspace, None).await {
                     Ok(composed) => composed.library.triggers,
                     Err(e) => {
                         tracing::warn!("hooks: project roll-up failed, starting with no triggers: {e}");
@@ -320,7 +320,7 @@ impl ShipRuntime {
         // did this def come from" and "why is it not active". `None, None`
         // default both the cache root and the library root to their
         // `ShipHome` accessors.
-        match ship_resolver::roll_up_registered(&workspace, None, None).await {
+        match ship_resolver::roll_up_registered(&workspace, None).await {
             Ok(composed) => index.upsert_composed("project", &composed).await,
             Err(e) => tracing::warn!("agent-def index: project roll-up failed: {e}"),
         }

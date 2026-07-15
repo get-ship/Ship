@@ -183,7 +183,7 @@ async fn roll_up_and_cache(
     harness: &str,
     counter: Arc<AtomicU32>,
 ) -> anyhow::Result<Arc<CompileOutput>> {
-    let composed = roll_up_registered_blocking(repo, None, None)
+    let composed = roll_up_registered_blocking(repo, None)
         .map_err(|e| anyhow::anyhow!("roll_up failed: {e}"))?;
     // Mirror the handler's composite key — (library, active-agent
     // override, space rules); this fixture has neither an override nor

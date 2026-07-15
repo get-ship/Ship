@@ -24,13 +24,11 @@ pub fn run() -> Result<()> {
     kv("state/", &home.state_dir().display().to_string());
     kv("cache/", &home.cache_dir().display().to_string());
     kv("runtime/", &home.runtime_dir().display().to_string());
-    let library_ok = home.library_dir().is_dir();
     let data_ok = home.data_dir().is_dir();
     let config_ok = home.config_dir().is_dir();
     let state_ok = home.state_dir().is_dir();
     let cache_ok = home.cache_dir().is_dir();
     let runtime_ok = home.runtime_dir().is_dir();
-    kv("data/library/", if library_ok { "ok" } else { "MISSING" });
     kv("data/", if data_ok { "ok" } else { "MISSING" });
     kv("config/", if config_ok { "ok" } else { "MISSING" });
     kv("state/", if state_ok { "ok" } else { "MISSING" });

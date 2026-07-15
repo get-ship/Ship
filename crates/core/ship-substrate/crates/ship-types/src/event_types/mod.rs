@@ -70,17 +70,6 @@ pub const SPACE_SEEN: &str = "space.seen";
 /// Payload: `StackRegistered`.
 pub const STACK_REGISTERED: &str = "stack.registered";
 
-/// Stack install lifecycle — a stack from the registry was unpacked into the
-/// managed library dir and recorded. `entity_id` is the runtime's identity
-/// for the install (carried by the projection as a synthetic key — the
-/// library table is keyed by `(path, version)`, NOT by envelope
-/// `entity_id`). Payload: `StackInstalled`.
-pub const STACK_INSTALLED: &str = "stack.installed";
-
-/// Stack install lifecycle — the inverse of `stack.installed`. Removes the
-/// library row at `(path, version)`. Payload: `StackUnregistered`.
-pub const STACK_UNREGISTERED: &str = "stack.unregistered";
-
 /// Auth — a daemon session (CLI / MCP / Studio-local) was issued.
 /// `entity_id` is the session token. The auth_sessions projection
 /// materializes one row per session.

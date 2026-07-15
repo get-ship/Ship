@@ -51,7 +51,7 @@ fn same_local_route_from_two_extensions_coexists_under_distinct_prefixes() {
         ..Default::default()
     };
     let composed = compose(vec![
-        ext(ExtSource::UserGlobal, "hash-alpha", alpha),
+        ext(ExtSource::Cache, "hash-alpha", alpha),
         ext(ExtSource::Space, "hash-beta", beta),
     ]);
 
@@ -89,7 +89,7 @@ fn same_prefix_collision_resolves_by_rank_and_records_a_shadow() {
         ..Default::default()
     };
     let composed = compose(vec![
-        ext(ExtSource::UserGlobal, "hash-user", user),
+        ext(ExtSource::Cache, "hash-user", user),
         ext(ExtSource::Space, "hash-space", space),
     ]);
 
@@ -99,7 +99,7 @@ fn same_prefix_collision_resolves_by_rank_and_records_a_shadow() {
     assert_eq!(composed.shadows.len(), 1);
     let shadow = &composed.shadows[0];
     assert_eq!(shadow.noun, NounKind::View);
-    assert_eq!(shadow.losing_source, ExtSource::UserGlobal);
+    assert_eq!(shadow.losing_source, ExtSource::Cache);
     assert_eq!(shadow.losing_tier_hash, "hash-user");
     assert_eq!(shadow.winning_source, ExtSource::Space);
 }
@@ -109,7 +109,7 @@ fn same_prefix_collision_resolves_by_rank_and_records_a_shadow() {
 #[test]
 fn empty_view_tiers_compose_to_the_empty_set() {
     let composed = compose(vec![
-        ext(ExtSource::UserGlobal, "h-user", ExtensionLibrary::default()),
+        ext(ExtSource::Cache, "h-user", ExtensionLibrary::default()),
         ext(ExtSource::Space, "h-space", ExtensionLibrary::default()),
     ]);
     assert!(composed.library.views.is_empty());
@@ -161,7 +161,7 @@ fn identical_view_inputs_compose_to_identical_bytes() {
     };
     let make = || {
         compose(vec![
-            ext(ExtSource::UserGlobal, "hash-alpha", alpha.clone()),
+            ext(ExtSource::Cache, "hash-alpha", alpha.clone()),
             ext(ExtSource::Space, "hash-beta", beta.clone()),
         ])
     };

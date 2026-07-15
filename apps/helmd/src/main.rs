@@ -726,7 +726,7 @@ impl HarnessService for HarnessImpl {
         // `stack_model::load_library` no longer reads `.ship/mcp.jsonc`
         // (format-migration Wave 4 phase A), and rules arrive exclusively
         // via `defineAgent({ rules: { inline: "..." } })` post-cut.
-        let lib = ship_resolver::roll_up_registered_blocking(&repo, None, None)
+        let lib = ship_resolver::roll_up_registered_blocking(&repo, None)
             .map(|composed| composed.library)
             .map_err(|e| {
                 connectrpc::ConnectError::invalid_argument(format!(

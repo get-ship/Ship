@@ -35,12 +35,10 @@ pub mod rules;
 pub mod service;
 pub mod spaces;
 pub mod spaces_projection;
-pub mod library_projection;
 pub mod stacks_projection;
 pub mod wire;
 pub mod types;
 
 pub use spaces_projection::SpacesProjection;
-pub use library_projection::LibraryProjection;
 pub use stacks_projection::SpaceStacksProjection;
 pub use wire::SpaceWire;

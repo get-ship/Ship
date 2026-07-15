@@ -67,10 +67,9 @@ pub fn resolve_member_roots(anchor: &Path) -> Vec<PathBuf> {
 pub async fn roll_up_registered(
     anchor: &Path,
     cache_root: Option<&Path>,
-    library_root: Option<&Path>,
 ) -> Result<ComposedLibrary> {
     let roots = resolve_member_roots(anchor);
-    roll_up_members(&roots, cache_root, library_root).await
+    roll_up_members(&roots, cache_root).await
 }
 
 /// Synchronous bridge over [`roll_up_registered`] for callers that cannot
@@ -80,17 +79,16 @@ pub async fn roll_up_registered(
 pub fn roll_up_registered_blocking(
     anchor: &Path,
     cache_root: Option<&Path>,
-    library_root: Option<&Path>,
 ) -> Result<ComposedLibrary> {
     match tokio::runtime::Handle::try_current() {
         Ok(handle) => tokio::task::block_in_place(|| {
-            handle.block_on(roll_up_registered(anchor, cache_root, library_root))
+            handle.block_on(roll_up_registered(anchor, cache_root))
         }),
         Err(_) => tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
             .context("roll_up_registered_blocking: building fallback runtime")?
-            .block_on(roll_up_registered(anchor, cache_root, library_root)),
+            .block_on(roll_up_registered(anchor, cache_root)),
     }
 }
 
@@ -100,17 +98,16 @@ pub fn roll_up_registered_blocking(
 pub fn roll_up_members_blocking(
     member_roots: &[PathBuf],
     cache_root: Option<&Path>,
-    library_root: Option<&Path>,
 ) -> Result<ComposedLibrary> {
     match tokio::runtime::Handle::try_current() {
         Ok(handle) => tokio::task::block_in_place(|| {
-            handle.block_on(roll_up_members(member_roots, cache_root, library_root))
+            handle.block_on(roll_up_members(member_roots, cache_root))
         }),
         Err(_) => tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
             .context("roll_up_members_blocking: building fallback runtime")?
-            .block_on(roll_up_members(member_roots, cache_root, library_root)),
+            .block_on(roll_up_members(member_roots, cache_root)),
     }
 }
 
@@ -118,7 +115,6 @@ pub fn roll_up_members_blocking(
 pub async fn roll_up_members(
     member_roots: &[PathBuf],
     cache_root: Option<&Path>,
-    library_root: Option<&Path>,
 ) -> Result<ComposedLibrary> {
     let fs = LocalFsBroker::new();
 
@@ -184,31 +180,7 @@ pub async fn roll_up_members(
         }
     }
 
-    // 3. Enabled tier (user-global library dir).
-    let default_library_root;
-    let resolved_library_root: &Path = match library_root {
-        Some(p) => p,
-        None => {
-            default_library_root = ShipHome::from_env().library_dir();
-            &default_library_root
-        }
-    };
-    let enabled_library = stack_model::load_library(resolved_library_root).with_context(|| {
-        format!(
-            "roll_up_members: enabled-tier load failed for {}",
-            resolved_library_root.display()
-        )
-    })?;
-    let enabled_content_hash = descriptor::extension_library_content_hash(&enabled_library)
-        .context("roll_up_members: enabled-tier content hash")?;
-    extensions.push(ExtensionDescriptor {
-        source: ExtSource::UserGlobal,
-        space_root: member_roots.first().cloned().unwrap_or_default(),
-        descriptor: enabled_library,
-        content_hash: enabled_content_hash,
-    });
-
-    // 4. Named permission presets are PULL definitions (agents reference
+    // 3. Named permission presets are PULL definitions (agents reference
     //    them by name) and must pool across members — but `compose_space`
     //    passes config fields through from the FIRST Space descriptor
     //    verbatim. Pool every member's presets into the first descriptor,
@@ -224,7 +196,7 @@ pub async fn roll_up_members(
         member_descriptors[0].descriptor.permissions_presets = pooled;
     }
 
-    // 5. Members compose after the lower tiers, in caller order.
+    // 4. Members compose after the cache tier, in caller order.
     extensions.extend(member_descriptors);
 
     let rollup_inputs = RollupInputs {

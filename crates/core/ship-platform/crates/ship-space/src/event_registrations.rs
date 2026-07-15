@@ -22,13 +22,6 @@ register_event!("space.seen", [EventScope::Runtime], Retention::Ephemeral, Stabi
 // paths, and location facts belong to the device.
 register_event!("stack.registered", [EventScope::Runtime], Retention::Durable, Stability::Stable, "StackRegistered", ship_types::payload::StackRegistered);
 
-// Stack install lifecycle (`entity_id` = runtime identity — the `library`
-// projection is keyed by `(path, version)`, not by envelope entity). Same
-// Runtime scope as `stack.registered`: rows carry device-local paths and
-// never sync.
-register_event!("stack.installed", [EventScope::Runtime], Retention::Durable, Stability::Stable, "StackInstalled", ship_types::payload::StackInstalled);
-register_event!("stack.unregistered", [EventScope::Runtime], Retention::Durable, Stability::Stable, "StackUnregistered", ship_types::payload::StackUnregistered);
-
 // Space-scoped settings changes ride the unified `settings.changed` event
 // (SettingsService.Set, EventScope::Space). Per-space settings are read +
 // written through the unified `settings_overlay` table.

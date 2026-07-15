@@ -44,14 +44,12 @@
 //!   (helmd wire) replace their existing call sites with this crate's API.
 //!   Out of scope here.
 //! - **Phase-3 composition lives here.** [`roll_up`] composes the on-disk
-//!   source + every locked cached package + the operator-enabled library
-//!   tier (`ShipHome::library_dir()`) into a single
+//!   source + every locked cached package into a single
 //!   [`stack_model::ComposedLibrary`]. The composed library carries
 //!   `rollup_inputs: Some(...)` so J3 (def index) + J4 (view) can audit
 //!   what composed into the result. Cached packages are tagged
-//!   `ExtSource::Cache` (rank 0), the enabled library tier
-//!   `ExtSource::UserGlobal` (rank 500) — the source `ExtSource::Space`
-//!   (rank 1000) wins on id collision over both.
+//!   `ExtSource::Cache` (rank 0) — the source `ExtSource::Space`
+//!   (rank 1000) wins on id collision over them.
 //!
 //! ## Module layout
 //!

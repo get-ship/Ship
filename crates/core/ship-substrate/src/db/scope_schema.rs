@@ -245,23 +245,6 @@ END"#,
   PRIMARY KEY (space_id, root_path)
 )"#,
     "CREATE INDEX IF NOT EXISTS idx_space_stacks_space ON space_stacks(space_id)",
-    // ── library ────────────────────────────────────────────────────────────────
-    // The library table — the registry-installed stack registry. Folded from
-    // `stack.installed` (insert) and `stack.unregistered` (delete) by the
-    // LibraryProjection (ship-space). Device-local (rows carry absolute
-    // stack roots on this device). Keyed by `(path, version)` — the
-    // registry-issued identity pair — not by envelope `entity_id` (the
-    // events carry a synthetic runtime identity).
-    r#"CREATE TABLE IF NOT EXISTS library (
-  path         TEXT NOT NULL,
-  version      TEXT NOT NULL,
-  root_path    TEXT NOT NULL,
-  content_hash TEXT NOT NULL,
-  installed_at TEXT NOT NULL,
-  enabled      INTEGER NOT NULL DEFAULT 1,
-  PRIMARY KEY (path, version)
-)"#,
-    "CREATE INDEX IF NOT EXISTS idx_library_path ON library(path)",
     // ── canonical_sessions ──────────────────────────────────────────────────────
     // The agent-session ledger. Special case: it aggregates BOTH Space-scoped
     // session.* AND Runtime-scoped session.turn.* events, so CanonicalSessionProjection
@@ -380,7 +363,6 @@ pub fn static_tables(scope: EventScope) -> &'static [&'static str] {
             "durable_journals",
             "spaces",
             "space_stacks",
-            "library",
             "canonical_sessions",
         ],
         EventScope::Account => &[

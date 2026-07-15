@@ -13,7 +13,6 @@ use crate::ShipHome;
 /// Idempotent. Creates the four XDG roots and their daemon-owned
 /// subdirs. Layout:
 ///
-/// - `data/library/`
 /// - `data/spaces/`
 /// - `state/logs/`
 /// - `state/crashes/`
@@ -27,7 +26,6 @@ use crate::ShipHome;
 /// helper does not manufacture base-shaped subdirs inside data.
 pub fn ensure_layout(home: &ShipHome) -> io::Result<()> {
     // Data root.
-    fs::create_dir_all(home.library_dir())?;
     fs::create_dir_all(home.data_dir().join("spaces"))?;
     // State root.
     fs::create_dir_all(home.state_dir().join("logs"))?;
@@ -51,11 +49,10 @@ mod tests {
         let home = ShipHome::for_test(tmp.path());
         ensure_layout(&home).unwrap();
 
-        // Data root: library + spaces (db files live flat at the data
-        // root, NOT under data/db/ — the openers provision on first
-        // write; the layout helper does not manufacture base-shaped
-        // subdirs inside data).
-        assert!(home.library_dir().is_dir());
+        // Data root: spaces (db files live flat at the data root, NOT
+        // under data/db/ — the openers provision on first write; the
+        // layout helper does not manufacture base-shaped subdirs inside
+        // data).
         assert!(home.data_dir().join("spaces").is_dir());
         assert!(home.state_dir().join("logs").is_dir());
         assert!(home.state_dir().join("crashes").is_dir());

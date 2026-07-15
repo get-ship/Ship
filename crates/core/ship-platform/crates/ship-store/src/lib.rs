@@ -9,8 +9,6 @@
 //! - [`hash::compute_tree_hash`] / [`hash::compute_file_hash`] — deterministic SHA-256 hashing.
 //! - [`types`] — minimal `ShipManifest`/`Dependency` view for the install
 //!   pipeline; the full lockfile types live in `stack_model::lockfile`.
-//! - [`install_stack::install_stack`] — registry-resolved bundle → unpacked
-//!   stack root under `<ship_home>/library/<path>/<version>/`.
 //! - [`registry::Registry`] / [`registry::HttpRegistry`] — the typed
 //!   gateway client seam (test-mockable).
 
@@ -27,7 +25,6 @@ pub mod init_deps;
 pub mod install;
 pub mod install_bundle;
 mod install_helpers;
-pub mod install_stack;
 pub mod platform_bundles;
 pub mod publish_first_party;
 pub mod publish_walk;
@@ -51,9 +48,6 @@ pub use init_deps::{
 };
 pub use install::{InstallOptions, InstallResult, resolve_and_fetch};
 pub use install_bundle::{InstallBundleError, extract_and_verify_bundle};
-pub use install_stack::{
-    InstallError, InstalledStack, install_stack, library_root, remove_installed,
-};
 pub use publish_first_party::{SignedBundle, publish_first_party};
 pub use publish_walk::validate_publishable_stack;
 pub use registry::{

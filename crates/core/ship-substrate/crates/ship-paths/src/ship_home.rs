@@ -74,12 +74,6 @@ const STATE_DIR: &str = "state";
 /// On-disk name of the cache root subdir.
 const CACHE_DIR: &str = "cache";
 
-/// `data/library/` subdir holding the global per-user library vectors.
-/// **PROVISIONAL** under the shipx cutover: authored vectors may live in
-/// shipx source and be cached per-app; a global library may not survive.
-/// Settled with the shipx build, not here.
-const LIBRARY_DIR: &str = "library";
-
 /// `runtime/daemon/` subdir holding the singleton daemon's IPC handshake
 /// files. Exposed to the daemon module so it can join the per-slot files
 /// without re-deriving the layout.
@@ -354,15 +348,6 @@ impl ShipHome {
     }
 
 
-    /// `data/library/` — portable user scope.
-    ///
-    /// **PROVISIONAL** under the shipx cutover: authored vectors may
-    /// live in shipx source and be cached per-app; a global library may
-    /// not survive. Settled with the shipx build, not here.
-    pub fn library_dir(&self) -> PathBuf {
-        self.data.join(LIBRARY_DIR)
-    }
-
     /// Resolve a vector directory at the given scope.
     ///
     /// - `Scope::User` yields `<data>/library/<vector>/`; `project_root`
@@ -380,7 +365,7 @@ impl ShipHome {
         project_root: Option<&Path>,
     ) -> PathBuf {
         match scope {
-            Scope::User => self.library_dir().join(vector.as_str()),
+            Scope::User => self.data.join("library").join(vector.as_str()),
             Scope::Project => match project_root {
                 Some(root) => root.join(HOME_DIR_NAME).join(vector.as_str()),
                 None => PathBuf::from(HOME_DIR_NAME).join(vector.as_str()),

@@ -89,7 +89,7 @@ pub fn compile_agent_config(
     // instead of a single-source `.ship/` read. `roll_up` is async
     // (V8 TS eval); `roll_up_registered_blocking` bridges the sync trait boundary.
     let member_roots = member_roots_for_worktree(worktree_path);
-    let composed = ship_resolver::roll_up_members_blocking(&member_roots, None, None)
+    let composed = ship_resolver::roll_up_members_blocking(&member_roots, None)
         .map_err(|e| anyhow::anyhow!("roll-up failed for agent '{agent_id}': {e}"))?;
 
     // In-process compile via the agent-def engine — the same pipeline

@@ -2,8 +2,8 @@
 //!
 //! The law under test (census-phase3-agents.md Parts 3 + 5; tier split per
 //! the format-migration Wave 2 census Part 3.4): id-keyed shadowing per
-//! noun, cache < user-global (operator-enabled) < space < per-agent
-//! overlay, losers retained as ShadowRecords, permissions/hooks pass
+//! noun, cache < space < per-agent overlay, losers retained as
+//! ShadowRecords, permissions/hooks pass
 //! through from the space tier verbatim and are NEVER composed across
 //! tiers.
 
@@ -64,7 +64,7 @@ fn compose(extensions: Vec<ExtensionDescriptor>) -> ComposedLibrary {
 // ── Shadowing ────────────────────────────────────────────────────────────────
 
 #[test]
-fn space_shadows_user_global_on_id_collision() {
+fn space_shadows_cache_on_id_collision() {
     let user = ExtensionLibrary {
         agents: vec![
             agent("writer", "User Writer"),
@@ -77,12 +77,12 @@ fn space_shadows_user_global_on_id_collision() {
         ..Default::default()
     };
     let composed = compose(vec![
-        ext(ExtSource::UserGlobal, "hash-user", user),
+        ext(ExtSource::Cache, "hash-user", user),
         ext(ExtSource::Space, "hash-space", space),
     ]);
 
     // The colliding id resolves to the space tier; the un-shadowed
-    // user-global agent survives.
+    // cache agent survives.
     let names: Vec<(&str, &str)> = composed
         .library
         .agents
@@ -99,68 +99,13 @@ fn space_shadows_user_global_on_id_collision() {
     let shadow = &composed.shadows[0];
     assert_eq!(shadow.noun, NounKind::Agent);
     assert_eq!(shadow.id, "writer");
-    assert_eq!(shadow.losing_source, ExtSource::UserGlobal);
+    assert_eq!(shadow.losing_source, ExtSource::Cache);
     assert_eq!(shadow.losing_tier_hash, "hash-user");
     assert_eq!(shadow.winning_source, ExtSource::Space);
 }
 
 #[test]
-fn user_global_shadows_cache_on_id_collision() {
-    let cache = ExtensionLibrary {
-        agents: vec![agent("writer", "Cached Writer")],
-        ..Default::default()
-    };
-    let user_global = ExtensionLibrary {
-        agents: vec![agent("writer", "Enabled Writer")],
-        ..Default::default()
-    };
-    let composed = compose(vec![
-        ext(ExtSource::Cache, "hash-cache", cache),
-        ext(ExtSource::UserGlobal, "hash-enabled", user_global),
-    ]);
-
-    assert_eq!(composed.library.agents.len(), 1);
-    assert_eq!(composed.library.agents[0].agent.name, "Enabled Writer");
-    assert_eq!(composed.shadows.len(), 1);
-    let shadow = &composed.shadows[0];
-    assert_eq!(shadow.losing_source, ExtSource::Cache);
-    assert_eq!(shadow.winning_source, ExtSource::UserGlobal);
-}
-
-#[test]
-fn full_tier_stack_shadows_cache_then_user_global_then_space() {
-    // cached < enabled (user-global) < space < agent overlay — every tier
-    // declares the same id; the law resolves strictly by rank, and the
-    // shadow chain records each step in resolution order.
-    let cache = ExtensionLibrary {
-        skills: vec![skill("lint", "cache lint")],
-        ..Default::default()
-    };
-    let user_global = ExtensionLibrary {
-        skills: vec![skill("lint", "enabled lint")],
-        ..Default::default()
-    };
-    let space = ExtensionLibrary {
-        skills: vec![skill("lint", "space lint")],
-        ..Default::default()
-    };
-    let composed = compose(vec![
-        ext(ExtSource::Cache, "hash-cache", cache),
-        ext(ExtSource::UserGlobal, "hash-enabled", user_global),
-        ext(ExtSource::Space, "hash-space", space),
-    ]);
-
-    assert_eq!(composed.library.skills.len(), 1);
-    assert_eq!(composed.library.skills[0].name, "space lint");
-    assert_eq!(composed.shadows.len(), 2, "cache→enabled, enabled→space");
-    assert_eq!(composed.shadows[0].losing_source, ExtSource::Cache);
-    assert_eq!(composed.shadows[0].winning_source, ExtSource::UserGlobal);
-    assert_eq!(composed.shadows[1].losing_source, ExtSource::UserGlobal);
-    assert_eq!(composed.shadows[1].winning_source, ExtSource::Space);
-}
-
-#[test]
-fn agent_overlay_wins_over_space_and_user_global() {
+fn agent_overlay_wins_over_space_and_cache() {
     let user = ExtensionLibrary {
         skills: vec![skill("lint", "user lint")],
         ..Default::default()
@@ -176,13 +121,13 @@ fn agent_overlay_wins_over_space_and_user_global() {
     let composed = compose(vec![
         // Declared order deliberately scrambled — rank decides, not position.
         ext(ExtSource::Agent("writer".into()), "hash-overlay", overlay),
-        ext(ExtSource::UserGlobal, "hash-user", user),
+        ext(ExtSource::Cache, "hash-user", user),
         ext(ExtSource::Space, "hash-space", space),
     ]);
 
     assert_eq!(composed.library.skills.len(), 1);
     assert_eq!(composed.library.skills[0].name, "overlay lint");
-    // Two collisions resolved: user→space, space→overlay.
+    // Two collisions resolved: cache→space, space→overlay.
     assert_eq!(composed.shadows.len(), 2);
     assert_eq!(
         composed.shadows[1].winning_source,
@@ -203,7 +148,7 @@ fn rules_shadow_by_file_name_and_mcp_by_id() {
         ..Default::default()
     };
     let composed = compose(vec![
-        ext(ExtSource::UserGlobal, "h-user", user),
+        ext(ExtSource::Cache, "h-user", user),
         ext(ExtSource::Space, "h-space", space),
     ]);
 
@@ -236,7 +181,7 @@ fn permissions_and_hooks_pass_through_space_tier_verbatim() {
     };
 
     let composed = compose(vec![
-        ext(ExtSource::UserGlobal, "h-user", user),
+        ext(ExtSource::Cache, "h-user", user),
         ext(ExtSource::Space, "h-space", space.clone()),
     ]);
 
@@ -283,7 +228,7 @@ fn no_extensions_compose_to_the_empty_library() {
 #[test]
 fn missing_precedence_row_is_an_error_not_a_default() {
     let bad = RollupInputs {
-        extensions: vec![ext(ExtSource::UserGlobal, "h", ExtensionLibrary::default())],
+        extensions: vec![ext(ExtSource::Cache, "h", ExtensionLibrary::default())],
         precedence: vec![], // no rows at all
     };
     assert!(compose_space(&bad).is_err());
@@ -305,7 +250,7 @@ fn identical_inputs_compose_to_identical_bytes() {
     };
     let make = || {
         compose(vec![
-            ext(ExtSource::UserGlobal, "h-user", user.clone()),
+            ext(ExtSource::Cache, "h-user", user.clone()),
             ext(ExtSource::Space, "h-space", space.clone()),
         ])
     };

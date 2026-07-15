@@ -404,8 +404,8 @@ mod tests {
         assert!(dts.contains("export type SpaceTrigger = never;"));
     }
 
-    /// Cross-member composition: a skill defined in a UserGlobal
-    /// (operator-enabled library) extension AND one in the Space tier
+    /// Cross-member composition: a skill defined in a second Cache
+    /// (dependency) extension AND one in the Space tier
     /// both surface in the emitted union. The compose law resolves
     /// the multi-tier descriptor into a single composed library; the
     /// dtsgen reads that composed set, not the per-tier inputs. This
@@ -434,9 +434,9 @@ mod tests {
             },
             content_hash: "space-hash".to_string(),
         };
-        // Tier 2: UserGlobal defines one skill.
+        // Tier 2: a second Cache tier defines one skill.
         let library_tier = ExtensionDescriptor {
-            source: ExtSource::UserGlobal,
+            source: ExtSource::Cache,
             space_root: "/library".into(),
             descriptor: stack_model::ExtensionLibrary {
                 skills: vec![make_skill("library-skill")],
@@ -462,7 +462,7 @@ mod tests {
         let composed = compose_space(&inputs).expect("compose ok");
         let dts = emit_space_dts(&composed);
 
-        // Skills: one from each of Space, UserGlobal, Cache. All surface.
+        // Skills: one from Space and two from the Cache tiers. All surface.
         assert!(
             dts.contains(
                 "export type SpaceSkill = \"cache-skill\" | \"library-skill\" | \"space-skill\";",

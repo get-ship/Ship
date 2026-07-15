@@ -72,7 +72,7 @@ fn ext(source: ExtSource, hash: &str, descriptor: ExtensionLibrary) -> Extension
     }
 }
 
-/// A cached-extension agent (`UserGlobal`, rank 0) colliding by id with a
+/// A cached-extension agent (`Cache`, rank 0) colliding by id with a
 /// same-id source agent (`Space`, rank 1000) — the source wins per the
 /// standing precedence law (`RollupInputs::default_precedence`).
 fn cached_vs_source_collision() -> stack_model::ComposedLibrary {
@@ -86,7 +86,7 @@ fn cached_vs_source_collision() -> stack_model::ComposedLibrary {
     };
     let inputs = RollupInputs {
         extensions: vec![
-            ext(ExtSource::UserGlobal, "hash-cached", cached),
+            ext(ExtSource::Cache, "hash-cached", cached),
             ext(ExtSource::Space, "hash-source", source),
         ],
         precedence: RollupInputs::default_precedence(),
@@ -122,7 +122,7 @@ async fn roll_up_ingest_marks_source_active_and_cached_shadowed() {
     assert_eq!(shadow.name, "Cached Widget", "the shadow row carries the LOSING content");
     assert_eq!(
         shadow.ext_source.as_deref(),
-        Some(serde_json::to_string(&ExtSource::UserGlobal).unwrap().as_str())
+        Some(serde_json::to_string(&ExtSource::Cache).unwrap().as_str())
     );
     assert_eq!(shadow.tier_content_hash.as_deref(), Some("hash-cached"));
     assert_eq!(

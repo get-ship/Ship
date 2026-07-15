@@ -10,9 +10,8 @@
 //! only exist as `defineAgent` declare-forms in `stack.config.ts`, so the
 //! no-index fallback resolves through the SAME composed world as the
 //! index-backed path: `ship_resolver::roll_up_registered_blocking` from the project
-//! space root (the `compile_project` W5 pattern). The UserGlobal-tier
-//! (operator-enabled library) rides the SAME roll-up (W2) — there is no
-//! separate global-scope read here.
+//! space root (the `compile_project` W5 pattern) — there is no separate
+//! global-scope read here.
 //!
 //! `state::list` and `state::load_doc` (the C0 Get/List read surface the
 //! `AgentsWire::list` / `AgentsWire::get` handlers ride) go through the
@@ -127,7 +126,7 @@ pub(crate) fn resolve_space_root() -> Option<PathBuf> {
 /// failure (e.g. a TS eval error) — callers treat that the same as "nothing
 /// composed", matching the old scan's "missing dir" tolerance.
 pub(crate) fn compose_space_library(space_root: &Path) -> Option<ComposedLibrary> {
-    ship_resolver::roll_up_registered_blocking(space_root, None, None)
+    ship_resolver::roll_up_registered_blocking(space_root, None)
         .inspect_err(|e| tracing::warn!("agents view_state: roll_up failed for {space_root:?}: {e}"))
         .ok()
 }

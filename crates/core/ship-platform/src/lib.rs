@@ -94,9 +94,6 @@ fn install_defaults_inner() {
             // path — see `ship_space::identity::ensure_identity_for_root`.
             Box::new(ship_space::SpacesProjection),
             Box::new(ship_space::SpaceStacksProjection),
-            // Library rows — folds stack.installed / stack.unregistered so
-            // SpaceService's ListInstalled reads the projection.
-            Box::new(ship_space::LibraryProjection),
             Box::new(ship_auth::AuthSessionsProjection),
             // Single-row daemon-owner projection — folds `daemon.owner.*`
             // events into the `daemon_owner` table `current_owner()` reads.

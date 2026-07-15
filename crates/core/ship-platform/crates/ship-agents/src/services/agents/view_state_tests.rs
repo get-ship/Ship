@@ -165,7 +165,7 @@ defineAgent({ agent: { id: "lean", name: "Lean" } });
 // retired with the format-migration Wave 5 follow-up: they pinned the
 // two-scope (`<ship>/library/agents/`, `<project>/.ship/agents/`) directory
 // scan-and-merge precedence. That precedence law is now
-// `stack_model::compose_space`'s (Space > UserGlobal > Cache, `RollupInputs::
+// `stack_model::compose_space`'s (Space > Cache, `RollupInputs::
 // default_precedence`) — already covered by `ship-resolver`'s own roll-up
 // tests (out of this job's file fence) and by
 // `composed_row_source_reflects_provenance_and_shadow_is_queryable` below,
@@ -290,10 +290,10 @@ fn source_from_provenance_prefers_ext_source_kind_over_fallback() {
     let doc = serde_json::json!({
         "agent": { "name": "X" },
         "_provenance": {
-            "ext_source": serde_json::to_string(&serde_json::json!({"kind": "user_global"})).unwrap(),
+            "ext_source": serde_json::to_string(&serde_json::json!({"kind": "cache"})).unwrap(),
         },
     });
-    assert_eq!(source_from_provenance(&doc, SOURCE_PROJECT), "user_global");
+    assert_eq!(source_from_provenance(&doc, SOURCE_PROJECT), "cache");
 }
 
 #[test]
@@ -337,7 +337,7 @@ fn ext_descriptor(
     }
 }
 
-/// A cached-package agent (`UserGlobal`, rank 0) colliding by id with the
+/// A cached-package agent (`Cache`, rank 0) colliding by id with the
 /// space's own same-id agent (`Space`, rank 1000) — the space wins per
 /// `RollupInputs::default_precedence`.
 fn space_beats_cached_package() -> stack_model::ComposedLibrary {
@@ -351,7 +351,7 @@ fn space_beats_cached_package() -> stack_model::ComposedLibrary {
     };
     let inputs = RollupInputs {
         extensions: vec![
-            ext_descriptor(ExtSource::UserGlobal, "hash-cached", cached),
+            ext_descriptor(ExtSource::Cache, "hash-cached", cached),
             ext_descriptor(ExtSource::Space, "hash-source", source),
         ],
         precedence: RollupInputs::default_precedence(),
@@ -402,6 +402,6 @@ async fn composed_row_source_reflects_provenance_and_shadow_is_queryable() {
     assert_eq!(
         shadow.ext_source.as_deref().and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
             .and_then(|v| v.get("kind").and_then(|k| k.as_str()).map(str::to_string)),
-        Some("user_global".to_string()),
+        Some("cache".to_string()),
     );
 }

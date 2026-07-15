@@ -16,9 +16,7 @@
 //! The spawner ([`spawn_config_watcher`]) and its RAII handle ([`ConfigWatcher`])
 //! live in this module too: they open the remaining declarative `<domain>/`
 //! watches (`views` post Wave 5; the others moved into `stack.config.ts`
-//! declare-forms) for both user-scope (the XDG `data/library/<domain>/` per
-//! the home-layout ADR) and project-scope (under
-//! `<workspace>/.ship/<domain>/`),
+//! declare-forms) at project-scope (under `<workspace>/.ship/<domain>/`),
 //! drive the `author_*` helpers above from each domain's delta stream, and
 //! tear the whole thing down on drop. (Post format-migration Wave 4
 //! phase A: `pipelines`, `rules`, and `collections` are gone — those
@@ -60,7 +58,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Result;
-use ship_substrate::ShipHome;
 use ship_substrate::events::EmitContext;
 use ship_substrate::ports::{FsBroker, FsCap, FsMode, FsRoot, KernelLog, LocalFsBroker};
 use fs_watch::{FsDelta, FsWatch, LocalFsWatch, WatchOpts};
@@ -187,15 +184,13 @@ const DOMAINS: &[DomainCfg] = &[
 
 /// Spawn watchers for the one remaining declarative config domain
 /// (`views` post Wave 5; `agents` and `skills` died with this wave,
-/// `pipelines`/`rules`/`collections` in Wave 4), both at user-scope
-/// and (when present) project-scope.
+/// `pipelines`/`rules`/`collections` in Wave 4) at project-scope, when a
+/// workspace is present.
 pub fn spawn_config_watcher(
     kernel: Arc<KernelLog>,
     workspace_dir: Option<PathBuf>,
 ) -> Result<ConfigWatcher> {
     use crate::settings::resolve_watcher_debounce;
-
-    let library_dir = ShipHome::from_env().library_dir();
 
     // The space-id for the project-scope watcher is the CONTENT-ID from the
     // `projects` pointer (never a path-hash or tree file), so
@@ -212,12 +207,6 @@ pub fn spawn_config_watcher(
     let debounce = resolve_watcher_debounce();
 
     for domain in DOMAINS {
-        let user_dir = library_dir.join(domain.dir_name);
-        if !user_dir.exists() {
-            let _ = std::fs::create_dir_all(&user_dir);
-        }
-        spawn_domain_watch(&mut watcher, kernel.clone(), user_dir, domain, None, debounce);
-
         if let Some(ref pd) = project_ship_dir {
             let proj_dir = pd.join(domain.dir_name);
             spawn_domain_watch(

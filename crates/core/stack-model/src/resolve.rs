@@ -38,20 +38,14 @@ pub struct RollupInputs {
 }
 
 impl RollupInputs {
-    /// The standing composition law (census-phase3-agents.md Part 5, split
-    /// per the format-migration Wave 2 census Part 3.4): cached packages <
-    /// operator-enabled (user-global library) < space < per-agent overlay.
-    /// Ranks are spaced so a future tier can slot between existing ones
-    /// without renumbering.
+    /// The standing composition law: cached packages (dependencies) < space
+    /// < per-agent overlay. Ranks are spaced so a future tier can slot
+    /// between existing ones without renumbering.
     pub fn default_precedence() -> Vec<PrecedenceRow> {
         vec![
             PrecedenceRow {
                 kind: ExtSourceKind::Cache,
                 rank: 0,
-            },
-            PrecedenceRow {
-                kind: ExtSourceKind::UserGlobal,
-                rank: 500,
             },
             PrecedenceRow {
                 kind: ExtSourceKind::Space,
@@ -77,17 +71,14 @@ pub struct ExtensionDescriptor {
 
 /// Where an extension came from (Phase 3).
 ///
-/// `Cache` (locked packages resolved from the `ship.lock`-pinned XDG cache)
-/// and `UserGlobal` (operator-enabled extensions from `ShipHome::library_dir()`)
-/// were originally one overloaded tier — split per the format-migration
-/// Wave 2 census (Part 3.4) so cached packages and globally-enabled
-/// extensions rank distinctly instead of sharing a tier.
+/// `Cache` is a locked dependency resolved from the `ship.lock`-pinned,
+/// content-addressed XDG cache. `Space` is a space member's own source.
+/// `Agent` is a per-agent overlay.
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ExtSource {
     Cache,
-    UserGlobal,
     #[default]
     Space,
     Agent(String),
@@ -97,7 +88,6 @@ impl ExtSource {
     pub fn kind(&self) -> ExtSourceKind {
         match self {
             ExtSource::Cache => ExtSourceKind::Cache,
-            ExtSource::UserGlobal => ExtSourceKind::UserGlobal,
             ExtSource::Space => ExtSourceKind::Space,
             ExtSource::Agent(_) => ExtSourceKind::Agent,
         }
@@ -110,7 +100,6 @@ impl ExtSource {
 #[serde(rename_all = "snake_case")]
 pub enum ExtSourceKind {
     Cache,
-    UserGlobal,
     Space,
     Agent,
 }
