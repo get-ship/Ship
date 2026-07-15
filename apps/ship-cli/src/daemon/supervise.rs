@@ -23,7 +23,7 @@ const MAX_BACKOFF: std::time::Duration = std::time::Duration::from_secs(60);
 /// The supervisor loop — spawns the daemon, watches it, restarts on crash.
 ///
 /// Called via `ship daemon supervise`. Not meant to be called directly by users.
-pub(super) fn daemon_supervise(host: String, dev: bool) -> Result<()> {
+pub(super) fn daemon_supervise(host: String, dangerous: bool) -> Result<()> {
     let self_exe = std::env::current_exe().context("cannot determine own executable path")?;
     let global_dir = ship_dir()?;
     // Per devx-04, the supervisor co-locates with its daemon — picks the
@@ -35,7 +35,7 @@ pub(super) fn daemon_supervise(host: String, dev: bool) -> Result<()> {
         .state_dir()
         .join("crashes");
     // Dev mode forces localhost bind.
-    let host = if dev { "127.0.0.1".to_string() } else { host };
+    let host = if dangerous { "127.0.0.1".to_string() } else { host };
 
     // Acquire the OS-enforced singleton lock. Another live supervisor
     // holding the lock means we exit cleanly with its identity.
@@ -136,8 +136,8 @@ pub(super) fn daemon_supervise(host: String, dev: bool) -> Result<()> {
         // Spawn the daemon child.
         let port_str = SHIPD_PORT.to_string();
         let mut child_args: Vec<&str> = vec!["daemon", "run", "--host", &host, "--port", &port_str];
-        if dev {
-            child_args.push("--dev");
+        if dangerous {
+            child_args.push("--dangerous");
         }
         let mut child = std::process::Command::new(&self_exe)
             .args(&child_args)

@@ -60,7 +60,9 @@ fn main() -> anyhow::Result<()> {
     // See `ship_substrate::home::worktree_port_for`.
     let port = extract_u16_arg(&args, "--port");
     let host = extract_str_arg(&args, "--host").unwrap_or_else(|| "127.0.0.1".to_string());
-    let dev = args.iter().any(|a| a == "--dev");
+    // `--dangerous` — the contributor-only token-less loopback auth bypass. The
+    // bypass itself is compiled out of release builds.
+    let dangerous = args.iter().any(|a| a == "--dangerous");
 
     // --mode development|production (default: development).
     // SHIP_DAEMON_MODE env var is a fallback when --mode is not passed.
@@ -109,7 +111,7 @@ fn main() -> anyhow::Result<()> {
     rt.block_on(shipd::run_network(
         host,
         port,
-        dev,
+        dangerous,
         workspace,
         daemon_mode,
         apps_config_override,
@@ -147,7 +149,8 @@ USAGE:
 OPTIONS:
     --host <HOST>                  Bind address (default: 127.0.0.1)
     --port <PORT>                  Port to listen on (default: auto-derived)
-    --dev                          Enable dev mode: relaxed auth, auto-pair
+    --dangerous                    DANGER: token-less loopback auth (contributor
+                                   dev only; compiled out of release builds)
     --mode <development|production>
                                    Operating mode (default: development).
                                    production: immutable cache headers, HMR

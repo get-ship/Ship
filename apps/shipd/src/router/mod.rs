@@ -15,7 +15,7 @@ use std::sync::Arc;
 
 use deck::config::DeckConfig;
 use crate::{auth, ship_runtime};
-use crate::auth::{attest, pairing, session};
+use crate::auth::{attest, session};
 use crate::transport::cors;
 
 use health::{handle_panic, health_check};
@@ -32,7 +32,6 @@ pub fn build_router(
     rt: Arc<ship_runtime::ShipRuntime>,
     token: Arc<String>,
     session_registry: auth::SessionRegistry,
-    pairing_registry: pairing::SharedPairingRegistry,
     attestation_verifier: attest::AttestationVerifier,
     daemon_mode: deck::DaemonMode,
     apps: Vec<deck::AppServeConfig>,
@@ -78,29 +77,10 @@ pub fn build_router(
     };
 
     // Unauthenticated routes (before auth middleware)
-    let register_registry = session_registry.clone();
     let health_rt = rt.clone();
-    let pair_init_reg = pairing_registry.clone();
-    let pair_init_sessions = session_registry.clone();
-    let pair_status_reg = pairing_registry.clone();
     let attest_verifier = attestation_verifier.clone();
     let attest_sessions = session_registry.clone();
     let public_routes = Router::new()
-        .route(
-            "/auth/pair/init",
-            axum::routing::post(move |
-                peer: axum::extract::ConnectInfo<std::net::SocketAddr>,
-                body: Option<axum::Json<auth::PairInitRequest>>,
-            | {
-                auth::pair_init(pair_init_reg.clone(), pair_init_sessions.clone(), Some(peer), body)
-            }),
-        )
-        .route(
-            "/auth/pair/status",
-            axum::routing::get(move |q: axum::extract::Query<auth::PairStatusQuery>| {
-                auth::pair_status(pair_status_reg.clone(), q)
-            }),
-        )
         .route(
             "/auth/server-attest",
             axum::routing::post(move |body: axum::Json<auth::AttestRequest>| {
@@ -121,35 +101,11 @@ pub fn build_router(
 
     let auth_token = token;
     let auth_registry = session_registry;
-    // Authenticated pair confirm + session register — require daemon.token bearer.
-    let pair_confirm_reg = pairing_registry.clone();
-    let pair_confirm_sessions = auth_registry.clone();
-    let pair_confirm_routes = Router::new()
-        .route(
-            "/auth/pair/confirm",
-            axum::routing::post(move |auth_ext: axum::Extension<auth::AuthContext>, body: axum::Json<auth::PairConfirmRequest>| {
-                auth::pair_confirm(
-                    pair_confirm_reg.clone(),
-                    pair_confirm_sessions.clone(),
-                    auth_ext,
-                    body,
-                )
-            }),
-        )
-        .route("/api/session/register", axum::routing::post(move |
-            auth_ext: axum::Extension<auth::AuthContext>,
-            body: axum::Json<auth::SessionRegisterRequest>,
-        | {
-            auth::session_register(register_registry, auth_ext, body)
-        }));
-    // Space-window registration retired: the launched window now calls
+    // Space-window registration: the launched window calls
     // `DeviceService.RegisterWindow` (device.proto, Connect) over the host
-    // socket — same pid-bound C2 mint, kernel-attested pid from `PeerPid`,
-    // operator-only at the transport. The legacy `/api/space-window/register`
-    // REST route + `auth::space_window` were removed in the space cutover.
+    // socket — a pid-bound C2 mint, kernel-attested pid from `PeerPid`.
 
     let authenticated_routes = Router::new()
-        .nest("/api", pair_confirm_routes)
         // Hook ingress lives at flat `/hooks/*` (authed, but OFF `/api/v1`):
         // consumed by generated git-hook shell scripts that POST via curl and
         // can't speak Connect, so it's a permanent ingress holdout. Kept out of

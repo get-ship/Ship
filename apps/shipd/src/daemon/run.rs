@@ -17,8 +17,9 @@ use crate::{auth, router, ship_runtime};
 
 /// Start the network daemon and block until shutdown (SIGINT/SIGTERM).
 ///
-/// `dev` enables relaxed auth for local development (auto-pair, localhost-only).
-/// Never set `dev = true` in production.
+/// `dangerous` enables the token-less loopback auth bypass for contributor
+/// development (localhost-only). Never set `dangerous = true` in production; the
+/// bypass itself is compiled out of release builds.
 ///
 /// `daemon_mode` controls cache headers, HMR route availability, and SSR cache
 /// behavior. Default is `Development`, which preserves all existing behaviour.
@@ -31,7 +32,7 @@ use crate::{auth, router, ship_runtime};
 pub async fn run_network(
     host: String,
     port: Option<u16>,
-    dev: bool,
+    dangerous: bool,
     workspace_dir: Option<std::path::PathBuf>,
     daemon_mode: deck::DaemonMode,
     apps_config_override: Option<std::path::PathBuf>,
@@ -41,24 +42,24 @@ pub async fn run_network(
     // Override per launch via `--apps-base-dir` or `SHIP_APPS_BASE_DIR`.
     apps_base_dir_override: Option<std::path::PathBuf>,
 ) -> Result<()> {
-    if dev {
+    if dangerous {
         tracing::warn!(
             "╔══════════════════════════════════════════════════════════════════╗"
         );
         tracing::warn!(
-            "║  SHIPD DEV MODE — auth relaxed, browser clients auto-pair        ║"
+            "║  SHIPD --dangerous — AUTH RELAXED: loopback callers need no token ║"
         );
         tracing::warn!(
-            "║  Listening on localhost only. NOT FOR PRODUCTION.                ║"
+            "║  Localhost only. Contributor use ONLY. NEVER in production.       ║"
         );
         tracing::warn!(
             "╚══════════════════════════════════════════════════════════════════╝"
         );
     }
-    // Dev mode forces localhost bind. Agents can set SHIP_HOST env vars,
-    // but they can't flip the --dev flag on the daemon process they didn't start.
-    let host = if dev { "127.0.0.1".to_string() } else { host };
-    auth::pairing::set_dev_mode(dev);
+    // The bypass forces a localhost bind. Agents can set SHIP_HOST env vars, but
+    // they can't flip the --dangerous flag on the daemon they didn't start.
+    let host = if dangerous { "127.0.0.1".to_string() } else { host };
+    crate::auth::dangerous::set_dangerous_mode(dangerous);
     let global_dir = ship_substrate::project::get_global_dir()?;
     let init_started_at = std::time::Instant::now();
 
@@ -253,8 +254,9 @@ pub async fn run_network(
     // the session registry above.
     ship_platform::isolation::set_daemon_origin(rt.daemon_origin());
     // Hydrate any persisted paired sessions from a previous daemon lifetime.
-    // Dev mode starts fresh — don't carry prior sessions across dev restarts.
-    if !dev {
+    // The dangerous bypass starts fresh — don't carry prior sessions across
+    // restarts.
+    if !dangerous {
         auth::hydrate_sessions(&session_registry).await;
     }
     // Background sweep — evict expired sessions from the in-memory
@@ -262,7 +264,6 @@ pub async fn run_network(
     // The HTTP lookup path already filters expired rows; this is the
     // audit-event source.
     auth::spawn_session_sweeper(session_registry.clone());
-    let pairing_registry = auth::pairing::new_shared();
     let attestation_verifier = auth::attest::AttestationVerifier::new();
     // Enumerate the apps via shipd's app-registration port impl. `apps.jsonc`
     // is the Ship-monorepo orchestration list ("which apps ship, where each
@@ -324,7 +325,6 @@ pub async fn run_network(
         rt.clone(),
         token,
         session_registry,
-        pairing_registry,
         attestation_verifier,
         daemon_mode,
         apps,

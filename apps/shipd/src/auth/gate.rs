@@ -62,8 +62,6 @@ pub struct Caller {
 /// pid-attested operator session). The CLI transport, the daemon token, the
 /// browser cookie, and the local peer-uid no longer confer operator. The SDK
 /// token is capped at `Authority::Sdk` and is NEVER operator (#207).
-/// `Scope::Full` stays mintable for the dying REST route-auth axis (#78), but
-/// it does NOT drive the operator decision.
 pub fn caller_from_auth(auth: &AuthContext) -> Caller {
     Caller { is_operator: auth.is_operator(), elevated_services: auth.grants.clone() }
 }
@@ -165,7 +163,6 @@ mod tests {
             agent_id: Some(session.agent_id.clone()),
             space_id: None,
             session_id: None,
-            scopes: session.scopes.clone(),
             grants: session.grants.clone(),
             // A space window is C2-capped — never the operator cred.
             operator_cred: session.is_operator_cred,
@@ -184,13 +181,12 @@ mod tests {
     fn caller_is_operator_only_with_a_verified_cred_not_the_cli_transport() {
         // S6 (#124): the gate's operator verdict reads SOLELY the verified
         // operator cred (`operator_cred`), never the CLI transport. A bare CLI
-        // connection with Scope::Full is NOT operator; the cred is.
+        // connection is NOT operator; the cred is.
         let bare_cli = AuthContext {
             caller_kind: CallerKind::Cli,
             agent_id: None,
             space_id: None,
             session_id: None,
-            scopes: vec![crate::auth::Scope::Full],
             grants: vec![],
             operator_cred: false,
         };
@@ -281,51 +277,19 @@ mod tests {
         assert!(policy_for("nonsense.nope").is_none());
     }
 
-    #[test]
-    fn every_c2_command_service_is_grantable() {
-        // Service membership only *gates* C2 ops — C0/C1 are allowed regardless
-        // (baseline), C3 is always operator-only. So the invariant that matters:
-        // every **C2** command's service is reachable by *some* role's elevated
-        // set — otherwise it's permanently un-grantable (silently operator-only).
-        // We check the grantable union (what `grants_for_role` confers), which
-        // covers command-only authoring domains (`view`/`create`) the read-derived
-        // registry doesn't carry.
-        use ship_auth::scopes::grants_for_role;
-        let mut grantable: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
-        for role in [Some("commander"), Some("designer"), Some("contributor")] {
-            grantable.extend(grants_for_role(role));
-        }
-        // Operational domains (#95) are operator-surface, never agent-grantable.
-        let operational = |s: &str| matches!(s, "meta" | "permissions");
-        for cmd in ship_ops_rpc::catalog::COMMANDS {
-            if BlastRadius::from_descriptor(cmd.blast_radius) != BlastRadius::C2Elevated {
-                continue;
-            }
-            let svc = service_of(cmd.name);
-            assert!(
-                grantable.contains(svc) || operational(svc),
-                "C2 command `{}` service `{}` is not grantable by any role — \
-                 add it to a role in grants_for_role or re-tier it",
-                cmd.name,
-                svc
-            );
-        }
-    }
-
     /// The agents-control wire parity (P0 security: agents.* 500s).
     ///
     /// The handler-layer gate calls carry PLURAL op-names (`agents.dispatch`,
     /// `agents.steer`, `agents.grant`) and the per-domain service is `AgentsService`
     /// (plural) in the proto descriptor. The gate looks up op-policy through
     /// `policy_for(op_name)` — singular strings (`agent.dispatch` etc.) resolve
-    /// to `None` and the gate fails OPEN (500s). The role-table domain must be
-    /// plural `agents` so `grants_for_role("commander")` matches the gate's
-    /// grant axis. This test pins both ends: any regression to the singular
-    /// wire or singular domain surfaces here, not as a runtime 500.
+    /// to `None` and the gate fails OPEN (500s). The grant domain must be plural
+    /// `agents` to match the gate's grant axis. This test pins both ends: any
+    /// regression to the singular wire or singular domain surfaces here, not as a
+    /// runtime 500.
     #[test]
     fn agents_control_wire_is_plural_and_grantable() {
         use ship_ops_rpc::policy::policy_for;
-        use ship_auth_types::scopes::grants_for_role;
 
         // (1) The proto-sourced policy resolves each agents-control op to its
         // declared blast tier — the gate's op-name lookup returns Some.
@@ -356,30 +320,27 @@ mod tests {
             "singular `agent.grant` must NOT resolve — wire must use plural"
         );
 
-        // (3) The role-table domain is plural `agents` so a commander (the
-        // orchestrator role) actually reaches the agents-control ops through
-        // the C2 elevation check. Without this, every commander-orchestrated
-        // op would be denied even with a correct proto policy.
-        let commander_grants: Vec<String> = grants_for_role(Some("commander"));
-        let commander_slice: Vec<&str> = commander_grants.iter().map(String::as_str).collect();
-        let commander = caller(false, &commander_slice);
+        // (3) A caller granted the plural `agents` domain clears C2 in agents —
+        // the orchestration path (dispatch/steer). The domain is plural because
+        // the proto service is `AgentsService`; singular `agent` is dead.
+        let orchestrator = caller(false, &["agents"]);
         assert!(
-            commander.elevated_services.iter().any(|s| s == "agents"),
-            "commander role must carry `agents` domain — singular `agent` is dead"
+            orchestrator.elevated_services.iter().any(|s| s == "agents"),
+            "an `agents`-granted caller carries the domain — singular `agent` is dead"
         );
         assert_eq!(
-            decide(BlastRadius::C2Elevated, "agents", &commander),
+            decide(BlastRadius::C2Elevated, "agents", &orchestrator),
             Decision::Allow,
-            "commander must clear C2 in the agents domain (dispatch/steer share this path)"
+            "an agents-granted caller clears C2 in the agents domain (dispatch/steer)"
         );
-        // C3 is operator-only — a commander (non-operator) cannot grant, even
-        // when their grants cover the domain.
+        // C3 is operator-only — a non-operator cannot grant, even when their
+        // grants cover the domain.
         assert!(
             matches!(
-                decide(BlastRadius::C3Critical, "agents", &commander),
+                decide(BlastRadius::C3Critical, "agents", &orchestrator),
                 Decision::Deny(_)
             ),
-            "commander is not operator — agents.grant (C3) must be denied"
+            "a non-operator caller — agents.grant (C3) must be denied"
         );
     }
 }

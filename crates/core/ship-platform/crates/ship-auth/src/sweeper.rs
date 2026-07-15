@@ -92,7 +92,7 @@ pub fn spawn_session_sweeper(registry: SessionRegistry) -> tokio::task::JoinHand
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scopes::{DaemonSession, Scope};
+    use crate::scopes::DaemonSession;
     use std::collections::HashMap;
     use std::sync::Arc;
     use tokio::sync::Mutex;
@@ -105,7 +105,6 @@ mod tests {
         DaemonSession {
             token: token.to_string(),
             agent_id: "agent".to_string(),
-            scopes: vec![Scope::ReadWorkspace],
             grants: vec![],
             space_id: None,
             pid: None,

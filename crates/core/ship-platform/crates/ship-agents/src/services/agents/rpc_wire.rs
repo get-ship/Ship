@@ -747,8 +747,6 @@ impl AgentsServiceTrait for AgentsWire {
     /// carries the two-effect domain logic: (1) upgrade live session grants in the
     /// auth session registry, (2) persist the approved baseline via
     /// `ship_auth::scopes::provision_grants`.
-    ///
-    /// See `.artifacts/capability-provisioning-and-approval.md` + #85.
     async fn grant(
         &self,
         ctx: RequestContext,

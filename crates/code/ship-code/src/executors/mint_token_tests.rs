@@ -3,17 +3,17 @@
 //! The security contract — a sandboxed agent gets a *scoped* per-process token,
 //! never the daemon/Full token — is enforced at two layers:
 //!
-//!   1. `ship_auth::scopes` proves `mint_session` yields non-Full
-//!      scopes and `drop_session` revokes them (its own unit tests).
+//!   1. `ship_auth::scopes` proves `mint_session` registers a scoped session
+//!      and `drop_session` revokes it (its own unit tests).
 //!   2. Here we pin the supervisor seam: `mint_scoped_token` injects that
 //!      minted token into `LaunchCommand.env["SHIP_TOKEN"]` and the value is
-//!      genuinely scoped — so the operator/Full token can never reach a sandbox
+//!      genuinely scoped — so the operator token can never reach a sandbox
 //!      via the spawn path (the "root token must never enter a container" rule).
 
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use ship_auth::scopes::{self, Scope};
+use ship_auth::scopes;
 use crate::dispatch_ports::{LaunchCommand, LaunchProfile, SessionContext};
 
 use super::process::mint_scoped_token;
@@ -63,12 +63,12 @@ async fn mint_scoped_token_injects_a_scoped_not_full_token() {
         "SHIP_TOKEN must carry the minted token"
     );
 
-    // And it is genuinely scoped (worker role, not Full) in the registry.
+    // And it is genuinely scoped — a capped agent session, never the operator.
     let registry = scopes::session_registry().expect("registry installed");
     let guard = registry.lock().await;
     let session = guard.get(&token).expect("minted session present in registry");
     assert!(
-        !session.scopes.contains(&Scope::Full),
-        "a sandbox token must never hold Scope::Full"
+        !session.is_operator_cred,
+        "a sandbox token must never be the operator cred"
     );
 }

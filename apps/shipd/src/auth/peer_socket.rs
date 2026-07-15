@@ -94,14 +94,12 @@ pub async fn peer_cred_auth_middleware(
         // No peer credentials → can't attribute the caller at all. Fail closed.
         _ => PeerIdentity::Unresolved,
     };
-    // An agent's authority is its provisioned grant baseline (#85). Role refinement
-    // (looking up the agent's declared role for the fallback path) is a follow-up;
-    // `None` already yields the provisioned set for any provisioned agent.
+    // An agent's authority is its provisioned grant baseline (#85).
     let grants = match &identity {
-        PeerIdentity::Agent(id) => ship_auth::scopes::resolve_grants(id, None),
+        PeerIdentity::Agent(id) => ship_auth::scopes::resolve_grants(id),
         _ => Vec::new(),
     };
-    match auth_context_from_peer(&identity, None, grants) {
+    match auth_context_from_peer(&identity, grants) {
         Some(ctx) => {
             req.extensions_mut().insert(ctx);
             next.run(req).await

@@ -96,8 +96,8 @@ impl AgentPlatform for ShipdPlatform {
         super::orphan_cleanup::cleanup_orphaned_worktrees(&self.kernel).await;
     }
 
-    async fn mint_session_token(&self, agent_id: &str, role: Option<&str>) -> Option<String> {
-        use ship_auth_types::{DaemonSession, generate_session_token, scopes_for_role};
+    async fn mint_session_token(&self, agent_id: &str) -> Option<String> {
+        use ship_auth_types::{DaemonSession, generate_session_token};
         let token = match generate_session_token() {
             Ok(t) => t,
             Err(e) => {
@@ -108,9 +108,8 @@ impl AgentPlatform for ShipdPlatform {
         let session = DaemonSession {
             token: token.clone(),
             agent_id: agent_id.to_string(),
-            scopes: scopes_for_role(role),
-            // L1 (projection-aware): keep on ship-platform's L1 path.
-            grants: ship_auth::scopes::resolve_grants(agent_id, role),
+            // L1 (projection-aware): the agent's provisioned grant baseline.
+            grants: ship_auth::scopes::resolve_grants(agent_id),
             // Agent sessions carry no resolved space — keyed `None` at emit,
             // never a fabricated home/global space (S2 home-space kill). See
             // spec 128-multi-space-emit.

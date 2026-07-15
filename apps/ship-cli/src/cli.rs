@@ -188,10 +188,9 @@ pub enum DaemonCommands {
         /// Bind address (default: 127.0.0.1)
         #[arg(long, default_value = "127.0.0.1")]
         host: String,
-        /// DEV mode — auto-pair on first localhost request, force 127.0.0.1 bind.
-        /// Not for production. Logs a loud warning on startup.
+        /// DANGER: token-less loopback auth (contributor dev only; localhost-only; compiled out of release builds)
         #[arg(long)]
-        dev: bool,
+        dangerous: bool,
     },
     /// Stop the running daemon process
     Stop,
@@ -200,9 +199,9 @@ pub enum DaemonCommands {
         /// Bind address (default: 127.0.0.1). Ignored under systemd — the unit controls host.
         #[arg(long, default_value = "127.0.0.1")]
         host: String,
-        /// DEV mode — auto-pair on first localhost request, force 127.0.0.1 bind.
+        /// DANGER: token-less loopback auth (contributor dev only; localhost-only; compiled out of release builds)
         #[arg(long)]
-        dev: bool,
+        dangerous: bool,
     },
     /// Show daemon status
     Status,
@@ -230,7 +229,7 @@ pub enum DaemonCommands {
         #[arg(long, default_value_t = 9315)]
         port: u16,
         #[arg(long)]
-        dev: bool,
+        dangerous: bool,
     },
     /// Internal: supervisor loop that watches and restarts the daemon on crash
     #[command(hide = true)]
@@ -238,7 +237,7 @@ pub enum DaemonCommands {
         #[arg(long, default_value = "0.0.0.0")]
         host: String,
         #[arg(long)]
-        dev: bool,
+        dangerous: bool,
     },
     /// Internal: register shipd with the OS service manager (called by native installers)
     #[command(hide = true, name = "install-service")]

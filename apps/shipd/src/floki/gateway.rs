@@ -86,7 +86,6 @@ fn floki_auth_to_shipd(fa: &FlokiAuth) -> ShipdAuth {
         agent_id: Some(fa.agent_id.clone()),
         space_id: None,
         session_id: None,
-        scopes: vec![],
         grants: fa.grants.clone(),
         operator_cred: fa.operator_cred,
     }

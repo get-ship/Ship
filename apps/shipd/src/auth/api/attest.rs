@@ -104,7 +104,8 @@ pub async fn server_attest(
     let session = crate::auth::scopes::DaemonSession {
         token: session_token.clone(),
         agent_id: format!("user:{}", claims.sub),
-        scopes: crate::auth::pairing::paired_session_scopes(),
+        // A JWT-attested device session is capped non-operator: no elevated
+        // grants, no operator cred.
         grants: vec![],
         space_id: None,
         pid: None,

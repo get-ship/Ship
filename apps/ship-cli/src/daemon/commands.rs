@@ -11,9 +11,9 @@ use crate::daemon::supervise::daemon_supervise;
 use crate::daemon::supervision::StartContext;
 
 pub enum DaemonCommand {
-    Start { host: String, dev: bool },
+    Start { host: String, dangerous: bool },
     Stop,
-    Restart { host: String, dev: bool },
+    Restart { host: String, dangerous: bool },
     Status,
     /// Print the daemon IPC directory for cwd. Powers `just status` /
     /// `scripts/dev/*` without those reaching into ShipHome internals.
@@ -25,8 +25,8 @@ pub enum DaemonCommand {
     /// Refuses on fatal events corruption.
     Rebuild { dry_run: bool },
     /// Internal: supervisor loop that watches and restarts the daemon.
-    Run { host: String, port: u16, dev: bool },
-    Supervise { host: String, dev: bool },
+    Run { host: String, port: u16, dangerous: bool },
+    Supervise { host: String, dangerous: bool },
     /// Internal: called by native installer post-install hooks to
     /// register shipd with the OS service manager. Not user-facing.
     InstallService { shipd_path: Option<PathBuf>, no_start: bool, no_autostart: bool },
@@ -36,16 +36,16 @@ pub enum DaemonCommand {
 
 pub fn run_daemon(cmd: DaemonCommand) -> Result<()> {
     match cmd {
-        DaemonCommand::Start { host, dev } => {
-            let ctx = start_context(host, dev)?;
+        DaemonCommand::Start { host, dangerous } => {
+            let ctx = start_context(host, dangerous)?;
             check_version_mismatch(&ctx.global_dir)?;
             crate::daemon::supervision::select().start(&ctx)?;
             announce_daemon_url();
             Ok(())
         }
         DaemonCommand::Stop => crate::daemon::supervision::select().stop(),
-        DaemonCommand::Restart { host, dev } => {
-            let ctx = start_context(host, dev)?;
+        DaemonCommand::Restart { host, dangerous } => {
+            let ctx = start_context(host, dangerous)?;
             crate::daemon::supervision::select().restart(&ctx)?;
             announce_daemon_url();
             Ok(())
@@ -57,9 +57,9 @@ pub fn run_daemon(cmd: DaemonCommand) -> Result<()> {
             println!("{}", ship_substrate::home::current_daemon_dir().display());
             Ok(())
         }
-        DaemonCommand::Run { host, port, dev } => daemon_run(host, port, dev),
+        DaemonCommand::Run { host, port, dangerous } => daemon_run(host, port, dangerous),
 
-        DaemonCommand::Supervise { host, dev } => daemon_supervise(host, dev),
+        DaemonCommand::Supervise { host, dangerous } => daemon_supervise(host, dangerous),
         DaemonCommand::InstallService { shipd_path, no_start, no_autostart } => {
             let report = service_registration::install_service(
                 service_registration::InstallOptions {
@@ -79,14 +79,14 @@ pub fn run_daemon(cmd: DaemonCommand) -> Result<()> {
     }
 }
 
-pub(super) fn start_context(host: String, dev: bool) -> Result<StartContext> {
+pub(super) fn start_context(host: String, dangerous: bool) -> Result<StartContext> {
     // Dev mode pins the bind to localhost regardless of --host so that
     // the relaxed auth surface is never exposed on a LAN. Applied here
     // so both adapters see the same final host.
-    let host = if dev { "127.0.0.1".to_string() } else { host };
+    let host = if dangerous { "127.0.0.1".to_string() } else { host };
     Ok(StartContext {
         host,
-        dev,
+        dangerous,
         global_dir: ship_dir()?,
     })
 }
@@ -117,12 +117,12 @@ pub(super) fn check_version_mismatch(global_dir: &Path) -> Result<()> {
     Ok(())
 }
 
-pub(super) fn daemon_run(host: String, port: u16, dev: bool) -> Result<()> {
+pub(super) fn daemon_run(host: String, port: u16, dangerous: bool) -> Result<()> {
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
         .context("cannot build tokio runtime")?;
-    rt.block_on(shipd::run_network(host, Some(port), dev, None, shipd::DaemonMode::Development, None, None))
+    rt.block_on(shipd::run_network(host, Some(port), dangerous, None, shipd::DaemonMode::Development, None, None))
 }
 
 /// `ship daemon rebuild` — recovery path for boot detection of MISSING

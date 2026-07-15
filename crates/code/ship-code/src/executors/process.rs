@@ -438,15 +438,11 @@ pub(crate) async fn mint_scoped_token(
 ) -> Option<String> {
     match ship_auth::scopes::session_registry() {
         Some(registry) => {
-            match ship_auth::scopes::mint_session(
-                &registry,
-                ctx.agent.clone(),
-                Some("worker"),
-                None,
-            )
-            .await
-            {
-                Ok((token, _)) => {
+            // A sandboxed actor gets a MINIMAL token — the C0/C1 baseline only,
+            // never the spawning agent's elevated grants (the root token must
+            // never enter a container).
+            match ship_auth::scopes::mint_session(&registry, ctx.agent.clone(), vec![], None).await {
+                Ok(token) => {
                     launch.env.insert("SHIP_TOKEN".into(), token.clone());
                     Some(token)
                 }

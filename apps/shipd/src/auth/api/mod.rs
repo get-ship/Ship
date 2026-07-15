@@ -1,21 +1,12 @@
-//! Auth HTTP surface — two orthogonal flows split per concern:
-//!
-//! - [`pairing`] — browser pair-init / pair-confirm / pair-status
-//! - [`attest`] — server-side JWT attestation
+//! Auth HTTP surface — server-side JWT attestation.
 pub mod attest;
-pub mod pairing;
 
 pub use attest::{AttestRequest, AttestResponse, server_attest};
-pub use pairing::{
-    PairConfirmRequest, PairConfirmResponse, PairInitRequest, PairInitResponse, PairStatusQuery,
-    PairStatusResponse, pair_confirm, pair_init, pair_status,
-};
 
 #[cfg(test)]
 mod tests {
     // Token utilities live in the parent auth.rs.
     use super::super::{AuthContext, generate_token, is_daemon_token, read_token, write_token_file};
-    use crate::auth::scopes::Scope;
     use ship_substrate::events::CallerKind;
 
     #[test]
@@ -76,7 +67,6 @@ mod tests {
             agent_id: Some("agent.test".into()),
             space_id: None,
             session_id: Some("sess-1".into()),
-            scopes: vec![Scope::Full],
             grants: vec![],
             operator_cred: false,
         };
@@ -88,20 +78,5 @@ mod tests {
             "no resolved space → keyed None (no home-space fallback)"
         );
         assert_eq!(ctx.session_id, Some("sess-1".into()));
-    }
-
-    #[test]
-    fn has_scope_checks_granted() {
-        let auth = AuthContext {
-            caller_kind: CallerKind::Mcp,
-            agent_id: None,
-            space_id: None,
-            session_id: None,
-            scopes: vec![Scope::ReadWorkspace, Scope::LogProgress],
-            grants: vec![],
-            operator_cred: false,
-        };
-        assert!(auth.has_scope(Scope::ReadWorkspace));
-        assert!(!auth.has_scope(Scope::CreateRuns));
     }
 }

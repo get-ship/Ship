@@ -10,18 +10,14 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use super::roles::{grants_for_role, scopes_for_role};
-use super::types::Scope;
-
-/// A daemon-scoped session — maps a session token to an agent's granted scopes.
+/// A daemon-scoped session — maps a session token to an agent's granted
+/// capabilities.
 #[derive(Debug, Clone)]
 pub struct DaemonSession {
     pub token: String,
     pub agent_id: String,
-    pub scopes: Vec<Scope>,
-    /// Restricted capability grants (the gate's grant axis) — minted from the
-    /// agent's provisioned set at register. Distinct from `scopes` (REST
-    /// route-auth + artifacts). See `.artifacts/capability-provisioning-and-approval.md`.
+    /// Capability grants (the gate's grant axis) — minted from the agent's
+    /// provisioned set at register. The sole capability axis.
     pub grants: Vec<String>,
     /// The space this session belongs to (the pointer content-id). Authoritative
     /// per-connection space for the emit path: a space-window session carries its
@@ -42,8 +38,8 @@ pub struct DaemonSession {
     /// `Some` and `pid_authorizes` enforced at the transport). The CLI transport
     /// and the local peer-uid grant NO elevation — they leave this `false`. A
     /// cloud-issued operator cred can later set this through its own verified
-    /// minter without touching the gate. Distinct from `Scope::Full` (the dying
-    /// REST route-auth axis): only this flag flips `Authority::Operator`.
+    /// minter without touching the gate. This flag alone flips
+    /// `Authority::Operator`.
     pub is_operator_cred: bool,
     pub created_at: std::time::Instant,
     /// Unix seconds when this session expires. None = never expires (in-memory only).
@@ -125,28 +121,14 @@ pub fn is_session_token(token: &str) -> bool {
     token.starts_with("ship_sess_")
 }
 
-/// The scope set for a space window session — the operator's GUI surface
-/// **minus the operator marker**. Deliberately excludes `Scope::Full` (which
-/// would flip `is_operator` and clear C3) and `Scope::AdminDaemon` (operator
-/// territory). The scopes axis is the dying REST route-auth (#78); the gate's
-/// real enforcement is the grant axis + `is_operator`, so the only load-bearing
-/// property here is "broad, but never Full".
-pub fn space_window_scopes() -> Vec<Scope> {
-    let mut s = vec![
-        Scope::ReadWorkspace,
-        Scope::WriteWorkspace,
-        Scope::ReadRuns,
-        Scope::CreateRuns,
-        Scope::ManageRuns,
-        Scope::EmitEvents,
-        Scope::MeshSend,
-        Scope::MeshBroadcast,
-        Scope::LogProgress,
-        Scope::StepDone,
-        Scope::SuiAuthoring,
-    ];
-    s.extend(super::roles::pipeline_agent_artifact_scopes());
-    s
+/// The elevated services a space window operates in — the operator's own C2
+/// set (dispatch/authoring). C3 stays denied structurally (the window carries
+/// no operator cred).
+fn space_window_grants() -> Vec<String> {
+    ["agents", "skills", "mcp", "create", "view"]
+        .iter()
+        .map(|s| s.to_string())
+        .collect()
 }
 
 /// Mint a pid-attested **operator cred** — the SOLE source of operator
@@ -161,8 +143,7 @@ pub fn space_window_scopes() -> Vec<Scope> {
 ///
 /// This is the shell's pid-attested session today; a cloud-issued operator cred
 /// can later plug in through its own verified minter, also setting
-/// `is_operator_cred`. `Scope::Full` rides along for the dying REST route-auth
-/// axis (#78), but it is the flag — not `Scope::Full` — that confers operator.
+/// `is_operator_cred` — the flag that confers operator authority at the gate.
 ///
 /// Ephemeral by construction: the operator's shell session lives for its run and
 /// is never persisted (a persisted session hydrates with `is_operator_cred:
@@ -172,10 +153,8 @@ pub fn operator_session(peer_pid: u32, token: String) -> DaemonSession {
         token,
         // The operator's own session — not an agent.
         agent_id: "operator".to_string(),
-        // Full rides the dying REST axis; the operator flag (not Full) confers
-        // operator at the gate.
-        scopes: vec![Scope::Full],
-        // The operator clears the gate's grant axis — no per-service grants.
+        // The operator clears the gate's grant axis — no per-service grants;
+        // the operator flag confers authority at the gate.
         grants: vec![],
         // The operator session is space-less; emits key None (no home-space
         // fallback, S2). A space the operator works inside arrives via a
@@ -216,10 +195,9 @@ pub fn space_window_session(space_id: &str, peer_pid: u32, token: String) -> Dae
         // caller-kind/agent-id shape. ("contributor" grants below are the
         // operator's own profile; the space is the operator's own surface.)
         agent_id: format!("space:{space_id}"),
-        scopes: space_window_scopes(),
         // Every C2 elevated service — the operator's own profile. C3 stays
         // denied structurally (is_operator is false).
-        grants: grants_for_role(Some("contributor")),
+        grants: space_window_grants(),
         // The window's OWN space — the load-bearing line for multi-space. Events
         // this session emits are stamped with this space, not the daemon's home
         // space. See spec `.artifacts/specs/space/128-multi-space-emit.md`.
@@ -250,16 +228,13 @@ pub fn space_window_session(space_id: &str, peer_pid: u32, token: String) -> Dae
 pub async fn mint_session(
     registry: &SessionRegistry,
     agent_id: String,
-    role: Option<&str>,
+    grants: Vec<String>,
     ttl_secs: Option<i64>,
-) -> Result<(String, Vec<Scope>), getrandom::Error> {
-    let scopes = scopes_for_role(role);
-    let grants = grants_for_role(role);
+) -> Result<String, getrandom::Error> {
     let token = generate_session_token()?;
     let session = DaemonSession {
         token: token.clone(),
         agent_id,
-        scopes: scopes.clone(),
         grants,
         space_id: None,
         pid: None,
@@ -271,7 +246,7 @@ pub async fn mint_session(
         is_operator_cred: false,
     };
     registry.lock().await.insert(token.clone(), session);
-    Ok((token, scopes))
+    Ok(token)
 }
 
 /// Remove a minted session from the registry — called when a sandbox

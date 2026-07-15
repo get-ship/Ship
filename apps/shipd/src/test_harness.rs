@@ -61,16 +61,14 @@ impl TestDaemon {
             agent_id: None,
             space_id: None,
             session_id: None,
-            scopes: vec![crate::auth::Scope::Full],
             grants: vec![],
             // THE elevation source: a verified operator cred.
             operator_cred: true,
         }
     }
 
-    /// A bare CLI AuthContext — the CLI transport carries `Scope::Full` for the
-    /// dying REST axis but grants NO operator elevation (S6): `operator_cred`
-    /// stays `false`, so the gate denies C2/C3. For operator behavior use
+    /// A bare CLI AuthContext — capped non-operator (`operator_cred: false`), so
+    /// the gate denies C2/C3. For operator behavior use
     /// [`operator_auth`](Self::operator_auth).
     pub fn cli_auth() -> AuthContext {
         AuthContext {
@@ -78,7 +76,6 @@ impl TestDaemon {
             agent_id: None,
             space_id: None,
             session_id: None,
-            scopes: vec![crate::auth::Scope::Full],
             grants: vec![],
             operator_cred: false,
         }

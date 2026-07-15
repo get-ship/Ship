@@ -12,15 +12,15 @@ use ship_substrate::events::CallerKind;
 use std::sync::Arc;
 
 use super::context::AuthContext;
-use super::scopes::{Scope, SessionRegistry, is_session_token};
+use super::scopes::{SessionRegistry, is_session_token};
 use super::token::{is_daemon_token, tokens_equal};
 
 /// Axum middleware that validates `Authorization: Bearer <token>` on every
 /// request. Injects `AuthContext` into request extensions on success.
 ///
 /// Accepts three token types:
-/// 1. **Daemon token** (64-char hex) — CLI/Studio/hooks, gets `Scope::Full`
-/// 2. **Session token** (`ship_sess_` prefix) — MCP agents, gets scoped access
+/// 1. **Daemon token** (64-char hex) — CLI/Studio/hooks, capped non-operator
+/// 2. **Session token** (`ship_sess_` prefix) — MCP agents, provisioned grants
 /// 3. **SDK token** (`ship_` prefix) — external SDK callers
 pub async fn auth_middleware(
     expected_token: Arc<String>,
@@ -38,18 +38,15 @@ pub async fn auth_middleware(
         return next.run(req).await;
     }
 
-    // 0.5 DEV MODE token-less loopback bypass — the local dev loop.
-    //     `--dev` advertises "relaxed auth, auto-pair", but the only relaxation
-    //     was auto-APPROVING a pairing the browser still had to initiate — and
-    //     nothing in the shell ever calls pairInit, so every data request 401'd
-    //     and the dev app couldn't load its own data. A token-less dev loop is
-    //     the intended DX ("a flag → no token"): when `--dev` is set, treat a
-    //     LOOPBACK peer as an authenticated paired browser session (the same
-    //     identity dev auto-pair would mint) with no token/cookie. Gated on BOTH
-    //     `is_dev_mode()` (which prints the "auth relaxed" boot banner) AND a
-    //     loopback peer, so widening `--host` to a LAN/0.0.0.0 bind can never
-    //     relax auth for a remote request — only same-machine clients.
-    if super::pairing::is_dev_mode() {
+    // `--dangerous` token-less loopback bypass — the contributor dev override.
+    //     Treat a LOOPBACK peer as an authenticated capped client (the broad C2
+    //     authoring set, never the operator) with no token/cookie. Gated on BOTH
+    //     `is_dangerous_mode()` (which prints the "auth relaxed" boot banner) AND
+    //     a loopback peer, so widening `--host` to a LAN/0.0.0.0 bind can never
+    //     relax auth for a remote request — only same-machine clients. Compiled
+    //     out of release builds: a shipped daemon can never relax auth.
+    #[cfg(debug_assertions)]
+    if super::dangerous::is_dangerous_mode() {
         let loopback = req
             .extensions()
             .get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()
@@ -61,10 +58,12 @@ pub async fn auth_middleware(
                 agent_id: None,
                 space_id: None,
                 session_id: None,
-                scopes: super::pairing::paired_session_scopes(),
-                grants: vec![],
-                // A dev loopback paired-session is not a pid-attested operator
-                // cred — it grants no elevation (S6), same as a browser cookie.
+                // Broad C2 authoring set — never the operator (operator authority
+                // lives only in the Hub, never in a local connection).
+                grants: ["agents", "skills", "mcp", "create", "view"]
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect(),
                 operator_cred: false,
             };
             req.extensions_mut().insert(auth);
@@ -83,7 +82,6 @@ pub async fn auth_middleware(
                             agent_id: None,
                             space_id: session.space_id.clone(),
                             session_id: None,
-                            scopes: session.scopes.clone(),
                             grants: session.grants.clone(),
                             // A browser cookie is NOT a pid-attested operator
                             // cred — it grants no elevation (S6).
@@ -169,7 +167,6 @@ pub async fn auth_middleware(
                     // window's own space, so its emits land in that space.
                     space_id: session.space_id.clone(),
                     session_id,
-                    scopes: session.scopes.clone(),
                     // The minted restricted grants — the gate's grant axis.
                     grants: session.grants.clone(),
                     // Operator authority comes SOLELY from a pid-attested
@@ -194,20 +191,18 @@ pub async fn auth_middleware(
         return (StatusCode::UNAUTHORIZED, "invalid token").into_response();
     }
 
-    let (caller_kind, scopes) = if is_daemon_token(token) {
-        // The daemon token is a local bootstrap credential carrying the dying
-        // REST `Scope::Full` axis. It is NOT a pid-attested operator cred (S6):
-        // `CallerKind::Cli` is a transport label only — it grants NO elevation.
-        // Operator authority comes solely from a pid-attested operator session.
-        (CallerKind::Cli, vec![Scope::Full])
+    let caller_kind = if is_daemon_token(token) {
+        // The daemon token is a local bootstrap credential. It is NOT a
+        // pid-attested operator cred (S6): `CallerKind::Cli` is a transport
+        // label only — it grants no elevation. Capped non-operator (C0/C1).
+        CallerKind::Cli
     } else if token.starts_with("ship_") {
-        (CallerKind::Sdk, vec![Scope::Full])
+        CallerKind::Sdk
     } else {
         // The token equals `expected_token` but matches neither the daemon-token
         // format (64-char hex) nor an SDK prefix — an anomalous/misconfigured
-        // credential. Fail closed rather than granting Cli + Full. A correct
-        // daemon token always takes the first branch, so this never fires in
-        // normal operation.
+        // credential. Fail closed. A correct daemon token always takes the first
+        // branch, so this never fires in normal operation.
         return (StatusCode::UNAUTHORIZED, "unrecognized credential format").into_response();
     };
 
@@ -221,12 +216,10 @@ pub async fn auth_middleware(
         // home-space fallback on the emit path, S2).
         space_id: None,
         session_id,
-        scopes,
-        // No restricted grants on this path.
+        // No restricted grants on this path — capped non-operator.
         grants: vec![],
         // The daemon/SDK token is NOT a pid-attested operator cred (S6): it
-        // grants no operator authority. The dying `Scope::Full` it carries
-        // clears the REST route-auth axis only, never the gate's operator path.
+        // grants no operator authority.
         operator_cred: false,
     };
 

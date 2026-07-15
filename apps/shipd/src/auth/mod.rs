@@ -6,16 +6,19 @@
 //! and include it in requests.
 //!
 //! Auth-domain submodules live in `apps/shipd/src/auth/` per
-//! modular-runtime-04: scopes, session, pairing, attest, plus the split-out
+//! modular-runtime-04: scopes, session, attest, plus the split-out
 //! `context` (AuthContext + binding minter), `middleware` (the bearer/cookie
-//! middleware), and `token` (token primitives + on-disk file). Their tests
-//! sit alongside. Re-exports at this root keep every historical
-//! `crate::auth::X` path stable (the build.rs-generated route registrars
-//! reference `crate::auth::{RequiredAuth, Scope, enforce_required_auth}`).
+//! middleware), and `dangerous` (the contributor-only relaxed-auth flag). Their
+//! tests sit alongside. Re-exports at this root keep every historical
+//! `crate::auth::X` path stable.
 
-// Pure auth primitives live in `ship_platform::auth`. These re-exports
-// preserve the `crate::auth::{attest,pairing}` paths the daemon uses.
-pub use ship_auth::{attest, pairing};
+// Pure auth primitives live in `ship_platform::auth`. This re-export
+// preserves the `crate::auth::attest` path the daemon uses.
+pub use ship_auth::attest;
+
+/// Contributor-only relaxed-auth flag (`--dangerous`). Stripped from shipped
+/// (release) builds; never on by default.
+pub mod dangerous;
 /// The one capability gate — a pure `decide(blast, service, caller)` plus the
 /// thin `caller_from_auth` adapter onto [`AuthContext`]. shipd-local; invoked by
 /// the `GateFn` closure in `rpc::ops::router`.
@@ -34,10 +37,6 @@ mod token;
 
 #[cfg(test)]
 mod auth_tests;
-#[cfg(test)]
-mod scope_tests;
-#[cfg(test)]
-mod pairing_integration_tests;
 
 pub use context::AuthContext;
 pub use middleware::{auth_middleware, project_authority_middleware};
@@ -45,16 +44,14 @@ pub use token::{generate_token, is_daemon_token, read_or_generate_token, read_to
 
 pub use crate::auth::identity::enforce_mcp_identity;
 
-// Re-export scope model from the split-out module.
+// Re-export the session surface from the split-out module.
 pub use crate::auth::scopes::{
-    DaemonSession, RequiredAuth, Scope, SessionRegistry, SessionRegisterRequest,
-    SessionRegisterResponse, enforce_required_auth, generate_session_token,
-    hydrate_sessions, is_session_token, persist_session, remove_persisted_session,
-    require_scope, scopes_for_role, session_register, spawn_session_sweeper,
+    DaemonSession, SessionRegistry, generate_session_token, hydrate_sessions, is_session_token,
+    persist_session, remove_persisted_session, spawn_session_sweeper,
 };
 
 // HTTP handlers split out per mr-04 file-size enforcement. Re-exported
-// at the auth root so callers (router.rs) keep using
-// `crate::auth::pair_init` etc. without churn.
+// at the auth root so callers (router.rs) keep using `crate::auth::attest`
+// etc. without churn.
 pub mod api;
 pub use api::*;

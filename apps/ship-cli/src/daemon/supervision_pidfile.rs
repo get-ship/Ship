@@ -52,7 +52,7 @@ impl SupervisionAdapter for PidfileAdapter {
     }
 
     fn start(&self, ctx: &StartContext) -> Result<()> {
-        super::daemon_start_inner(&ctx.host, ctx.dev)
+        super::daemon_start_inner(&ctx.host, ctx.dangerous)
     }
 
     fn stop(&self) -> Result<()> {

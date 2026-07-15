@@ -6,8 +6,6 @@
 #[cfg(test)]
 mod integration_gate_matrix;
 #[cfg(test)]
-mod integration_pairing;
-#[cfg(test)]
 mod integration_session;
 #[cfg(test)]
 mod integration_attest;

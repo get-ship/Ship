@@ -112,16 +112,7 @@ pub fn start_dispatch_runtime(
     });
     let isolation: Arc<dyn IsolationStrategy> = Arc::new(GitWorktreeIsolation);
     let registry_port: Arc<dyn ProcessRegistryPort> = Arc::new(SharedRegistry(registry.clone()));
-    // The role surface is descriptor-sourced (post A2) — the descriptor
-    // (roll_up → ResolvedConfig) feeds the static role resolver, not the
-    // legacy `get_config` lookup. Empty until the descriptor courier wires
-    // resolved agent profiles into it.
-    let roles: Arc<dyn ship_pipeline_runtime::ports::spawn_policy::AgentRoleResolver> =
-        Arc::new(ship_pipeline_runtime::ports::spawn_policy::StaticAgentRoleResolver::empty());
-    let spawn_policy: Arc<dyn SpawnPolicy> = Arc::new(ConfigSpawnPolicy::new(
-        platform.clone(),
-        roles,
-    ));
+    let spawn_policy: Arc<dyn SpawnPolicy> = Arc::new(ConfigSpawnPolicy::new(platform.clone()));
     let projections: Arc<dyn ProjectionReader> = Arc::new(ProjectionsReader);
     let agent_ports = Arc::new(AgentPorts {
         // helmd wires no floki closure — third-party harnesses only.
@@ -342,8 +333,8 @@ impl AgentPlatform for HelmdPlatform {
         // helmd never runs. Nothing calls this in helmd's bare-dispatch wiring.
     }
 
-    async fn mint_session_token(&self, agent_id: &str, role: Option<&str>) -> Option<String> {
-        use ship_auth_types::{DaemonSession, generate_session_token, scopes_for_role};
+    async fn mint_session_token(&self, agent_id: &str) -> Option<String> {
+        use ship_auth_types::{DaemonSession, generate_session_token};
         let token = match generate_session_token() {
             Ok(t) => t,
             Err(e) => {
@@ -354,8 +345,7 @@ impl AgentPlatform for HelmdPlatform {
         let session = DaemonSession {
             token: token.clone(),
             agent_id: agent_id.to_string(),
-            scopes: scopes_for_role(role),
-            grants: ship_auth::scopes::resolve_grants(agent_id, role),
+            grants: ship_auth::scopes::resolve_grants(agent_id),
             space_id: None,
             pid: None,
             created_at: std::time::Instant::now(),

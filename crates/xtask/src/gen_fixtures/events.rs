@@ -49,7 +49,6 @@ fn payload_stub(payload_type: &str) -> Value {
         "DaemonOwnerBound" => json!({ "source": "cli-login", "bound_at_unix": 1717200000_i64 }),
         "AuthSessionCreated" => json!({
             "agent_id": "test-agent",
-            "scopes_json": "[\"ship.git.read\"]",
             "created_at_unix": 1717200000_i64,
             "expires_at_unix": 1717286400_i64,
             "source": "operator"

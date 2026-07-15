@@ -12,7 +12,7 @@ use http_body_util::BodyExt;
 use std::sync::Arc;
 use tower::ServiceExt;
 
-use crate::auth::{self, AuthContext, Scope, SessionRegistry};
+use crate::auth::{self, AuthContext, SessionRegistry};
 
 /// Build a minimal router with the auth middleware and a 200-OK handler.
 fn test_router(token: &str) -> Router {
@@ -473,7 +473,6 @@ fn space_window_session_mints_space_binding() {
         agent_id: Some(session.agent_id.clone()),
         space_id: session.space_id.clone(),
         session_id: None,
-        scopes: session.scopes.clone(),
         grants: session.grants.clone(),
         // A space window is C2-capped — never the operator cred.
         operator_cred: session.is_operator_cred,
@@ -501,7 +500,6 @@ fn operator_authority_requires_a_verified_cred_not_the_cli_transport() {
         agent_id: None,
         space_id: None,
         session_id: None,
-        scopes: vec![],
         grants: vec![],
         operator_cred: true,
     };
@@ -514,13 +512,12 @@ fn operator_authority_requires_a_verified_cred_not_the_cli_transport() {
         agent_id: None,
         space_id: None,
         session_id: None,
-        scopes: vec![Scope::Full],
         grants: vec![],
         operator_cred: false,
     };
     assert!(
         !bare_cli.is_operator(),
-        "the CLI transport (and the daemon token's Scope::Full) must NOT confer operator (S6)"
+        "the CLI transport must NOT confer operator (S6)"
     );
 
     let sdk = AuthContext {
@@ -528,7 +525,6 @@ fn operator_authority_requires_a_verified_cred_not_the_cli_transport() {
         agent_id: None,
         space_id: None,
         session_id: None,
-        scopes: vec![],
         grants: vec![],
         operator_cred: false,
     };

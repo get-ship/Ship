@@ -2,11 +2,10 @@
 ///
 /// Covers:
 /// - `provision_grants` emits `agent.grants.provisioned`
-/// - `resolve_grants_at` falls back to role when unprovisioned
-/// - `resolve_grants_at` provisioned record overrides the role default
+/// - `resolve_grants_at` returns no grants when unprovisioned
+/// - `resolve_grants_at` returns the provisioned record
 /// - `pending_grants` diff: empty, partial, fully unapproved
 /// - `has_pending` flag correctness
-/// - `resolve_from` fail-closed on projection error (deny extras, not role fallback)
 use ship_types::event_types::AGENT_GRANTS_PROVISIONED;
 use tempfile::tempdir;
 
@@ -35,29 +34,20 @@ fn auth_grants_provision_emits_agent_grants_provisioned() {
     );
 }
 
-// ── resolve_grants_at — fallback and override ─────────────────────────────────
+// ── resolve_grants_at — unprovisioned and provisioned ─────────────────────────
 
 #[test]
-fn auth_grants_resolve_falls_back_to_role_when_no_provisioned_record() {
+fn auth_grants_resolve_empty_when_no_provisioned_record() {
     let tmp = tempdir().unwrap();
     init_auth(tmp.path()).unwrap();
 
-    // No provisioned record → role baseline (commander → ["agents"]).
-    let grants = resolve_grants_at(tmp.path(), "fresh-agent", Some("commander"));
-    assert_eq!(grants, sv(&["agents"]));
+    // No provisioned record → no elevated grants (C0/C1 baseline is implicit).
+    let grants = resolve_grants_at(tmp.path(), "fresh-agent");
+    assert!(grants.is_empty(), "an unprovisioned agent has no elevated services");
 }
 
 #[test]
-fn auth_grants_resolve_worker_role_baseline_is_empty() {
-    let tmp = tempdir().unwrap();
-    init_auth(tmp.path()).unwrap();
-
-    let grants = resolve_grants_at(tmp.path(), "w-agent", Some("worker"));
-    assert!(grants.is_empty(), "worker role baseline has no elevated services");
-}
-
-#[test]
-fn auth_grants_resolve_provisioned_record_overrides_role() {
+fn auth_grants_resolve_returns_provisioned_record() {
     use crate::grants_projection::ProvisionedGrantsProjection;
     use ship_substrate::events::EventEnvelope;
     use ship_substrate::projections::registry::Projection;
@@ -75,13 +65,13 @@ fn auth_grants_resolve_provisioned_record_overrides_role() {
     .unwrap();
     ProvisionedGrantsProjection.apply(&ev, &mut conn).unwrap();
 
-    // Commander role says ["agents"] and the provisioned set agrees.
-    let grants = resolve_grants_at(tmp.path(), "pinned-agent", Some("commander"));
+    // The provisioned set is the agent's grants.
+    let grants = resolve_grants_at(tmp.path(), "pinned-agent");
     assert_eq!(grants, sv(&["agents"]));
 }
 
 #[test]
-fn auth_grants_resolve_provisioned_empty_set_overrides_role() {
+fn auth_grants_resolve_provisioned_empty_set_is_empty() {
     use crate::grants_projection::ProvisionedGrantsProjection;
     use ship_substrate::events::EventEnvelope;
     use ship_substrate::projections::registry::Projection;
@@ -99,9 +89,9 @@ fn auth_grants_resolve_provisioned_empty_set_overrides_role() {
     .unwrap();
     ProvisionedGrantsProjection.apply(&ev, &mut conn).unwrap();
 
-    // Even commander role gets no elevated services — provisioned empty wins.
-    let grants = resolve_grants_at(tmp.path(), "revoked-agent", Some("commander"));
-    assert!(grants.is_empty(), "empty provisioned set denies role default");
+    // An explicitly empty provisioned set means no elevated services.
+    let grants = resolve_grants_at(tmp.path(), "revoked-agent");
+    assert!(grants.is_empty(), "empty provisioned set has no elevated services");
 }
 
 // ── pending_grants diff ───────────────────────────────────────────────────────
@@ -170,6 +160,6 @@ fn auth_grants_provision_latest_write_wins() {
     ProvisionedGrantsProjection.apply(&mk(&["ship-orchestration"], "install"), &mut conn).unwrap();
     ProvisionedGrantsProjection.apply(&mk(&["ship-authoring"], "operator"), &mut conn).unwrap();
 
-    let grants = resolve_grants_at(tmp.path(), "rewrite-agent", None);
+    let grants = resolve_grants_at(tmp.path(), "rewrite-agent");
     assert_eq!(grants, sv(&["ship-authoring"]), "operator write replaces install baseline");
 }

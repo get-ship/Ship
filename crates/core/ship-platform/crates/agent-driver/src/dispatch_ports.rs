@@ -58,7 +58,7 @@ pub trait AgentPlatform: Send + Sync {
     async fn cleanup_job(&self, slug: &str, branch: &str);
     fn git_merge(&self, branch: &str) -> Result<bool>;
     async fn cleanup_orphaned_worktrees(&self);
-    async fn mint_session_token(&self, _agent_id: &str, _role: Option<&str>) -> Option<String> {
+    async fn mint_session_token(&self, _agent_id: &str) -> Option<String> {
         None
     }
     fn daemon_url(&self) -> Option<String> {

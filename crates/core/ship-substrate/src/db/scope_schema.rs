@@ -299,7 +299,6 @@ pub const ACCOUNT_DDL: &[&str] = &[
     r#"CREATE TABLE IF NOT EXISTS auth_sessions (
   token            TEXT PRIMARY KEY NOT NULL,
   agent_id         TEXT NOT NULL,
-  scopes_json      TEXT NOT NULL,
   space_id       TEXT,
   created_at_unix  INTEGER NOT NULL,
   expires_at_unix  INTEGER NOT NULL,

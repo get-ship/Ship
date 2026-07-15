@@ -6,7 +6,7 @@
 
 use std::time::{Duration, Instant};
 
-use super::scopes::{DaemonSession, Scope, SessionRegistry, hex_encode};
+use super::scopes::{DaemonSession, SessionRegistry, hex_encode};
 
 /// Cookie name used for browser sessions. Scoped to `/api/v1/runtime`.
 pub const COOKIE_NAME: &str = "ship_session";
@@ -48,7 +48,7 @@ pub fn parse_session_cookie(cookie_header: &str) -> Option<String> {
     None
 }
 
-/// Insert a browser session with `Scope::Full` and the default TTL.
+/// Insert a browser session (capped, no elevated grants) with the default TTL.
 /// Returns the generated session id.
 pub async fn issue_browser_session(registry: &SessionRegistry) -> String {
     issue_browser_session_with_ttl(registry, Duration::from_secs(BROWSER_SESSION_TTL_SECS)).await
@@ -64,7 +64,6 @@ pub async fn issue_browser_session_with_ttl(
     let session = DaemonSession {
         token: id.clone(),
         agent_id: "browser".to_string(),
-        scopes: vec![Scope::Full],
         grants: vec![],
         space_id: None,
         pid: None,
@@ -133,7 +132,7 @@ mod tests {
         let reg = empty_registry();
         let id = issue_browser_session(&reg).await;
         let session = lookup_browser_session(&reg, &id).await.expect("found");
-        assert!(session.scopes.contains(&Scope::Full));
+        assert!(session.grants.is_empty());
         assert!(session.expires_at_unix.is_some());
     }
 

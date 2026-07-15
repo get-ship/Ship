@@ -5,7 +5,7 @@ use serde_json::json;
 use std::path::Path;
 use std::sync::Arc;
 
-use crate::auth::pairing;
+use crate::auth::dangerous;
 use crate::ship_runtime;
 
 /// Convert a handler panic into a structured 500 response instead of
@@ -152,7 +152,7 @@ pub(crate) async fn health_check(rt: Arc<ship_runtime::ShipRuntime>) -> Json<ser
         "build": bi.full(),
         "ship_dir": ship_dir,
         "pid": std::process::id(),
-        "dev_mode": pairing::is_dev_mode(),
+        "dangerous_mode": dangerous::is_dangerous_mode(),
         "stores": {
             "runtime_db": store_probe_to_json(&runtime_probe),
             "space_db": store_probe_to_json(&active_space_probe),

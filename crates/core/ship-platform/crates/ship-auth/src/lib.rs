@@ -7,7 +7,6 @@
 //! ## Modules
 //! - `scopes` — session types, grant resolution, session persistence/hydration
 //! - `projection` — `auth_sessions` + `daemon_owner` SQLite projections
-//! - `pairing` — in-memory pairing registry (CLI↔Studio)
 //! - `attest` — JWT attestation + daemon-owner binding
 //! - `sweeper` — background session expiry sweep
 //! - `peer_identity` — re-export from `ship_auth_types::peer_identity`
@@ -18,7 +17,6 @@ pub mod attest;
 pub mod event_registrations;
 pub mod grant_diff;
 pub mod grants_projection;
-pub mod pairing;
 pub mod peer_identity;
 pub mod projection;
 pub mod scopes;
@@ -43,9 +41,8 @@ pub use projection::{
     active_session, current_owner, list_active_sessions,
 };
 pub use scopes::{
-    DaemonSession, McpAuth, RequiredAuth, Scope, SessionRegistry, account_store,
-    drop_session, generate_session_token, grants_for_role, hex_encode, hydrate_sessions,
-    is_session_token, mint_session, operator_session, persist_session, provision_grants,
-    remove_persisted_session, resolve_grants, resolve_grants_at, scopes_for_role,
-    session_registry, set_session_registry, space_window_scopes, space_window_session,
+    DaemonSession, SessionRegistry, account_store, drop_session, generate_session_token,
+    hex_encode, hydrate_sessions, is_session_token, mint_session, operator_session,
+    persist_session, provision_grants, remove_persisted_session, resolve_grants,
+    resolve_grants_at, session_registry, set_session_registry, space_window_session,
 };

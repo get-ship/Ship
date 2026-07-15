@@ -27,7 +27,6 @@ use ship_types::payload::{
 pub struct AuthSessionRow {
     pub token: String,
     pub agent_id: String,
-    pub scopes_json: String,
     pub space_id: Option<String>,
     pub created_at_unix: i64,
     pub expires_at_unix: i64,
@@ -82,12 +81,11 @@ fn apply_session_created(event: &EventEnvelope, conn: &mut SqliteConnection) -> 
     block_on(async {
         sqlx::query(
             "INSERT INTO auth_sessions \
-             (token, agent_id, scopes_json, space_id, created_at_unix, \
+             (token, agent_id, space_id, created_at_unix, \
               expires_at_unix, revoked_at_unix, source, updated_at) \
-             VALUES (?, ?, ?, ?, ?, ?, NULL, ?, datetime('now')) \
+             VALUES (?, ?, ?, ?, ?, NULL, ?, datetime('now')) \
              ON CONFLICT(token) DO UPDATE SET \
                agent_id        = excluded.agent_id, \
-               scopes_json     = excluded.scopes_json, \
                space_id      = excluded.space_id, \
                created_at_unix = excluded.created_at_unix, \
                expires_at_unix = excluded.expires_at_unix, \
@@ -97,7 +95,6 @@ fn apply_session_created(event: &EventEnvelope, conn: &mut SqliteConnection) -> 
         )
         .bind(&event.entity_id)
         .bind(&payload.agent_id)
-        .bind(&payload.scopes_json)
         .bind(&payload.space_id)
         .bind(payload.created_at_unix)
         .bind(payload.expires_at_unix)
@@ -141,7 +138,7 @@ pub fn active_session(token: &str) -> Result<Option<AuthSessionRow>> {
     let now = chrono::Utc::now().timestamp();
     let row = block_on(async {
         sqlx::query(
-            "SELECT token, agent_id, scopes_json, space_id, created_at_unix, \
+            "SELECT token, agent_id, space_id, created_at_unix, \
                     expires_at_unix, revoked_at_unix, source \
              FROM auth_sessions \
              WHERE token = ? AND revoked_at_unix IS NULL AND expires_at_unix > ?",
@@ -160,7 +157,7 @@ pub fn list_active_sessions() -> Result<Vec<AuthSessionRow>> {
     let now = chrono::Utc::now().timestamp();
     let rows = block_on(async {
         sqlx::query(
-            "SELECT token, agent_id, scopes_json, space_id, created_at_unix, \
+            "SELECT token, agent_id, space_id, created_at_unix, \
                     expires_at_unix, revoked_at_unix, source \
              FROM auth_sessions \
              WHERE revoked_at_unix IS NULL AND expires_at_unix > ?",
@@ -176,12 +173,11 @@ fn session_row(row: sqlx::sqlite::SqliteRow) -> AuthSessionRow {
     AuthSessionRow {
         token: row.get(0),
         agent_id: row.get(1),
-        scopes_json: row.get(2),
-        space_id: row.try_get(3).ok(),
-        created_at_unix: row.get(4),
-        expires_at_unix: row.get(5),
-        revoked_at_unix: row.try_get(6).ok(),
-        source: row.get(7),
+        space_id: row.try_get(2).ok(),
+        created_at_unix: row.get(3),
+        expires_at_unix: row.get(4),
+        revoked_at_unix: row.try_get(5).ok(),
+        source: row.get(6),
     }
 }
 

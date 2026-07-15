@@ -48,12 +48,12 @@ impl AdapterKind {
 /// Inputs the pidfile adapter needs to spawn shipd, plus the global
 /// dir so callers (e.g. the version-mismatch guard) can resolve
 /// `~/.ship/` without redoing the lookup. The systemd adapter largely
-/// ignores host/dev — those live in the unit file — but still receives
+/// ignores host/dangerous — those live in the unit file — but still receives
 /// the context so both adapters present the same surface.
 #[derive(Debug, Clone)]
 pub struct StartContext {
     pub host: String,
-    pub dev: bool,
+    pub dangerous: bool,
     pub global_dir: PathBuf,
 }
 

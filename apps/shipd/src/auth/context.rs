@@ -4,8 +4,6 @@
 use ship_substrate::events::CallerKind;
 use ship_types::{Authority, ScopeBinding, SpaceId, local_device_id};
 
-use super::scopes::Scope;
-
 /// Authenticated caller context injected into request extensions by the
 /// auth middleware. Handlers extract this to build `EmitContext`.
 #[derive(Clone, Debug)]
@@ -20,11 +18,9 @@ pub struct AuthContext {
     /// `.artifacts/specs/space/128-multi-space-emit.md`.
     pub space_id: Option<String>,
     pub session_id: Option<String>,
-    /// Granted scopes for this request. Daemon token gets `[Full]`.
-    pub scopes: Vec<Scope>,
-    /// Restricted capability grants (the gate's grant axis), minted from the
-    /// session's provisioned set. Empty for the operator (cleared by is_operator)
-    /// and for agents with no restricted domains. Distinct from `scopes`.
+    /// Capability grants (the gate's grant axis), minted from the session's
+    /// provisioned set. Empty for the operator (cleared by is_operator) and for
+    /// agents with no restricted domains. The sole capability axis.
     pub grants: Vec<String>,
     /// True iff this connection presented a **verified operator cred** — the
     /// SOLE source of operator authority (S6, #124). Set ONLY when a
@@ -84,10 +80,9 @@ impl AuthContext {
         }
     }
 
-    /// Whether this caller is operator-class — the named replacement for the
-    /// `Scope::Full` / `is_operator` conflation at the gate. Reads SOLELY the
-    /// verified operator cred (S6): true iff `operator_cred` flipped
-    /// `Authority::Operator` in [`binding`](Self::binding).
+    /// Whether this caller is operator-class — the gate's operator verdict.
+    /// Reads SOLELY the verified operator cred (S6): true iff `operator_cred`
+    /// flipped `Authority::Operator` in [`binding`](Self::binding).
     pub fn is_operator(&self) -> bool {
         *self.binding().authority() == Authority::Operator
     }
@@ -98,10 +93,5 @@ impl AuthContext {
     /// `AuthContext`. The SOLE authority derivation is [`binding`](Self::binding).
     pub fn authority(&self) -> Authority {
         self.binding().authority().clone()
-    }
-
-    /// Check whether this caller has the given scope.
-    pub fn has_scope(&self, scope: Scope) -> bool {
-        scope.is_granted_by(&self.scopes)
     }
 }
