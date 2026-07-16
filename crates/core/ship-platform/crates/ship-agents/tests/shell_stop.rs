@@ -3,7 +3,7 @@
 //!
 //! Spawns a real `$SHELL` via the supervisor primitive's PtyTransport
 //! (Linux + macOS dev hosts), captures the pid from the spawned
-//! `ChildHandle`, calls `shell_actor::stop`, then asserts the pid is no
+//! `ProcessHandle`, calls `shell_actor::stop`, then asserts the pid is no
 //! longer a live process. Polls with a short backoff because signal
 //! delivery isn't instantaneous — SIGTERM propagation through bash's
 //! exit handling can take a few ms on a busy CI runner.
@@ -17,8 +17,8 @@
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-use ship_terminal::registry::SessionRegistry;
-use ship_terminal::shell_actor;
+use ship_agents::services::sessions::shell_actor;
+use ship_agents::services::sessions::Registry;
 use tempfile::TempDir;
 
 const POLL_INTERVAL: Duration = Duration::from_millis(25);
@@ -57,23 +57,21 @@ fn wait_for_exit(pid: u32, deadline: Duration) -> bool {
 async fn stop_terminates_the_underlying_child() {
     let work_dir = TempDir::new().expect("work dir");
     let log_dir = TempDir::new().expect("log dir");
-    let registry = SessionRegistry::new();
+    let registry = Registry::new();
 
     // Spawn a real shell. The supervisor primitive creates a fresh
     // child process via PtyTransport; we capture its pid so we can
     // probe liveness directly with kill(pid, 0).
-    let session = shell_actor::spawn_shell(
+    let entry = shell_actor::spawn_shell(
         &registry,
         PathBuf::from(work_dir.path()),
         PathBuf::from(log_dir.path()),
     )
     .expect("spawn_shell");
 
-    let id = session.meta().id;
-    let pid = session
-        .meta()
-        .pid
-        .expect("shell session has a pid from supervisor");
+    let meta = entry.meta_snapshot();
+    let id = meta.id;
+    let pid = meta.pid.expect("shell session has a pid from supervisor");
     let handle_id = id.clone();
 
     assert!(
@@ -89,7 +87,7 @@ async fn stop_terminates_the_underlying_child() {
 
     // The leak we fixed: the pid was alive after spawn AND after the
     // old stop()'s registry-only removal. The fixed stop() issues
-    // ChildHandle::stop → kill(SIGKILL/SIGTERM) on the child. Give
+    // ProcessHandle::stop → kill(SIGKILL/SIGTERM) on the child. Give
     // the kernel a moment to deliver.
     let exited = wait_for_exit(pid, STOP_DEADLINE);
     assert!(
@@ -101,7 +99,7 @@ async fn stop_terminates_the_underlying_child() {
     // Idempotent: a second stop on the same id returns false (the
     // session is already gone from the registry). The drop path is
     // safe — we don't double-terminate or panic.
-    let registry2 = SessionRegistry::new();
+    let registry2 = Registry::new();
     let second = shell_actor::stop(&registry2, &id);
     assert!(
         !second,
@@ -111,7 +109,7 @@ async fn stop_terminates_the_underlying_child() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn stop_returns_false_for_unknown_id() {
-    let registry = SessionRegistry::new();
+    let registry = Registry::new();
     assert!(
         !shell_actor::stop(&registry, "session-that-never-existed"),
         "stop must report false (not panic) when the id is unknown",

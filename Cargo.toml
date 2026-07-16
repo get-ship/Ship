@@ -52,7 +52,6 @@ members = [
     "crates/core/ship-platform/crates/ship-store",
     "crates/core/ship-platform/crates/bundle-limits",
     "crates/core/ship-platform/crates/ship-auth",
-    "crates/core/ship-platform/crates/ship-terminal",
     "crates/core/ship-platform/crates/ship-isolation",
     "crates/core/ship-platform/crates/ship-isolation/bin/ship-sidecar",
     "crates/core/ship-sidecar-proto",

@@ -67,13 +67,8 @@ pub struct ShipRuntime {
     // UI purge removed every surface that could create (`view.open`) or
     // watch (SSE subscribe) a session, leaving a permanently-empty map.
     // The ViewService Patch/Append/Signal ops answer "not found" directly.)
-    /// PTY session registry — chat, pipelines, dock terminal all go
-    /// through here. Backed by the `ship_terminal` L1 crate.
-    pub(super) pty_sessions: ship_terminal::SessionRegistry,
-    /// Actor-backed session registry — destination of the supervisor-
-    /// primitive migration. Shells live here today; agents and pipelines
-    /// follow as 1.1.c / 1.1.d land.
-    pub(super) actor_sessions: ship_agents::services::sessions::ActorRegistry,
+    /// Live-session registry — every spawn lands here.
+    pub(super) actor_sessions: ship_agents::services::sessions::Registry,
     /// The space this daemon is currently serving — its mint-once
     /// `space_id` (an owned string, NOT a `SpaceId` newtype). Cached at boot
     /// from `ship_space::identity::ensure_identity_for_root`; never re-minted,

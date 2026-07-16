@@ -1,9 +1,9 @@
 //! Long-lived agent sessions on the supervisor primitive.
 //!
-//! Replaces `lifecycle::spawn_long_lived_agent` for channels-capable
-//! harnesses (Claude). Builds an `ProcessProfile` from the harness
-//! adapter's `build_interactive`, calls `process_supervisor::spawn_process`,
-//! and attaches a reader-middleware thread that:
+//! Channels-capable harnesses (Claude) build an [`ProcessProfile`] from the
+//! harness adapter's `build_interactive`, call
+//! [`process_supervisor::spawn_process`], and attach a reader-middleware
+//! thread that:
 //!
 //! 1. Auto-dismisses Claude's `--dangerously-load-development-channels`
 //!    confirmation menu by sending a single CR when the menu pattern
@@ -12,38 +12,32 @@
 //!    publishes parsed `HarnessEvent`s on the entry's `event_tx`.
 //! 3. Updates the sidecar `SessionMeta` (status, last_activity).
 //! 4. Emits `actor.stopped` when the byte stream closes.
-//!
-//! Per-turn harnesses (codex, opencode, cursor) keep their
-//! parent metadata on the legacy `SessionRegistry` (no persistent
-//! child between turns), but `run_headless_turn` spawns the per-turn
-//! child through the supervisor's Headless transport — same primitive,
-//! different lifetime.
 
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::Mutex;
 
 use anyhow::{anyhow, Result};
 use chrono::Utc;
 use agent_driver::dispatch_ports::LaunchProfile;
 use ship_harnesses::agent_driver::{adapter_for, HarnessEvent};
+use parking_lot::Mutex;
 use process_supervisor::{spawn_process, ProcessKind, ProcessProfile, TransportKind};
 use tokio::sync::broadcast;
 
-use super::actor_registry::{ActorEntry, ActorRegistry};
-use ship_terminal::types::{SessionKind, SessionMeta, SessionStatus};
+use super::registry::{Entry, Registry};
+use super::types::{SessionKind, SessionMeta, SessionStatus};
 
 const NEEDLE: &[u8] = b"dangerously-load-development-channels";
 const EVENT_CAP: usize = 256;
 
 pub struct SpawnOutcome {
-    pub entry: ActorEntry,
+    pub entry: Entry,
     pub attached: bool,
 }
 
 #[allow(clippy::too_many_arguments)]
 pub fn spawn_or_attach(
-    registry: &ActorRegistry,
+    registry: &Registry,
     agent_id: &str,
     harness: &str,
     work_dir: PathBuf,
@@ -128,7 +122,7 @@ pub fn spawn_or_attach(
 }
 
 fn spawn_reader_middleware(
-    entry: ActorEntry,
+    entry: Entry,
     harness: String,
     agent_id: String,
     work_dir: PathBuf,
@@ -138,21 +132,21 @@ fn spawn_reader_middleware(
     let handle = entry.handle.clone();
     let meta = entry.meta.clone();
     let actor_id = handle.actor_id.clone();
-    let spawned_at = meta.lock().unwrap().spawned_at;
+    let spawned_at = meta.lock().spawned_at;
 
     tokio::spawn(async move {
         // Idle on entry — child is up but not yet thinking.
         {
-            let mut m = meta.lock().unwrap();
+            let mut m = meta.lock();
             m.status = SessionStatus::Idle;
             m.last_activity = Utc::now();
         }
-        let menu_state = Arc::new(Mutex::new(MenuState::default()));
-        let adapter = adapter_for(&harness).ok();
         // Auto-dismiss only applies to Claude — the dev-channels TUI
         // confirmation menu is Claude-specific. Other harnesses don't
         // render it; running the matcher would just burn cycles + the
         // 16K menu_buf budget for nothing.
+        let menu_state = Arc::new(Mutex::new(MenuState::default()));
+        let adapter = adapter_for(&harness).ok();
         let needs_menu_dismiss = harness == "claude";
         // Bounded accumulator — a claude PTY in interactive (TUI) mode emits
         // a newline-less alternate-screen render stream; an unbounded buffer
@@ -166,34 +160,29 @@ fn spawn_reader_middleware(
                         try_dismiss_menu(&handle, &menu_state, &chunk);
                     }
 
-                    // Harness parse → event_tx.
                     if let Some(ref adapter) = adapter {
                         for line in acc.push(&String::from_utf8_lossy(&chunk)) {
                             if let Some(ev) = adapter.parse_output(&line) {
-                                    // Persist `.ship/session.json` once per
-                                    // session — subsequent dispatches with
-                                    // `resume: true` read this to recover
-                                    // the harness-native session id.
-                                    if let HarnessEvent::SessionStarted { session_id } = &ev {
-                                        if let Err(e) = ship_harnesses::harnesses::session_file::write_session_file(
-                                            &work_dir,
-                                            &harness,
-                                            session_id,
-                                            &agent_id,
-                                        ) {
-                                            tracing::warn!(
-                                                harness = %harness,
-                                                "session_file write failed: {e}"
-                                            );
-                                        }
+                                if let HarnessEvent::SessionStarted { session_id } = &ev {
+                                    if let Err(e) = ship_harnesses::harnesses::session_file::write_session_file(
+                                        &work_dir,
+                                        &harness,
+                                        session_id,
+                                        &agent_id,
+                                    ) {
+                                        tracing::warn!(
+                                            harness = %harness,
+                                            "session_file write failed: {e}"
+                                        );
                                     }
-                                    let _ = event_tx.send(ev);
                                 }
+                                let _ = event_tx.send(ev);
+                            }
                         }
                     }
 
                     {
-                        let mut m = meta.lock().unwrap();
+                        let mut m = meta.lock();
                         m.last_activity = Utc::now();
                         m.status = SessionStatus::Thinking;
                     }
@@ -205,7 +194,7 @@ fn spawn_reader_middleware(
 
         // Stream closed = child exited.
         {
-            let mut m = meta.lock().unwrap();
+            let mut m = meta.lock();
             m.status = SessionStatus::Ended;
             m.last_activity = Utc::now();
         }
@@ -228,121 +217,6 @@ fn spawn_reader_middleware(
     });
 }
 
-/// Run a per-turn headless agent through the supervisor.
-///
-/// Per-turn "sessions" (metadata + event_tx) keep living on the legacy
-/// `SessionRegistry` — they have no persistent child between turns, so
-/// they don't fit ActorRegistry's "live ProcessHandle" model. But the
-/// child for each turn now spawns through the supervisor: fresh actor
-/// id per turn, Headless transport, lifetime bounded by the turn.
-///
-/// Stream-json on stdout drains through the harness adapter and the
-/// parsed `HarnessEvent`s forward to the parent session's event_tx
-/// (so SSE consumers tailing /events keep working). Child exit
-/// captures exit code into the parent session meta and flips status
-/// back to Idle.
-pub fn run_headless_turn(
-    session: ship_terminal::types::PtySession,
-    launch: agent_driver::dispatch_ports::LaunchCommand,
-    harness_id: String,
-    work_dir: PathBuf,
-) -> Result<()> {
-    let profile = ProcessProfile {
-        actor_id_hint: None,
-        kind: ProcessKind::Agent,
-        transport: TransportKind::Headless,
-        one_shot: true,
-        bin: launch.bin,
-        args: launch.args,
-        env: launch.env,
-        work_dir: work_dir.clone(),
-        agent_id: None,
-        harness: Some(harness_id.clone()),
-        parent_actor_id: Some(session.0.meta.lock().unwrap().id.clone()),
-        log_dir: None,
-        subscribe_namespaces: vec![],
-    };
-
-    let handle = spawn_process(profile)?;
-    let mut rx = handle.subscribe_output();
-    let session_clone = session.clone();
-    let handle_for_wait = handle.clone();
-    let work_dir_for_session = work_dir.clone();
-
-    tokio::spawn(async move {
-        let adapter = match adapter_for(&harness_id) {
-            Ok(a) => a,
-            Err(e) => {
-                tracing::error!(harness = %harness_id, "adapter lookup failed: {e}");
-                return;
-            }
-        };
-        // Bounded accumulator — stream-json is newline-delimited so this
-        // drains continuously, but the cap guards against a harness that
-        // emits a newline-less stream on a PTY (shipd-leak-193).
-        let mut acc = ship_files::line_accumulator::LineAccumulator::new();
-        loop {
-            match rx.recv().await {
-                Ok(chunk) => {
-                    let _ = session_clone.0.output_tx.send(chunk.clone());
-                    for line in acc.push(&String::from_utf8_lossy(&chunk)) {
-                        if let Some(ev) = adapter.parse_output(&line) {
-                            if let HarnessEvent::SessionStarted { session_id } = &ev {
-                                let (harness_id_opt, agent_opt) = {
-                                    let m = session_clone.0.meta.lock().unwrap();
-                                    (m.harness.clone(), m.agent_id.clone())
-                                };
-                                if let (Some(harness_id), Some(agent_id)) = (harness_id_opt, agent_opt) {
-                                    if let Err(e) = ship_harnesses::harnesses::session_file::write_session_file(
-                                        &work_dir_for_session,
-                                        &harness_id,
-                                        session_id,
-                                        &agent_id,
-                                    ) {
-                                        tracing::warn!(
-                                            harness = %harness_id,
-                                            session_id = %session_id,
-                                            "session_file write failed: {e}"
-                                        );
-                                    }
-                                }
-                                let mut m = session_clone.0.meta.lock().unwrap();
-                                m.harness_session_id = Some(session_id.clone());
-                            }
-                            let _ = session_clone.0.event_tx.send(ev);
-                            let mut m = session_clone.0.meta.lock().unwrap();
-                            m.last_activity = chrono::Utc::now();
-                        }
-                    }
-                }
-                Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
-                Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
-            }
-        }
-
-        // Stream closed = child done. Poll briefly for exit code (the
-        // reader threads exit slightly before the OS marks the child
-        // reapable).
-        let exit = (0..40).find_map(|_| {
-            if let Some(c) = handle_for_wait.try_exit() {
-                Some(c)
-            } else {
-                std::thread::sleep(std::time::Duration::from_millis(50));
-                None
-            }
-        });
-        let mut m = session_clone.0.meta.lock().unwrap();
-        m.status = ship_terminal::types::SessionStatus::Idle;
-        m.last_activity = chrono::Utc::now();
-        m.pid = None;
-        if let Some(code) = exit {
-            m.exit_code = Some(code);
-        }
-    });
-
-    Ok(())
-}
-
 #[derive(Default)]
 struct MenuState {
     dismissed: bool,
@@ -354,7 +228,7 @@ fn try_dismiss_menu(
     state: &Arc<Mutex<MenuState>>,
     chunk: &[u8],
 ) -> bool {
-    let mut s = state.lock().unwrap();
+    let mut s = state.lock();
     if s.dismissed {
         return false;
     }
@@ -370,4 +244,3 @@ fn try_dismiss_menu(
     }
     false
 }
-

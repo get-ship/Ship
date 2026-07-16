@@ -168,18 +168,8 @@ impl SearchContext for ShipdSearchContext {
     }
 
     fn sessions(&self) -> Vec<SessionSnapshot> {
-        use ship_terminal::types::SessionStatus;
+        use ship_agents::services::sessions::types::SessionStatus;
         let mut out: Vec<SessionSnapshot> = Vec::new();
-        for meta in self.state.pty_sessions().list() {
-            if matches!(meta.status, SessionStatus::Ended) {
-                continue;
-            }
-            out.push(SessionSnapshot {
-                id: meta.id,
-                agent_id: meta.agent_id,
-                status: format!("{:?}", meta.status).to_lowercase(),
-            });
-        }
         for meta in self.state.actor_sessions().list() {
             if matches!(meta.status, SessionStatus::Ended) {
                 continue;

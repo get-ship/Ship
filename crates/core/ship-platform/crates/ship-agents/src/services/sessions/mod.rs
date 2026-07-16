@@ -1,4 +1,4 @@
-//! PTY session registry + actor-backed primitives.
+//! Session domain — the unified live-session registry + spawn glue.
 //!
 //! Wraps the L0 `process_supervisor::spawn_process` primitive with
 //! session-flavored sidecar metadata (workspace, agent, harness, status)
@@ -10,38 +10,28 @@
 //!
 //! # Layering inside this module
 //!
-//! * `types`           — `SessionId`, `SessionKind`, `SessionStatus`,
-//!                       `PtySession`, `SessionMeta`.
-//! * `registry`        — legacy in-memory `SessionRegistry` for per-turn
-//!                       harnesses (no persistent child between turns).
-//! * `actor_registry`  — `ActorRegistry` + `ActorEntry` keyed on the
-//!                       supervisor's `ProcessHandle`. Destination registry.
-//! * `lifecycle`       — spawn/stop/write-stdin/send-message glue for the
-//!                       legacy registry; idle reaper.
-//! * `agent_actor`     — long-lived agent spawn + per-turn headless spawn
-//!                       through the supervisor primitive.
+//! * `registry`        — `Registry` + `Entry` keyed on the supervisor's
+//!                       `ProcessHandle`. The unified registry for every
+//!                       live session (shells, persistent agents).
+//! * `agent_actor`     — long-lived agent spawn through the supervisor primitive.
 //! * `shell_actor`     — shell spawn through the supervisor primitive.
+//! * `lifecycle`       — idle reaper + agent-rules loader.
+//! * `types`           — `SessionId`, `SessionKind`, `SessionStatus`, `SessionMeta`.
+//! * `canonical_projection` — read-side projection over the event log.
 
-pub mod actor_registry;
+
+pub mod registry;
 pub mod agent_actor;
-pub mod lifecycle;
 pub mod canonical_projection;
+pub mod lifecycle;
+pub mod shell_actor;
+pub mod types;
 
-// Re-export the L1 ship-terminal session domain (PTY registry + shell
-// spawn). PTY session types and the SessionRegistry live there now;
-// what stays here is the agent-flavored work (actor_registry,
-// agent_actor, lifecycle, canonical_projection).
-pub use ship_terminal::{
-    SessionStatus,
-};
-
+pub use registry::{Entry, Registry};
 pub use canonical_projection::{
     CanonicalSession, CanonicalSessionProjection, CanonicalSessionStatus,
-    load_sessions as load_canonical_sessions,
+    load_canonical_session_by_slug, load_canonical_session_by_slug_at,
+    load_canonical_sessions_by_parent, load_latest_resumable_session,
     load_session_by_id as load_canonical_session_by_id,
-    load_canonical_session_by_slug,
-    load_canonical_session_by_slug_at,
-    load_canonical_sessions_by_parent,
-    load_latest_resumable_session,
+    load_sessions as load_canonical_sessions,
 };
-pub use actor_registry::{ActorEntry, ActorRegistry};

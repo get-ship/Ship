@@ -183,11 +183,9 @@ impl ShipRuntime {
         self.dispatch_handle.get()
     }
 
-    pub fn pty_sessions(&self) -> &ship_terminal::SessionRegistry {
-        &self.pty_sessions
-    }
 
-    pub fn actor_sessions(&self) -> &ship_agents::services::sessions::ActorRegistry {
+
+    pub fn actor_sessions(&self) -> &ship_agents::services::sessions::Registry {
         &self.actor_sessions
     }
 

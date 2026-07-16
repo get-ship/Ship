@@ -26,7 +26,7 @@ ship-platform = { path = "../../crates/core/ship-platform" }
 ship-code = { path = "../../crates/code/ship-code", features = ["ship-code"], optional = true }
 ship-agents = { path = "../../crates/core/ship-platform/crates/ship-agents" }
 ship-auth = { path = "../../crates/core/ship-platform/crates/ship-auth" }
-ship-terminal = { path = "../../crates/core/ship-platform/crates/ship-terminal" }
+
 ship-files = { path = "../../crates/core/ship-platform/crates/ship-files" }
 ship-store = { path = "../../crates/core/ship-platform/crates/ship-store" }
 ship-triggers = { path = "../../crates/core/ship-platform/crates/ship-triggers" }

@@ -1,20 +1,9 @@
-//! terminal.* mount — L2 Connect adapter over the PTY session domain.
+//! terminal.* mount — L2 Connect adapter over the unified live-session
+//! registry.
 //!
-//! Translates the `ship.ops.v1.TerminalService` Connect surface onto the
-//! two session registries that shipd holds:
-//!
-//! - `ship_terminal::SessionRegistry` (the L1 PTY session registry carved
-//!   out of `ship-agents` in Phase 2) — chat / pipelines / per-turn agent
-//!   sessions whose child is owned by the substrate supervisor.
-//! - `ship_agents::services::sessions::ActorRegistry` — long-lived agent
-//!   sessions that own a live `ProcessHandle` (the destination of the
-//!   supervisor-primitive migration; persistent-session harnesses).
-//!
-//! Either registry can hold the session id a request names; the wire
-//! looks up the actor registry first (it owns the persistent-session
-//! path the dock terminal uses today), then falls back to the PTY
-//! registry. Phase 3 retired the legacy REST surface; this wire is the
-//! permanent terminal Connect surface.
+//! Translates the `ship.ops.v1.TerminalService` Connect surface onto
+//! `ship_agents::services::sessions::Registry` — the one registry
+//! that owns where a live session lives.
 //!
 //! Capability / blast-radius policy lives in the proto (read by the gate
 //! from the descriptor at startup) — the wire does not re-enforce it.
@@ -27,13 +16,15 @@ use ship_ops_rpc::{
     OwnedSpawnTerminalRequestView, OwnedStopTerminalRequestView, ResizeTerminalResponse,
     SendInputResponse, StopTerminalResponse, TerminalSession, TerminalService, TerminalServiceExt,
 };
-use ship_terminal::types::{SessionKind as PtyKind, SessionMeta, SessionStatus as PtyStatus};
+use ship_agents::services::sessions::types::{
+    SessionKind, SessionMeta, SessionStatus,
+};
 
 use crate::ship_runtime::ApiState;
 
 /// Daemon-side `TerminalService`. Holds `ApiState` so all eight methods
-/// can reach both session registries + the runtime config / paths the
-/// spawn path needs.
+/// can reach the session registry + the runtime config / paths the spawn
+/// path needs.
 pub struct TerminalWire {
     state: ApiState,
 }
@@ -47,32 +38,6 @@ impl TerminalWire {
 pub(super) fn mount(router: connectrpc::Router, state: &ApiState) -> connectrpc::Router {
     let wire = std::sync::Arc::new(TerminalWire::new(state.clone()));
     TerminalServiceExt::register(wire, router)
-}
-
-// ── Dual-registry helpers ────────────────────────────────────────────────────
-//
-// A `session_id` can live in either registry. Look up the actor
-// registry first (the destination of the supervisor-primitive migration;
-// long-lived agents + shells) and fall back to the PTY registry (chat
-// sessions, per-turn agent turns, pipeline step children).
-
-enum Located {
-    Actor(ship_agents::services::sessions::ActorEntry),
-    Pty(ship_terminal::types::PtySession),
-}
-
-impl TerminalWire {
-    fn locate(&self, id: &str) -> Result<Located, ConnectError> {
-        if let Some(entry) = self.state.actor_sessions().get(id) {
-            return Ok(Located::Actor(entry));
-        }
-        if let Some(session) = self.state.pty_sessions().get(id) {
-            return Ok(Located::Pty(session));
-        }
-        Err(ConnectError::not_found(format!(
-            "session '{id}' not found"
-        )))
-    }
 }
 
 // ── Trait impl ───────────────────────────────────────────────────────────────
@@ -95,12 +60,12 @@ impl TerminalService for TerminalWire {
         let work_dir = resolve_work_dir(&self.state, &request.work_dir);
 
         match kind.as_str() {
-            "shell" => match ship_terminal::shell_actor::spawn_shell(
-                self.state.pty_sessions(),
+            "shell" => match ship_agents::services::sessions::shell_actor::spawn_shell(
+                self.state.actor_sessions(),
                 work_dir,
                 self.state.ship_dir().join("logs").join("sessions"),
             ) {
-                Ok(session) => Ok(Response::new(meta_to_wire(&session.meta()))),
+                Ok(entry) => Ok(Response::new(meta_to_wire(&entry.meta_snapshot()))),
                 Err(e) => Err(ConnectError::internal(format!("spawn_shell: {e}"))),
             },
             "agent" => Err(ConnectError::invalid_argument(
@@ -121,54 +86,27 @@ impl TerminalService for TerminalWire {
         request: OwnedStopTerminalRequestView,
     ) -> ServiceResult<StopTerminalResponse> {
         let id = request.session_id.to_string();
-        // Actor registry first — the destination of the supervisor-primitive
-        // migration. `entry.handle.stop()` returns `Result<(), anyhow::Error>`.
-        if let Some(entry) = self.state.actor_sessions().get(&id) {
-            entry
-                .handle
-                .stop()
-                .map_err(|e| ConnectError::internal(format!("stop: {e}")))?;
-            return Ok(Response::new(StopTerminalResponse::default()));
-        }
-        // PTY registry — shells + per-turn agent turns. `shell_actor::stop`
-        // is a registry-remove (the supervisor's child has already exited
-        // for the shell case; for the per-turn path the parent session is
-        // removed and the next-turn handler spawns fresh).
-        if ship_terminal::shell_actor::stop(self.state.pty_sessions(), &id) {
+        if ship_agents::services::sessions::shell_actor::stop(self.state.actor_sessions(), &id) {
             return Ok(Response::new(StopTerminalResponse::default()));
         }
         Err(ConnectError::not_found(format!("session '{id}' not found")))
     }
 
     // ── List ─────────────────────────────────────────────────────────────
-    // Sweep thinking → idle before serving, then union the two registries
-    // and convert to the wire message. `include_ended` is accepted but
-    // not yet acted on (the current registries' `list()` returns every
-    // entry, alive or ended; a `status = Ended` filter lands when the
-    // supervisor primitive flushes Ended rows from the actor registry
-    // after a TTL).
     #[allow(refining_impl_trait)]
     async fn list(
         &self,
         _ctx: RequestContext,
         _request: OwnedListTerminalsRequestView,
     ) -> ServiceResult<ListTerminalsResponse> {
-        ship_agents::services::sessions::lifecycle::sweep_idle(self.state.pty_sessions());
+        ship_agents::services::sessions::lifecycle::sweep_idle(self.state.actor_sessions());
         let mut sessions: Vec<TerminalSession> = self
             .state
-            .pty_sessions()
+            .actor_sessions()
             .list()
             .into_iter()
             .map(|m| meta_to_wire(&m))
             .collect();
-        sessions.extend(
-            self.state
-                .actor_sessions()
-                .list()
-                .into_iter()
-                .map(|m| meta_to_wire(&m)),
-        );
-        // Most-recent-activity first, matching the legacy `SessionListResponse`.
         sessions.sort_by(|a, b| b.started_at.cmp(&a.started_at));
         Ok(Response::new(ListTerminalsResponse {
             sessions,
@@ -184,17 +122,17 @@ impl TerminalService for TerminalWire {
         request: OwnedGetTerminalRequestView,
     ) -> ServiceResult<TerminalSession> {
         let id = request.session_id.to_string();
-        match self.locate(&id)? {
-            Located::Actor(entry) => Ok(Response::new(meta_to_wire(&entry.meta_snapshot()))),
-            Located::Pty(session) => Ok(Response::new(meta_to_wire(&session.meta()))),
-        }
+        let entry = self
+            .state
+            .actor_sessions()
+            .get(&id)
+            .ok_or_else(|| ConnectError::not_found(format!("session '{id}' not found")))?;
+        Ok(Response::new(meta_to_wire(&entry.meta_snapshot())))
     }
 
     // ── SendInput ────────────────────────────────────────────────────────
-    // Only sessions that own a live transport accept raw stdin — actor
-    // entries (shells + persistent-harness agents). The PTY-registry
-    // per-turn agent path has no live writer; clients drive those
-    // through `send_agent_message`, not this RPC.
+    // Only sessions that own a live transport accept raw stdin. Every
+    // entry on the actor registry owns a live `ProcessHandle`.
     #[allow(refining_impl_trait)]
     async fn send_input(
         &self,
@@ -215,11 +153,6 @@ impl TerminalService for TerminalWire {
     }
 
     // ── Resize ───────────────────────────────────────────────────────────
-    // Persistent-harness agents on the actor registry resize via
-    // `ProcessHandle::resize`. The PTY-registry per-turn path exposes no
-    // master handle (the supervisor's portable-pty lives inside `Inner`),
-    // so per-turn sessions answer NOT_IMPLEMENTED — one-shot turn
-    // processes don't need it.
     #[allow(refining_impl_trait)]
     async fn resize(
         &self,
@@ -229,18 +162,16 @@ impl TerminalService for TerminalWire {
         let id = request.session_id.to_string();
         let cols = request.cols;
         let rows = request.rows;
-        if let Some(entry) = self.state.actor_sessions().get(&id) {
-            entry.handle
-                .resize(cols as u16, rows as u16)
-                .map_err(|e| ConnectError::internal(format!("resize: {e}")))?;
-            return Ok(Response::new(ResizeTerminalResponse::default()));
-        }
-        if self.state.pty_sessions().get(&id).is_some() {
-            return Err(ConnectError::unimplemented(
-                "per-turn session: resize not supported",
-            ));
-        }
-        Err(ConnectError::not_found(format!("session '{id}' not found")))
+        let entry = self
+            .state
+            .actor_sessions()
+            .get(&id)
+            .ok_or_else(|| ConnectError::not_found(format!("session '{id}' not found")))?;
+        entry
+            .handle
+            .resize(cols as u16, rows as u16)
+            .map_err(|e| ConnectError::internal(format!("resize: {e}")))?;
+        Ok(Response::new(ResizeTerminalResponse::default()))
     }
 
     // ── SessionBytes (server-streaming) ─────────────────────────────────
@@ -253,10 +184,13 @@ impl TerminalService for TerminalWire {
         request: OwnedSessionStreamRequestView,
     ) -> ServiceResult<ServiceStream<BytesChunk>> {
         let id = request.session_id.to_string();
-        let (log_path, mut rx) = match self.locate(&id)? {
-            Located::Actor(entry) => (entry.log_path(), entry.subscribe()),
-            Located::Pty(session) => (session.0.log_path.clone(), session.subscribe()),
-        };
+        let entry = self
+            .state
+            .actor_sessions()
+            .get(&id)
+            .ok_or_else(|| ConnectError::not_found(format!("session '{id}' not found")))?;
+        let log_path = entry.log_path();
+        let mut rx = entry.subscribe();
         let replay = tokio::fs::read(&log_path).await.unwrap_or_default();
         let stream = async_stream::stream! {
             if !replay.is_empty() {
@@ -268,9 +202,7 @@ impl TerminalService for TerminalWire {
             loop {
                 match rx.recv().await {
                     Ok(bytes) => yield Ok(BytesChunk { data: bytes, ..Default::default() }),
-                    // Slow consumer dropped frames — keep tailing rather than abort.
                     Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
-                    // Sender gone — session ended.
                     Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
                 }
             }
@@ -279,10 +211,7 @@ impl TerminalService for TerminalWire {
     }
 
     // ── SessionEvents (server-streaming) ────────────────────────────────
-    // The legacy `/api/v1/sessions/{id}/events` handler returned typed
-    // `HarnessEvent`s as JSON. The actor registry wires the
-    // agent-driver broadcast; the PTY-registry per-turn path also
-    // publishes here (see `agent_actor::run_headless_turn`). Shells
+    // The actor registry wires the agent-driver broadcast. Shell entries
     // (no harness) return a closed stream.
     #[allow(refining_impl_trait)]
     async fn session_events(
@@ -291,10 +220,12 @@ impl TerminalService for TerminalWire {
         request: OwnedSessionEventsRequestView,
     ) -> ServiceResult<ServiceStream<JsonResponse>> {
         let id = request.session_id.to_string();
-        let mut rx = match self.locate(&id)? {
-            Located::Actor(entry) => entry.subscribe_events(),
-            Located::Pty(session) => session.subscribe_events(),
-        };
+        let entry = self
+            .state
+            .actor_sessions()
+            .get(&id)
+            .ok_or_else(|| ConnectError::not_found(format!("session '{id}' not found")))?;
+        let mut rx = entry.subscribe_events();
         let stream = async_stream::stream! {
             loop {
                 match rx.recv().await {
@@ -340,18 +271,15 @@ fn meta_to_wire(m: &SessionMeta) -> TerminalSession {
     }
 }
 
-fn kind_str(k: PtyKind) -> String {
+fn kind_str(k: SessionKind) -> String {
     match k {
-        PtyKind::Agent => "agent",
-        PtyKind::Shell => "shell",
+        SessionKind::Agent => "agent",
+        SessionKind::Shell => "shell",
     }
     .to_string()
 }
 
-fn status_str(s: PtyStatus) -> String {
-    // Format matches the legacy `SessionMetaWire`:
-    // `format!("{:?}", m.status).to_lowercase()` — "spawning", "idle",
-    // "thinking", "ended".
+fn status_str(s: SessionStatus) -> String {
     format!("{s:?}").to_lowercase()
 }
 

@@ -279,8 +279,8 @@ impl ShipRuntime {
             space_ctx,
             schemas,
             global_blob_dir,
-            pty_sessions: ship_terminal::SessionRegistry::new(),
-            actor_sessions: ship_agents::services::sessions::ActorRegistry::new(),
+            actor_sessions: ship_agents::services::sessions::Registry::new(),
+
             rules: ship_agents::services::rules::service::RulesServiceImpl::arc(global_dir.clone()),
             // Slice 3 close-out: the runtime permissions CRUD service
             // (`ship_agents::services::permissions::PermissionsServiceImpl`)

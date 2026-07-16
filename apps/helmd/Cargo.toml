@@ -23,7 +23,7 @@
 # MONOLITH MEASUREMENT (spine 2a.1): although helmd only wants the lean read
 # path, `ship-agents`'s own Cargo.toml depends on the FULL `ship-substrate`
 # facade plus `ship-reactive`, `ship-auth`, `ship-device`, `ship-isolation`,
-# `ship-store`, `ship-terminal`, `ship-config`, `agent-def`, `ship-ops-rpc`,
+# `ship-store`, `ship-config`, `agent-def`, `ship-ops-rpc`,
 # `compiler`, … — so the heavy facade lands in helmd's TRANSITIVE graph
 # regardless of helmd's lean direct deps. The leaf-clean claim above is
 # therefore retired for the agents wire: `cargo tree` now shows

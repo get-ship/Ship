@@ -222,11 +222,9 @@ pub fn router(state: ApiState) -> axum::Router {
     // + component discovery). Crate-owned `UiWire` (ship-ui); closures in
     // `ui_wire`. Replaces the retired `sui.*` and `view.*` services.
     let router = ui_wire::mount(router, &state);
-    // terminal.* — the L2 Connect adapter over the PTY session domain
-    // (ship-terminal's SessionRegistry + ship-agents's ActorRegistry). Replaces
-    // the legacy `/api/v1/sessions/*` + `/api/v1/pty-sessions` REST routes
-    // (Phase 4 deletes those). All eight methods: Spawn/Stop/List/Get/
-    // SendInput/Resize/SessionBytes/SessionEvents.
+    // terminal.* — the L2 Connect adapter over the unified live-session
+    // registry (ship_agents::services::sessions::Registry). All eight
+    // methods: Spawn/Stop/List/Get/SendInput/Resize/SessionBytes/SessionEvents.
     let router = terminal_wire::mount(router, &state);
     // search — ShipdSearchWire (rpc::search) branches on the request scope:
     // THIS_SPACE runs the active-space ShipdSearchContext (the historical

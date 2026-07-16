@@ -1,39 +1,28 @@
-//! Actor-backed session registry.
+//! Live-session registry. Holds a [`process_supervisor::ProcessHandle`]
+//! (the unified spawn primitive) plus a session-flavored [`SessionMeta`]
+//! sidecar per entry. Insert is keyed by `ProcessHandle::actor_id`; the
+//! meta's `id` field must match.
 //!
-//! Holds [`process_supervisor::ProcessHandle`] (the unified spawn primitive)
-//! plus a session-flavored [`SessionMeta`] sidecar. This is the destination
-//! registry — `SessionRegistry` is the legacy parallel system being retired
-//! kind-by-kind. When the last consumer flips, this is renamed to
-//! `Registry` and `SessionRegistry` is deleted.
-//!
-//! Shape: `actor_id -> (ProcessHandle, Arc<Mutex<SessionMeta>>)`. The handle
-//! owns process I/O (write_input, subscribe_output, stop). The sidecar
-//! holds session-flavored state the HTTP layer reports — workspace,
-//! agent/harness, status, exit code, harness_session_id — which doesn't
-//! belong inside the supervisor primitive.
-//!
-//! Status updates flow from per-kind reader middleware (auto-dismiss for
-//! agents, raw passthrough for shells) into the sidecar via the entry's
-//! `meta` mutex.
-//!
-//! Insert is keyed by `ProcessHandle::actor_id`; the meta's `id` field must
-//! match. Lookup, list, and find-by-* mirror `SessionRegistry` so HTTP
-//! handlers can query whichever registry holds the session without
-//! restructuring routes.
+//! Shape: `actor_id -> (ProcessHandle, Arc<Mutex<SessionMeta>>)`. The
+//! handle owns process I/O (write_input, subscribe_output, stop). The
+//! sidecar holds session-flavored state the HTTP layer reports —
+//! workspace, agent/harness, status, exit code, harness_session_id —
+//! which doesn't belong inside the supervisor primitive.
 
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::path::PathBuf;
+use std::sync::Arc;
 
 use anyhow::Result;
-use ship_harnesses::agent_driver::HarnessEvent;
+use parking_lot::Mutex;
 use process_supervisor::ProcessHandle;
-use std::path::PathBuf;
+use ship_harnesses::agent_driver::HarnessEvent;
 use tokio::sync::broadcast;
 
-use ship_terminal::types::{SessionId, SessionMeta};
+use super::types::{SessionId, SessionMeta};
 
 #[derive(Clone)]
-pub struct ActorEntry {
+pub struct Entry {
     pub handle: ProcessHandle,
     pub meta: Arc<Mutex<SessionMeta>>,
     /// Harness-event broadcast for agent kinds. Reader middleware
@@ -43,13 +32,13 @@ pub struct ActorEntry {
     pub event_tx: Option<broadcast::Sender<HarnessEvent>>,
 }
 
-impl ActorEntry {
+impl Entry {
     /// Snapshot the session-flavored metadata.
     pub fn meta_snapshot(&self) -> SessionMeta {
-        self.meta.lock().unwrap().clone()
+        self.meta.lock().clone()
     }
 
-    /// Subscribe to raw PTY bytes — replaces `PtySession::subscribe`.
+    /// Subscribe to raw PTY bytes.
     pub fn subscribe(&self) -> broadcast::Receiver<Vec<u8>> {
         self.handle.subscribe_output()
     }
@@ -70,8 +59,6 @@ impl ActorEntry {
         match &self.event_tx {
             Some(tx) => tx.subscribe(),
             None => {
-                // No agent-side event source — return a closed receiver
-                // (created from a fresh sender that's immediately dropped).
                 let (tx, rx) = broadcast::channel::<HarnessEvent>(1);
                 drop(tx);
                 rx
@@ -81,16 +68,16 @@ impl ActorEntry {
 }
 
 #[derive(Clone, Default)]
-pub struct ActorRegistry {
-    inner: Arc<Mutex<HashMap<SessionId, ActorEntry>>>,
+pub struct Registry {
+    inner: Arc<Mutex<HashMap<SessionId, Entry>>>,
 }
 
-impl ActorRegistry {
+impl Registry {
     pub fn new() -> Self {
         Self::default()
     }
 
-    pub fn insert(&self, handle: ProcessHandle, meta: SessionMeta) -> ActorEntry {
+    pub fn insert(&self, handle: ProcessHandle, meta: SessionMeta) -> Entry {
         self.insert_with(handle, meta, None)
     }
 
@@ -99,46 +86,42 @@ impl ActorRegistry {
         handle: ProcessHandle,
         meta: SessionMeta,
         event_tx: Option<broadcast::Sender<HarnessEvent>>,
-    ) -> ActorEntry {
+    ) -> Entry {
         debug_assert_eq!(handle.actor_id, meta.id, "handle/meta id mismatch");
-        let entry = ActorEntry {
+        let entry = Entry {
             handle,
             meta: Arc::new(Mutex::new(meta)),
             event_tx,
         };
         self.inner
             .lock()
-            .unwrap()
             .insert(entry.handle.actor_id.clone(), entry.clone());
         entry
     }
 
-    pub fn get(&self, id: &str) -> Option<ActorEntry> {
-        self.inner.lock().unwrap().get(id).cloned()
+    pub fn get(&self, id: &str) -> Option<Entry> {
+        self.inner.lock().get(id).cloned()
     }
 
-    pub fn remove(&self, id: &str) -> Option<ActorEntry> {
-        self.inner.lock().unwrap().remove(id)
+    pub fn remove(&self, id: &str) -> Option<Entry> {
+        self.inner.lock().remove(id)
     }
 
     /// Snapshot every entry's meta, sorted by most recent activity.
     pub fn list(&self) -> Vec<SessionMeta> {
-        let guard = self.inner.lock().unwrap();
+        let guard = self.inner.lock();
         let mut metas: Vec<SessionMeta> = guard
             .values()
-            .map(|e| e.meta.lock().unwrap().clone())
+            .map(|e| e.meta.lock().clone())
             .collect();
         metas.sort_by_key(|m| std::cmp::Reverse(m.last_activity));
-    metas
+        metas
     }
-    pub fn find_agent_session(
-        &self,
-        agent_id: &str,
-        harness: &str,
-    ) -> Option<ActorEntry> {
-        let guard = self.inner.lock().unwrap();
+
+    pub fn find_agent_session(&self, agent_id: &str, harness: &str) -> Option<Entry> {
+        let guard = self.inner.lock();
         for entry in guard.values() {
-            let meta = entry.meta.lock().unwrap();
+            let meta = entry.meta.lock();
             if meta.agent_id.as_deref() == Some(agent_id)
                 && meta.harness.as_deref() == Some(harness)
             {
@@ -148,10 +131,10 @@ impl ActorRegistry {
         None
     }
 
-    pub fn find_by_harness_session(&self, harness_session_id: &str) -> Option<ActorEntry> {
-        let guard = self.inner.lock().unwrap();
+    pub fn find_by_harness_session(&self, harness_session_id: &str) -> Option<Entry> {
+        let guard = self.inner.lock();
         for entry in guard.values() {
-            let meta = entry.meta.lock().unwrap();
+            let meta = entry.meta.lock();
             if meta.harness_session_id.as_deref() == Some(harness_session_id) {
                 return Some(entry.clone());
             }
@@ -160,10 +143,10 @@ impl ActorRegistry {
     }
 
     pub fn len(&self) -> usize {
-        self.inner.lock().unwrap().len()
+        self.inner.lock().len()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.inner.lock().unwrap().is_empty()
+        self.inner.lock().is_empty()
     }
 }
