@@ -96,8 +96,15 @@ fn pipelines_list_parses_index() {
 }
 
 #[test]
-fn space_add_parses_record() {
-    let r: Space = serde_json::from_str(&response_ok(SPACE, "Add")).expect("parse Space");
+fn space_create_parses_record() {
+    let r: Space = serde_json::from_str(&response_ok(SPACE, "Create")).expect("parse Space");
+    assert_eq!(r.id, "drydock");
+    assert_eq!(r.path, "/home/dev/drydock");
+}
+
+#[test]
+fn space_open_parses_record() {
+    let r: Space = serde_json::from_str(&response_ok(SPACE, "Open")).expect("parse Space");
     assert_eq!(r.id, "harbor");
     assert_eq!(r.path, "/home/dev/harbor");
 }
