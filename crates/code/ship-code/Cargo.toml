@@ -25,10 +25,6 @@ required-features = ["cli"]
 name = "cli_error_messages"
 required-features = ["cli"]
 
-[[test]]
-name = "cli_yagni_removal"
-required-features = ["cli"]
-
 [dependencies]
 home = { workspace = true }
 agent-def = { path = "../../core/ship-platform/crates/agent-def", features = ["ship-code"] }
