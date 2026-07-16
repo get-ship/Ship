@@ -78,9 +78,8 @@ fn compile_worktree_output_root_separates_from_space_root() {
         dry_run: false,
         active_agent: None,
         extra_skills: vec![],
-            plugins_installed: vec![],
-            scoped_launch: false,
-            default_effort: None,
+        plugins_installed: vec![],
+        default_effort: None,
     })
     .unwrap();
 

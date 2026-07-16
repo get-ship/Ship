@@ -23,7 +23,7 @@ pub struct ShipdPlatform {
     pub executor: Arc<dyn SessionExecutor>,
     pub kernel: Arc<Mutex<KernelRouter>>,
     /// Daemon session-token registry — mint_session_token inserts a scoped
-    /// token here so the agent's daemon-hosted MCP calls authenticate.
+    /// token here so the agent's ship-code CLI calls authenticate.
     pub session_registry: ship_auth_types::SessionRegistry,
     /// Daemon base URL (e.g. `http://127.0.0.1:8080`) injected as
     /// `$SHIP_DAEMON_URL`. Empty string when the daemon URL is unknown.

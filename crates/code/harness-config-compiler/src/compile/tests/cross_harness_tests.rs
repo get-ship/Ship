@@ -178,13 +178,9 @@ fn conformance_patch_outputs_are_owner_exclusive() {
 }
 
 /// No harness injects a "ship" MCP entry — ship-internal MCP was retired (#236).
-/// External servers pass through unchanged regardless of scoped_launch state.
 #[test]
 fn conformance_no_ship_injection_any_harness() {
-    let r = ResolvedConfig {
-        scoped_launch: true,
-        ..conformance_config()
-    };
+    let r = conformance_config();
     for desc in list_harnesses() {
         if !desc.features.supports_mcp {
             continue;

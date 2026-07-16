@@ -9,7 +9,6 @@
 
 pub mod agent;
 pub mod loader;
-pub mod mcp_allowlist;
 pub mod permissions;
 // `project_compile_state` projection — co-located with the compile service
 // so a future crate-carve takes it along.
@@ -57,7 +56,6 @@ fn augment_with_sdk_references(output: &mut CompileOutput) {
 use ship_store::dep_skills::resolve_dep_skills;
 
 use agent::{apply_agent_to_library, collect_all_skill_refs};
-use mcp_allowlist::ensure_ship_mcp_allowed_claude;
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
@@ -74,12 +72,9 @@ pub struct CompileOptions {
     pub extra_skills: Vec<String>,
     /// Plugin IDs the active agent declared and that this compile installed.
     pub plugins_installed: Vec<String>,
-    /// Compile for a daemon-spawned scoped launch — emit the authed-HTTP `ship`
-    /// MCP entry instead of the trusted-local stdio shim.
-    pub scoped_launch: bool,
-    /// When true: resolve and compile but do not write files, pre-approve MCP
-    /// tools, or emit `compile.completed`. Outputs are included in the returned
-    /// summary so callers can dry-run-print them.
+    /// When true: resolve and compile but do not write files or emit
+    /// `compile.completed`. Outputs are included in the returned summary so
+    /// callers can dry-run-print them.
     pub dry_run: bool,
     /// Default `effortLevel` for the worktree's `.claude/settings.json`.
     /// Applied only when neither the active agent profile's
@@ -102,7 +97,6 @@ impl Default for CompileOptions {
             active_agent: None,
             extra_skills: Vec::new(),
             plugins_installed: Vec::new(),
-            scoped_launch: false,
             dry_run: false,
             default_effort: None,
         }
@@ -217,6 +211,13 @@ fn compile_from_library(
     }
     let resolved =
         stack_model::resolve_library(&library, None, opts.active_agent.as_deref());
+    if !resolved.unresolved_mcp_servers.is_empty() {
+        anyhow::bail!(
+            "unknown mcp server id(s) referenced by agent '{}': {}",
+            opts.active_agent.as_deref().unwrap_or("<none>"),
+            resolved.unresolved_mcp_servers.join(", ")
+        );
+    }
     let requested_grants = resolved.requested_grants.clone();
 
     // 6. Determine harnesses
@@ -249,15 +250,6 @@ fn compile_from_library(
         for (harness_id, output) in &outputs {
             harness_config_compiler::write_output(output_root, harness_id, output)
                 .with_context(|| format!("failed to write {} output", harness_id))?;
-        }
-        for harness_id in &harnesses {
-            let result = match harness_id.as_str() {
-                "claude" => ensure_ship_mcp_allowed_claude(),
-                _ => Ok(()),
-            };
-            if let Err(e) = result {
-                eprintln!("warning: could not update {harness_id} MCP permissions: {e}");
-            }
         }
         emit_compile_completed(
             &stack_root,

@@ -103,8 +103,8 @@ pub fn resolved(servers: Vec<McpServerConfig>) -> ResolvedConfig {
         opencode: Default::default(),
         requested_grants: vec![],
         unmet_capability_requirements: vec![],
+        unresolved_mcp_servers: vec![],
         ship_home_dir: None,
-        scoped_launch: false,
         imported_modules: vec![],
         rollup_inputs: None,
     }

@@ -172,21 +172,16 @@ pub struct ResolvedConfig {
     /// grants — an unsatisfiable request. Non-empty is a compile error the
     /// caller enforces (the compiler stays pure/infallible).
     pub unmet_capability_requirements: Vec<String>,
+    /// Agent `mcp.servers` refs that name no server in the space catalog —
+    /// an unresolvable reference. Non-empty is a compile error the caller
+    /// enforces (the compiler stays pure/infallible).
+    pub unresolved_mcp_servers: Vec<String>,
     /// Absolute path to the ship home (e.g. `/home/alice/.ship`). Injected
     /// by callers (CLI/daemon) that resolve via `ship_substrate::ShipHome`. The
     /// compiler is a pure transform and does not read environment variables —
     /// when this is `None`, the compiler emits an MCP entry without the
     /// `SHIP_HOME` env injection.
     pub ship_home_dir: Option<String>,
-    /// Whether this config is compiled for a daemon-spawned, scoped launch
-    /// (dispatch / command-bar / sandbox) rather than a manual `ship use`.
-    /// Set true by the dispatcher/daemon, which inject `$SHIP_TOKEN` +
-    /// `$SHIP_DAEMON_URL` into the agent's env. When true, the self-hosted
-    /// `ship` server compiles to the daemon-hosted authed-HTTP entry
-    /// (scope-enforced); when false (manual local dev), it stays the
-    /// trusted-local stdio shim — the human is the host, full local access
-    /// is fine and there is no spawner to provision the token env.
-    pub scoped_launch: bool,
     // ── Phase-2 project-shape passthrough ─────────────────────────────────────
     /// Resolved TS modules from the multi-file `stack.config.ts` import graph. The
     /// Phase-0 leaf never produced this; Phase-2's resolver populates it on
@@ -540,7 +535,7 @@ pub fn resolve(
 
     // ── MCP servers ───────────────────────────────────────────────────────────
     let mut mcp_servers = config.mcp_servers.clone();
-    apply_agent_server_filter(&mut mcp_servers, agent);
+    let unresolved_mcp_servers = apply_agent_server_filter(&mut mcp_servers, agent);
     if let Some(f) = feature {
         apply_workspace_server_filter(&mut mcp_servers, f);
     }
@@ -595,8 +590,8 @@ pub fn resolve(
         opencode: crate::types::harness_settings::OpenCodeSettings::default(),
         requested_grants,
         unmet_capability_requirements,
+        unresolved_mcp_servers,
         ship_home_dir: None,
-        scoped_launch: false,
         // Phase-2: the leaf `resolve()` has no ExtensionLibrary to source these
         // from. Defaults match the leaf's serde defaults so the round-trip is
         // stable; resolve_library() threads the library's values when present.
@@ -668,12 +663,26 @@ fn normalize_rule_id(id: &str) -> String {
     normalized.to_string()
 }
 
-fn apply_agent_server_filter(servers: &mut Vec<McpServerConfig>, agent: Option<&AgentProfile>) {
-    if let Some(m) = agent
-        && !m.mcp.servers.is_empty()
-    {
-        servers.retain(|s| m.mcp.servers.contains(&s.id));
-    }
+/// Filter `servers` to the agent's `mcp.servers` refs, returning any ref that
+/// names no server in the catalog. Unresolved refs are a compile error the
+/// caller enforces (the compiler stays pure/infallible) — see
+/// `unresolved_mcp_servers`.
+fn apply_agent_server_filter(
+    servers: &mut Vec<McpServerConfig>,
+    agent: Option<&AgentProfile>,
+) -> Vec<String> {
+    let Some(m) = agent.filter(|m| !m.mcp.servers.is_empty()) else {
+        return Vec::new();
+    };
+    let unresolved: Vec<String> = m
+        .mcp
+        .servers
+        .iter()
+        .filter(|id| !servers.iter().any(|s| &s.id == *id))
+        .cloned()
+        .collect();
+    servers.retain(|s| m.mcp.servers.contains(&s.id));
+    unresolved
 }
 
 fn apply_workspace_server_filter(servers: &mut Vec<McpServerConfig>, feature: &WorkspaceOverrides) {
@@ -963,6 +972,67 @@ mod tests {
         assert_eq!(resolved.mcp_servers[0].id, "github");
         assert_eq!(resolved.skills.len(), 1);
         assert_eq!(resolved.skills[0].id, "alpha");
+    }
+
+    #[test]
+    fn unresolved_mcp_server_ref_is_reported() {
+        let config = SpaceManifest {
+            mcp_servers: vec![],
+            agents: vec![AgentProfile {
+                agent: ProfileMeta {
+                    id: "planning".to_string(),
+                    name: "Planning".to_string(),
+                    ..Default::default()
+                },
+                mcp: McpRefs {
+                    servers: vec!["nonexistent".to_string()],
+                },
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        let resolved = resolve(
+            &config,
+            &[],
+            &[],
+            &Permissions::default(),
+            &[],
+            None,
+            Some("planning"),
+        );
+        assert_eq!(resolved.unresolved_mcp_servers, vec!["nonexistent".to_string()]);
+        assert!(resolved.mcp_servers.is_empty());
+    }
+
+    #[test]
+    fn declared_mcp_server_ref_resolves_cleanly() {
+        let config = SpaceManifest {
+            mcp_servers: vec![make_server("github")],
+            agents: vec![AgentProfile {
+                agent: ProfileMeta {
+                    id: "planning".to_string(),
+                    name: "Planning".to_string(),
+                    ..Default::default()
+                },
+                mcp: McpRefs {
+                    servers: vec!["github".to_string()],
+                },
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        let resolved = resolve(
+            &config,
+            &[],
+            &[],
+            &Permissions::default(),
+            &[],
+            None,
+            Some("planning"),
+        );
+        assert!(resolved.unresolved_mcp_servers.is_empty());
+        assert_eq!(resolved.mcp_servers.len(), 1);
+        assert_eq!(resolved.mcp_servers[0].id, "github");
     }
 
     // ── Harness normalization ─────────────────────────────────────────────

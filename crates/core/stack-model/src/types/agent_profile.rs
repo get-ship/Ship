@@ -51,8 +51,7 @@ pub struct AgentProfile {
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ProfileApps {
-    /// When true, the compiler emits an HTTP MCP transport pointing at Studio's
-    /// local endpoint instead of a stdio `ship mcp serve` entry.
+    /// Whether this agent integrates with Studio.
     #[serde(default)]
     pub studio: bool,
 }

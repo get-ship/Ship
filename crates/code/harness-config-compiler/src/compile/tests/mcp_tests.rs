@@ -8,9 +8,8 @@ use super::fixtures::*;
 
 #[test]
 fn no_ship_entry_in_mcp_output() {
-    // Ship's internal MCP server injection was removed (#236): `ship mcp serve`
-    // was deleted from the CLI in commit 22fb0cd49 and the daemon has no /mcp
-    // route. Harnesses must not auto-inject a "ship" entry.
+    // Ship's internal MCP server injection was removed (#236): the daemon
+    // has no /mcp route. Harnesses must not auto-inject a "ship" entry.
     let r = resolved(vec![]);
     for harness_id in &["claude", "codex", "opencode"] {
         let out = compile(&r, harness_id).unwrap();

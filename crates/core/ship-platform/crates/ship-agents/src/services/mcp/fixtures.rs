@@ -26,7 +26,7 @@ impl McpGetResponse {
                 "name": "ship",
                 "type": "stdio",
                 "command": "ship",
-                "args": ["mcp", "serve"],
+                "args": ["run", "server"],
             }),
         }
     }

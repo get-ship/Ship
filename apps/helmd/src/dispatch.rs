@@ -100,7 +100,7 @@ pub fn start_dispatch_runtime(
 
     // helmd serves no operator-cred auth surface; the session-token registry is
     // an empty in-memory map so `mint_session_token` still hands the spawned
-    // agent a scoped token for its daemon-hosted MCP calls.
+    // agent a scoped token for its ship-code CLI calls.
     let session_registry: ship_auth_types::SessionRegistry = Arc::new(Mutex::new(HashMap::new()));
 
     let platform = Arc::new(HelmdPlatform {

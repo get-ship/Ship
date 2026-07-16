@@ -165,7 +165,7 @@ fn codex_output_has_agents_md_and_config_patch() {
 }
 
 /// MCP servers object must NOT contain a built-in `ship` entry — ship-internal
-/// MCP was retired in #236 (`ship mcp serve` deleted, daemon has no /mcp route).
+/// MCP was retired in #236 (daemon has no /mcp route).
 /// This invariant guards against re-introduction of the broken injection.
 #[test]
 fn mcp_servers_never_includes_ship_injection() {

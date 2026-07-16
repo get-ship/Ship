@@ -48,7 +48,6 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
             agent_id,
             path,
             compile: _,
-            scoped,
             with_skills,
             launch,
             resume,
@@ -75,7 +74,7 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                 keepalive,
                 no_keepalive,
             };
-            run_use(Some(&agent_id), path, with_skills, scoped)?;
+            run_use(Some(&agent_id), path, with_skills)?;
             if use_command::should_launch(&opts) {
                 use_command::run_launch(opts)?;
             }
@@ -96,7 +95,7 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
     }
 }
 
-fn run_use(agent_id: Option<&str>, path: Option<PathBuf>, extra_skills: Vec<String>, scoped: bool) -> Result<()> {
+fn run_use(agent_id: Option<&str>, path: Option<PathBuf>, extra_skills: Vec<String>) -> Result<()> {
     try_init_kernel_router();
     let ship_dir = match path {
         Some(ref p) => {
@@ -113,7 +112,7 @@ fn run_use(agent_id: Option<&str>, path: Option<PathBuf>, extra_skills: Vec<Stri
     let space_root = ship_dir;
     let output_root: Option<PathBuf> = None;
 
-    profile::activate_agent(agent_id, &space_root, output_root.as_deref(), extra_skills, scoped)
+    profile::activate_agent(agent_id, &space_root, output_root.as_deref(), extra_skills)
 }
 
 fn run_compile_cmd(harness: Option<&str>, dry_run: bool, path: Option<PathBuf>) -> Result<()> {
@@ -136,7 +135,6 @@ fn run_compile_cmd(harness: Option<&str>, dry_run: bool, path: Option<PathBuf>) 
         active_agent: state.active_agent.as_deref(),
         extra_skills: vec![],
         plugins_installed: state.plugins_installed.clone(),
-        scoped_launch: false,
         default_effort: None,
     })
 }

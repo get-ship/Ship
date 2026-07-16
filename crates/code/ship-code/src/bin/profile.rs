@@ -65,7 +65,6 @@ pub fn activate_agent(
     space_root: &Path,
     output_root: Option<&Path>,
     extra_skills: Vec<String>,
-    scoped: bool,
 ) -> Result<()> {
     let state = SpaceState::load(space_root); // stack root anchors state
     let id = agent_id
@@ -110,7 +109,6 @@ pub fn activate_agent(
         active_agent: Some(&id),
         extra_skills: extra_skills.clone(),
         plugins_installed: now_plugins,
-        scoped_launch: scoped,
         default_effort: None,
     })?;
     if extra_skills.is_empty() {

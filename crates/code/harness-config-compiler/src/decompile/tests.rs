@@ -231,7 +231,7 @@ fn mcp_json_servers_parsed() {
         "mcpServers": {
             "ship": {
                 "command": "ship",
-                "args": ["mcp", "serve"],
+                "args": ["run", "server"],
                 "env": {"SHIP_PROJECT": "/home/user/project"}
             },
             "postgres": {
@@ -247,7 +247,7 @@ fn mcp_json_servers_parsed() {
     assert_eq!(lib.mcp_servers.len(), 2);
     let ship = lib.mcp_servers.iter().find(|s| s.id == "ship").unwrap();
     assert_eq!(ship.command, "ship");
-    assert_eq!(ship.args, vec!["mcp", "serve"]);
+    assert_eq!(ship.args, vec!["run", "server"]);
     let pg = lib.mcp_servers.iter().find(|s| s.id == "postgres").unwrap();
     assert_eq!(pg.url.as_deref(), Some("http://localhost:5433/mcp"));
     assert!(pg.disabled);
@@ -282,7 +282,7 @@ fn full_claude_project_decompile() {
         ".mcp.json",
         &serde_json::to_string(&json!({
             "mcpServers": {
-                "ship": {"command": "ship", "args": ["mcp", "serve"]}
+                "ship": {"command": "ship", "args": ["run", "server"]}
             }
         }))
         .unwrap(),
@@ -338,7 +338,7 @@ fn codex_config_mcp_servers() {
     let config = r#"
 [mcp_servers.ship]
 command = "ship"
-args = ["mcp", "serve"]
+args = ["run", "server"]
 
 [mcp_servers.pg]
 url = "http://localhost:5433/mcp"
@@ -405,7 +405,7 @@ fn decompile_all_merges_harnesses() {
         ".mcp.json",
         &serde_json::to_string(&json!({
             "mcpServers": {
-                "ship": {"command": "ship", "args": ["mcp", "serve"]}
+                "ship": {"command": "ship", "args": ["run", "server"]}
             }
         }))
         .unwrap(),
@@ -446,7 +446,7 @@ fn opencode_config_model_and_mcp() {
         "mcpServers": {
             "ship": {
                 "command": "ship",
-                "args": ["mcp", "serve"]
+                "args": ["run", "server"]
             },
             "remote": {
                 "url": "http://localhost:8080/mcp"

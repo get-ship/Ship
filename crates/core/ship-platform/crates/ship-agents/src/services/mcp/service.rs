@@ -149,7 +149,7 @@ mod tests {
     fn server_value() -> serde_json::Value {
         serde_json::json!({
             "command": "ship",
-            "args": ["mcp", "serve"]
+            "args": ["run", "server"]
         })
     }
 

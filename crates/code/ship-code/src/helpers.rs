@@ -95,10 +95,9 @@ pub fn compile_agent_config(
     // In-process compile via the agent-def engine — the same pipeline
     // `compile_project` (the CLI's `ship use` wrapper) runs, minus the
     // single-source load + `#122` flat merge the roll-up already
-    // superseded. `scoped_launch`: this is a daemon-spawned launch, so the
-    // dispatcher injects $SHIP_TOKEN + $SHIP_DAEMON_URL into the agent's
-    // env; the compile emits the daemon-hosted authed-HTTP `ship` MCP entry
-    // (scope-enforced) rather than the trusted-local stdio shim.
+    // superseded. This is a daemon-spawned launch: the dispatcher injects
+    // $SHIP_TOKEN + $SHIP_DAEMON_URL into the agent's env for its ship-code
+    // CLI calls.
     //
     // Gap 2: `default_effort: Some("medium")` writes `effortLevel:
     // medium` into the worktree's `.claude/settings.json` so a
@@ -114,7 +113,6 @@ pub fn compile_agent_config(
             active_agent: Some(agent_id.to_string()),
             extra_skills: vec![],
             plugins_installed: vec![],
-            scoped_launch: true,
             dry_run: false,
             default_effort: Some("medium".to_string()),
         },

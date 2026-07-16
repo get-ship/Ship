@@ -2,7 +2,7 @@
 //! Relocated from apps/ship-cli/src/loader_tests.rs and compile/tests*.rs.
 
 use super::*;
-use stack_model::{HookTrigger, McpServerType};
+use stack_model::{HookTrigger, McpServerConfig, McpServerType};
 use skill_parser::parse_skill;
 use std::path::Path;
 use tempfile::TempDir;
@@ -237,3 +237,70 @@ fn agent_profiles_empty_when_dir_missing() {
 // descriptor (`compile_project_from_library` /
 // `ship_resolver::roll_up`). The leaf's `load_library` is now
 // disk-shape for permissions / hooks / mcp / rules only.
+
+// ── I3: unresolved mcp.servers refs (agent → space catalog join) ────────────
+
+fn agent_profile_with_mcp_refs(id: &str, servers: &[&str]) -> stack_model::AgentProfile {
+    stack_model::AgentProfile {
+        agent: stack_model::ProfileMeta {
+            id: id.to_string(),
+            name: id.to_string(),
+            ..Default::default()
+        },
+        mcp: stack_model::McpRefs {
+            servers: servers.iter().map(|s| s.to_string()).collect(),
+        },
+        ..Default::default()
+    }
+}
+
+#[test]
+fn compile_errors_naming_unresolved_mcp_server_refs() {
+    let tmp = TempDir::new().unwrap();
+    let mut library = stack_model::ExtensionLibrary::default();
+    library.agent_profiles.push(agent_profile_with_mcp_refs("planner", &["nonexistent"]));
+
+    let opts = CompileOptions {
+        space_root: tmp.path().to_path_buf(),
+        harness: Some("claude".to_string()),
+        active_agent: Some("planner".to_string()),
+        ..Default::default()
+    };
+    let err = compile_project_from_library(&opts, library).unwrap_err();
+    assert!(
+        err.to_string().contains("nonexistent"),
+        "error must name the unresolved id: {err}"
+    );
+}
+
+#[test]
+fn compile_succeeds_when_agent_mcp_refs_resolve_against_catalog() {
+    let tmp = TempDir::new().unwrap();
+    let mut library = stack_model::ExtensionLibrary::default();
+    library.agent_profiles.push(agent_profile_with_mcp_refs("planner", &["github"]));
+    library.mcp_servers.push(McpServerConfig {
+        id: "github".to_string(),
+        name: "github".to_string(),
+        command: "npx".to_string(),
+        args: vec!["-y".to_string(), "@mcp/github".to_string()],
+        env: Default::default(),
+        scope: "project".to_string(),
+        server_type: McpServerType::Stdio,
+        url: None,
+        disabled: false,
+        timeout_secs: None,
+        codex_enabled_tools: vec![],
+        codex_disabled_tools: vec![],
+        cursor_env_file: None,
+    });
+
+    let opts = CompileOptions {
+        space_root: tmp.path().to_path_buf(),
+        harness: Some("claude".to_string()),
+        active_agent: Some("planner".to_string()),
+        ..Default::default()
+    };
+    let summary = compile_project_from_library(&opts, library)
+        .expect("declared server must still compile through");
+    assert_eq!(summary.harnesses, vec!["claude".to_string()]);
+}
