@@ -32,6 +32,9 @@ fn make_kernel(tmp: &tempfile::TempDir) -> Arc<KernelLog> {
 
 fn make_ctx(tmp: &tempfile::TempDir, kernel: Arc<KernelLog>) -> Arc<SpaceContext> {
     let ship_dir = tmp.path().join(".ship");
+    // I-2: register the fabricated space id so `PartitionedSink::route()`
+    // doesn't refuse this suite's Space-scoped `artifact.*` events.
+    ship_substrate::testutil::register_space(&ship_dir, SCOPE_SPACE).unwrap();
     let space_db = ship_substrate::db::space_db_path(&ship_dir, SCOPE_SPACE);
     let svc = DataService::open_at(&space_db).unwrap();
     let store = Arc::new(SingleBackendDataStore::new(svc, SCOPE_SPACE));

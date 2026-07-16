@@ -40,6 +40,12 @@ async fn setup() -> (tempfile::TempDir, PathBuf, Arc<KernelLog>, SpaceId) {
     let ship_dir = std::fs::canonicalize(tmp.path()).unwrap();
     let kernel = Arc::new(KernelLog::new(new_isolated_for_test(ship_dir.clone()).unwrap()));
     let space = SpaceId::new("sp-consumer-1");
+    // I-2: `PartitionedSink::route()` refuses to write `spaces/<key>/space.db`
+    // for a scope_key with no `spaces` registry row. Register the test's
+    // fabricated space id directly (test-only shortcut for
+    // `ensure_identity_for_root`'s effect) so the consumer's Space-scoped
+    // `agent.def.updated` emit routes cleanly.
+    ship_substrate::testutil::register_space(&ship_dir, "sp-consumer-1").unwrap();
     (tmp, ship_dir, kernel, space)
 }
 
@@ -56,6 +62,28 @@ fn agent_def_updated_events(ship_dir: &std::path::Path, space: &str) -> Vec<Agen
         .iter()
         .map(|e| serde_json::from_str(&e.payload_json).unwrap())
         .collect()
+}
+
+/// Poll `agent_def_updated_events` until at least `min_count` rows land or a
+/// 2s budget expires. The consumer applies asynchronously off a broadcast
+/// subscription; a single fixed sleep races the scheduler under concurrent
+/// test load (`cargo test --workspace` runs many crates' test binaries at
+/// once) and flakes. Every caller here already asserts the exact count once
+/// convergence is observed, so over-waiting on a slow CI box costs time, not
+/// correctness.
+async fn wait_for_events(
+    ship_dir: &std::path::Path,
+    space: &str,
+    min_count: usize,
+) -> Vec<AgentDefUpdated> {
+    for _ in 0..80 {
+        let events = agent_def_updated_events(ship_dir, space);
+        if events.len() >= min_count {
+            return events;
+        }
+        sleep(Duration::from_millis(25)).await;
+    }
+    agent_def_updated_events(ship_dir, space)
 }
 
 fn config_file_changed_events(ship_dir: &std::path::Path) -> Vec<ConfigFileChanged> {
@@ -108,11 +136,8 @@ async fn consumer_emits_durable_agent_def_updated_for_agents_domain() {
     let ctx = ship_substrate::events::EmitContext::daemon_internal(Some(space.clone()));
     kernel.emit(envelope, &ctx).await.expect("emit transient signal");
 
-    // Yield a few scheduler cycles for the consumer to process the broadcast.
-    sleep(Duration::from_millis(50)).await;
-
     // The consumer wrote ONE durable `agent.def.updated` to the space's db.
-    let events = agent_def_updated_events(&ship_dir, space.0.as_str());
+    let events = wait_for_events(&ship_dir, space.0.as_str(), 1).await;
     assert_eq!(
         events.len(),
         1,
@@ -207,9 +232,7 @@ async fn consumer_propagates_deleted_marker_to_durable_event() {
     let ctx = ship_substrate::events::EmitContext::daemon_internal(Some(space.clone()));
     kernel.emit(envelope, &ctx).await.expect("emit");
 
-    sleep(Duration::from_millis(50)).await;
-
-    let events = agent_def_updated_events(&ship_dir, space.0.as_str());
+    let events = wait_for_events(&ship_dir, space.0.as_str(), 1).await;
     assert_eq!(events.len(), 1, "deleted marker still produces one durable event");
     assert_eq!(events[0].path, "gone.jsonc");
     assert!(
@@ -239,9 +262,8 @@ async fn consumer_emits_one_durable_per_transient_no_dedup() {
         let ctx = ship_substrate::events::EmitContext::daemon_internal(Some(space.clone()));
         kernel.emit(envelope, &ctx).await.expect("emit");
     }
-    sleep(Duration::from_millis(50)).await;
 
-    let events = agent_def_updated_events(&ship_dir, space.0.as_str());
+    let events = wait_for_events(&ship_dir, space.0.as_str(), 2).await;
     assert_eq!(events.len(), 2, "consumer is a 1:1 forwarder; dedup lives in the index");
     let paths: Vec<&str> = events.iter().map(|e| e.path.as_str()).collect();
     assert!(paths.contains(&"a.jsonc"));

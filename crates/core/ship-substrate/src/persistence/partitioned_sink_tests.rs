@@ -38,6 +38,7 @@ fn has_event(path: &std::path::Path, id: &str) -> bool {
 fn space_event_routes_to_its_own_space_db() {
     let tmp = tempdir().unwrap();
     let root = tmp.path();
+    crate::testutil::register_space(root, "A").unwrap();
     let sink = PartitionedSink::new(root.to_path_buf());
 
     let ev = event(EventScope::Space, Some("A"));
@@ -50,6 +51,7 @@ fn space_event_routes_to_its_own_space_db() {
 fn space_event_isolated_from_other_scopes() {
     let tmp = tempdir().unwrap();
     let root = tmp.path();
+    crate::testutil::register_space(root, "A").unwrap();
     let sink = PartitionedSink::new(root.to_path_buf());
 
     let ev = event(EventScope::Space, Some("A"));
@@ -65,6 +67,8 @@ fn space_event_isolated_from_other_scopes() {
 fn two_spaces_are_independently_addressable() {
     let tmp = tempdir().unwrap();
     let root = tmp.path();
+    crate::testutil::register_space(root, "A").unwrap();
+    crate::testutil::register_space(root, "B").unwrap();
     let sink = PartitionedSink::new(root.to_path_buf());
 
     let a = event(EventScope::Space, Some("A"));

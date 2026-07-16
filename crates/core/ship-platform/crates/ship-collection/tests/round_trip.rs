@@ -71,6 +71,9 @@ fn make_kernel_and_ctx(
     // `build_space_db_context_arc` pattern — open `space_db_path` explicitly
     // and wrap with `SingleBackendDataStore` rather than `for_space` (which
     // would re-init the global router and miss our isolated kernel).
+    // I-2: register the fabricated "rt" space id so `PartitionedSink::
+    // route()` doesn't refuse this suite's Space-scoped `collection.*` events.
+    ship_substrate::testutil::register_space(&ship_dir, "rt").unwrap();
     let space_db = ship_substrate::db::space_db_path(&ship_dir, "rt");
     let svc = ship_substrate::data::DataService::open_at(&space_db).unwrap();
     let store = std::sync::Arc::new(ship_substrate::SingleBackendDataStore::new(svc, "rt"));

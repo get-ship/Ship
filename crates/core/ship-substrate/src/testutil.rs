@@ -22,6 +22,62 @@ pub fn init_project_minimal(base_dir: impl AsRef<Path>) -> Result<PathBuf> {
     Ok(base_dir.to_path_buf())
 }
 
+/// Register a test space directly in the `spaces` Runtime-scoped registry
+/// (`<root>/runtime.db`), bypassing the event/projection path.
+///
+/// I-2 (the Space-partition-IS-a-registered-space charter) requires every
+/// `spaces/<key>/` directory to correspond to a `spaces` registry row;
+/// `PartitionedSink::route()` refuses to route a Space-scoped event whose
+/// `scope_key` has no such row. Production code reaches identity ONLY
+/// through `ship_space::identity::ensure_identity_for_root` (which mints via
+/// a real `space.opened` event, folded by `SpacesProjection`) — but that
+/// accessor lives one crate up (`ship-space`, L1), out of reach for
+/// `ship-substrate` (L0) and its many downstream test suites that fabricate
+/// a `SpaceId`/`scope_key` for scaffolding purposes only.
+///
+/// This helper is the test-only equivalent: it performs the same raw
+/// `INSERT INTO spaces` that `SpacesProjection::apply_opened` performs on a
+/// real `space.opened` fold, so a fabricated `space_id` used only to route
+/// Space-scoped test events becomes a real registry row and clears the
+/// `route()` gate. It does NOT emit an event and is NOT a substitute for
+/// `ensure_identity_for_root` in production code paths.
+pub fn register_space(root: impl AsRef<Path>, space_id: &str) -> Result<()> {
+    register_space_at(root, space_id, space_id, space_id)
+}
+
+/// Like [`register_space`], with an explicit `path`/`name` instead of
+/// reusing `space_id` for both.
+pub fn register_space_at(
+    root: impl AsRef<Path>,
+    space_id: &str,
+    path: &str,
+    name: &str,
+) -> Result<()> {
+    let root = root.as_ref();
+    let mut conn = crate::db::open_runtime_db(root)?;
+    let now = chrono::Utc::now().to_rfc3339();
+    crate::db::block_on(async {
+        sqlx::query(
+            "INSERT INTO spaces \
+             (space_id, path, name, opened_at, last_seen_at) \
+             VALUES (?, ?, ?, ?, ?) \
+             ON CONFLICT(space_id) DO UPDATE SET \
+               path         = excluded.path, \
+               name         = excluded.name, \
+               last_seen_at = excluded.last_seen_at, \
+               updated_at   = datetime('now')",
+        )
+        .bind(space_id)
+        .bind(path)
+        .bind(name)
+        .bind(&now)
+        .bind(&now)
+        .execute(&mut conn)
+        .await
+    })?;
+    Ok(())
+}
+
 // ── EnvGuard ──────────────────────────────────────────────────────────────
 //
 // Per-`Var` mutex with RAII restore. Tests that mutate process-global env

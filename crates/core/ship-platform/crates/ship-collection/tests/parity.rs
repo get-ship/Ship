@@ -39,6 +39,9 @@ fn make_kernel(tmp: &tempfile::TempDir) -> Arc<KernelLog> {
 
 fn make_ctx(tmp: &tempfile::TempDir, kernel: Arc<KernelLog>) -> Arc<SpaceContext> {
     let ship_dir = tmp.path().join(".ship");
+    // I-2: register the fabricated "test" space id so `PartitionedSink::
+    // route()` doesn't refuse this suite's Space-scoped `collection.*` events.
+    ship_substrate::testutil::register_space(&ship_dir, "test").unwrap();
     // Collections are event-sourced: bind the data store to the SAME per-scope
     // `spaces/test/space.db` the kernel routes `collection.*` events to, so the
     // `CollectionProjection`'s writes are read back here (emit-only path).

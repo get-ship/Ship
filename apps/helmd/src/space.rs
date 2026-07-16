@@ -37,9 +37,18 @@ pub async fn mount(router: ConnectRouter) -> anyhow::Result<ConnectRouter> {
     let ctx = Arc::new(SpaceContext::for_space(&ship_dir, SpaceId::new(space_id.clone()))?);
     let kernel = ctx.kernel.clone();
     let ctx_for_wire = ctx.clone();
+    // helmd has no shipd-style auth/gate stack (no `AuthContext`, no
+    // capability grants) — this mount exists solely so `Snapshot`/`Watch`/
+    // `Info` against the active space are reachable on a live helmd (see
+    // module doc). `Create` is not this mount's point and helmd cannot
+    // authenticate a caller anyway, so the gate here is a no-op allow;
+    // it does not, and cannot, express the `space.create` capability check
+    // shipd's real gate performs.
+    let gate: ship_space::wire::GateFn = Arc::new(|_ctx, _op| Ok(()));
     let wire = Arc::new(ship_space::SpaceWire::new(
         kernel,
         move |_rctx: &connectrpc::RequestContext| Ok(ctx_for_wire.clone()),
+        gate,
     ));
     tracing::info!(space = %space_id, "helmd: mounting ship.ops.v1.SpaceService (Snapshot reachable)");
     Ok(ship_ops_rpc::SpaceServiceExt::register(wire, router))

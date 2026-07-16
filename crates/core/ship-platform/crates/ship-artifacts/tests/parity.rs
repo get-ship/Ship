@@ -43,6 +43,9 @@ fn make_kernel(tmp: &tempfile::TempDir) -> Arc<KernelLog> {
 
 fn make_ctx_for(tmp: &tempfile::TempDir, kernel: Arc<KernelLog>, space: &str) -> Arc<SpaceContext> {
     let ship_dir = tmp.path().join(".ship");
+    // I-2: register the fabricated space id so `PartitionedSink::route()`
+    // doesn't refuse this suite's Space-scoped `artifact.*` events.
+    ship_substrate::testutil::register_space(&ship_dir, space).unwrap();
     let space_db = ship_substrate::db::space_db_path(&ship_dir, space);
     let svc = DataService::open_at(&space_db).unwrap();
     let store = Arc::new(SingleBackendDataStore::new(svc, space));
@@ -249,7 +252,10 @@ async fn parity_store_run_scope_sets_run_id() {
     let svc = make_service(&tmp, ctx);
 
     // This test reads only the RETURNED record (not via the read store), so the
-    // scope space need not match the ctx space.
+    // scope space need not match the ctx space. The store's event routes on
+    // the SCOPE's own space_id ("proj"), not the ctx's ("proj1") — register it
+    // too so `PartitionedSink::route()` doesn't refuse the emit.
+    ship_substrate::testutil::register_space(tmp.path().join(".ship"), "proj").unwrap();
     let scope = ArtifactScope::Run { space_id: "proj".into(), run_id: "run-001".into() };
     let rec = svc
         .store("out.json", "application/json", b"{}", &scope, None, None, None, None)

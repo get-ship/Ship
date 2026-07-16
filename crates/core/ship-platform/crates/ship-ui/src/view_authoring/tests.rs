@@ -50,6 +50,9 @@ async fn fixture() -> (tempfile::TempDir, Arc<SpaceContext>, ArtifactService) {
     let tmp = tempfile::tempdir().unwrap();
     let ship_dir = tmp.path().join(".ship");
     std::fs::create_dir_all(&ship_dir).unwrap();
+    // I-2: register the fabricated "global" space id so `PartitionedSink::
+    // route()` doesn't refuse this suite's Space-scoped events.
+    ship_substrate::testutil::register_space(&ship_dir, "global").unwrap();
     // Event-sourced collections: the projection writes into the per-space
     // `space.db`, so the read store must open that exact file (not the legacy
     // shared `data.db` via `open`) or reads never see projected rows.

@@ -81,6 +81,14 @@ proptest! {
         let root = tmp.path();
         let sink = PartitionedSink::new(root.to_path_buf());
 
+        // I-2: route() refuses a Space event whose key has no `spaces`
+        // registry row. Register it for the Space case only — Account/
+        // Runtime never consult the registry (route ignores scope_key for
+        // them).
+        if scope == EventScope::Space {
+            crate::testutil::register_space(root, &key).unwrap();
+        }
+
         // Space carries the generated key; Account/Runtime carry one too (the
         // sink ignores it for routing — proves routing is scope-keyed, not
         // scope_key-keyed, for the non-Space scopes).
@@ -117,6 +125,11 @@ proptest! {
         let tmp = tempdir().unwrap();
         let root = tmp.path();
         let sink = PartitionedSink::new(root.to_path_buf());
+
+        // I-2: register both fabricated space keys before routing events
+        // under them.
+        crate::testutil::register_space(root, &a).unwrap();
+        crate::testutil::register_space(root, &b).unwrap();
 
         let mk = |k: &str| {
             EventEnvelope::new("test.route", "ent-1", &serde_json::json!({}))
@@ -194,6 +207,10 @@ fn cross_scope_emit_persists_and_isolates_per_db() {
     rt.block_on(async {
         let tmp = tempdir().unwrap();
         let root = tmp.path().to_path_buf();
+        // I-2: register both fixture space ids before routing Space-scoped
+        // events under them.
+        crate::testutil::register_space(&root, "A").unwrap();
+        crate::testutil::register_space(&root, "B").unwrap();
         let router = crate::events::kernel_router::KernelRouter::new(root.clone()).unwrap();
 
         // One event per scope, each emitted with its scope chosen on the

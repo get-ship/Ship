@@ -195,7 +195,7 @@ pub fn router(state: ApiState) -> axum::Router {
         device_pid,
         device_space_fn,
     ));
-    let router = agents_wire::mount(router, &state, gate);
+    let router = agents_wire::mount(router, &state, gate.clone());
     // ship.code.v1.CodeService — coding-class dispatch surface; gated
     // behind `--features ship-code` (mount split 2026-07-10). With the
     // feature off, this compiles to nothing and the route is absent.
@@ -286,7 +286,7 @@ pub fn router(state: ApiState) -> axum::Router {
     // overlay + registry + Watch. The SOLE space service (the legacy SpaceService
     // — JsonResponse/ProjectRecord vestiges, *Live twins, window RPCs — was
     // retired in the space cutover; windows moved to DeviceService above).
-    let space_wire = crate::rpc::space::space_wire(state.clone());
+    let space_wire = crate::rpc::space::space_wire(state.clone(), gate.clone());
     let router = ship_ops_rpc::SpaceServiceExt::register(space_wire, router);
     router.into_axum_router()
 }

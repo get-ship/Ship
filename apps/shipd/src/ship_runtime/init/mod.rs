@@ -152,27 +152,41 @@ impl ShipRuntime {
         // ship-space's space-service seam expects). The underlying router is
         // shared across reads; the `KernelLog` constructor just attaches a
         // broadcast channel.
+        //
+        // Boot NEVER mints (operator ruling 2026-07-16): a machine with no
+        // registered space for the probed root boots spaceless — absence is
+        // structural, not a degraded mode. Space creation is the ONE gated,
+        // user-authenticated `Create` RPC (`ship_space::service::create`);
+        // boot only ever OPENS an already-registered space — a registry
+        // read, same NotFound-never-mints contract as the wire's `Open`.
+        // Unlike the wire's `Open`, boot does NOT bump `last_seen_at`: a
+        // process restart against the same root isn't a new "seen" — only
+        // an explicit `Open`/`Create` call updates the timestamp.
         let served_space_id: Option<String> = {
             let kernel_log =
                 std::sync::Arc::new(ship_substrate::ports::KernelLog::new(kernel.clone()));
             let probe = workspace_dir.clone().or_else(|| std::env::current_dir().ok());
             match probe.as_deref() {
                 Some(p) => {
-                    match ship_space::identity::ensure_identity_for_root(
-                        &kernel_log, p, None,
-                    )
-                    .await
-                    {
-                        Ok(rec) => Some(rec.space_id),
+                    let canonical = std::fs::canonicalize(p).unwrap_or_else(|_| p.to_path_buf());
+                    match ship_space::spaces::find_by_path(&kernel_log, &canonical) {
+                        Ok(Some(rec)) => Some(rec.space_id),
+                        Ok(None) => {
+                            // No registry row for this root — structural
+                            // absence, not an error. Boot spaceless; the user
+                            // creates the space explicitly (hub UI / CLI),
+                            // which is the ONE minting path.
+                            tracing::info!(
+                                probe = %canonical.display(),
+                                "shipd: no registered space at boot root; booting space-less"
+                            );
+                            None
+                        }
                         Err(e) => {
-                            // No `.ship/` presence-walk match, or kernel emit
-                            // failed. Both are loud-but-non-fatal: shipd
-                            // boots space-less (the S2 posture). The log
-                            // carries a single warn for the operator.
                             tracing::warn!(
                                 error = %e,
-                                probe = %p.display(),
-                                "shipd: identity mint-or-read failed; booting space-less"
+                                probe = %canonical.display(),
+                                "shipd: space registry lookup failed; booting space-less"
                             );
                             None
                         }

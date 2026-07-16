@@ -75,6 +75,9 @@ fn read_back(tmp: &tempfile::TempDir, id: &str) -> Option<EventEnvelope> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn emit_stamps_space_key_and_author_from_binding() {
     let (tmp, router) = setup();
+    // I-2: `PartitionedSink::route()` refuses a Space event whose key has no
+    // `spaces` registry row.
+    crate::testutil::register_space(tmp.path().join(".ship"), "space-A").unwrap();
     // Space event with NO scope_key, emitted under a space-bound binding.
     let event = ev("test.scope_event").with_scope(EventScope::Space, None);
     let id = event.id.clone();

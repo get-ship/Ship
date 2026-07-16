@@ -36,6 +36,11 @@ async fn setup() -> (tempfile::TempDir, std::path::PathBuf, Arc<KernelLog>) {
     // Marker cutover: the watch root IS the stack root.
     let ship_dir = std::fs::canonicalize(tmp.path()).unwrap();
     let kernel = Arc::new(KernelLog::new(new_isolated_for_test(ship_dir.clone()).unwrap()));
+    // I-2: register the fixed "sp-1" space id this suite's tests share, so
+    // `PartitionedSink::route()`'s registry-existence check doesn't refuse
+    // the Space-scoped `agent.changed`/`agent.def.updated` events these
+    // tests emit under it.
+    ship_substrate::testutil::register_space(&ship_dir, "sp-1").unwrap();
     (tmp, ship_dir, kernel)
 }
 

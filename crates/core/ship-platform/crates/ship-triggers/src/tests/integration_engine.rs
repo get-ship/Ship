@@ -34,6 +34,10 @@ pub(super) fn test_kernel(ship_dir: &Path) -> Arc<Mutex<KernelRouter>> {
             ship_collection::item_projection::CollectionItemProjection,
         )]
     }));
+    // I-2: register the fixed `TEST_SPACE` fixture id so `PartitionedSink::
+    // route()` doesn't refuse this suite's Space-scoped trigger/collection
+    // events.
+    ship_substrate::testutil::register_space(ship_dir, TEST_SPACE).unwrap();
     let kr = KernelRouter::new(ship_dir.to_path_buf()).unwrap();
     Arc::new(Mutex::new(kr))
 }

@@ -116,6 +116,9 @@ async fn account_scope_round_trips_through_account_db() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn space_scope_round_trips_through_space_db() {
     let kernel = make_kernel();
+    // I-2: `PartitionedSink::route()` refuses a Space event whose key has no
+    // `spaces` registry row.
+    ship_substrate::testutil::register_space(global_dir(), "space-rt").unwrap();
     let svc = SettingsService::new(ctx_with_space(kernel, "space-rt", true));
 
     svc.set(SettingScope::Space, "editor.font", json!("mono")).await.unwrap();
@@ -145,6 +148,9 @@ async fn space_scope_with_no_active_space_errors_cleanly() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn space_setting_is_isolated_to_its_space() {
     let kernel = make_kernel();
+    // I-2: only "iso-a" is ever written to (the isolation proof reads
+    // "iso-b" expecting NotFound, no registry row needed for that side).
+    ship_substrate::testutil::register_space(global_dir(), "iso-a").unwrap();
     let svc_a = SettingsService::new(ctx_with_space(kernel.clone(), "iso-a", true));
     let svc_b = SettingsService::new(ctx_with_space(kernel, "iso-b", true));
 
@@ -200,6 +206,9 @@ async fn non_operator_account_write_is_also_rejected_under_restrictive_default()
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn set_authors_settings_changed_in_the_chosen_scope() {
     let kernel = make_kernel();
+    // I-2: `PartitionedSink::route()` refuses a Space event whose key has no
+    // `spaces` registry row.
+    ship_substrate::testutil::register_space(global_dir(), "evt-sp").unwrap();
     let mut rx = kernel.subscribe();
     let svc = SettingsService::new(ctx_with_space(kernel.clone(), "evt-sp", true));
 

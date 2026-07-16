@@ -97,7 +97,7 @@ async fn info_resolves_served_space_identity() {
 
     let path = tmp.path().join("acme");
     std::fs::create_dir_all(&path).unwrap();
-    let record = svc.add(&path, Some("Acme")).await.unwrap();
+    let record = svc.create(&path, Some("Acme")).await.unwrap();
     let space = record.space_id.clone();
 
     // Serve the newly-opened space and compose its identity from the
@@ -127,9 +127,9 @@ async fn list_returns_spaces_newest_first() {
     let b = tmp.path().join("re-b");
     std::fs::create_dir_all(&a).unwrap();
     std::fs::create_dir_all(&b).unwrap();
-    svc.add(&a, Some("re-a")).await.unwrap();
+    svc.create(&a, Some("re-a")).await.unwrap();
     tokio::time::sleep(Duration::from_millis(10)).await;
-    svc.add(&b, Some("re-b")).await.unwrap();
+    svc.create(&b, Some("re-b")).await.unwrap();
 
     let listed = svc.list().unwrap();
     let b_pos = listed.iter().position(|p| p.name == "re-b").unwrap();
@@ -147,8 +147,8 @@ async fn add_is_idempotent_same_id_name_preserved() {
 
     let path = tmp.path().join("proj");
     std::fs::create_dir_all(&path).unwrap();
-    let r1 = svc.add(&path, Some("test")).await.unwrap();
-    let r2 = svc.add(&path, Some("test-renamed")).await.unwrap();
+    let r1 = svc.create(&path, Some("test")).await.unwrap();
+    let r2 = svc.create(&path, Some("test-renamed")).await.unwrap();
     assert_eq!(r1.space_id, r2.space_id, "id stable across re-add");
     assert_eq!(r2.name, "test", "name preserved on second add");
 }
@@ -224,14 +224,14 @@ async fn re_open_emits_space_seen() {
 
     let path = tmp.path().join("p");
     std::fs::create_dir_all(&path).unwrap();
-    let r = svc.add(&path, Some("p")).await.unwrap();
+    let r = svc.create(&path, Some("p")).await.unwrap();
 
     // Drain the open event(s).
     tokio::time::sleep(Duration::from_millis(20)).await;
     while rx.try_recv().is_ok() {}
 
     // Re-open.
-    let _ = svc.add(&path, Some("p")).await.unwrap();
+    let _ = svc.create(&path, Some("p")).await.unwrap();
 
     let seen = tokio::time::timeout(Duration::from_secs(2), rx.recv())
         .await
@@ -308,7 +308,7 @@ async fn space_opened_event_is_visible_in_both_async_and_sync_reads() {
 
     // Opening the directory emits `space.opened`; `SpacesProjection` folds
     // it into the `spaces` SQL table inside the kernel transaction.
-    let record = svc.add(&path, Some("MyProject")).await.unwrap();
+    let record = svc.create(&path, Some("MyProject")).await.unwrap();
 
     // 1. Async registry read (L1 — reads the `spaces` SQL via kernel.ship_dir).
     let async_list = svc.list().unwrap();

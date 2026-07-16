@@ -35,6 +35,10 @@ mod common;
 /// `spaces/<space_id>/space.db`, and the data store opens that exact file.
 fn make_service(ship_dir: &std::path::Path, space_id: &str) -> CollectionService {
     common::install_collection_projection();
+    // I-2: register the fabricated `space_id` in the `spaces` registry so
+    // `PartitionedSink::route()` doesn't refuse this suite's Space-scoped
+    // `collection.*` events.
+    ship_substrate::testutil::register_space(ship_dir, space_id).unwrap();
     let router = new_isolated_for_test(ship_dir.to_path_buf()).unwrap();
     let kernel = Arc::new(KernelLog::new(router));
 

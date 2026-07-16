@@ -14,8 +14,11 @@
 //! - `List` reads the Runtime-scoped `spaces` projection directly.
 //! - `Info` returns the request's ctx-bound served space (or empty for
 //!   globally-scoped requests) plus the projection's name + canonical path.
-//! - `Add` is CREATE-new-at-location (a mint-once identity on first open;
-//!   re-open = identity read + `space.seen` bump).
+//! - `Create` is CREATE-new-at-location (mint-once identity), gated behind
+//!   the `space.create` capability via the shared `GateFn`.
+//! - `Open` reads an already-registered space by path or id (re-open =
+//!   identity read + `space.seen` bump); unknown path/id is `NotFound` —
+//!   it never mints.
 //! - `RegisterStack` / `ListStacks` drive the `stack.registered` projection.
 //! - `InstallStack` / `UnregisterStack` / `ListInstalled` are Unimplemented:
 //!   there is no install act and no stored library tier. Content is the
@@ -42,10 +45,17 @@ use ship_ops_rpc::{
 use crate::service::SpaceService;
 use crate::types::SpaceRecord;
 
+/// Gate closure type: given a request context and op name, return Ok or a
+/// ConnectError(PermissionDenied). Mirrors `ship_agents`'s `RulesWire::GateFn`
+/// — shipd provides this from `gate::decide` + `policy::policy_for` so the
+/// wire stays auth-free.
+pub type GateFn = Arc<dyn Fn(&RequestContext, &str) -> Result<(), ConnectError> + Send + Sync>;
+
 /// Wraps SpaceService with the per-request context factory.
 pub struct SpaceWire<F> {
     make_ctx: F,
     reactive: Arc<ReactiveRegistry>,
+    gate: GateFn,
 }
 
 impl<F> SpaceWire<F>
@@ -53,11 +63,13 @@ where
     F: Fn(&RequestContext) -> Result<Arc<SpaceContext>, ConnectError> + Send + Sync + 'static,
 {
     /// New wire over the space registry / identity / membership / snapshot
-    /// surface.
-    pub fn new(kernel: Arc<KernelLog>, make_ctx: F) -> Self {
+    /// surface. `gate` is the shared capability-decision closure — `Create`
+    /// is the only method that calls it today (`space.create`).
+    pub fn new(kernel: Arc<KernelLog>, make_ctx: F, gate: GateFn) -> Self {
         Self {
             make_ctx,
             reactive: Arc::new(ReactiveRegistry::new(kernel)),
+            gate,
         }
     }
 
@@ -114,11 +126,14 @@ where
         }))
     }
 
-    async fn add(
+    /// CREATE-new-at-location. Gated behind the `space.create` capability —
+    /// the ONE minting entry point on the RPC surface.
+    async fn create(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedAddSpaceReqView,
+        request: ship_ops_rpc::OwnedCreateSpaceReqView,
     ) -> ServiceResult<Space> {
+        (self.gate)(&ctx, "space.create")?;
         let svc = self.make_svc(&ctx)?;
         let path = std::path::Path::new(request.path);
         let name = if request.name.is_empty() {
@@ -126,7 +141,35 @@ where
         } else {
             Some(request.name)
         };
-        let record = svc.add(path, name).await.map_err(ConnectError::from)?;
+        let record = svc.create(path, name).await.map_err(ConnectError::from)?;
+        Ok(Response::new(record_to_proto(record)))
+    }
+
+    /// OPEN an already-registered space by path or id. Never mints: unknown
+    /// path/id is `NotFound`. Gated on `space.open` — the C1 baseline, same
+    /// tier as the other space-write ops (`RegisterStack` etc).
+    async fn open(
+        &self,
+        ctx: RequestContext,
+        request: ship_ops_rpc::OwnedOpenSpaceReqView,
+    ) -> ServiceResult<Space> {
+        (self.gate)(&ctx, "space.open")?;
+        let svc = self.make_svc(&ctx)?;
+        let owned = request.to_owned_message();
+        let record = match owned.r#ref {
+            Some(ship_ops_rpc::__buffa::oneof::open_space_req::Ref::Path(path)) => svc
+                .open_by_path(std::path::Path::new(&path))
+                .await
+                .map_err(ConnectError::from)?,
+            Some(ship_ops_rpc::__buffa::oneof::open_space_req::Ref::SpaceId(id)) => {
+                svc.open_by_id(&id).await.map_err(ConnectError::from)?
+            }
+            None => {
+                return Err(ConnectError::invalid_argument(
+                    "open requires either `path` or `space_id`",
+                ));
+            }
+        };
         Ok(Response::new(record_to_proto(record)))
     }
 

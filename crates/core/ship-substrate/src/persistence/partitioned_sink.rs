@@ -45,9 +45,18 @@ impl PartitionedSink {
         Self { root, stores: Mutex::new(HashMap::new()) }
     }
 
-    /// Resolve `(cache_key, db_path)` for an event's scope. Errs only when a
-    /// Space event lacks the `scope_key` that Phase 3's `enforce_scope` is
-    /// responsible for stamping — fail loud rather than write to a wrong db.
+    /// Resolve `(cache_key, db_path)` for an event's scope. Errs when a Space
+    /// event lacks the `scope_key` that Phase 3's `enforce_scope` is
+    /// responsible for stamping, OR when `scope_key` names a `space_id` with
+    /// no row in the `spaces` Runtime-scoped registry (I-2: `spaces/<key>/`
+    /// on disk must correspond 1:1 with the registry). The registry is
+    /// guaranteed populated before any real space_id reaches here: `space.
+    /// opened` is itself Runtime-scoped and Durable, so its registration
+    /// commits (event row + `SpacesProjection` fold, same SQLite
+    /// transaction) before `ensure_identity_for_root` ever returns a
+    /// `space_id` to a caller — nothing can hand this fn a genuine space_id
+    /// that isn't already registered. Fail loud rather than mint a
+    /// `spaces/<any-string>/space.db` for an unregistered / fabricated key.
     fn route(&self, event: &EventEnvelope) -> Result<(String, PathBuf)> {
         match event.scope {
             EventScope::Space => {
@@ -57,6 +66,23 @@ impl PartitionedSink {
                         event.id
                     )
                 })?;
+                match db::spaces::get_at(&self.root, key) {
+                    Ok(Some(_)) => {}
+                    Ok(None) => {
+                        return Err(anyhow!(
+                            "PartitionedSink: Space event {} has scope_key `{key}` with no \
+                             registry row in `spaces`; refusing to mint an unregistered \
+                             spaces/{key}/space.db",
+                            event.id
+                        ));
+                    }
+                    Err(e) => {
+                        return Err(anyhow!(
+                            "PartitionedSink: failed to read `spaces` registry for scope_key \
+                             `{key}`: {e}"
+                        ));
+                    }
+                }
                 Ok((format!("space:{key}"), db::space_db_path(&self.root, key)))
             }
             EventScope::Account => {

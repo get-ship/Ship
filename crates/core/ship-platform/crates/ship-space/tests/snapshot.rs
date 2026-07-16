@@ -59,6 +59,11 @@ fn make_rig() -> TestRig {
 }
 
 fn make_ctx(rig: &TestRig, space_id: &str) -> Arc<SpaceContext> {
+    // I-2: register the fabricated space id so `PartitionedSink::route()`
+    // doesn't refuse this suite's Space-scoped events.
+    if !space_id.is_empty() {
+        ship_substrate::testutil::register_space(&rig.data_root, space_id).unwrap();
+    }
     let space_db = ship_substrate::db::space_db_path(&rig.data_root, space_id);
     let svc = DataService::open_at(&space_db).unwrap();
     let store = Arc::new(SingleBackendDataStore::new(svc, space_id));

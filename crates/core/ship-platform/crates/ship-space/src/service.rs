@@ -8,8 +8,10 @@
 //!
 //! - **registry** is the `spaces` Runtime-scoped projection — the device-local
 //!   record of opened spaces (LaunchServices analogy). Identity lives in the
-//!   projection, never at the path. The single `Add` RPC is CREATE-new-at-
-//!   location: it mints identity once (through `identity::ensure_identity_for_root`).
+//!   projection, never at the path. `Create` mints identity once (through
+//!   `identity::ensure_identity_for_root`), gated behind the `space.create`
+//!   capability. `Open` reads an already-registered space by path or id —
+//!   unknown path/id is `NotFound`, never a mint.
 //! - **identity** is the served-space read: `Info` returns the runtime's
 //!   served space's identity and name (today resolved through the live
 //!   `ctx`'s `SpaceId`). Per-space settings are read through the unified
@@ -94,18 +96,70 @@ impl SpaceService {
         }
     }
 
-    // ── add (CREATE-new-at-location) ───────────────────────────────────────
+    // ── create (mint-once, gated on space.create) ───────────────────────────
 
     /// CREATE a new space at the location `path`. Mints identity once (an
     /// already-open path re-emits `space.seen`; a fresh one mints a
     /// nanoid + emits `space.opened`). Idempotent: re-opening an existing
     /// space returns its existing identity with a bumped `last_seen_at`.
-    pub async fn add(
+    ///
+    /// The ONE minting entry point (besides the boot-time re-open path,
+    /// which never mints on a fresh directory — see the shipd boot init).
+    /// The wire gates this behind the `space.create` capability.
+    pub async fn create(
         &self,
         path: &std::path::Path,
         name: Option<&str>,
     ) -> Result<SpaceRecord, SpaceError> {
         identity::ensure_identity_for_root(self.ctx.kernel(), path, name).await
+    }
+
+    // ── open (registered spaces only; never mints) ─────────────────────────
+
+    /// OPEN an already-registered space by `path` or `space_id`. Never
+    /// mints: an unregistered path or unknown id is `NotFound`, not a
+    /// fresh identity. Mirrors `add`'s re-open behavior (bumps
+    /// `last_seen_at` via `space.seen`) without the mint-on-miss fallback.
+    pub async fn open_by_path(&self, path: &std::path::Path) -> Result<SpaceRecord, SpaceError> {
+        let canonical = std::fs::canonicalize(path)
+            .unwrap_or_else(|_| path.to_path_buf());
+        let existing = spaces::find_by_path(self.ctx.kernel(), &canonical)?.ok_or_else(|| {
+            SpaceError::NotFound(format!(
+                "no registered space at path {}",
+                canonical.display()
+            ))
+        })?;
+        self.bump_seen(existing).await
+    }
+
+    /// OPEN an already-registered space by `space_id`. Never mints: an
+    /// unknown id is `NotFound`.
+    pub async fn open_by_id(&self, space_id: &str) -> Result<SpaceRecord, SpaceError> {
+        let existing = spaces::get(self.ctx.kernel(), space_id)?
+            .ok_or_else(|| SpaceError::NotFound(format!("no registered space {space_id}")))?;
+        self.bump_seen(existing).await
+    }
+
+    /// Bump `last_seen_at` on an already-resolved registry row via
+    /// `space.seen` (same event `ensure_identity_for_root`'s re-open path
+    /// emits), without touching the mint path at all.
+    async fn bump_seen(&self, existing: SpaceRecord) -> Result<SpaceRecord, SpaceError> {
+        let now = crate::helpers::now_rfc3339();
+        let envelope = ship_types::envelope::EventEnvelope::new(
+            ship_types::event_types::SPACE_SEEN,
+            &existing.space_id,
+            &ship_types::payload::SpaceSeen { seen_at: now.clone() },
+        )
+        .map_err(|e| SpaceError::Internal(e.to_string()))?;
+        self.ctx
+            .kernel()
+            .emit(envelope, &crate::helpers::runtime_emit_ctx())
+            .await
+            .map_err(|e| SpaceError::Internal(e.to_string()))?;
+        Ok(SpaceRecord {
+            last_seen_at: now,
+            ..existing
+        })
     }
 
     // ── stack membership ───────────────────────────────────────────────────

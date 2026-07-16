@@ -71,8 +71,10 @@ pub struct ShipRuntime {
     pub(super) actor_sessions: ship_agents::services::sessions::Registry,
     /// The space this daemon is currently serving — its mint-once
     /// `space_id` (an owned string, NOT a `SpaceId` newtype). Cached at boot
-    /// from `ship_space::identity::ensure_identity_for_root`; never re-minted,
-    /// never re-registered, never `resolve_active_space`-recomputed. `None`
+    /// from a `spaces` registry lookup (`ship_space::spaces::find_by_path`) —
+    /// boot never mints, so this is `Some` only when the probed root already
+    /// has a registered space. Never re-minted, never re-registered, never
+    /// `resolve_active_space`-recomputed. `None`
     /// when the daemon is space-less (no `--workspace`, or no project root
     /// it can attach to). Every reader that needs "the served space"
     /// — `active_space_id`, `SpaceService.Info`, the dispatch chain's

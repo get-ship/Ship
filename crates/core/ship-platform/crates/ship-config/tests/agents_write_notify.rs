@@ -60,6 +60,10 @@ async fn setup() -> (tempfile::TempDir, PathBuf, Arc<KernelLog>) {
     let dir = ship_dir(&tmp);
     std::fs::create_dir_all(&dir).unwrap();
     let kernel = Arc::new(KernelLog::new(new_isolated_for_test(dir.clone()).unwrap()));
+    // I-2: register the fixed "sp-1" space id this suite shares, so
+    // `PartitionedSink::route()` doesn't refuse the Space-scoped
+    // `agent.def.updated` these tests emit under it.
+    ship_substrate::testutil::register_space(&dir, "sp-1").unwrap();
     (tmp, dir, kernel)
 }
 

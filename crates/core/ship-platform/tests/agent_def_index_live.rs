@@ -238,6 +238,11 @@ async fn write_then_emit_then_spawned_consumer_indexes_the_row() {
     // The index over the space db + the shared KernelLog both producers ride.
     let index = Arc::new(make_index(&dir).await);
     let kernel = Arc::new(KernelLog::new(new_isolated_for_test(dir.clone()).unwrap()));
+    // I-2: `PartitionedSink::route()` refuses a Space event whose key has no
+    // `spaces` registry row. `notify_agent_def_saved` below emits under
+    // "idx-test" and swallows the error (fire-and-forget NOTIFY), so a
+    // missing registration here would silently drop the event, not panic.
+    ship_substrate::testutil::register_space(&dir, "idx-test").unwrap();
 
     // Spawn the live consumer subscribed to the shared log.
     let _handle = spawn_def_index_consumer(
