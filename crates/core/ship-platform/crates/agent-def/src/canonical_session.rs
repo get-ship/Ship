@@ -25,7 +25,7 @@
 //! fully retired.
 //!
 //! Scope and retention (canonical axis, set at `register_event!`):
-//! - `session.*` (coarse)  — Space-scoped, Durable
+//! - `session.*` (coarse)  — Runtime-scoped, Durable
 //! - `session.turn.*` (medium) — Runtime-scoped, Ephemeral
 //!
 //! See the `canonical-session-events` ADR / `.artifacts/agents-architecture.md`
@@ -43,7 +43,7 @@ use serde::{Deserialize, Serialize};
 // passed to `register_event!` live next to the payloads they describe.
 pub use ship_types::event_types::canonical_session as event_types;
 
-// ── Session (coarse) — Space-scoped, Durable ───────────────────────────────
+// ── Session (coarse) — Runtime-scoped, Durable ─────────────────────────────
 
 /// Payload for `session.started`. The first event of a session.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -60,8 +60,9 @@ pub struct SessionStarted {
     /// runtime exposes one. `None` for harnesses that don't surface it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
-    /// The Space this session belongs to. Stamped onto the envelope as
-    /// `(scope=Space, scope_key=space_id)` at emit.
+    /// The Space this session belongs to. Payload data only — the envelope
+    /// itself is Runtime-scoped; this field is read back by
+    /// `canonical_sessions` and callers that need the session's space.
     pub space_id: String,
     /// Human-readable, url-safe operational identifier. Derived from
     /// workspace + suffix at dispatch time. Used in cancel paths,

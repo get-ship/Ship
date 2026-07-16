@@ -10,7 +10,7 @@
 //! the coarse session.* / medium session.turn.* tiers (see
 //! `crate::canonical_session`):
 //!
-//! - **session.* (coarse)** — Space-scoped, Durable
+//! - **session.* (coarse)** — Runtime-scoped, Durable
 //! - **session.turn.* (medium)** — Runtime-scoped, Ephemeral
 //! - **op.* (fine-grained)** — Runtime-scoped, Ephemeral
 //!

@@ -12,10 +12,9 @@
 //!   which also implements `EventSink`. The port is the same in both — no
 //!   `if kernel else mock` branching at call sites.
 //! - The `emit_session_*` / `emit_turn_*` builders take the typed payload
-//!   from [`crate::canonical_session`], build an
-//!   `EventEnvelope`, stamp the scope (`Space` for `session.*` coarse
-//!   events, `Runtime` for `session.turn.*`), then call
-//!   `sink.persist(&envelope)`.
+//!   from [`crate::canonical_session`], build an `EventEnvelope` (Runtime
+//!   scope, per the registry — the whole canonical family is per-machine
+//!   execution state), then call `sink.persist(&envelope)`.
 //!
 //! Scope (jobs `canonical-session-events` + `workbench-teardown`): the
 //! COMPLETE canonical agent-session family — 5 coarse-grain events
@@ -38,7 +37,6 @@ pub use crate::canonical_session::{
     SessionSuspended, TurnEnded, TurnStarted,
 };
 use ship_types::envelope::EventEnvelope;
-use ship_types::event_registry::EventScope;
 use ship_types::event_types::canonical_session as event_types;
 
 /// Kernel-emit port for the canonical session family (7 events — see
@@ -68,7 +66,7 @@ impl SessionEventSink {
     pub fn inner(&self) -> &Arc<dyn EventSink> {
         &self.inner
     }
-    /// Build + emit a `session.started` envelope. Space-scoped, Durable.
+    /// Build + emit a `session.started` envelope. Runtime-scoped, Durable.
     /// Adopted in `workbench-teardown`: the canonical family is now
     /// complete (started + 4 terminals + 2 turn).
     pub fn emit_session_started(
@@ -76,7 +74,7 @@ impl SessionEventSink {
         session_id: &str,
         payload: &SessionStarted,
     ) -> Result<EventEnvelope, serde_json::Error> {
-        emit_with_space(
+        emit_runtime(
             &self.inner,
             event_types::SESSION_STARTED,
             session_id,
@@ -84,13 +82,13 @@ impl SessionEventSink {
         )
     }
 
-    /// Build + emit a `session.completed` envelope. Space-scoped, Durable.
+    /// Build + emit a `session.completed` envelope. Runtime-scoped, Durable.
     pub fn emit_session_completed(
         &self,
         session_id: &str,
         payload: &SessionCompleted,
     ) -> Result<EventEnvelope, serde_json::Error> {
-        emit_with_space(
+        emit_runtime(
             &self.inner,
             event_types::SESSION_COMPLETED,
             session_id,
@@ -98,13 +96,13 @@ impl SessionEventSink {
         )
     }
 
-    /// Build + emit a `session.failed` envelope. Space-scoped, Durable.
+    /// Build + emit a `session.failed` envelope. Runtime-scoped, Durable.
     pub fn emit_session_failed(
         &self,
         session_id: &str,
         payload: &SessionFailed,
     ) -> Result<EventEnvelope, serde_json::Error> {
-        emit_with_space(
+        emit_runtime(
             &self.inner,
             event_types::SESSION_FAILED,
             session_id,
@@ -112,13 +110,13 @@ impl SessionEventSink {
         )
     }
 
-    /// Build + emit a `session.cancelled` envelope. Space-scoped, Durable.
+    /// Build + emit a `session.cancelled` envelope. Runtime-scoped, Durable.
     pub fn emit_session_cancelled(
         &self,
         session_id: &str,
         payload: &SessionCancelled,
     ) -> Result<EventEnvelope, serde_json::Error> {
-        emit_with_space(
+        emit_runtime(
             &self.inner,
             event_types::SESSION_CANCELLED,
             session_id,
@@ -126,13 +124,13 @@ impl SessionEventSink {
         )
     }
 
-    /// Build + emit a `session.suspended` envelope. Space-scoped, Durable.
+    /// Build + emit a `session.suspended` envelope. Runtime-scoped, Durable.
     pub fn emit_session_suspended(
         &self,
         session_id: &str,
         payload: &SessionSuspended,
     ) -> Result<EventEnvelope, serde_json::Error> {
-        emit_with_space(
+        emit_runtime(
             &self.inner,
             event_types::SESSION_SUSPENDED,
             session_id,
@@ -173,13 +171,13 @@ impl SessionEventSink {
 
 // ── Internal envelope-build helpers ────────────────────────────────────────
 
-fn emit_with_space<P: Serialize>(
+fn emit_runtime<P: Serialize>(
     sink: &Arc<dyn EventSink>,
     event_type: &str,
     entity_id: &str,
     payload: &P,
 ) -> Result<EventEnvelope, serde_json::Error> {
-    let envelope = build_space_envelope(event_type, entity_id, payload)?;
+    let envelope = build_runtime_envelope(event_type, entity_id, payload)?;
     // The MockSink / KernelEventSink are infallible at this seam; bubble
     // any other sink's error as a panic because emit-side failures are
     // unrecoverable here (the kernel-emit port contract is fire-and-forget).
@@ -188,45 +186,15 @@ fn emit_with_space<P: Serialize>(
     Ok(envelope)
 }
 
-fn emit_runtime<P: Serialize>(
-    sink: &Arc<dyn EventSink>,
-    event_type: &str,
-    entity_id: &str,
-    payload: &P,
-) -> Result<EventEnvelope, serde_json::Error> {
-    let envelope = build_runtime_envelope(event_type, entity_id, payload)?;
-    sink.persist(&envelope)
-        .expect("EventSink::persist errored — kernel-emit port must be infallible at the test seam (see MockSink)");
-    Ok(envelope)
-}
-
-fn build_space_envelope<P: Serialize>(
-    event_type: &str,
-    entity_id: &str,
-    payload: &P,
-) -> Result<EventEnvelope, serde_json::Error> {
-    // Session-coarse events (session.completed, etc.) ride Space.
-    // We use the session_id itself as the scope_key — the canonical
-    // payloads for these terminals only carry a session_id, and per the
-    // substrate's `enforce_scope` the scope_key is required for Space
-    // events. Using the session_id lets the (Space, scope_key) be unique
-    // per session; the Space-level read-back keys off the session.
-    let mut envelope = EventEnvelope::new(event_type, entity_id, payload)?;
-    envelope.scope = EventScope::Space;
-    envelope.scope_key = Some(entity_id.to_string());
-    envelope.session_id = Some(entity_id.to_string());
-    Ok(envelope)
-}
-
 fn build_runtime_envelope<P: Serialize>(
     event_type: &str,
     entity_id: &str,
     payload: &P,
 ) -> Result<EventEnvelope, serde_json::Error> {
+    // EventScope resolved from the registry (Runtime for the whole
+    // canonical family). session_id carries the session; scope_key is
+    // left None — Runtime routes by machine/device id, not by entity.
     let mut envelope = EventEnvelope::new(event_type, entity_id, payload)?;
-    // EventScope resolved from the registry (Runtime for session.turn.*).
-    // session_id carries the session, but scope_key is left None — turn
-    // events are per-machine, not per-space.
     envelope.session_id = Some(entity_id.to_string());
     Ok(envelope)
 }
@@ -263,7 +231,7 @@ mod tests {
     }
 
     #[test]
-    fn session_started_emits_space_scoped_durable_envelope() {
+    fn session_started_emits_runtime_scoped_durable_envelope() {
         let (mock, sink) = fresh_sink();
         let payload = SessionStarted {
             session_id: "s1".into(),
@@ -279,30 +247,28 @@ mod tests {
             .emit_session_started("s1", &payload)
             .expect("envelope builds");
         assert_eq!(env.event_type, "session.started");
-        assert_eq!(env.scope, EventScope::Space);
-        assert_eq!(env.scope_key.as_deref(), Some("s1"));
+        assert_eq!(env.scope, EventScope::Runtime);
         let back: SessionStarted = serde_json::from_str(&env.payload_json).unwrap();
         assert_eq!(back, payload);
-        assert_one_event(&mock, "session.started", EventScope::Space, Retention::Durable, "s1");
+        assert_one_event(&mock, "session.started", EventScope::Runtime, Retention::Durable, "s1");
     }
 
     #[test]
-    fn session_completed_emits_space_scoped_durable_envelope() {
+    fn session_completed_emits_runtime_scoped_durable_envelope() {
         let (mock, sink) = fresh_sink();
         let payload = SessionCompleted { session_id: "s1".into() };
         let env = sink
             .emit_session_completed("s1", &payload)
             .expect("envelope builds");
         assert_eq!(env.event_type, "session.completed");
-        assert_eq!(env.scope, EventScope::Space);
-        assert_eq!(env.scope_key.as_deref(), Some("s1"));
+        assert_eq!(env.scope, EventScope::Runtime);
         let back: SessionCompleted = serde_json::from_str(&env.payload_json).unwrap();
         assert_eq!(back, payload);
-        assert_one_event(&mock, "session.completed", EventScope::Space, Retention::Durable, "s1");
+        assert_one_event(&mock, "session.completed", EventScope::Runtime, Retention::Durable, "s1");
     }
 
     #[test]
-    fn session_failed_emits_space_scoped_durable_envelope() {
+    fn session_failed_emits_runtime_scoped_durable_envelope() {
         let (mock, sink) = fresh_sink();
         let payload = SessionFailed {
             session_id: "s1".into(),
@@ -312,14 +278,14 @@ mod tests {
             .emit_session_failed("s1", &payload)
             .expect("envelope builds");
         assert_eq!(env.event_type, "session.failed");
-        assert_eq!(env.scope, EventScope::Space);
+        assert_eq!(env.scope, EventScope::Runtime);
         let back: SessionFailed = serde_json::from_str(&env.payload_json).unwrap();
         assert_eq!(back, payload);
-        assert_one_event(&mock, "session.failed", EventScope::Space, Retention::Durable, "s1");
+        assert_one_event(&mock, "session.failed", EventScope::Runtime, Retention::Durable, "s1");
     }
 
     #[test]
-    fn session_cancelled_emits_space_scoped_durable_envelope() {
+    fn session_cancelled_emits_runtime_scoped_durable_envelope() {
         let (mock, sink) = fresh_sink();
         let payload = SessionCancelled {
             session_id: "s1".into(),
@@ -329,14 +295,14 @@ mod tests {
             .emit_session_cancelled("s1", &payload)
             .expect("envelope builds");
         assert_eq!(env.event_type, "session.cancelled");
-        assert_eq!(env.scope, EventScope::Space);
+        assert_eq!(env.scope, EventScope::Runtime);
         let back: SessionCancelled = serde_json::from_str(&env.payload_json).unwrap();
         assert_eq!(back, payload);
-        assert_one_event(&mock, "session.cancelled", EventScope::Space, Retention::Durable, "s1");
+        assert_one_event(&mock, "session.cancelled", EventScope::Runtime, Retention::Durable, "s1");
     }
 
     #[test]
-    fn session_suspended_emits_space_scoped_durable_envelope() {
+    fn session_suspended_emits_runtime_scoped_durable_envelope() {
         let (mock, sink) = fresh_sink();
         let payload = SessionSuspended {
             session_id: "s1".into(),
@@ -346,10 +312,10 @@ mod tests {
             .emit_session_suspended("s1", &payload)
             .expect("envelope builds");
         assert_eq!(env.event_type, "session.suspended");
-        assert_eq!(env.scope, EventScope::Space);
+        assert_eq!(env.scope, EventScope::Runtime);
         let back: SessionSuspended = serde_json::from_str(&env.payload_json).unwrap();
         assert_eq!(back, payload);
-        assert_one_event(&mock, "session.suspended", EventScope::Space, Retention::Durable, "s1");
+        assert_one_event(&mock, "session.suspended", EventScope::Runtime, Retention::Durable, "s1");
     }
 
     #[test]

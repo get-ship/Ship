@@ -15,10 +15,13 @@ mod tests {
 
     /// EVENT-SCOPE DISCIPLINE — invariant test over the live registry.
     ///
-    /// Rules (from the canonical-session-events ADR):
-    ///   • `session.*` (but NOT `session.turn.*`) → primary scope = Space,
-    ///     retention = Durable. These are coarse-grain session lifecycle events
-    ///     that belong to the Space's replayed history.
+    /// Rules (from the canonical-session-events ADR, revised by
+    /// session-scope-routing): the WHOLE `session.*` family — coarse and
+    /// turn events alike — is per-machine execution state, so it all rides
+    /// Runtime. There is no per-session pseudo-space.
+    ///   • `session.*` (but NOT `session.turn.*`) → primary scope = Runtime,
+    ///     retention = Durable. Coarse-grain session lifecycle events feed
+    ///     the `canonical_sessions` projection in `runtime.db`.
     ///   • `session.turn.*` → primary scope = Runtime, retention = Ephemeral.
     ///     Turns churn too fast for full history; only the last N are retained.
     ///   • `op.*` (if any) → primary scope = Runtime, retention = Ephemeral.
@@ -36,21 +39,21 @@ mod tests {
             let primary = def.primary_scope();
             let retention = def.retention;
 
-            // session.* but NOT session.turn.* → Space + Durable
+            // session.* but NOT session.turn.* → Runtime + Durable
             if name.starts_with("session.") && !name.starts_with("session.turn.") {
-                if primary != EventScope::Space {
+                if primary != EventScope::Runtime {
                     violations.push(format!(
-                        "event `{name}`: expected primary scope Space (got {:?}); \
-                         coarse session events must be Space-scoped so the Space \
-                         history can replay them",
+                        "event `{name}`: expected primary scope Runtime (got {:?}); \
+                         session.* is per-machine execution state — no per-session \
+                         pseudo-space",
                         primary
                     ));
                 }
                 if retention != Retention::Durable {
                     violations.push(format!(
                         "event `{name}`: expected retention Durable (got {:?}); \
-                         coarse session events must be Durable so they survive \
-                         Space restoration",
+                         coarse session events must be Durable so canonical_sessions \
+                         can rebuild from the log",
                         retention
                     ));
                 }

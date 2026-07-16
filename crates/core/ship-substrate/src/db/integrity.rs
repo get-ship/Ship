@@ -56,6 +56,27 @@ pub enum IntegrityStatus {
 /// nor drift. Missing-table detection does NOT fire on an empty events
 /// log: a fresh db that simply never received events is not drift.
 pub fn check_integrity(db_path: &Path) -> Result<IntegrityStatus> {
+    check_integrity_inner(db_path)
+        .map(|status| prefix_path(db_path, status))
+        .with_context(|| format!("integrity check: {}", db_path.display()))
+}
+
+/// Prefix a status's `details` with the offending db path, so every
+/// diagnostic — whether read via [`check_integrity`] directly or through
+/// [`check_scope_integrity`] — names the file to inspect.
+fn prefix_path(db_path: &Path, status: IntegrityStatus) -> IntegrityStatus {
+    match status {
+        IntegrityStatus::ProjectionsCorrupt { details } => IntegrityStatus::ProjectionsCorrupt {
+            details: format!("{}: {details}", db_path.display()),
+        },
+        IntegrityStatus::EventsCorrupt { details } => IntegrityStatus::EventsCorrupt {
+            details: format!("{}: {details}", db_path.display()),
+        },
+        ok => ok,
+    }
+}
+
+fn check_integrity_inner(db_path: &Path) -> Result<IntegrityStatus> {
     let mut conn = match open_db_at(db_path) {
         Ok(c) => c,
         Err(e) => {
@@ -163,6 +184,14 @@ fn check_absence(
     let present = user_tables(conn)?;
     let present_set: std::collections::HashSet<&str> =
         present.iter().map(|s| s.as_str()).collect();
+
+    // A scope db with NO tables at all — not even `events` — is a fresh or
+    // crash-husk-mid-provision file, not drift: there is no log to check
+    // absence against, so treat it as clean rather than erroring on the
+    // `events` query below (which would otherwise fail with "no such table").
+    if !present_set.contains("events") {
+        return Ok(None);
+    }
 
     // Pull event types + payloads once; absence detection only needs
     // "any event of these types exists" + the dynamic collection_id.
@@ -362,17 +391,15 @@ pub fn check_scope_integrity(ship_dir: &Path) -> Result<IntegrityStatus> {
 
     let mut projections_corrupt: Option<String> = None;
     for path in &paths {
+        // `check_integrity` already prefixes `details` with the db path.
         match check_integrity(path)? {
             IntegrityStatus::Ok => {}
             IntegrityStatus::ProjectionsCorrupt { details } => {
-                projections_corrupt
-                    .get_or_insert_with(|| format!("{}: {details}", path.display()));
+                projections_corrupt.get_or_insert(details);
             }
             IntegrityStatus::EventsCorrupt { details } => {
                 // Fatal — report immediately with the offending db named.
-                return Ok(IntegrityStatus::EventsCorrupt {
-                    details: format!("{}: {details}", path.display()),
-                });
+                return Ok(IntegrityStatus::EventsCorrupt { details });
             }
         }
     }

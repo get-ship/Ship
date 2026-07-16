@@ -17,7 +17,7 @@
 //! cancel is slug-keyed and harness-agnostic.
 //!
 //! The Stop RPC (`AgentsService::stop`) now emits `session.cancelled`
-//! (Space-scoped, Durable, canonical payload with slug populated) and returns
+//! (Runtime-scoped, Durable, canonical payload with slug populated) and returns
 //! optimistically; this handler performs the actual process teardown on receipt
 //! of that event. See apps/shipd/src/ops_rpc.rs stop_fn for the emit seam.
 

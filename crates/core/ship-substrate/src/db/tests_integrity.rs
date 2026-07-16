@@ -169,6 +169,92 @@ fn absence_check_passes_on_empty_log_with_all_tables_present() {
     assert!(integrity::check_platform_integrity(&ship_dir).is_ok());
 }
 
+/// I3 (session-scope-routing): a scope db that exists but has NO tables at
+/// all — not even `events` — is a crash husk mid-provision (or a bare file
+/// created by some other means), not drift. It must be treated as fresh:
+/// `check_integrity` returns `Ok`, never a boot-blocking error.
+#[test]
+fn table_less_scope_db_is_treated_as_fresh() {
+    let tmp = tempdir().unwrap();
+    let ship_dir = tmp.path().join(".ship");
+    std::fs::create_dir_all(&ship_dir).unwrap();
+    let husk_db = crate::db::runtime_db_path(&ship_dir);
+    // A bare, valid-but-empty SQLite file: no `events` table, no projection
+    // tables — the crash-mid-provision shape. `open_db_at` doesn't
+    // create_if_missing, so the file must exist before it opens.
+    std::fs::File::create(&husk_db).unwrap();
+    let mut conn = crate::db::open_db_at(&husk_db).unwrap();
+    crate::db::block_on(async {
+        sqlx::query("PRAGMA user_version = 0").execute(&mut conn).await
+    })
+    .unwrap();
+    drop(conn);
+
+    match integrity::check_integrity(&husk_db) {
+        Ok(integrity::IntegrityStatus::Ok) => {}
+        other => panic!("table-less scope db must be treated as fresh, got {other:?}"),
+    }
+}
+
+/// I3 (session-scope-routing): every integrity/absence-check error names the
+/// offending db path, so an operator doesn't have to bisect which scope db
+/// is broken. Corrupts the db so `check_integrity` returns a status whose
+/// `details` must be traceable to this exact file.
+#[test]
+fn integrity_details_are_prefixed_with_the_db_path() {
+    let (_tmp, ship_dir, runtime_db) = setup();
+    use crate::events::EventScope;
+    use crate::events::types::event_types;
+    use crate::persistence::event_store::{EventStore, SqliteEventStore};
+    use ship_types::envelope::EventEnvelope;
+
+    let store = SqliteEventStore::new_for_scope(&ship_dir, EventScope::Runtime, None).unwrap();
+    let env = EventEnvelope::new(
+        event_types::ACTOR_CREATED,
+        "actor-path-prefix-drill",
+        &serde_json::json!({
+            "kind": "local", "environment_type": "local", "harness": null,
+            "model": null, "session_id": null, "parent_actor_id": null,
+            "restart_count": 0, "agent_id": null, "harness_session_id": null,
+            "system_prompt_hash": null, "transport": null, "persistence": null,
+            "cwd": null,
+        }),
+    )
+    .unwrap()
+    .with_actor_id("actor-path-prefix-drill")
+    .with_scope(EventScope::Runtime, None);
+    store.append(&env).unwrap();
+
+    {
+        let mut conn = crate::db::open_db_at(&runtime_db).unwrap();
+        crate::db::block_on(async {
+            sqlx::query("DROP TABLE actors").execute(&mut conn).await
+        })
+        .unwrap();
+    }
+
+    match integrity::check_integrity(&runtime_db).unwrap() {
+        integrity::IntegrityStatus::ProjectionsCorrupt { details } => {
+            assert!(
+                details.contains(&runtime_db.display().to_string()),
+                "details must name the offending db path; got {details}"
+            );
+        }
+        other => panic!("expected ProjectionsCorrupt, got {other:?}"),
+    }
+
+    // Same guarantee through the ship_dir-level sweep.
+    match integrity::check_scope_integrity(&ship_dir).unwrap() {
+        integrity::IntegrityStatus::ProjectionsCorrupt { details } => {
+            assert!(
+                details.contains(&runtime_db.display().to_string()),
+                "sweep details must also name the offending db path; got {details}"
+            );
+        }
+        other => panic!("expected ProjectionsCorrupt, got {other:?}"),
+    }
+}
+
 /// The PROJECTS→SPACES rename (claim c-2026-07-11T01-30-00): the
 /// previous integrity allowlist named `"projects"`, but the spaces
 /// projection writes to the `spaces` table after the 2026-07-09 space

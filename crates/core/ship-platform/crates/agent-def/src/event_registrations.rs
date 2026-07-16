@@ -18,14 +18,17 @@ use ship_types::register_event;
 // The CANONICAL agent-session family (see `crate::canonical_session`).
 // The complete ship-shaped session vocabulary: 5 coarse-grain events
 // (session.started + 4 terminals) + 2 medium-grain turn events. Scope
-// rule: session.* (coarse) → Space/Durable, session.turn.* (medium) →
-// Runtime/Ephemeral. The workbench family is RETIRED (R6) — no
-// `SessionStarted` workbench payload struct, no `session.attached` etc.
-register_event!("session.started", [EventScope::Space], Retention::Durable, Stability::Stable, "canonical_session::SessionStarted", crate::canonical_session::SessionStarted);
-register_event!("session.completed", [EventScope::Space], Retention::Durable, Stability::Stable, "canonical_session::SessionCompleted", crate::canonical_session::SessionCompleted);
-register_event!("session.failed", [EventScope::Space], Retention::Durable, Stability::Stable, "canonical_session::SessionFailed", crate::canonical_session::SessionFailed);
-register_event!("session.cancelled", [EventScope::Space], Retention::Durable, Stability::Stable, "canonical_session::SessionCancelled", crate::canonical_session::SessionCancelled);
-register_event!("session.suspended", [EventScope::Space], Retention::Durable, Stability::Stable, "canonical_session::SessionSuspended", crate::canonical_session::SessionSuspended);
+// rule: the WHOLE family is Runtime — a session is per-machine execution
+// state, not a collaborative-space concern, and its projection
+// (`canonical_sessions`) lives in `runtime.db`. Retention: coarse events
+// are Durable, turn events are Ephemeral. The workbench family is
+// RETIRED (R6) — no `SessionStarted` workbench payload struct, no
+// `session.attached` etc.
+register_event!("session.started", [EventScope::Runtime], Retention::Durable, Stability::Stable, "canonical_session::SessionStarted", crate::canonical_session::SessionStarted);
+register_event!("session.completed", [EventScope::Runtime], Retention::Durable, Stability::Stable, "canonical_session::SessionCompleted", crate::canonical_session::SessionCompleted);
+register_event!("session.failed", [EventScope::Runtime], Retention::Durable, Stability::Stable, "canonical_session::SessionFailed", crate::canonical_session::SessionFailed);
+register_event!("session.cancelled", [EventScope::Runtime], Retention::Durable, Stability::Stable, "canonical_session::SessionCancelled", crate::canonical_session::SessionCancelled);
+register_event!("session.suspended", [EventScope::Runtime], Retention::Durable, Stability::Stable, "canonical_session::SessionSuspended", crate::canonical_session::SessionSuspended);
 register_event!("session.turn.started", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "canonical_session::TurnStarted", crate::canonical_session::TurnStarted);
 register_event!("session.turn.ended", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "canonical_session::TurnEnded", crate::canonical_session::TurnEnded);
 

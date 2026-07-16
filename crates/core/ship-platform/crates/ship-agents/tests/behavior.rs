@@ -875,25 +875,19 @@ async fn stop_rpc_session_cancelled_actor_tears_down_and_projection_shows_cancel
 
 // ── session.failed emit scope ───────────────────────────────────────────────
 //
-// Closes c-2026-07-05T20-30-00-000Z-b8c9d0e1. The dispatch actor's
-// `emit_session_failed` (in src/dispatch.rs) builds an EventEnvelope
-// for the Space-scoped `session.failed` event and hands it to
-// `persist_and_route`. If the envelope lacks a `scope_key`, the kernel
-// router's `enforce_scope` rejects it as "space-unbound caller cannot
-// emit a Space-scoped event" (NoSpaceForSpaceEvent) — failed sessions
-// leave no event trail.
-//
-// The discipline: the canonical session.* family uses the session_id
-// itself as the scope_key (see agent-def/src/emit.rs::build_space_envelope
-// — Space, scope_key=session_id, session_id=session_id). The dispatch
-// actor must follow the same discipline so the binding derived from the
-// envelope is space-bound and the kernel accepts the emit.
-fn read_session_failed_from_space_db(
+// Closes c-2026-07-05T20-30-00-000Z-b8c9d0e1 AND the session-scope-routing
+// job: `session.*` canonical events are Runtime-scoped (per-machine
+// execution state) — the dispatch actor's `emit_session_failed` (in
+// src/dispatch.rs) builds a plain `EventEnvelope::new(SESSION_FAILED, ...)`
+// and hands it to `persist_and_route`; the registry's Runtime default routes
+// it straight into `runtime.db` with no space binding required, and no
+// `spaces/<session_id>/` directory is ever minted for a session id.
+fn read_session_failed_from_runtime_db(
     ship_dir: &std::path::Path,
     session_id: &str,
 ) -> Option<EventEnvelope> {
     use ship_substrate::persistence::EventStore;
-    let path = ship_substrate::db::space_db_path(ship_dir, session_id);
+    let path = ship_substrate::db::runtime_db_path(ship_dir);
     if !path.exists() {
         return None;
     }
@@ -909,13 +903,13 @@ fn read_session_failed_from_space_db(
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn failed_dispatch_emits_session_failed_with_space_bound_envelope() {
+async fn failed_dispatch_emits_session_failed_into_runtime_db() {
     // The `agent_session_failed_nonzero_keys_on_session_id` test (in
     // ship-code) covers the post-spawn case. This test covers the
     // prep-failure path in the dispatch actor specifically: isolation
     // succeeds, executor.spawn errors → the actor must emit
-    // `session.failed` AND the kernel must accept it (no
-    // space-unbound reject).
+    // `session.failed` AND the kernel must accept it (Runtime scope needs
+    // no space binding).
     let tmp = tempfile::TempDir::new().unwrap();
     let ship_dir = ship_substrate::project::get_global_dir().unwrap();
     let session_id = "s-sf-bug-1";
@@ -961,11 +955,11 @@ async fn failed_dispatch_emits_session_failed_with_space_bound_envelope() {
     .with_actor_id("test");
     ship_agents::handle_agents_event(&kernel, &envelope, &ports).await;
 
-    // The dispatch prep is detached under DISPATCH_GATE. Poll the
-    // per-space db until the session.failed lands (or we time out).
+    // The dispatch prep is detached under DISPATCH_GATE. Poll runtime.db
+    // until the session.failed lands (or we time out).
     let mut found = false;
     for _ in 0..50 {
-        if read_session_failed_from_space_db(&ship_dir, session_id).is_some() {
+        if read_session_failed_from_runtime_db(&ship_dir, session_id).is_some() {
             found = true;
             break;
         }
@@ -973,23 +967,141 @@ async fn failed_dispatch_emits_session_failed_with_space_bound_envelope() {
     }
     assert!(
         found,
-        "session.failed for {session_id} must land in spaces/{session_id}/space.db — \
-         a failing dispatch leaves no event trail when the dispatch actor's \
-         emit_session_failed is rejected by the kernel as a space-unbound caller \
-         (c-2026-07-05T20-30-00-000Z-b8c9d0e1)"
+        "session.failed for {session_id} must land in runtime.db — \
+         a failing dispatch leaves no event trail if the dispatch actor's \
+         emit_session_failed is rejected by the kernel"
     );
 
-    // The event itself carries the canonical discipline: Space scope,
-    // scope_key=session_id, session_id=session_id. Pinning these
-    // guarantees the actor stays aligned with the canonical builder.
-    let env = read_session_failed_from_space_db(&ship_dir, session_id)
+    // The event itself carries the canonical discipline: Runtime scope, no
+    // scope_key, session_id populated. Pinning these guarantees the actor
+    // stays aligned with the canonical builder.
+    let env = read_session_failed_from_runtime_db(&ship_dir, session_id)
         .expect("just observed the event");
     assert_eq!(
         env.event_type,
         canonical_session_event_types::SESSION_FAILED
     );
     assert_eq!(env.entity_id, session_id);
-    assert_eq!(env.scope, ship_types::event_registry::EventScope::Space);
-    assert_eq!(env.scope_key.as_deref(), Some(session_id));
+    assert_eq!(env.scope, ship_types::event_registry::EventScope::Runtime);
     assert_eq!(env.session_id.as_deref(), Some(session_id));
+
+    // I2: no `spaces/<session_id>/` directory was minted for this session.
+    assert!(
+        !ship_substrate::db::space_db_path(&ship_dir, session_id).exists(),
+        "a session id must never mint a spaces/<id>/space.db directory"
+    );
+}
+
+// ── I1: session-scope-routing job — exit_handler routes through the REAL
+// kernel router into runtime.db, never spaces/<session-id>/ ─────────────────
+//
+// Drives `ship_code::lifecycle::exit_handler::start` (the emission site named
+// in the job spec) end to end: a real `KernelRouter` rooted at the test-global
+// ship_dir, a synthetic zero-exit `ExitSignal`. Proves:
+//   1. `session.completed` persists into `runtime.db`, Runtime-scoped.
+//   2. No `spaces/<session_id>/space.db` is ever created.
+//   3. `CanonicalSessionProjection` folds the persisted event into
+//      `canonical_sessions` (status = completed).
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn exit_handler_session_completed_routes_to_runtime_db_not_a_space_dir() {
+    const SESSION_ID: &str = "s-i1-scope-routing";
+    const SLUG: &str = "i1-scope-routing";
+
+    let ship_dir = ship_substrate::project::get_global_dir().unwrap();
+    let mut conn = ship_substrate::db::open_runtime_db(&ship_dir).unwrap();
+
+    // Clean slate for this session.
+    let _ = block_on(async {
+        sqlx::query("DELETE FROM canonical_sessions WHERE session_id = ?")
+            .bind(SESSION_ID)
+            .execute(&mut conn)
+            .await
+    });
+    let space_path = ship_substrate::db::space_db_path(&ship_dir, SESSION_ID);
+    if space_path.exists() {
+        std::fs::remove_file(&space_path).ok();
+    }
+
+    // Seed a session.started row so the terminal transition has something
+    // to land on (mirrors dispatch_core's real session.started emit).
+    let started_env = EventEnvelope::new(
+        canonical_session_event_types::SESSION_STARTED,
+        SESSION_ID,
+        &serde_json::json!({
+            "session_id": SESSION_ID,
+            "agent_id":   "claude",
+            "harness":    "claude",
+            "model":      "claude-sonnet-4-6",
+            "space_id":   "sp-i1",
+            "slug":       SLUG,
+            "input":      "do the work"
+        }),
+    )
+    .unwrap();
+    let proj = CanonicalSessionProjection;
+    proj.apply(&started_env, &mut conn).unwrap();
+
+    // Drive the real exit_handler with a zero-exit signal — the normal
+    // successful-completion path.
+    let kernel = kernel_with_actor();
+    let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+    ship_code::lifecycle::exit_handler::start(
+        kernel.clone(),
+        Arc::new(NoopRegistry),
+        ship_code::lifecycle::ExitVocabulary::AgentSession {
+            session_id: SESSION_ID.to_string(),
+        },
+        rx,
+    );
+    tx.send(ship_code::dispatch_ports::ExitSignal {
+        slug: SLUG.to_string(),
+        session_id: SESSION_ID.to_string(),
+        exit_code: Some(0),
+        cause: ship_code::dispatch_ports::ExitCause::AgentExited,
+    })
+    .unwrap();
+
+    // Poll runtime.db until the routed event lands (or time out).
+    let mut persisted: Option<EventEnvelope> = None;
+    for _ in 0..50 {
+        persisted = {
+            use ship_substrate::persistence::EventStore;
+            let store = ship_substrate::persistence::SqliteEventStore::new_at_db_path(
+                &ship_substrate::db::runtime_db_path(&ship_dir),
+            )
+            .unwrap();
+            store
+                .query(&ship_substrate::events::EventFilter {
+                    event_type: Some(canonical_session_event_types::SESSION_COMPLETED.to_string()),
+                    entity_id: Some(SESSION_ID.to_string()),
+                    ..Default::default()
+                })
+                .ok()
+                .and_then(|mut v| v.pop())
+        };
+        if persisted.is_some() {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    let env = persisted.expect("session.completed must route into runtime.db");
+    assert_eq!(
+        env.scope,
+        ship_types::event_registry::EventScope::Runtime,
+        "session.completed must be Runtime-scoped, not Space"
+    );
+
+    // I2: exit_handler's emit never mints a spaces/<session_id>/ directory.
+    assert!(
+        !ship_substrate::db::space_db_path(&ship_dir, SESSION_ID).exists(),
+        "session.completed must never create spaces/{SESSION_ID}/space.db"
+    );
+
+    // The projection folds the routed event into canonical_sessions.
+    proj.apply(&env, &mut conn).unwrap();
+    let after = load_canonical_session_by_id(SESSION_ID)
+        .unwrap()
+        .expect("session must exist in canonical_sessions");
+    assert_eq!(after.status, CanonicalSessionStatus::Completed);
+    assert!(after.ended_at.is_some());
 }

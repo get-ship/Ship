@@ -2,8 +2,9 @@
 //!
 //! Three tiers, scope follows granularity:
 //!
-//! - **Session (coarse)** — Space-scoped, Durable. The whole agent
-//!   invocation: one harness, one session_id, one Space, one end state.
+//! - **Session (coarse)** — Runtime-scoped, Durable. The whole agent
+//!   invocation: one harness, one session_id, one end state. Per-machine
+//!   execution state, not a collaborative-space concern.
 //! - **Turn (medium)** — Runtime-scoped, Ephemeral. A single back-and-forth
 //!   inside a keepalive session; churns too fast to be Durable.
 //! - **Op (fine-grained)** — Runtime-scoped, Ephemeral. Per-tool-call
@@ -19,11 +20,11 @@
 //! coexists with `op.*`; the hook→op conversion and hook.* deregistration
 //! are tracked as #25b. See `.artifacts/agents-architecture.md`.
 
-// ── Session (coarse) — Space-scoped, Durable ───────────────────────────────
+// ── Session (coarse) — Runtime-scoped, Durable ─────────────────────────────
 
 /// A session was opened. The first event of a session; the only
-/// non-terminal coarse event. Space-scoped + Durable so the Space's
-/// full history has a row to pivot later terminals off of.
+/// non-terminal coarse event. Runtime-scoped + Durable so
+/// `canonical_sessions` has a row to pivot later terminals off of.
 pub const SESSION_STARTED: &str = "session.started";
 
 /// Session reached a normal terminal state (harness exited zero, operator
