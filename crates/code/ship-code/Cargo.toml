@@ -14,6 +14,21 @@ name = "ship-code"
 path = "src/bin/ship_code.rs"
 required-features = ["cli"]
 
+# The CLI integration tests exec the [[bin]] above (assert_cmd cargo_bin) —
+# without the same feature gate they run bin-less and fail on any build
+# that didn't happen to leave a ship-code binary in the target dir.
+[[test]]
+name = "cli"
+required-features = ["cli"]
+
+[[test]]
+name = "cli_error_messages"
+required-features = ["cli"]
+
+[[test]]
+name = "cli_yagni_removal"
+required-features = ["cli"]
+
 [dependencies]
 home = { workspace = true }
 agent-def = { path = "../../core/ship-platform/crates/agent-def", features = ["ship-code"] }
