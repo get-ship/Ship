@@ -67,10 +67,12 @@ impl AgentPlatform for ShipdPlatform {
             DestructionCause::External,
         )
         .await;
-        if let Err(e) = helpers::remove_worktree(&worktree_path) {
+        if worktree_path.exists()
+            && let Err(e) = ship_git::write::remove_worktree(&helpers::repo_dir(), &worktree_path, true)
+        {
             tracing::warn!(slug, "platform: worktree cleanup failed: {e}");
         }
-        if let Err(e) = helpers::delete_branch(branch) {
+        if let Err(e) = ship_git::write::delete_branch(&helpers::repo_dir(), branch, false) {
             tracing::warn!(slug, "platform: branch cleanup failed: {e}");
         }
     }

@@ -89,9 +89,12 @@ impl IsolationStrategy for GitWorktreeIsolation {
     async fn cleanup(&self, job: &SessionContext) -> Result<()> {
         let worktree_path = worktrees_dir()?.join(&job.slug);
         if worktree_path.exists() {
-            ship_agents::runtime::helpers::remove_worktree(&worktree_path)?;
+            write::remove_worktree(&repo_dir(), &worktree_path, true).map_err(|e| {
+                anyhow::anyhow!("git worktree remove failed for '{}': {e}", worktree_path.display())
+            })?;
         }
-        ship_agents::runtime::helpers::delete_branch(&job.branch)?;
+        write::delete_branch(&repo_dir(), &job.branch, false)
+            .map_err(|e| anyhow::anyhow!("git branch -D failed for `{}`: {e}", job.branch))?;
         Ok(())
     }
 }

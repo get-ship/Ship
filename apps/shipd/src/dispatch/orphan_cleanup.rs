@@ -46,7 +46,7 @@ use ship_substrate::events::emit::emit_executor_session_destroyed;
 use ship_substrate::events::KernelRouter;
 use tokio::sync::Mutex;
 
-use ship_agents::runtime::helpers::worktrees_dir;
+use ship_agents::runtime::helpers::{repo_dir, worktrees_dir};
 
 /// Scan for orphaned worktrees from previous daemon runs.
 ///
@@ -102,7 +102,7 @@ pub(crate) async fn cleanup_orphaned_worktrees(kernel: &Arc<Mutex<KernelRouter>>
 
 /// Clean up a single orphaned session's resources.
 async fn cleanup_orphan(slug: &str, kernel: &Arc<Mutex<KernelRouter>>) {
-    use ship_agents::runtime::helpers::{delete_branch, kill_tmux_session, remove_worktree};
+    use ship_agents::runtime::helpers::kill_tmux_session;
 
     let tmux_session = format!("job-{slug}");
     let worktree_path = match worktrees_dir() {
@@ -127,10 +127,12 @@ async fn cleanup_orphan(slug: &str, kernel: &Arc<Mutex<KernelRouter>>) {
         DestructionCause::External,
     )
     .await;
-    if let Err(e) = remove_worktree(&worktree_path) {
+    if worktree_path.exists()
+        && let Err(e) = ship_git::write::remove_worktree(&repo_dir(), &worktree_path, true)
+    {
         tracing::warn!(slug, "orphan: worktree cleanup failed: {e}");
     }
-    if let Err(e) = delete_branch(&branch) {
+    if let Err(e) = ship_git::write::delete_branch(&repo_dir(), &branch, false) {
         tracing::warn!(slug, "orphan: branch cleanup failed: {e}");
     }
 }

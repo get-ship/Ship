@@ -43,7 +43,6 @@ ship-device = { path = "../../core/ship-platform/crates/ship-device" }
 ship-files = { path = "../../core/ship-platform/crates/ship-files" }
 ship-config = { path = "../../core/ship-platform/crates/ship-config" }
 ship-types = { path = "../../core/ship-substrate/crates/ship-types" }
-ship-git = { path = "../../core/ship-git" }
 
 # CLI deps — only the bin needs clap, hyper, connectrpc, ship-ops-rpc, the
 # compile pipeline, etc. Lib consumers don't pay for them. ship-agents and

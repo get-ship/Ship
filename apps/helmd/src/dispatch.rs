@@ -302,10 +302,12 @@ impl AgentPlatform for HelmdPlatform {
             DestructionCause::External,
         )
         .await;
-        if let Err(e) = helpers::remove_worktree(&worktree_path) {
+        if worktree_path.exists()
+            && let Err(e) = git_write::remove_worktree(&helpers::repo_dir(), &worktree_path, true)
+        {
             tracing::warn!(slug, "platform: worktree cleanup failed: {e}");
         }
-        if let Err(e) = helpers::delete_branch(branch) {
+        if let Err(e) = git_write::delete_branch(&helpers::repo_dir(), branch, false) {
             tracing::warn!(slug, "platform: branch cleanup failed: {e}");
         }
     }
@@ -446,9 +448,11 @@ impl IsolationStrategy for GitWorktreeIsolation {
     async fn cleanup(&self, job: &SessionContext) -> Result<()> {
         let worktree_path = helpers::worktrees_dir()?.join(&job.slug);
         if worktree_path.exists() {
-            helpers::remove_worktree(&worktree_path)?;
+            git_write::remove_worktree(&helpers::repo_dir(), &worktree_path, true)
+                .map_err(|e| anyhow::anyhow!("git worktree remove failed for '{}': {e}", worktree_path.display()))?;
         }
-        helpers::delete_branch(&job.branch)?;
+        git_write::delete_branch(&helpers::repo_dir(), &job.branch, false)
+            .map_err(|e| anyhow::anyhow!("git branch -D failed for `{}`: {e}", job.branch))?;
         Ok(())
     }
 }

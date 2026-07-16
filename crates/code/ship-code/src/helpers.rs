@@ -1,4 +1,6 @@
-//! Worktree teardown (delegating to ship-git), tmux helpers, agent-config utilities.
+//! Tmux helpers, worktree/repo path resolvers, agent-config utilities.
+//! Worktree/branch teardown lives in `ship_git::write` — callers use that
+//! leaf directly (ship-git owns all git mechanics).
 
 use anyhow::Result;
 use std::path::PathBuf;
@@ -145,57 +147,6 @@ pub fn kill_tmux_session(session_name: &str) -> Result<()> {
         Ok(s) if s.success() => Ok(()),
         Ok(_) => Ok(()), // session may not exist — that's fine
         Err(e) => Err(anyhow::anyhow!("failed to run tmux: {e}")),
-    }
-}
-
-/// Remove a git worktree. No-op if path does not exist.
-///
-/// Thin supervisor-facing adapter over the [`ship_git::write::remove_worktree`]
-/// leaf. The repo root comes from [`repo_dir`] (env `Var::RepoDir` or CWD);
-/// `force = true` mirrors the legacy `git worktree remove --force` behavior
-/// the dispatch cleanup path needs (worktrees may carry local modifications
-/// when an agent died mid-step). After this, ship-code contains zero direct
-/// `Command::new("git")` calls — git mechanics live in the ship-git leaf.
-pub fn remove_worktree(worktree_path: &std::path::Path) -> Result<()> {
-    if !worktree_path.exists() {
-        return Ok(());
-    }
-    ship_git::write::remove_worktree(&repo_dir(), worktree_path, true)
-        .map_err(|e| anyhow::anyhow!("git worktree remove failed for '{}': {e}", worktree_path.display()))
-}
-
-/// Delete a local git branch. Idempotent — silently tolerates "branch does not
-/// exist" because cleanup paths may run before the branch is ever created.
-///
-/// Thin supervisor-facing adapter over [`ship_git::write::delete_branch`].
-/// Passes `force = false` so the job-branch prefix guard in the leaf
-/// catches accidental `main` / `feat/*` deletes (the dispatch cleanup
-/// path always invokes this with a `job/{slug}` name, which the guard
-/// allows). A leaf `BadRef` ("not a `job/*` branch …") therefore surfaces
-/// here as an `Err` — the caller (`orphan_cleanup`, `cleanup_job`) already
-/// logs it and moves on, preserving the legacy "warn-and-continue on
-/// not-found" behavior.
-pub fn delete_branch(branch: &str) -> Result<()> {
-    match ship_git::write::delete_branch(&repo_dir(), branch, false) {
-        Ok(_) => Ok(()),
-        Err(ship_git::state::GitError::BadRef(reason)) => {
-            // Match the legacy "warn at debug, treat as success" cleanup
-            // contract. A `BadRef` here is the leaf's guard (not a job/*
-            // branch) rather than a real failure — the caller's caller is
-            // the cleanup path, not user input.
-            tracing::debug!(branch, %reason, "branch deletion rejected by guard");
-            Ok(())
-        }
-        Err(ship_git::state::GitError::Git(msg)) => {
-            // Anything else (subprocess spawn failed, libgit2 error) is a
-            // real failure for the cleanup path — propagate. The legacy
-            // `tracing::debug!(branch, "branch deletion returned non-zero
-            // (may not exist)")` swallowed these too; the leaf gives us
-            // better signal so we surface them.
-            Err(anyhow::anyhow!("git branch -D failed for `{branch}`: {msg}"))
-        }
-        // Forward any future error variants without swallowing them.
-        Err(other) => Err(anyhow::anyhow!("git branch -D failed for `{branch}`: {other:?}")),
     }
 }
 

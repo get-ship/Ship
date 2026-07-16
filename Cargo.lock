@@ -7996,7 +7996,6 @@ dependencies = [
  "ship-config",
  "ship-device",
  "ship-files",
- "ship-git",
  "ship-harnesses",
  "ship-isolation",
  "ship-ops-rpc",
@@ -8084,6 +8083,7 @@ dependencies = [
  "ship-config",
  "ship-ops-rpc",
  "ship-proto",
+ "ship-space",
  "ship-substrate",
  "ship-types",
 ]
