@@ -19,15 +19,10 @@
 //! Worked from the event registry (`register_event!`):
 //! - Runtime: `actors` (actor.*), `analytics_*` (op.tool_use_*, session.turn.ended,
 //!   actor.*), `spaces` (space.opened/space.seen), `canonical_sessions`
-//!   (direct-write session ledger), `durable_journals`.
+//!   (session.*/session.turn.* — the whole family is Runtime-scoped),
+//!   `durable_journals`.
 //! - Account: `auth_sessions` (auth.session.*), `daemon_owner` (daemon.owner.*),
 //!   `provisioned_grants` (agent.grants.provisioned).
-//!
-//! ONE exception to "scope = event primary_scope": `canonical_sessions` aggregates
-//! BOTH Space `session.*` and Runtime `session.turn.*` events, so its projection
-//! bypasses the bus's per-scope conn and opens its OWN runtime.db connection for
-//! every write (and its reader reads runtime.db). It is therefore classified by
-//! where `apply()` WRITES — Runtime — not by its (mixed) event scopes.
 //!
 //! Self-provisioning projections are deliberately ABSENT here: `collection_<id>`
 //! and the artifact metadata table are created on demand inside their own `apply`
@@ -308,9 +303,10 @@ pub const ACCOUNT_DDL: &[&str] = &[
 ];
 
 /// Space projections — applied to every `spaces/<id>/space.db`. The per-space
-/// compile state. (canonical_sessions is NOT here: its projection bypasses the
-/// per-scope bus conn and writes to runtime.db — see RUNTIME_DDL. Collections +
-/// artifact metadata are NOT here either — their projections self-provision.)
+/// compile state. (canonical_sessions is NOT here: the whole session.*/
+/// session.turn.* family is Runtime-scoped, so its table lives in
+/// RUNTIME_DDL. Collections + artifact metadata are NOT here either — their
+/// projections self-provision.)
 pub const SPACE_DDL: &[&str] = &[
     // project_compile_state (compile.completed)
     r#"CREATE TABLE IF NOT EXISTS project_compile_state (

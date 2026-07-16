@@ -31,12 +31,11 @@
 //!
 //! # DB placement
 //!
-//! `canonical_sessions` lives in `runtime.db`. Both Space-scoped `session.*`
-//! and Runtime-scoped `session.turn.*` events must aggregate into one table,
-//! so the projection opens a fresh `runtime.db` connection for every write
-//! rather than using the `conn` argument from `Projection::apply()` (which
-//! may point at a space.db for Space-scoped events). This matches the plan
-//! rationale in the implementation spec.
+//! `canonical_sessions` lives in `runtime.db`. The whole `session.*` /
+//! `session.turn.*` family is registered `EventScope::Runtime` (see
+//! agent-def's `event_registrations.rs`), so every event this projection
+//! folds is already appended to `runtime.db` — it folds on the bus
+//! connection like any other runtime projection.
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -260,12 +259,7 @@ impl Projection for CanonicalSessionProjection {
         ship_types::event_types::canonical_session::ALL_CANONICAL_SESSION
     }
 
-    fn apply(&self, event: &EventEnvelope, _conn: &mut SqliteConnection) -> Result<()> {
-        // Open a fresh runtime.db connection — both Space-scoped session.* and
-        // Runtime-scoped session.turn.* events must land in the same table.
-        // The _conn argument may point at a scoped space.db, so we bypass it.
-        let mut conn = open_default_conn()?;
-
+    fn apply(&self, event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<()> {
         let et = event.event_type.as_str();
 
         if et == canonical_event_types::SESSION_STARTED {
@@ -290,7 +284,7 @@ impl Projection for CanonicalSessionProjection {
                 .bind(&p.input)
                 .bind(&p.parent)
                 .bind(event.created_at.to_rfc3339())
-                .execute(&mut conn)
+                .execute(&mut *conn)
                 .await
             })?;
             return Ok(());
@@ -324,7 +318,7 @@ impl Projection for CanonicalSessionProjection {
                            AND status NOT IN ('completed', 'failed', 'cancelled', 'suspended')",
                     )
                     .bind(&session_id)
-                    .execute(&mut conn)
+                    .execute(&mut *conn)
                     .await
                 })?;
             }
@@ -344,7 +338,7 @@ impl Projection for CanonicalSessionProjection {
                     )
                     .bind(&p.checkpoint)
                     .bind(&session_id)
-                    .execute(&mut conn)
+                    .execute(&mut *conn)
                     .await
                 })?;
             }
@@ -359,7 +353,7 @@ impl Projection for CanonicalSessionProjection {
                     )
                     .bind(event.created_at.to_rfc3339())
                     .bind(&session_id)
-                    .execute(&mut conn)
+                    .execute(&mut *conn)
                     .await
                 })?;
             }
@@ -380,7 +374,7 @@ impl Projection for CanonicalSessionProjection {
                     .bind(event.created_at.to_rfc3339())
                     .bind(&p.reason)
                     .bind(&session_id)
-                    .execute(&mut conn)
+                    .execute(&mut *conn)
                     .await
                 })?;
             }
@@ -401,7 +395,7 @@ impl Projection for CanonicalSessionProjection {
                     .bind(event.created_at.to_rfc3339())
                     .bind(&p.reason)
                     .bind(&session_id)
-                    .execute(&mut conn)
+                    .execute(&mut *conn)
                     .await
                 })?;
             }
@@ -668,11 +662,8 @@ mod tests {
     }
 
     /// Returns a SqliteConnection pointing at the test-global runtime.db.
-    /// The canonical projection's `apply()` opens its own connection via
-    /// `open_default_conn()` (which also resolves to the test-global dir),
-    /// so reads and writes land in the same DB. We pass the returned conn
-    /// as the `_conn` placeholder to satisfy the `Projection::apply` signature;
-    /// it is not used for writes.
+    /// Passed straight through to `Projection::apply()`, which now folds on
+    /// this connection directly (same DB the query API reads from).
     fn fresh_conn() -> SqliteConnection {
         open_default_conn().expect("test: cannot open test-global runtime.db")
     }

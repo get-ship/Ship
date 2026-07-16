@@ -852,8 +852,7 @@ async fn stop_rpc_session_cancelled_actor_tears_down_and_projection_shows_cancel
 
     // ── 5. Projection: session.cancelled → Cancelled read-model ──────────
     // Simulates the KernelRouter routing the same event through
-    // CanonicalSessionProjection (CanonicalSessionProjection::apply opens its
-    // own runtime.db connection internally; _conn is only a placeholder).
+    // CanonicalSessionProjection on the runtime.db bus connection.
     proj.apply(&cancel_env, &mut conn).unwrap();
 
     let after = load_canonical_session_by_id(SESSION_ID)
