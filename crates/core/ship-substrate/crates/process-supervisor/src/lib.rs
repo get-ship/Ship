@@ -57,9 +57,7 @@ use std::sync::Arc;
 
 /// A live spawn — the supervisor owns the child process; the caller
 /// holds this handle for input/observation/lifecycle. Drop semantics:
-/// dropping does NOT kill the child; explicit `stop()` does. This
-/// matches the `lifecycle.rs::PtySession` contract so migration is a
-/// drop-in replacement.
+/// dropping does NOT kill the child; explicit `stop()` does.
 ///
 /// `sandbox` carries the isolation owner when the actor runs inside
 /// one. It's an `Arc` so cloning the handle is cheap; the underlying

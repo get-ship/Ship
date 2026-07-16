@@ -127,8 +127,7 @@ pub struct HeadlessTransport;
 /// services write_input / stop / pid / resize.
 ///
 /// Drop semantics are deliberate: dropping does NOT kill the child.
-/// Call `stop()` for that. Matches the `lifecycle.rs::PtySession`
-/// contract so migration is a drop-in replacement.
+/// Call `stop()` for that.
 pub struct ChildHandle {
     actor_id: String,
     backend: Box<dyn ChildBackend>,

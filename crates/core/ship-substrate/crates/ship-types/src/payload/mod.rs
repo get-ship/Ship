@@ -39,18 +39,12 @@ pub use crud::{
     PermissionsUpdated, RuleCreated, RuleDeleted, RuleUpdated, SkillCreated, SkillDeleted,
     SkillUpdated,
 };
-pub use daemon::{
-    DaemonCrashed, DaemonOwnerBound, DaemonOwnerUnbound, DaemonPidfileAcquired,
-    DaemonPidfileStaleTaken, DaemonPortBindFailed, DaemonShutdownCompleted, DaemonStartupCompleted,
-    SupervisorShuttingDown,
-};
+pub use daemon::{DaemonOwnerBound, DaemonOwnerUnbound, DaemonPortBindFailed, SupervisorShuttingDown};
 // KernelActor* retired (B2, 2026-06-20).
 pub use skill::{SkillCompleted, SkillFailed, SkillStarted};
 pub use spec6::{AgentTaskComplete, HumanResponse, PipelineStepRetry};
 pub use sync::{SyncPushCompleted, SyncPushFailed, SyncStarted, SyncStopped};
-pub use watcher::{
-    AgentChanged, AgentDefUpdated, PipelineChanged, RuleChanged, SkillChanged, ViewChanged,
-};
+pub use watcher::{AgentDefUpdated, SkillChanged};
 pub use space::{SpaceOpened, SpaceSeen, StackRegistered};
 pub use process::ProcessOrphaned;
 

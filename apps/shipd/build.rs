@@ -6,8 +6,7 @@
 //! unification (Connect is the only path), so the codegen is dead.
 //!
 //! This minimal build script only emits build identity (git SHA, timestamp,
-//! rustc version, profile) for `build_info` — shared across shipd, ship-cli,
-//! and the mcp binary.
+//! rustc version, profile) for `build_info` — shared across shipd.
 
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 

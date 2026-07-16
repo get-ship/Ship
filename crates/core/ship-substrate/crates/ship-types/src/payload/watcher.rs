@@ -2,13 +2,6 @@
 
 use serde::{Deserialize, Serialize};
 
-/// `agent.changed` — watcher ping when agent profile shape changes.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct AgentChanged {
-    pub path: String,
-    pub content_hash: String,
-}
-
 /// `agent.def.updated` — Format-2 agent-def change notification.
 ///
 /// Carries ONLY the def file's rel `path` (under `.ship/agents/`) and its
@@ -30,23 +23,3 @@ pub struct SkillChanged {
     pub content_hash: String,
 }
 
-/// `view.changed` — watcher ping when view shape changes.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ViewChanged {
-    pub path: String,
-    pub content_hash: String,
-}
-
-/// `pipeline.changed` — watcher ping when pipeline definition changes.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct PipelineChanged {
-    pub path: String,
-    pub content_hash: String,
-}
-
-/// `rule.changed` — watcher ping when rule shape changes.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct RuleChanged {
-    pub path: String,
-    pub content_hash: String,
-}

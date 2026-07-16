@@ -1,8 +1,8 @@
 //! Ship daemon (shipd) library.
 //!
 //! Exposes `run_network` for starting the HTTP/SSE MCP daemon. The
-//! user-facing `network status` / `network stop` subcommands live in the
-//! ship CLI (`apps/ship-cli/src/daemon_cmds.rs`). The daemon
+//! user-facing `network status` / `network stop` subcommands live in
+//! `apps/shipctl/src/daemon/commands.rs`. The daemon
 //! composition root (`run_network`) lives in `daemon::run`; this file is
 //! the module map.
 // Force ship-cloud's event_registrations (sync.* family) into the linked

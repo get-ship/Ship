@@ -218,8 +218,6 @@ jobs:
   # ──────────────────────────────────────────────────────────────────────────
   # 3. Linux native packages (.deb, .rpm) — cargo-dist doesn't yet emit
   #    these cleanly, so we drive cargo-deb / cargo-generate-rpm directly.
-  #    Metadata lives on [package.metadata.deb] / .generate-rpm in
-  #    apps/ship-cli/Cargo.toml.
   # ──────────────────────────────────────────────────────────────────────────
   linux-packages:
     name: Linux ${{ matrix.format }} ${{ matrix.target }}
@@ -275,7 +273,7 @@ jobs:
           cargo build --release --target "${{ matrix.target }}" \
             -p shipctl -p ship-code --features cli -p shipd
           # cargo-deb / cargo-generate-rpm dropped for now: their
-          # recipes are wired to apps/ship-cli/Cargo.toml. Restoring
+          # recipes are wired to apps/shipctl/Cargo.toml. Restoring
           # deb/rpm packaging under the new bin layout is a follow-up
           # job — the tarball job above already publishes every binary.
           mkdir -p target/release

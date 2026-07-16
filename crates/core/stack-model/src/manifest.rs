@@ -107,10 +107,6 @@ struct RawShipManifest {
 // ── Root manifest ──────────────────────────────────────────────────────────────
 
 /// Parsed and validated Ship manifest.
-///
-/// `module` is optional — only required for `ship publish`. Consumer-only
-/// projects (no `[module]`) can still declare dependencies and run
-/// `ship install` / `ship add`.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ShipManifest {
     pub module: Option<ManifestModule>,

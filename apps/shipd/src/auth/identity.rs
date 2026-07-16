@@ -5,8 +5,8 @@
 //! handlers that read an identity from a request body or URL path
 //! would let any worker session impersonate any other agent.
 //!
-//! Daemon-token callers (CLI / Studio / SDK) remain free to act on behalf of
-//! any agent — they're the trusted intermediary by design.
+//! CLI / Studio / SDK callers remain free to act on behalf of any agent —
+//! they're the trusted intermediary by design.
 
 use axum::{Json, http::StatusCode, response::{IntoResponse, Response}};
 use serde_json::json;

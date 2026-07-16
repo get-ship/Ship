@@ -47,10 +47,9 @@ pub use harness::{
 ///   CLI in the container. The daemon derives identity from the token and
 ///   deserializes the raw payload via `ShipHookEvent`'s field aliases.
 /// - **On the host** `$SHIP_DAEMON_URL` is unset → the hook is a NO-OP
-///   (`true`). No `hook` subcommand exists in ship-cli; a failing lifecycle
-///   hook blocks the harness's turn-end and death-spirals the agent
-///   (operator ruling 2026-07-06: emit nothing that can fail until the
-///   hooks mechanism is redesigned).
+///   (`true`). A failing lifecycle hook blocks the harness's turn-end and
+///   death-spirals the agent (operator ruling 2026-07-06: emit nothing
+///   that can fail until the hooks mechanism is redesigned).
 ///
 /// Shared by every harness that emits command-style lifecycle hooks
 /// (claude `.mcp`/settings, codex `hooks.json`). Note: `before-tool`

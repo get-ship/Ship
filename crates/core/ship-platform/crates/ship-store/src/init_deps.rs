@@ -1,8 +1,6 @@
-//! Default registry dependencies for `ship init`.
-//!
-//! When `ship init` creates a new project, this module seeds default `@ship/*`
-//! dependencies into `ship.jsonc` and optionally resolves them via the registry.
-//! If the registry is unreachable, the caller falls back to bare scaffold skills.
+//! This module seeds default `@ship/*` dependencies into `ship.jsonc` and
+//! optionally resolves them via the registry. If the registry is
+//! unreachable, the caller falls back to bare scaffold skills.
 
 // Fetched LEGACY packages may still carry a `.ship/` tree; this local
 // helper names that historical PACKAGE shape (migrates with the registry
@@ -86,9 +84,9 @@ pub fn seed_default_dependencies(ship_dir: &Path) -> Result<SeedResult> {
 
 /// Attempt to install the dependencies declared in `ship.jsonc`.
 ///
-/// This is a best-effort operation for use after `ship init`. It reads the
-/// `dependencies` section from ship.jsonc (without requiring a `module` section),
-/// builds a lightweight registry manifest, and runs `resolve_and_fetch`.
+/// This is a best-effort operation. It reads the `dependencies` section
+/// from ship.jsonc (without requiring a `module` section), builds a
+/// lightweight registry manifest, and runs `resolve_and_fetch`.
 ///
 /// Returns `Ok(true)` if install succeeded, `Ok(false)` if it was skipped
 /// (no deps), or an error. Callers should catch errors and fall back gracefully.

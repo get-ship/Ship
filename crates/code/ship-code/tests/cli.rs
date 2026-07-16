@@ -92,7 +92,7 @@ defineAgent({{
 }
 
 /// `ship use <id>` still gates on a raw `.ship/agents/<id>.jsonc` file
-/// (`apps/ship-cli/src/profile.rs::find_agent_file`/`load_agent_profile`) —
+/// (`crates/code/ship-code/src/bin/profile.rs::find_agent_file`/`load_agent_profile`) —
 /// that lookup was never migrated onto the ts-declare-form roll-up the
 /// compile pipeline itself uses. The stub only needs to exist for the
 /// activation gate + plugin-lifecycle read; the agent's real skills/mcp/

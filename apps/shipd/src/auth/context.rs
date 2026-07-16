@@ -12,7 +12,7 @@ pub struct AuthContext {
     pub agent_id: Option<String>,
     /// The space this request belongs to (the pointer content-id), carried
     /// from the authenticated session. A space-window session carries its OWN
-    /// space here; operator/agent/daemon-token requests leave it `None`, which
+    /// space here; operator/agent requests leave it `None`, which
     /// the binding keys as `None` (Phase 2 fail-soft — no home-space fallback on
     /// the emit path). This is the per-connection space source. See spec
     /// `.artifacts/specs/space/128-multi-space-emit.md`.

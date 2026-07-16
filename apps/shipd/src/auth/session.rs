@@ -27,7 +27,7 @@ pub struct SessionIssueResponse {
 }
 
 /// `POST /api/v1/session` handler. Requires the caller to already
-/// hold a daemon-token credential (the auth middleware enforces this).
+/// hold a verified session credential (the auth middleware enforces this).
 /// Issues a browser-session cookie scoped to `/api/v1/runtime` and
 /// returns `{ok, expires_in}`.
 pub async fn issue_session_handler(
