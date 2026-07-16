@@ -8073,8 +8073,15 @@ dependencies = [
 name = "ship-contract-tests"
 version = "0.1.0"
 dependencies = [
+ "agent-def",
  "anyhow",
  "serde_json",
+ "ship-account",
+ "ship-artifacts",
+ "ship-auth",
+ "ship-cloud",
+ "ship-collection",
+ "ship-config",
  "ship-ops-rpc",
  "ship-proto",
  "ship-substrate",

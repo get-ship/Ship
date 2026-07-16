@@ -29,8 +29,7 @@ pub fn load_fixture(path: &Path) -> serde_json::Value {
 /// Assert JSON roundtrip: serialize `v` to string then parse back and compare.
 /// Returns the re-parsed value so callers can do field assertions.
 pub fn assert_json_roundtrip(label: &str, v: &serde_json::Value) -> serde_json::Value {
-    let serialized = serde_json::to_string(v)
-        .unwrap_or_else(|e| panic!("{label}: serialize failed: {e}"));
-    serde_json::from_str(&serialized)
-        .unwrap_or_else(|e| panic!("{label}: re-parse failed: {e}"))
+    let serialized =
+        serde_json::to_string(v).unwrap_or_else(|e| panic!("{label}: serialize failed: {e}"));
+    serde_json::from_str(&serialized).unwrap_or_else(|e| panic!("{label}: re-parse failed: {e}"))
 }

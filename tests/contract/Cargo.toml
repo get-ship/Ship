@@ -23,3 +23,14 @@ ship-proto = { git = "https://github.com/get-ship/ship-contracts.git", branch = 
 ship-ops-rpc = { path = "../../crates/core/ship-ops-rpc" }
 ship-types = { path = "../../crates/core/ship-substrate/crates/ship-types" }
 ship-substrate = { path = "../../crates/core/ship-substrate" }
+# Pulled in ONLY to force their `register_event!` inventory submissions to
+# link (see roundtrip.rs `as _` imports) — the events corpus gate needs the
+# FULL registry, not just ship-substrate's own residual events.
+agent-def = { path = "../../crates/core/ship-platform/crates/agent-def" }
+ship-space = { path = "../../crates/core/ship-platform/crates/ship-space" }
+ship-cloud = { path = "../../crates/core/ship-cloud" }
+ship-config = { path = "../../crates/core/ship-platform/crates/ship-config" }
+ship-account = { path = "../../crates/core/ship-platform/crates/ship-account" }
+ship-collection = { path = "../../crates/core/ship-platform/crates/ship-collection" }
+ship-artifacts = { path = "../../crates/core/ship-platform/crates/ship-artifacts" }
+ship-auth = { path = "../../crates/core/ship-platform/crates/ship-auth" }
