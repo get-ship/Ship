@@ -4377,6 +4377,7 @@ dependencies = [
  "harness-config-compiler",
  "home",
  "json-patch",
+ "parking_lot",
  "process-supervisor",
  "semver",
  "serde",
@@ -4394,7 +4395,6 @@ dependencies = [
  "ship-resolver",
  "ship-store",
  "ship-substrate",
- "ship-terminal",
  "ship-types",
  "specta",
  "sqlx",
@@ -4985,21 +4985,6 @@ name = "ship-substrate-host"
 version = "0.1.0"
 dependencies = [
  "libc",
-]
-
-[[package]]
-name = "ship-terminal"
-version = "0.1.0"
-dependencies = [
- "agent-driver",
- "anyhow",
- "chrono",
- "process-supervisor",
- "serde",
- "ship-harnesses",
- "ship-substrate",
- "tokio",
- "tracing",
 ]
 
 [[package]]
