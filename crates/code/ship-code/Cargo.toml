@@ -3,10 +3,16 @@ name = "ship-code"
 version = "0.1.0"
 edition = "2024"
 publish = false
-description = "L1: ship-code — drivers that adapt third-party agent harnesses to Ship's control plane / governance / isolation. The harness/isolation/token-aware run-assembly (SessionExecutor impls: Process / TmuxWindow / Server / Routing) that turns a SessionContext into a running harness process. Carved from ship-agents (Floki D3); its fate (fold-in / spin-off / abandon) stays a localized decision because it's siloed behind one boundary."
+autobins = false
+description = "L1: ship-code — drivers that adapt third-party agent harnesses to Ship's control plane / governance / isolation. The harness/isolation/token-aware run-assembly (SessionExecutor impls: Process / TmuxWindow / Server / Routing) that turns a SessionContext into a running harness process. Carved from ship-agents (Floki D3); its fate (fold-in / spin-off / abandon) stays a localized decision because it's siloed behind one boundary. The crate's [[bin]] below is the agent-facing CLI (ops / meta / use / compile)."
 
-[lints]
-workspace = true
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "ship-code"
+path = "src/bin/ship_code.rs"
+required-features = ["cli"]
 
 [dependencies]
 home = { workspace = true }
@@ -28,6 +34,28 @@ ship-config = { path = "../../core/ship-platform/crates/ship-config" }
 ship-types = { path = "../../core/ship-substrate/crates/ship-types" }
 ship-git = { path = "../../core/ship-git" }
 
+# CLI deps — only the bin needs clap, hyper, connectrpc, ship-ops-rpc, the
+# compile pipeline, etc. Lib consumers don't pay for them. ship-agents and
+# ship-platform are intentionally NOT in the cli feature: ship-agents (and
+# through it ship-platform) depend on this crate, and a bin that pulls
+# either in would close a cycle. The CLI reaches ship-platform's
+# install_defaults via the kernel-router init in ship_substrate (no-op in
+# post-2026-07-10 builds anyway).
+clap = { workspace = true, optional = true }
+connectrpc = { version = "0.4", features = ["client"], optional = true }
+http = { version = "1", optional = true }
+http-body-util = { version = "0.1", optional = true }
+hyper = { version = "1", features = ["client", "http1"], optional = true }
+hyper-util = { version = "0.1", features = ["tokio", "client", "client-legacy", "http1"], optional = true }
+tower = { version = "0.5", features = ["util"], optional = true }
+reqwest = { workspace = true, features = ["rustls-tls", "blocking", "json"], optional = true }
+harness-config-compiler = { path = "../../code/harness-config-compiler", optional = true }
+stack-model = { path = "../../core/stack-model", optional = true }
+ship-ops-rpc = { path = "../../core/ship-ops-rpc", optional = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"], optional = true }
+tracing-appender = { workspace = true, optional = true }
+build-info = { path = "../../build-info", optional = true }
+
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 chrono = { workspace = true }
@@ -47,6 +75,9 @@ tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "time
 # skips the poisoned-mutex error path and keeps call sites focused on the
 # data, not the error-handling boilerplate. Mirrors rule `rs-parking-lot`.
 parking_lot = { workspace = true }
+assert_cmd = "2"
+predicates = "3"
+
 [features]
 # ship-code: includes the full executor/harness driver machinery
 # (executors, process_registry, process_tree_probe, terminal_launcher).
@@ -54,3 +85,22 @@ parking_lot = { workspace = true }
 # orchestration helpers (dispatch_ports, lifecycle::exit_handler, etc.).
 # Enabled by default at the composition root (shipd/ship-agents).
 ship-code = []
+# cli: the agent-facing CLI deps (clap, connectrpc, ship-ops-rpc, the
+# compile pipeline, etc.). Gate-off for library consumers that don't
+# link the binary. The bin target requires this.
+cli = [
+    "dep:clap",
+    "dep:connectrpc",
+    "dep:http",
+    "dep:http-body-util",
+    "dep:hyper",
+    "dep:hyper-util",
+    "dep:tower",
+    "dep:reqwest",
+    "dep:harness-config-compiler",
+    "dep:stack-model",
+    "dep:ship-ops-rpc",
+    "dep:tracing-subscriber",
+    "dep:tracing-appender",
+    "dep:build-info",
+]

@@ -8,23 +8,23 @@ mod mcp;
 mod opencode;
 mod pi;
 
-// Per-harness settings types live in their harness modules (cohesion);
-// re-export so `resolve::ResolvedConfig` can hold them as typed fields.
-pub(crate) use claude::ClaudeSettings;
-pub(crate) use codex::CodexSettings;
-pub(crate) use opencode::OpenCodeSettings;
 mod plugins;
 mod skills;
 
 #[cfg(test)]
 mod tests;
 
-use std::collections::HashMap;
-
-use serde_json::Value as Json;
+// Per-harness settings types live in their harness modules (cohesion);
+// re-export so the compile/tests fixtures can build `ResolvedConfig` values
+// via `crate::compile::{Claude,Codex,OpenCode}Settings`.
+#[cfg(test)]
+pub(crate) use claude::ClaudeSettings;
+#[cfg(test)]
+pub(crate) use codex::CodexSettings;
+#[cfg(test)]
+pub(crate) use opencode::OpenCodeSettings;
 
 use stack_model::resolve::ResolvedConfig;
-use stack_model::types::PluginsManifest;
 
 // ─── Re-exports for lib.rs public surface ─────────────────────────────────────
 

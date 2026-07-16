@@ -1006,7 +1006,6 @@ impl SessionExecutor for ProcessExecutor {
         // would double-count.
         let synth_hooks_from_stream = harness_for_session == "opencode";
         let synth_actor_id = ctx.slug.clone();
-        let synth_harness = harness_for_session.clone();
         let minted_token = minted_token.take();
         tokio::spawn(async move {
             // Bounded line buffer: a real PTY keeps claude/codex in

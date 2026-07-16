@@ -71,8 +71,11 @@ const SINGLE_CONSUMER_ALLOWLIST: &[(&str, &str)] = &[
 /// on these pins yet. Remove an entry as soon as README.md or ≥5 `//!` lines
 /// land in that crate.
 const E1_VIOLATOR_ALLOWLIST: &[&str] = &[
-    // CLI app binary (main.rs only); no lib.rs, no README.
-    "ship-cli",
+    // Operator CLI app binary (main.rs only); no lib.rs, no README.
+    "shipctl",
+    // Agent-facing CLI bin lives in crates/code/ship-code (main.rs only);
+    // no lib.rs, no README.
+    "ship-code",
     // Integration test harness; lib.rs has < 5 //! lines, no README.
     "ship-contract-tests",
     // In-sandbox sidecar binary (main.rs only); no lib.rs, no README.

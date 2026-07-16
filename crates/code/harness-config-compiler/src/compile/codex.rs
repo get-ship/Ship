@@ -323,4 +323,5 @@ pub(super) fn build_settings(
     out.codex_policy_content = build_codex_execpolicy(&resolved.permissions);
 }
 
-pub use stack_model::types::harness_settings::CodexSettings;
+#[cfg(test)]
+pub(crate) use stack_model::types::harness_settings::CodexSettings;

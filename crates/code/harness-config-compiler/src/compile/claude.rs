@@ -298,4 +298,5 @@ pub(super) fn build_settings(
     }
 }
 
-pub use stack_model::types::harness_settings::ClaudeSettings;
+#[cfg(test)]
+pub(crate) use stack_model::types::harness_settings::ClaudeSettings;

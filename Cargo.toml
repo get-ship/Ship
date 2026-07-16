@@ -61,7 +61,7 @@ members = [
     # broken until sui publishes the deck + sui-compiler crates.
     "crates/xtask",
     "apps/shipd",
-    "apps/ship-cli",
+    "apps/shipctl",
     "apps/host",
     "tests/contract",
 ]
@@ -113,7 +113,7 @@ default-members = [
     "crates/core/ship-sidecar-proto",
     "crates/xtask",
     "apps/shipd",
-    "apps/ship-cli",
+    "apps/shipctl",
     "tests/contract",
 ]
 resolver = "2"

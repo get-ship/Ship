@@ -61,9 +61,7 @@ async fn handle_agent_exited(
     vocab: &ExitVocabulary,
     signal: &ExitSignal,
 ) {
-    let ExitVocabulary::AgentSession { session_id } = vocab else {
-        return;
-    };
+    let ExitVocabulary::AgentSession { session_id } = vocab;
     let exit_code = signal.exit_code;
     if matches!(exit_code, Some(0)) {
         let payload = SessionCompleted { session_id: session_id.clone() };
@@ -100,9 +98,7 @@ async fn handle_session_destroyed(
     vocab: &ExitVocabulary,
     signal: &ExitSignal,
 ) {
-    let ExitVocabulary::AgentSession { session_id } = vocab else {
-        return;
-    };
+    let ExitVocabulary::AgentSession { session_id } = vocab;
     let reason = "executor session destroyed externally".to_string();
     let payload = SessionFailed {
         session_id: session_id.clone(),

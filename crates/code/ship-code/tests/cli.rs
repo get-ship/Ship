@@ -12,15 +12,15 @@ use std::path::Path;
 use tempfile::TempDir;
 
 /// Bare CLI command — no DB isolation. Use `ship_in()` for tests that touch
-/// the database (ship use writes the active_agent projection).
+/// the database (ship-code use writes the active_agent projection).
 fn ship() -> Command {
-    Command::cargo_bin("ship").unwrap()
+    Command::cargo_bin("ship-code").unwrap()
 }
 
 /// CLI command with DB isolated to `tmp`'s temp dir.
 /// All calls within the same test share state; different tests are isolated.
 fn ship_in(tmp: &TempDir) -> Command {
-    let mut cmd = Command::cargo_bin("ship").unwrap();
+    let mut cmd = Command::cargo_bin("ship-code").unwrap();
     cmd.env("SHIP_HOME", tmp.path());
     cmd
 }

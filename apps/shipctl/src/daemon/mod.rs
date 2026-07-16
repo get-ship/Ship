@@ -24,5 +24,5 @@ mod supervision_tests;
 mod tests;
 
 pub use commands::{run_daemon, DaemonCommand};
-pub use ensure::{daemon_info_if_healthy, ensure_daemon_running};
+pub use ensure::ensure_daemon_running;
 pub(crate) use legacy_pidfile::{daemon_start_inner, daemon_stop_inner};

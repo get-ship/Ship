@@ -4,7 +4,7 @@ use anyhow::{Result, anyhow};
 use std::path::Path;
 
 use crate::compile::{CompileOutput, get_harness};
-use stack_model::jsonc::{merge_json, merge_json_file};
+use stack_model::jsonc::merge_json_file;
 
 /// Write a compiled harness output to the filesystem at `root`.
 ///

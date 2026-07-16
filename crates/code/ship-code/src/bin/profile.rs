@@ -19,6 +19,9 @@ use crate::compile::{CompileOptions, run_compile};
 #[derive(Debug, Clone, Default)]
 pub struct SpaceState {
     pub active_agent: Option<String>,
+    // Mirrors the `project_compile_state` row shape; no current caller in
+    // this crate reads it yet (the doc comment's `ship status` consumer).
+    #[allow(dead_code)]
     pub compiled_at: Option<String>,
     pub plugins_installed: Vec<String>,
 }
@@ -77,7 +80,7 @@ pub fn activate_agent(
             if available.is_empty() {
                 anyhow::bail!(
                     "Agent '{}' not found in .ship/agents/. No agents found.\n\
-                     Create one at .ship/agents/{}.jsonc or see: ship docs agents",
+                     Create one at .ship/agents/{}.jsonc",
                     id,
                     id,
                 );
@@ -188,7 +191,7 @@ pub fn find_agent_file(agent_id: &str, space_root: &Path) -> Option<PathBuf> {
 /// a raw serde/jsonc trace.
 pub(crate) fn load_agent_profile(path: &Path) -> Result<AgentProfile> {
     let fs = ship_substrate::ports::LocalFsBroker::new();
-    match ship_platform::config::read_agent_profile_at(&fs, path) {
+    match ship_config::agents::read_agent_profile_at(&fs, path) {
         Ok(Some(profile)) => Ok(profile),
         Ok(None) => Err(anyhow::anyhow!(
             "agent config at {} is not valid agent config. \
@@ -205,7 +208,7 @@ pub(crate) fn load_agent_profile(path: &Path) -> Result<AgentProfile> {
 fn list_available_agents(space_root: &Path) -> Vec<String> {
     let agents_dir = space_root.join("agents");
     let fs = ship_substrate::ports::LocalFsBroker::new();
-    let mut ids: Vec<String> = ship_platform::config::read_agent_docs_in(&fs, &agents_dir)
+    let mut ids: Vec<String> = ship_config::agents::read_agent_docs_in(&fs, &agents_dir)
         .unwrap_or_default()
         .into_iter()
         .map(|(stem, _)| stem)

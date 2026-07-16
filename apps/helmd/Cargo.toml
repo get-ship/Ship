@@ -97,7 +97,8 @@ ship-config = { path = "../../crates/core/ship-platform/crates/ship-config" }
 #
 # The harness-driver stack: process registry, RoutingExecutor, dispatch_ports,
 # helpers, agent_lifecycle, the `EventDedup` gate. helmd's dispatch runtime is
-# built directly from these (mirroring shipd's `subscribe_job_events`).
+# Spine 1 (always on): floki dispatch closure + the L1 executor lib the
+# dispatch composition root calls into (see dispatch.rs).
 ship-code = { path = "../../crates/code/ship-code", features = ["ship-code"], optional = true }
 # Spine 2b dispatch deps — pulled in only when `ship-code` is on.
 ship-auth = { path = "../../crates/core/ship-platform/crates/ship-auth", optional = true }

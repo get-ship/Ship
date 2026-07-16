@@ -8,7 +8,8 @@ on:
     paths:
       - '.github/workflows/release-cli.yml'
       - 'dist-workspace.toml'
-      - 'apps/ship-cli/Cargo.toml'
+      - 'apps/shipctl/Cargo.toml'
+      - 'crates/code/ship-code/Cargo.toml'
   workflow_dispatch:
     inputs:
       tag:
@@ -94,10 +95,10 @@ jobs:
           echo "tag=${tag}" >> "$GITHUB_OUTPUT"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
 
-      - name: Build ship + shipd
+      - name: Build shipctl + ship-code + shipd
         run: |
           cargo build --release --target ${{ matrix.target }} \
-            -p ship-cli -p shipd
+            -p shipctl -p ship-code --features cli -p shipd
 
       - name: Package (Unix)
         if: matrix.archive == 'tar.gz'
@@ -105,13 +106,13 @@ jobs:
         run: |
           stage="ship-${{ steps.version.outputs.version }}-${{ matrix.target }}"
           mkdir -p "dist/${stage}"
-          cp "target/${{ matrix.target }}/release/ship${{ matrix.exe }}" "dist/${stage}/ship${{ matrix.exe }}"
-          cp "target/${{ matrix.target }}/release/shipd${{ matrix.exe }}" "dist/${stage}/shipd${{ matrix.exe }}"
-          chmod +x "dist/${stage}/ship" "dist/${stage}/shipd"
+          cp "target/${{ matrix.target }}/release/ship-code${{ matrix.exe }}" "dist/${stage}/ship-code${{ matrix.exe }}"
+          cp "target/${{ matrix.target }}/release/shipctl${{ matrix.exe }}"  "dist/${stage}/shipctl${{ matrix.exe }}"
+          cp "target/${{ matrix.target }}/release/shipd${{ matrix.exe }}"    "dist/${stage}/shipd${{ matrix.exe }}"
+          chmod +x "dist/${stage}/ship-code" "dist/${stage}/shipctl" "dist/${stage}/shipd"
           cp README.md "dist/${stage}/README.md"
           cp packaging/installer-assets/LICENSE-INSTALLER.txt "dist/${stage}/LICENSE.txt" || true
           tar -czf "${stage}.tar.gz" -C dist "${stage}"
-
       - name: Package (Windows)
         if: matrix.archive == 'zip'
         shell: pwsh
@@ -272,24 +273,15 @@ jobs:
       - name: Build release binaries
         run: |
           cargo build --release --target "${{ matrix.target }}" \
-            -p ship-cli -p shipd
-          # cargo-deb / cargo-generate-rpm read `target/release/`.
+            -p shipctl -p ship-code --features cli -p shipd
+          # cargo-deb / cargo-generate-rpm dropped for now: their
+          # recipes are wired to apps/ship-cli/Cargo.toml. Restoring
+          # deb/rpm packaging under the new bin layout is a follow-up
+          # job — the tarball job above already publishes every binary.
           mkdir -p target/release
-          cp "target/${{ matrix.target }}/release/ship"  target/release/ship
-          cp "target/${{ matrix.target }}/release/shipd" target/release/shipd
-
-      - name: Build package
-        shell: bash
-        run: |
-          case "${{ matrix.format }}" in
-            deb)
-              cargo deb -p ship-cli --no-build --no-strip \
-                --target "${{ matrix.target }}"
-              ;;
-            rpm)
-              cargo generate-rpm -p apps/ship-cli
-              ;;
-          esac
+          cp "target/${{ matrix.target }}/release/ship-code" target/release/ship-code
+          cp "target/${{ matrix.target }}/release/shipctl"  target/release/shipctl
+          cp "target/${{ matrix.target }}/release/shipd"    target/release/shipd
 
       - name: Upload package
         uses: actions/upload-artifact@v4

@@ -9,15 +9,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fe438c63458706e03479442743baae6c88256498e6431708f6dfc520a26515d3"
 
 [[package]]
-name = "addr2line"
-version = "0.25.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1b5d307320b3181d6d7954e663bd7c774a838b8220fe0593c86d9fb09f498b4b"
-dependencies = [
- "gimli",
-]
-
-[[package]]
 name = "adler2"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -568,21 +559,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "be5eb007b7cacc6c660343e96f650fedf4b5a77512399eb952ca6642cf8d13f7"
 
 [[package]]
-name = "backtrace"
-version = "0.3.76"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb531853791a215d7c62a30daf0dde835f381ab5de4589cfe7c649d2cbe92bd6"
-dependencies = [
- "addr2line",
- "cfg-if",
- "libc",
- "miniz_oxide",
- "object",
- "rustc-demangle",
- "windows-link 0.2.1",
-]
-
-[[package]]
 name = "base-encode"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -640,7 +616,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "regex",
- "rustc-hash 2.1.2",
+ "rustc-hash",
  "shlex",
  "syn 2.0.117",
 ]
@@ -1733,7 +1709,7 @@ dependencies = [
  "notify",
  "rolldown",
  "rolldown_common",
- "rustc-hash 2.1.2",
+ "rustc-hash",
  "serde",
  "serde_json",
  "sui-compiler",
@@ -1999,22 +1975,6 @@ dependencies = [
  "rustc_version",
  "syn 2.0.117",
  "unicode-xid",
-]
-
-[[package]]
-name = "dhat"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "98cd11d84628e233de0ce467de10b8633f4ddaecafadefc86e13b84b8739b827"
-dependencies = [
- "backtrace",
- "lazy_static",
- "mintex",
- "parking_lot",
- "rustc-hash 1.1.0",
- "serde",
- "serde_json",
- "thousands",
 ]
 
 [[package]]
@@ -2932,12 +2892,6 @@ dependencies = [
  "wasip2",
  "wasip3",
 ]
-
-[[package]]
-name = "gimli"
-version = "0.32.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e629b9b98ef3dd8afe6ca2bd0f89306cec16d43d907889945bc5d6687f2f13c7"
 
 [[package]]
 name = "gio"
@@ -4340,12 +4294,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mintex"
-version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c505b3e17ed6b70a7ed2e67fbb2c560ee327353556120d6e72f5232b6880d536"
-
-[[package]]
 name = "mio"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4895,15 +4843,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "object"
-version = "0.37.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ff76201f031d8863c38aa7f905eca4f53abbfa15f609db4277d44cd8938f33fe"
-dependencies = [
- "memchr",
-]
-
-[[package]]
 name = "object_store"
 version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5072,7 +5011,7 @@ checksum = "ed057e45c57a87f33e7942215417089e3c038ba6c5dd5e4a6b3ecaa09bbd58d8"
 dependencies = [
  "flate2",
  "postcard",
- "rustc-hash 2.1.2",
+ "rustc-hash",
  "serde",
  "thiserror 2.0.18",
 ]
@@ -5112,7 +5051,7 @@ dependencies = [
  "allocator-api2",
  "hashbrown 0.17.1",
  "oxc_data_structures 0.128.0",
- "rustc-hash 2.1.2",
+ "rustc-hash",
 ]
 
 [[package]]
@@ -5125,7 +5064,7 @@ dependencies = [
  "hashbrown 0.17.1",
  "oxc_data_structures 0.133.0",
  "oxc_estree 0.133.0",
- "rustc-hash 2.1.2",
+ "rustc-hash",
  "serde",
 ]
 
@@ -5224,7 +5163,7 @@ dependencies = [
  "oxc_index",
  "oxc_syntax 0.133.0",
  "petgraph",
- "rustc-hash 2.1.2",
+ "rustc-hash",
 ]
 
 [[package]]
@@ -5246,7 +5185,7 @@ dependencies = [
  "oxc_span 0.133.0",
  "oxc_str 0.133.0",
  "oxc_syntax 0.133.0",
- "rustc-hash 2.1.2",
+ "rustc-hash",
 ]
 
 [[package]]
@@ -5258,7 +5197,7 @@ dependencies = [
  "cow-utils",
  "oxc-browserslist",
  "oxc_syntax 0.133.0",
- "rustc-hash 2.1.2",
+ "rustc-hash",
  "serde",
 ]
 
@@ -5374,7 +5313,7 @@ dependencies = [
  "oxc_span 0.133.0",
  "oxc_str 0.133.0",
  "oxc_syntax 0.133.0",
- "rustc-hash 2.1.2",
+ "rustc-hash",
 ]
 
 [[package]]
@@ -5392,7 +5331,7 @@ dependencies = [
  "oxc_span 0.133.0",
  "oxc_str 0.133.0",
  "oxc_syntax 0.133.0",
- "rustc-hash 2.1.2",
+ "rustc-hash",
 ]
 
 [[package]]
@@ -5418,7 +5357,7 @@ dependencies = [
  "oxc_str 0.133.0",
  "oxc_syntax 0.133.0",
  "oxc_traverse",
- "rustc-hash 2.1.2",
+ "rustc-hash",
 ]
 
 [[package]]
@@ -5441,7 +5380,7 @@ dependencies = [
  "oxc_span 0.128.0",
  "oxc_str 0.128.0",
  "oxc_syntax 0.128.0",
- "rustc-hash 2.1.2",
+ "rustc-hash",
  "seq-macro",
 ]
 
@@ -5465,7 +5404,7 @@ dependencies = [
  "oxc_span 0.133.0",
  "oxc_str 0.133.0",
  "oxc_syntax 0.133.0",
- "rustc-hash 2.1.2",
+ "rustc-hash",
  "seq-macro",
 ]
 
@@ -5482,7 +5421,7 @@ dependencies = [
  "oxc_span 0.128.0",
  "oxc_str 0.128.0",
  "phf",
- "rustc-hash 2.1.2",
+ "rustc-hash",
  "unicode-id-start",
 ]
 
@@ -5499,7 +5438,7 @@ dependencies = [
  "oxc_span 0.133.0",
  "oxc_str 0.133.0",
  "phf",
- "rustc-hash 2.1.2",
+ "rustc-hash",
  "unicode-id-start",
 ]
 
@@ -5519,7 +5458,7 @@ dependencies = [
  "papaya",
  "percent-encoding",
  "pnp",
- "rustc-hash 2.1.2",
+ "rustc-hash",
  "rustix 1.1.4",
  "self_cell",
  "serde",
@@ -5549,7 +5488,7 @@ dependencies = [
  "oxc_span 0.133.0",
  "oxc_str 0.133.0",
  "oxc_syntax 0.133.0",
- "rustc-hash 2.1.2",
+ "rustc-hash",
  "self_cell",
  "smallvec",
 ]
@@ -5562,7 +5501,7 @@ checksum = "6d378eb8bad20e89d66276aebab51f6a5408571092cac94abdd3eabb773713d6"
 dependencies = [
  "base64-simd",
  "json-escape-simd",
- "rustc-hash 2.1.2",
+ "rustc-hash",
  "serde",
  "serde_json",
 ]
@@ -5686,7 +5625,7 @@ dependencies = [
  "oxc_str 0.133.0",
  "oxc_syntax 0.133.0",
  "oxc_traverse",
- "rustc-hash 2.1.2",
+ "rustc-hash",
  "serde",
  "serde_json",
  "sha1 0.11.0",
@@ -5712,7 +5651,7 @@ dependencies = [
  "oxc_syntax 0.133.0",
  "oxc_transformer",
  "oxc_traverse",
- "rustc-hash 2.1.2",
+ "rustc-hash",
 ]
 
 [[package]]
@@ -5731,7 +5670,7 @@ dependencies = [
  "oxc_span 0.133.0",
  "oxc_str 0.133.0",
  "oxc_syntax 0.133.0",
- "rustc-hash 2.1.2",
+ "rustc-hash",
 ]
 
 [[package]]
@@ -6035,7 +5974,7 @@ dependencies = [
  "nodejs-built-in-modules",
  "pathdiff",
  "radix_trie",
- "rustc-hash 2.1.2",
+ "rustc-hash",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -6349,7 +6288,7 @@ dependencies = [
  "pin-project-lite",
  "quinn-proto",
  "quinn-udp",
- "rustc-hash 2.1.2",
+ "rustc-hash",
  "rustls",
  "socket2",
  "thiserror 2.0.18",
@@ -6370,7 +6309,7 @@ dependencies = [
  "lru-slab",
  "rand 0.9.4",
  "ring",
- "rustc-hash 2.1.2",
+ "rustc-hash",
  "rustls",
  "rustls-pki-types",
  "slab",
@@ -6879,7 +6818,7 @@ dependencies = [
  "rolldown_std_utils",
  "rolldown_tracing",
  "rolldown_utils",
- "rustc-hash 2.1.2",
+ "rustc-hash",
  "serde",
  "serde_json",
  "string_wizard",
@@ -6924,7 +6863,7 @@ dependencies = [
  "rolldown_sourcemap",
  "rolldown_std_utils",
  "rolldown_utils",
- "rustc-hash 2.1.2",
+ "rustc-hash",
  "serde",
  "serde_json",
  "simdutf8",
@@ -6953,7 +6892,7 @@ checksum = "afec505c7cab83fd5cecb31c24f8e6676de3ec4b358f80dcdd48aa5dd21a2c42"
 dependencies = [
  "blake3",
  "rolldown_devtools_action",
- "rustc-hash 2.1.2",
+ "rustc-hash",
  "serde",
  "serde_json",
  "tracing",
@@ -7011,7 +6950,7 @@ dependencies = [
  "oxc_resolver",
  "rolldown-ariadne",
  "ropey",
- "rustc-hash 2.1.2",
+ "rustc-hash",
  "sugar_path",
 ]
 
@@ -7047,7 +6986,7 @@ dependencies = [
  "rolldown_resolver",
  "rolldown_sourcemap",
  "rolldown_utils",
- "rustc-hash 2.1.2",
+ "rustc-hash",
  "serde",
  "serde_json",
  "string_wizard",
@@ -7068,7 +7007,7 @@ dependencies = [
  "rolldown_common",
  "rolldown_plugin",
  "rolldown_utils",
- "rustc-hash 2.1.2",
+ "rustc-hash",
  "string_wizard",
  "sugar_path",
  "tokio",
@@ -7084,7 +7023,7 @@ dependencies = [
  "rolldown_common",
  "rolldown_plugin",
  "rolldown_utils",
- "rustc-hash 2.1.2",
+ "rustc-hash",
  "serde_json",
  "xxhash-rust",
 ]
@@ -7101,7 +7040,7 @@ dependencies = [
  "rolldown_common",
  "rolldown_plugin",
  "rolldown_utils",
- "rustc-hash 2.1.2",
+ "rustc-hash",
  "string_wizard",
  "sugar_path",
  "tokio",
@@ -7238,7 +7177,7 @@ dependencies = [
  "regress",
  "rolldown_error",
  "rolldown_std_utils",
- "rustc-hash 2.1.2",
+ "rustc-hash",
  "serde_json",
  "simdutf8",
  "sugar_path",
@@ -7276,18 +7215,6 @@ dependencies = [
  "subtle",
  "zeroize",
 ]
-
-[[package]]
-name = "rustc-demangle"
-version = "0.1.27"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b50b8869d9fc858ce7266cce0194bd74df58b9d0e3f6df3a9fc8eb470d95c09d"
-
-[[package]]
-name = "rustc-hash"
-version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
 
 [[package]]
 name = "rustc-hash"
@@ -7566,7 +7493,7 @@ dependencies = [
  "phf",
  "phf_codegen",
  "precomputed-hash",
- "rustc-hash 2.1.2",
+ "rustc-hash",
  "servo_arc",
  "smallvec",
 ]
@@ -8021,43 +7948,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ship-cli"
-version = "0.2.0"
-dependencies = [
- "agent-def",
- "anyhow",
- "assert_cmd",
- "build-info",
- "chrono",
- "clap",
- "connectrpc",
- "dhat",
- "harness-config-compiler",
- "home",
- "http",
- "http-body-util",
- "hyper",
- "hyper-util",
- "libc",
- "predicates",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "ship-agents",
- "ship-ops-rpc",
- "ship-platform",
- "ship-substrate",
- "ship-types",
- "shipd",
- "stack-model",
- "tempfile",
- "tokio",
- "tower",
- "tracing-appender",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "ship-cloud"
 version = "0.1.0"
 dependencies = [
@@ -8081,14 +7971,25 @@ dependencies = [
  "agent-def",
  "agent-driver",
  "anyhow",
+ "assert_cmd",
  "async-trait",
+ "build-info",
  "chrono",
+ "clap",
+ "connectrpc",
  "futures-util",
+ "harness-config-compiler",
  "home",
+ "http",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
  "isolation-port",
  "libc",
  "parking_lot",
+ "predicates",
  "process-supervisor",
+ "reqwest 0.12.28",
  "serde",
  "serde_json",
  "ship-auth",
@@ -8098,14 +7999,19 @@ dependencies = [
  "ship-git",
  "ship-harnesses",
  "ship-isolation",
+ "ship-ops-rpc",
  "ship-resolver",
  "ship-substrate",
  "ship-types",
+ "stack-model",
  "sysinfo",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
+ "tower",
  "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -8725,6 +8631,40 @@ dependencies = [
 ]
 
 [[package]]
+name = "shipctl"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "assert_cmd",
+ "build-info",
+ "chrono",
+ "clap",
+ "connectrpc",
+ "home",
+ "http",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "libc",
+ "predicates",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "ship-agents",
+ "ship-ops-rpc",
+ "ship-platform",
+ "ship-substrate",
+ "ship-types",
+ "shipd",
+ "stack-model",
+ "tempfile",
+ "tokio",
+ "tower",
+ "tracing-appender",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "shipd"
 version = "0.2.0"
 dependencies = [
@@ -8967,7 +8907,7 @@ dependencies = [
  "data-encoding",
  "debugid",
  "if_chain",
- "rustc-hash 2.1.2",
+ "rustc-hash",
  "serde",
  "serde_json",
  "unicode-id-start",
@@ -9302,7 +9242,7 @@ dependencies = [
  "oxc_index",
  "oxc_sourcemap",
  "regex",
- "rustc-hash 2.1.2",
+ "rustc-hash",
  "serde",
 ]
 
@@ -10081,12 +10021,6 @@ dependencies = [
  "quote",
  "syn 2.0.117",
 ]
-
-[[package]]
-name = "thousands"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3bf63baf9f5039dadc247375c29eb13706706cfde997d0330d05aa63a77d8820"
 
 [[package]]
 name = "thread_local"

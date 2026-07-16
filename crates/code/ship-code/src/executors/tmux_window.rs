@@ -322,10 +322,9 @@ pub(crate) fn wait_for_ready(
     reader: &mut dyn PaneReader,
 ) -> Result<(), String> {
     let started = std::time::Instant::now();
-    let mut last_seen = String::new();
     loop {
         let text = reader.read(window_target);
-        last_seen = text.clone();
+        let last_seen = text.clone();
         if text.contains(ready_pattern) {
             return Ok(());
         }

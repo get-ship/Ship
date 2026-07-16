@@ -52,17 +52,17 @@ enum OpTransport {
     /// Host unix socket — local-agent path, identity via peer-cred, no token.
     #[cfg(unix)]
     Unix(std::path::PathBuf),
-    /// TCP + bearer — operator fallback for non-unix hosts. Requires the
-    /// daemon's `--unsafe-skip-auth` mode to bypass token auth, since the
-    /// cut removed the on-disk daemon token. The Unix path is preferred
-    /// whenever the host socket exists.
-    Tcp { port: u16, token: String },
 }
 
 /// Choose the transport, in order: an injected endpoint (isolated agent), then
 /// the host socket if it exists (local agent, tokenless), then TCP+token via
 /// `ensure_daemon()` (operator). The injected case is first and never starts a
 /// daemon — inside a sandbox there's no local daemon to start.
+/// Choose the transport, in order: an injected endpoint (isolated agent),
+/// then the host socket if it exists (local agent, tokenless). The agent
+/// path has no TCP+token fallback — that's an operator concern and lives
+/// on shipctl, not on the agent-facing CLI. If neither path is available,
+/// surface a clear "daemon not running" hint pointing at shipctl.
 fn transport() -> Result<OpTransport> {
     if let Ok(endpoint) = std::env::var("SHIP_DAEMON_URL") {
         let base = endpoint.trim_end_matches('/').to_string();
@@ -75,10 +75,10 @@ fn transport() -> Result<OpTransport> {
     if let Some(sock) = discover_socket() {
         return Ok(OpTransport::Unix(sock));
     }
-    crate::daemon::ensure_daemon_running()?;
-    let port = crate::daemon::daemon_info_if_healthy()
-        .ok_or_else(|| anyhow::anyhow!("shipd: started but no health response"))?;
-    Ok(OpTransport::Tcp { port, token: String::new() })
+    Err(anyhow::anyhow!(
+        "shipd not running (no host socket, no SHIP_DAEMON_URL).\n\
+         Try: shipctl daemon start"
+    ))
 }
 
 /// HTTP `method` to `base`+`path` with a bearer token (Injected/Tcp share this).
@@ -117,11 +117,9 @@ fn op_post(path: &str, body: &str) -> Result<(u16, String)> {
             let (s, b) = unix_http(&sock, "POST", path, Some(body))?;
             Ok((s, String::from_utf8_lossy(&b).into_owned()))
         }
-        OpTransport::Tcp { port, token } => {
-            token_http(&format!("http://127.0.0.1:{port}"), &token, "POST", path, Some(body))
-        }
     }
 }
+
 
 /// Minimal blocking HTTP/1.1 over a unix socket. We control both ends (axum)
 /// and the bodies are small Connect-JSON, so `Connection: close` + read-to-EOF

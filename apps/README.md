@@ -8,8 +8,7 @@ and both coexist over this same directory.
 | App | Lang | Role |
 |---|---|---|
 | `shipd/` | Rust | The daemon. Hosts the kernel, projections, HTTP API, view server. |
-| `ship-cli/` | Rust | `ship` command. Init, compile, use, mcp, lint, status, workspace. |
-| `mcp/` | Rust | Ship's MCP server. Exposes platform tools (`step_done`, `chat_reply`, etc.) over stdio. |
+| `shipctl/` | Rust | `shipctl` command. The 11 daemon verbs, doctor, and config. |
 | `docs/` | TS | Astro-based docs site at getship.dev/docs. Consumes `docs/` content via `apps/docs/src/content/`. |
 | `site/` | TS | Marketing site at getship.dev. |
 | `shell/` | TS | Web shell — the daemon-served UI shell that hosts views. |
@@ -25,6 +24,7 @@ and both coexist over this same directory.
 ## Where to put what
 
 - **A new daemon HTTP route** → `apps/shipd/src/routes/`.
-- **A new `ship` subcommand** → `apps/ship-cli/src/<cmd>.rs` + wire in `main.rs`.
+- **A new `shipctl` subcommand** → `apps/shipctl/src/<cmd>.rs` + wire in `main.rs`.
+- **A new `ship-code` agent command** → `crates/code/ship-code/src/bin/<cmd>.rs` + wire in `ship_code.rs`.
 - **A new web app** → new `apps/<name>/` with a `package.json`, then add it to `pnpm-workspace.yaml`.
 - **Shared library code** → not here — see `crates/` (Rust) or `packages/` (TS).

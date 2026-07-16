@@ -50,10 +50,11 @@ reality is:
 | id | rationale |
 |---|---|
 | `shipd` | `apps/shipd/` — the daemon lives here, this is the right system |
-| `ship-cli` | `apps/ship-cli/` — the CLI binary for the daemon, this is the right system |
+| `shipctl` | `apps/shipctl/` — the operator CLI for the daemon (11 verbs, doctor, config), this is the right system |
+| `ship-code` bin | `crates/code/ship-code/src/bin/` — the agent-facing CLI (ops, meta, use, compile). The lib at `crates/code/ship-code/` is the L1 executor stack. |
 | `helmd` | (system: helm, not ship, but `apps/helmd/` lives in this repo) — `helmd` is a thin spike crate for git land/release ops, owned by ship |
-| All `ship-substrate*` and `ship-*` L0/L1 crates | belong to ship as the platform host |
 | `triggers`, `collections`, `account`, `agents`, `analytics`, `artifacts`, `cli`, `desktop` (the substrate crate, not the app), `durable-execution`, `pipelines`, `search`, `sessions`, `ship-auth-types`, `ship-js`, `ship-kernel`, `ship-pipelines`, `ship-query`, `ship-runner`, `ship-store`, `ship-substrate`, `ship-types`, `ship-substrate-*` | all live in `crates/` and are part of the ship platform |
+| All `ship-substrate*` and `ship-*` L0/L1 crates | belong to ship as the platform host |
 
 ### Currently `system: ship-cloud` — verify
 

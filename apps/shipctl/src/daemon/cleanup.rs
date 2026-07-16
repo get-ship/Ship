@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use std::path::PathBuf;
 
 pub(super) fn daemon_cleanup() -> Result<()> {
-    use ship_agents::services::sessions::canonical_projection::{load_sessions, CanonicalSessionStatus};
+    use ship_agents::services::sessions::canonical_projection::load_sessions;
 
     let sessions = load_sessions().context("failed to load canonical sessions projection")?;
 

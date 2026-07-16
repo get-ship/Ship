@@ -9,10 +9,10 @@ use assert_cmd::Command;
 use std::fs;
 use tempfile::TempDir;
 
-fn ship() -> Command { Command::cargo_bin("ship").unwrap() }
+fn ship() -> Command { Command::cargo_bin("ship-code").unwrap() }
 
 fn ship_in(tmp: &TempDir) -> Command {
-    let mut cmd = Command::cargo_bin("ship").unwrap();
+    let mut cmd = Command::cargo_bin("ship-code").unwrap();
     cmd.env("SHIP_HOME", tmp.path());
     cmd
 }

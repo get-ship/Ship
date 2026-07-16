@@ -122,7 +122,7 @@ dev-runtime-install:
     #!/usr/bin/env bash
     set -euo pipefail
     cargo build -p sui-compiler --release
-    cargo build -p ship-cli
+    cargo build -p shipctl
     BUN_BIN="${BUN_PATH:-$(command -v bun || true)}"
     if [ -z "$BUN_BIN" ] || [ ! -x "$BUN_BIN" ]; then
         echo "no bun on PATH; install via \`curl -fsSL https://bun.sh/install | bash\` or set BUN_PATH" >&2
@@ -136,7 +136,7 @@ dev-runtime-update:
     #!/usr/bin/env bash
     set -euo pipefail
     cargo build -p sui-compiler --release
-    cargo build -p ship-cli
+    cargo build -p shipctl
     BUN_BIN="${BUN_PATH:-$(command -v bun || true)}"
     if [ -z "$BUN_BIN" ] || [ ! -x "$BUN_BIN" ]; then
         echo "no bun on PATH; install via \`curl -fsSL https://bun.sh/install | bash\` or set BUN_PATH" >&2
@@ -259,10 +259,6 @@ fmt-check:
 doc-check:
     RUSTDOCFLAGS="-D rustdoc::broken_intra_doc_links" cargo doc --workspace --exclude ship-host --no-deps
 
-# Lint Ship views (no inline <script>, style budget, undefined signals).
-[group('occasional')]
-lint-views:
-    cargo run --features unstable -p ship-cli --quiet -- lint views --format json
 
 # License audit gate — walks the resolved dependency tree (node_modules/.bun)
 # and fails on copyleft (GPL/AGPL/LGPL/EPL/MPL/CDDL…). Replaces hand-copied
@@ -344,12 +340,12 @@ build: _sui-compiler-lib _deck-cli
     # surface (`--bundle-framework`).
     echo "[2/4] app scaffolds (from apps/shipd/apps.jsonc)"
     just _build-apps
-    echo "[3/4] cargo build --release (ship-cli + shipd --features ship-code)"
-    cargo build --release --features ship-code -p ship-cli -p shipd
+    echo "[3/4] cargo build --release (ship-code + shipctl + shipd --features ship-code)"
+    cargo build --release --features ship-code -p ship-code --features cli -p shipctl -p shipd
     echo "[4/4] verify outputs"
     target_dir=$(cargo metadata --format-version 1 --no-deps --offline | grep -o '"target_directory":"[^"]*"' | cut -d'"' -f4)
     missing=0
-    for bin in ship shipd; do
+    for bin in ship-code shipctl shipd; do
         if [ ! -x "$target_dir/release/$bin" ]; then
             echo "  ✗ $target_dir/release/$bin missing" >&2
             missing=1
@@ -375,22 +371,23 @@ build: _sui-compiler-lib _deck-cli
 # coding-agent dispatch — see apps/shipd/Cargo.toml.
 [group('occasional')]
 build-dev:
-    cargo build --features unstable,ship-code -p ship-cli -p shipd && cargo build --manifest-path {{sui_path}}/Cargo.toml -p sui-lsp
-
+    cargo build --features unstable,ship-code -p ship-code --features cli -p shipctl -p shipd && cargo build --manifest-path {{sui_path}}/Cargo.toml -p sui-lsp
 # Cargo-only release build (no front-end). Use `just build` for the full
 # production artifact set; this recipe is the cargo subset.
 build-release:
-    cargo build --release --features ship-code -p ship-cli -p shipd
+    cargo build --release --features ship-code -p ship-code --features cli -p shipctl -p shipd
 
-# Install dev binaries to ~/.local/bin (ship + shipd).
+# Install dev binaries to ~/.local/bin (ship-code + shipctl + shipd).
 [group('occasional')]
 install-dev: build-dev
     #!/usr/bin/env bash
     set -euo pipefail
     target=$(cargo metadata --format-version 1 --no-deps --offline | grep -o '"target_directory":"[^"]*"' | cut -d'"' -f4)
-    cp -f "$target/debug/ship" ~/.local/bin/ship.new && mv ~/.local/bin/ship.new ~/.local/bin/ship
+    cp -f "$target/debug/ship-code" ~/.local/bin/ship-code.new && mv ~/.local/bin/ship-code.new ~/.local/bin/ship-code
+    cp -f "$target/debug/shipctl"  ~/.local/bin/shipctl.new  && mv ~/.local/bin/shipctl.new  ~/.local/bin/shipctl
+    cp -f "$target/debug/shipd"    ~/.local/bin/shipd
     cp -f "{{sui_path}}/target/debug/sui-lsp" ~/.local/bin/sui-lsp
-    echo "Installed: ship + shipd + sui-lsp → ~/.local/bin"
+    echo "Installed: ship-code + shipctl + shipd + sui-lsp → ~/.local/bin"
 
 # Install stable binary to ~/.cargo/bin.
 [group('occasional')]
@@ -398,7 +395,8 @@ install: build-release
     #!/usr/bin/env bash
     set -euo pipefail
     target=$(cargo metadata --format-version 1 --no-deps --offline | grep -o '"target_directory":"[^"]*"' | cut -d'"' -f4)
-    cargo install --path apps/ship-cli
+    cargo install --path apps/shipctl
+    cargo install --path crates/code/ship-code --features cli
     cp -f "$target/release/shipd" ~/.local/bin/shipd
 
 # Rebuild the in-browser SUI template compiler. The sui-compiler crate
@@ -478,14 +476,12 @@ logs:
 # Verify both stable and unstable compile (CI gate). shipd defaults to
 # ship-standard (no harness-driver stack); opt in with `--features ship-code`
 # for the full dispatch path.
-[group('occasional')]
 check-gates:
-    cargo build -p ship-cli
-    cargo build --features ship-code -p ship-cli -p shipd
-    cargo build --features unstable,ship-code -p ship-cli -p shipd
+    cargo build -p shipctl -p ship-code --features cli
+    cargo build --features ship-code -p shipctl -p ship-code --features cli -p shipd
+    cargo build --features unstable,ship-code -p shipctl -p ship-code --features cli -p shipd
     just check-no-set-var-global-dir
     @echo "Both gates compile ✓"
-
 # Home-layout grep guards. Hard-fail per devx-06 Tier 6: any raw
 # `.join(".ship")` outside crates/core/runtime/src/home/ blocks the build.
 # Leaf-crate portability check runs as part of the same target — if a

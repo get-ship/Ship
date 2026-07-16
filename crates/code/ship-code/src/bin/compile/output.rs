@@ -13,7 +13,7 @@ pub(crate) fn print_dry_run(harness_id: &str, output: &CompileOutput) {
     {
         println!("  would write {}", f);
     }
-    if let Some(ref p) = output.mcp_config_path {
+    if let Some(p) = &output.mcp_config_path {
         println!("  would write {}", p);
     }
     for path in output.skill_files.keys() {

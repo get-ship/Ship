@@ -244,4 +244,5 @@ pub(super) fn build_settings(
     out.opencode_config_patch = build_opencode_config_patch(resolved);
 }
 
-pub use stack_model::types::harness_settings::OpenCodeSettings;
+#[cfg(test)]
+pub(crate) use stack_model::types::harness_settings::OpenCodeSettings;

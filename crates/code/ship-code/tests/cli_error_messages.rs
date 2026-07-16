@@ -16,11 +16,11 @@ use std::path::Path;
 use tempfile::TempDir;
 
 fn ship() -> Command {
-    Command::cargo_bin("ship").unwrap()
+    Command::cargo_bin("ship-code").unwrap()
 }
 
 fn ship_in(tmp: &TempDir) -> Command {
-    let mut cmd = Command::cargo_bin("ship").unwrap();
+    let mut cmd = Command::cargo_bin("ship-code").unwrap();
     cmd.env("SHIP_HOME", tmp.path());
     cmd
 }
@@ -99,8 +99,8 @@ fn use_nonexistent_agent_with_no_agents_dir_suggests_create() {
     assert!(!output.status.success());
     // When no agents exist at all, should suggest creating one
     assert!(
-        stderr.contains("agents/") || stderr.contains("ship docs agents"),
-        "must point user to agents dir or docs: {stderr}"
+        stderr.contains("agents/"),
+        "must point user to agents dir: {stderr}"
     );
 }
 
