@@ -443,6 +443,126 @@ fn wait_for_ready_matches_claude_bypass_permissions_marker() {
     assert!(result.is_ok(), "claude path unchanged: bypass permissions on still drives the poll");
 }
 
+// ── verify_working_or_resubmit tests ────────────────────────────────────────
+//
+// After the autostart submit lands, the executor polls for the harness's
+// `working_pattern` (e.g. claude's "esc to interrupt") and resends the
+// submit (Enter) on a timeout, bounded retries. Closes
+// c-2026-07-16T17-14-03-982Z-c1717477: `wait_for_ready` alone only proves
+// the harness painted its idle prompt before we typed anything — it says
+// nothing about whether the submit itself was accepted. These tests drive
+// the poll/resend/fail loop with fake `PaneReader`s — no tmux server.
+
+/// Reader that always returns the same fixed string — for the "the
+/// indicator is present on the very first poll" case.
+struct FixedPaneReader {
+    text: String,
+}
+
+impl PaneReader for FixedPaneReader {
+    fn read(&mut self, _window_target: &str) -> String {
+        self.text.clone()
+    }
+}
+
+/// Reader whose output flips from "not working yet" to the working
+/// indicator once a shared flag is set — lets a test's `resend` closure
+/// simulate the harness actually starting to work after a resend.
+struct FlaggedPaneReader {
+    working_pattern: String,
+    started: std::rc::Rc<std::cell::RefCell<bool>>,
+}
+
+impl PaneReader for FlaggedPaneReader {
+    fn read(&mut self, _window_target: &str) -> String {
+        if *self.started.borrow() {
+            self.working_pattern.clone()
+        } else {
+            "idle prompt, nothing running\n".to_string()
+        }
+    }
+}
+
+#[test]
+fn verify_working_hint_present_on_first_poll_no_resend() {
+    let mut reader = FixedPaneReader {
+        text: "esc to interrupt\n".to_string(),
+    };
+    let mut resends = 0;
+    let result = verify_working_or_resubmit(
+        "ship-foo:@1",
+        "esc to interrupt",
+        std::time::Duration::from_millis(200),
+        std::time::Duration::from_millis(10),
+        3,
+        &mut reader,
+        || {
+            resends += 1;
+            Ok(())
+        },
+    );
+    assert!(result.is_ok(), "expected working hint found, got {result:?}");
+    assert_eq!(resends, 0, "must not resend when the hint is already present");
+}
+
+#[test]
+fn verify_working_hint_absent_then_present_after_one_resend() {
+    // First poll window times out (the reader keeps reporting the idle
+    // prompt); the resend flips the shared flag, and the second poll
+    // window finds the working indicator immediately. Exactly one resend.
+    let started = std::rc::Rc::new(std::cell::RefCell::new(false));
+    let mut reader = FlaggedPaneReader {
+        working_pattern: "esc to interrupt".to_string(),
+        started: started.clone(),
+    };
+    let mut resends = 0;
+    let result = verify_working_or_resubmit(
+        "ship-foo:@2",
+        "esc to interrupt",
+        std::time::Duration::from_millis(30),
+        std::time::Duration::from_millis(5),
+        3,
+        &mut reader,
+        || {
+            resends += 1;
+            *started.borrow_mut() = true;
+            Ok(())
+        },
+    );
+    assert!(result.is_ok(), "expected success after resend, got {result:?}");
+    assert_eq!(resends, 1, "must resend exactly once once the hint appears");
+}
+
+#[test]
+fn verify_working_hint_never_appears_errors_naming_session_and_attempts() {
+    let mut reader = FixedPaneReader {
+        text: "idle prompt, nothing running\n".to_string(),
+    };
+    let mut resends = 0;
+    let result = verify_working_or_resubmit(
+        "ship-stalled-session:@9",
+        "esc to interrupt",
+        std::time::Duration::from_millis(20),
+        std::time::Duration::from_millis(5),
+        3,
+        &mut reader,
+        || {
+            resends += 1;
+            Ok(())
+        },
+    );
+    let err = result.expect_err("must fail loudly when the harness never starts working");
+    assert!(
+        err.contains("ship-stalled-session:@9"),
+        "err must name the session/window so the operator knows where to look, got: {err}"
+    );
+    assert!(
+        err.contains('4'),
+        "err must report the total submit attempts (1 initial + 3 resends), got: {err}"
+    );
+    assert_eq!(resends, 3, "must exhaust the bounded retries, not loop forever");
+}
+
 // ── Autostart content selection ─────────────────────────────────────────────
 //
 // The live-path bug in c-2026-07-05T12-36-00-000Z-b2c3d4e5: after the

@@ -198,6 +198,24 @@ pub trait AgentDriver: Send + Sync {
     /// Pattern that indicates the CLI is ready for input.
     fn ready_pattern(&self) -> &str;
 
+    /// Pattern that indicates the harness is actively WORKING on a
+    /// submitted turn (e.g. claude's "esc to interrupt" hint). The
+    /// executor polls for this after sending the autostart submit to
+    /// verify it actually landed, and re-sends the submit if the
+    /// indicator never appears — closing the "submit silently
+    /// swallowed, pane sits idle forever" failure
+    /// (c-2026-07-16T17-14-03-982Z-c1717477).
+    ///
+    /// Empty (the default) means the adapter has no confirmed indicator
+    /// text yet — the executor skips verification for that harness
+    /// rather than polling for a guess. Declare conservatively; an
+    /// unverified pattern that never matches is worse than no
+    /// verification (it would fire the bounded-retry path on every
+    /// launch and eventually fail a healthy dispatch).
+    fn working_pattern(&self) -> &str {
+        ""
+    }
+
     /// Text to send after the CLI is ready to trigger job autostart.
     fn autostart_input(&self) -> &str;
 

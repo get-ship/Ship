@@ -118,6 +118,19 @@ mod tests {
     }
 
     #[test]
+    fn working_pattern_is_undeclared_pending_live_verification() {
+        // omp delegates ready_pattern's declaration but overrides its text
+        // (the pi-glyph vs. chevron split above); working_pattern has no
+        // per-harness override at all — both omp and pi fall through to
+        // the trait default (undeclared) until a real in-progress marker
+        // is confirmed against a live session. See pi's
+        // `working_pattern_is_undeclared_pending_live_verification` for
+        // why an unverified guess is worse than skipping verification.
+        assert_eq!(OmpAdapter.working_pattern(), "");
+        assert_eq!(OmpAdapter.working_pattern(), PiAdapter.working_pattern());
+    }
+
+    #[test]
     fn parse_output_delegates_to_pi() {
         let line = r#"{"type":"session","version":3,"id":"abc-123","cwd":"/x"}"#;
         assert_eq!(OmpAdapter.parse_output(line), PiAdapter.parse_output(line));

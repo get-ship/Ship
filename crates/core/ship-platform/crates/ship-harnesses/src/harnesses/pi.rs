@@ -112,6 +112,15 @@ impl AgentDriver for PiAdapter {
     }
 
     fn ready_pattern(&self) -> &str { "› " }
+
+    // pi's in-progress status-line text is unconfirmed against the live
+    // CLI (unlike claude's `esc to interrupt`, verified from a stalled
+    // dispatch's actual pane capture — c-2026-07-16T17-14-03-982Z-c1717477).
+    // Declare conservatively: an unverified guess that never matches
+    // would fire the executor's bounded-retry path on every healthy pi
+    // launch. Leave undeclared (default `""`) until confirmed against a
+    // real pi session; the executor skips submit verification for
+    // harnesses with no declared working_pattern.
     fn autostart_input(&self) -> &str { "go" }
     fn exit_command(&self) -> &str { "" }
 

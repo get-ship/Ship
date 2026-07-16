@@ -188,6 +188,16 @@ fn ready_pattern_is_prompt_mode_marker() {
 }
 
 #[test]
+fn working_pattern_is_esc_to_interrupt_hint() {
+    // Distinct from ready_pattern: ready proves the TUI painted its idle
+    // prompt before we typed anything; working proves a submitted turn
+    // actually started running (c-2026-07-16T17-14-03-982Z-c1717477).
+    let adapter = ClaudeAdapter;
+    assert_eq!(adapter.working_pattern(), "esc to interrupt");
+    assert_ne!(adapter.working_pattern(), adapter.ready_pattern());
+}
+
+#[test]
 fn autostart_input_reads_job_spec() {
     let adapter = ClaudeAdapter;
     assert_eq!(

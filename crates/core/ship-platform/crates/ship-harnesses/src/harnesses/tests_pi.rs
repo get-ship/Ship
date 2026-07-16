@@ -94,6 +94,20 @@ fn caps_match_declared() {
     assert!(c.persistent_session);
 }
 
+// ── working_pattern ──────────────────────────────────────────────────────────
+
+#[test]
+fn working_pattern_is_undeclared_pending_live_verification() {
+    // Unlike claude's "esc to interrupt" (verified from a stalled
+    // dispatch's actual pane capture — c-2026-07-16T17-14-03-982Z-c1717477),
+    // pi's in-progress status-line text is unconfirmed. Declare
+    // conservatively (empty) rather than guess: the tmux executor skips
+    // submit verification for any harness with no declared
+    // working_pattern, so an unverified guess here would otherwise fire
+    // the bounded-retry path on every healthy pi launch.
+    assert_eq!(PiAdapter.working_pattern(), "");
+}
+
 // ── parse_output: --mode json → HarnessEvent ─────────────────────────────────
 
 #[test]

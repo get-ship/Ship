@@ -344,6 +344,58 @@ pub(crate) fn wait_for_ready(
     }
 }
 
+/// Poll `window_target`'s pane for `working_pattern` — the harness's
+/// signal that a submitted turn is actually running — after the autostart
+/// submit. If the pattern never appears within `per_attempt_timeout`, call
+/// `resend` (re-issues the submit, e.g. another `Enter`) and poll again,
+/// up to `max_resends` times. Returns `Ok(())` as soon as the pattern
+/// appears, or `Err` naming `window_target` and the attempt count once
+/// resends are exhausted.
+///
+/// Closes c-2026-07-16T17-14-03-982Z-c1717477: `wait_for_ready` alone only
+/// proves the harness painted its idle prompt before we typed anything —
+/// it says nothing about whether the submit itself was accepted. Without
+/// this second check, a swallowed Enter (the TUI's input-handling glitch
+/// this bug reproduced) left the pane sitting at the input line forever,
+/// indistinguishable from a legitimate limit-stall. This closes the gap
+/// by demanding positive proof the harness started working, and retrying
+/// the submit — not just the readiness poll — when it didn't.
+pub(crate) fn verify_working_or_resubmit(
+    window_target: &str,
+    working_pattern: &str,
+    per_attempt_timeout: std::time::Duration,
+    poll_interval: std::time::Duration,
+    max_resends: usize,
+    reader: &mut dyn PaneReader,
+    mut resend: impl FnMut() -> std::result::Result<(), String>,
+) -> std::result::Result<(), String> {
+    let mut resends_done = 0usize;
+    loop {
+        match wait_for_ready(
+            window_target,
+            working_pattern,
+            per_attempt_timeout,
+            poll_interval,
+            reader,
+        ) {
+            Ok(()) => return Ok(()),
+            Err(last_err) => {
+                if resends_done >= max_resends {
+                    return Err(format!(
+                        "harness at {window_target} never started working on the \
+                         submitted turn after {} submit attempt(s) ({} resend(s)): \
+                         {last_err}",
+                        resends_done + 1,
+                        resends_done
+                    ));
+                }
+                resend()?;
+                resends_done += 1;
+            }
+        }
+    }
+}
+
 /// Find a window id by name in the session. Returns `None` if there are
 /// zero or multiple matches — on rehydration we would rather mark the job
 /// failed than risk attaching to the wrong window.
@@ -577,6 +629,49 @@ impl SessionExecutor for TmuxWindowExecutor {
                             if !status.success() {
                                 return Err(anyhow!("tmux autostart (Enter) send-keys returned non-zero"));
                             }
+                        }
+                    }
+
+                    // Verify the submit actually landed: poll for the
+                    // adapter's working indicator, resubmitting Enter on
+                    // a timeout, bounded retries. Empty working_pattern
+                    // means the adapter has no confirmed indicator yet —
+                    // skip rather than poll for a guess (see
+                    // AgentDriver::working_pattern).
+                    let working_pattern = adapter.working_pattern();
+                    if !working_pattern.is_empty() {
+                        let mut reader = TmuxPaneReader;
+                        let resend_target = window_target.clone();
+                        if let Err(msg) = verify_working_or_resubmit(
+                            &window_target,
+                            working_pattern,
+                            std::time::Duration::from_secs(10),
+                            std::time::Duration::from_millis(250),
+                            3,
+                            &mut reader,
+                            || {
+                                let status = tmux_cmd()
+                                    .args(["send-keys", "-t", &resend_target, "Enter"])
+                                    .status()
+                                    .map_err(|e| format!("tmux autostart resend Enter failed: {e}"))?;
+                                if !status.success() {
+                                    return Err(
+                                        "tmux autostart resend Enter returned non-zero".to_string()
+                                    );
+                                }
+                                Ok(())
+                            },
+                        ) {
+                            tracing::error!(
+                                slug = ctx.slug,
+                                session,
+                                window = window_id,
+                                "{msg}"
+                            );
+                            return Err(anyhow!(
+                                "tmux-window executor: harness autostart submit \
+                                 verification failed for session {session}: {msg}"
+                            ));
                         }
                     }
                 }

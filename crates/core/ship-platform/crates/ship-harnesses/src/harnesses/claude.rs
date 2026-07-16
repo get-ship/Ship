@@ -161,6 +161,18 @@ impl AgentDriver for ClaudeAdapter {
     // etc.). Using `❯` alone false-matched the menu selector and fired
     // autostart before the menu was dismissed. Lost a real e2e run to this.
     fn ready_pattern(&self) -> &str { "bypass permissions on" }
+
+    // Claude's TUI renders `esc to interrupt` in the status line the
+    // instant a turn starts running, and only then — it's absent both at
+    // the idle prompt and during the brief render pause right after
+    // submit. That makes it the confirmation signal that a submitted
+    // autostart actually landed, distinct from `ready_pattern` (which
+    // only proves the TUI painted its idle prompt, not that our input
+    // was accepted). See c-2026-07-16T17-14-03-982Z-c1717477 — the
+    // submit was typed but never actually reached a running turn, and
+    // the session sat idle indefinitely with no signal to the operator.
+    fn working_pattern(&self) -> &str { "esc to interrupt" }
+
     fn autostart_input(&self) -> &str {
         "Read .artifacts/job-spec.md and execute it autonomously."
     }
