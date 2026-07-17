@@ -52,6 +52,7 @@ where
 
 /// Map the proto `SettingScope` discriminant to the crate scope. `UNSPECIFIED`
 /// and unknown wire values are a hard `invalid_argument` (the scope is required).
+/// Used only where there is no key to infer scope from (`List`/`Watch`).
 fn map_scope(scope: buffa::EnumValue<ProtoScope>) -> Result<SettingScope, ConnectError> {
     match scope.as_known() {
         Some(ProtoScope::SETTING_SCOPE_SPACE) => Ok(SettingScope::Space),
@@ -60,6 +61,19 @@ fn map_scope(scope: buffa::EnumValue<ProtoScope>) -> Result<SettingScope, Connec
         _ => Err(ConnectError::invalid_argument(
             "scope is required (SPACE / ACCOUNT / RUNTIME)",
         )),
+    }
+}
+
+/// Derive scope from the key itself for `Get`/`Set` — the server is
+/// authoritative here and ignores whatever the client sent on the wire.
+/// Portable identity/defaults/cloud keys are account-scoped; everything else
+/// is machine-local (runtime). Mirrors the classification that used to live
+/// client-side in `shipctl`'s `scope_of`.
+pub(crate) fn scope_of(key: &str) -> SettingScope {
+    if key.starts_with("identity.") || key.starts_with("defaults.") || key.starts_with("cloud.") {
+        SettingScope::Account
+    } else {
+        SettingScope::Runtime
     }
 }
 
@@ -94,7 +108,7 @@ where
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedGetSettingReqView,
     ) -> ServiceResult<Setting> {
-        let scope = map_scope(request.scope)?;
+        let scope = scope_of(request.key);
         let svc = self.make_svc(&ctx)?;
         let resolved = svc.get(scope, request.key).await.map_err(ConnectError::from)?;
         Ok(Response::new(setting_to_proto(resolved)))
@@ -122,7 +136,7 @@ where
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedSetSettingReqView,
     ) -> ServiceResult<Setting> {
-        let scope = map_scope(request.scope)?;
+        let scope = scope_of(request.key);
         let svc = self.make_svc(&ctx)?;
         let value: serde_json::Value = serde_json::from_slice(request.value_json)
             .map_err(|e| ConnectError::invalid_argument(format!("invalid value JSON: {e}")))?;

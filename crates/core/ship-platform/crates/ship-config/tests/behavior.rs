@@ -299,3 +299,114 @@ async fn watch_returns_a_live_stream_with_initial_snapshot() {
         .expect("stream error");
     assert!(first.body.is_some(), "initial frame carries a patch body");
 }
+
+// ── Server-side scope inference: Get/Set derive scope from the key and
+// ── ignore whatever the client sent on the wire ────────────────────────────
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn set_infers_account_scope_from_a_portable_key_ignoring_client_scope() {
+    use connectrpc::RequestContext;
+    use ship_config::SettingsWire;
+    use ship_ops_rpc::{
+        OwnedSetSettingReqView, SettingScope as ProtoScope, SettingsService as _, SetSettingReq,
+    };
+
+    let kernel = make_kernel();
+    let kernel_for_ctx = kernel.clone();
+    let wire = SettingsWire::new(kernel.clone(), move |_rctx: &RequestContext| {
+        Ok(ctx_no_space(kernel_for_ctx.clone(), true))
+    });
+
+    // The client claims RUNTIME; the key is a portable ("identity.") key that
+    // must land ACCOUNT regardless of what the client sent.
+    let req = OwnedSetSettingReqView::from_owned(&SetSettingReq {
+        key: "identity.display_name".to_string(),
+        value_json: serde_json::to_vec(&json!("Ada")).unwrap(),
+        scope: buffa::EnumValue::from(ProtoScope::SETTING_SCOPE_RUNTIME),
+        ..Default::default()
+    })
+    .unwrap();
+    let resp = wire.set(RequestContext::default(), req).await.expect("set");
+    assert_eq!(
+        resp.body.scope.as_known(),
+        Some(ProtoScope::SETTING_SCOPE_ACCOUNT),
+        "portable key lands ACCOUNT even though the client sent RUNTIME",
+    );
+
+    // The row landed in account.db, not runtime.db.
+    let stored =
+        ship_config::overlay::get(account_store().as_ref(), "identity.display_name").await.unwrap();
+    assert_eq!(stored, Some(json!("Ada")));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn set_infers_runtime_scope_from_a_non_portable_key_ignoring_client_scope() {
+    use connectrpc::RequestContext;
+    use ship_config::SettingsWire;
+    use ship_ops_rpc::{
+        OwnedSetSettingReqView, SettingScope as ProtoScope, SettingsService as _, SetSettingReq,
+    };
+
+    let kernel = make_kernel();
+    let kernel_for_ctx = kernel.clone();
+    let wire = SettingsWire::new(kernel.clone(), move |_rctx: &RequestContext| {
+        Ok(ctx_no_space(kernel_for_ctx.clone(), true))
+    });
+
+    // The client claims ACCOUNT; the key has no portable prefix, so it must
+    // land RUNTIME regardless of what the client sent.
+    let req = OwnedSetSettingReqView::from_owned(&SetSettingReq {
+        key: "terminal.program".to_string(),
+        value_json: serde_json::to_vec(&json!("wt")).unwrap(),
+        scope: buffa::EnumValue::from(ProtoScope::SETTING_SCOPE_ACCOUNT),
+        ..Default::default()
+    })
+    .unwrap();
+    let resp = wire.set(RequestContext::default(), req).await.expect("set");
+    assert_eq!(
+        resp.body.scope.as_known(),
+        Some(ProtoScope::SETTING_SCOPE_RUNTIME),
+        "non-portable key lands RUNTIME even though the client sent ACCOUNT",
+    );
+
+    // The row is absent from account.db (never written there).
+    let stored = ship_config::overlay::get(account_store().as_ref(), "terminal.program").await.unwrap();
+    assert_eq!(stored, None);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn get_and_set_agree_on_scope_for_the_same_key() {
+    use connectrpc::RequestContext;
+    use ship_config::SettingsWire;
+    use ship_ops_rpc::{
+        GetSettingReq, OwnedGetSettingReqView, OwnedSetSettingReqView,
+        SettingScope as ProtoScope, SettingsService as _, SetSettingReq,
+    };
+
+    let kernel = make_kernel();
+    let kernel_for_ctx = kernel.clone();
+    let wire = SettingsWire::new(kernel.clone(), move |_rctx: &RequestContext| {
+        Ok(ctx_no_space(kernel_for_ctx.clone(), true))
+    });
+
+    let set_req = OwnedSetSettingReqView::from_owned(&SetSettingReq {
+        key: "defaults.branch_prefix".to_string(),
+        value_json: serde_json::to_vec(&json!("job/")).unwrap(),
+        ..Default::default()
+    })
+    .unwrap();
+    let set_resp = wire.set(RequestContext::default(), set_req).await.expect("set");
+    assert_eq!(set_resp.body.scope.as_known(), Some(ProtoScope::SETTING_SCOPE_ACCOUNT));
+
+    let get_req = OwnedGetSettingReqView::from_owned(&GetSettingReq {
+        key: "defaults.branch_prefix".to_string(),
+        ..Default::default()
+    })
+    .unwrap();
+    let get_resp = wire.get(RequestContext::default(), get_req).await.expect("get");
+    assert_eq!(get_resp.body.scope.as_known(), Some(ProtoScope::SETTING_SCOPE_ACCOUNT));
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(&get_resp.body.value_json).unwrap(),
+        json!("job/"),
+    );
+}

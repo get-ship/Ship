@@ -1,7 +1,6 @@
 //! `ship config` over shipd's `SettingsService` (settings.proto). The CLI is a
-//! pure client: shipd must be running or these calls error. Scope is inferred
-//! from the key — portable keys (identity/defaults/cloud) are account-scoped;
-//! everything else is machine-local (runtime).
+//! pure client: shipd must be running or these calls error. Scope for `get`/
+//! `set` is inferred server-side from the key; the client does not decide it.
 
 use anyhow::{anyhow, Context, Result};
 use ship_ops_rpc::{
@@ -11,14 +10,6 @@ use ship_ops_rpc::{
 use crate::uds_transport::{client_config, connect_transport_or_autostart};
 
 type Transport = crate::uds_transport::UdsTransport;
-
-fn scope_of(key: &str) -> SettingScope {
-    if key.starts_with("identity.") || key.starts_with("defaults.") || key.starts_with("cloud.") {
-        SettingScope::SETTING_SCOPE_ACCOUNT
-    } else {
-        SettingScope::SETTING_SCOPE_RUNTIME
-    }
-}
 
 fn connect() -> Result<(SettingsServiceClient<Transport>, tokio::runtime::Runtime)> {
     let transport = connect_transport_or_autostart().map_err(|e| {
@@ -42,8 +33,7 @@ pub fn get(key: &str) -> Result<Option<String>> {
     let (client, rt) = connect()?;
     let req = GetSettingReq {
         key: key.to_string(),
-        scope: scope_of(key).into(),
-        __buffa_unknown_fields: Default::default(),
+        ..Default::default()
     };
     match rt.block_on(client.get(req)) {
         Ok(resp) => Ok(Some(display_value(&resp.view().value_json))),
@@ -58,8 +48,7 @@ pub fn set(key: &str, value: &str) -> Result<()> {
     let req = SetSettingReq {
         key: key.to_string(),
         value_json,
-        scope: scope_of(key).into(),
-        __buffa_unknown_fields: Default::default(),
+        ..Default::default()
     };
     rt.block_on(client.set(req))
         .map_err(|e| anyhow!("setting '{key}' failed: {e}"))?;
