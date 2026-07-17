@@ -110,7 +110,7 @@ pub async fn handle_session_start(
     _emit_ctx: EmitContext,
     _event: &ShipHookEvent,
     actor: &str,
-    session: Option<&str>,
+    _session: Option<&str>,
 ) {
     let target = actor;
     tracing::info!(target, "hook/session-start received (no-op: session lifecycle sourced from actor.created)");
@@ -196,7 +196,7 @@ pub async fn handle_session_end(
     _emit_ctx: EmitContext,
     _event: &ShipHookEvent,
     actor: &str,
-    session: Option<&str>,
+    _session: Option<&str>,
 ) {
     tracing::info!(actor, "hook/session-end received (no-op: session lifecycle sourced from actor.stopped)");
 }

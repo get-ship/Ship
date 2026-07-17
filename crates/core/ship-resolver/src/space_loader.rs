@@ -200,42 +200,6 @@ pub(crate) async fn load_root_library(fs: &dyn FsBroker, root: &Path) -> Result<
 const PER_NOUN_SOURCE_DIRS: &[&str] = &["agents", "collections", "pipelines", "triggers"];
 
 
-/// Append one root's `ExtensionLibrary` into the merged accumulator.
-///
-/// Noun vectors concatenate; duplicate ids are tolerated here and
-/// resolved one layer up by [`crate::roll_up`] → [`stack_model::compose_space`]
-/// (the law's job). `imported_modules` concatenate in declared order
-/// so the TS-eval fan-out (`ts_resolver::resolve_ts_files`) iterates
-/// root-first, children-next. `skill_paths` concatenate (each root
-/// contributes its single default entry; the dedup is a no-op for
-/// the default value). `permissions` + `hooks` are already
-/// zeroed on every child root by [`load_space_library`] before this
-/// is called; the space-root's contribution is the first write and
-/// the only one that lands non-default.
-fn merge_root_into(merged: &mut ExtensionLibrary, lib: ExtensionLibrary, is_space_root: bool) {
-    merged.agent_profiles.extend(lib.agent_profiles);
-    merged.agents.extend(lib.agents);
-    merged.mcp_servers.extend(lib.mcp_servers);
-    merged.skills.extend(lib.skills);
-    merged.rules.extend(lib.rules);
-    merged.pipelines.extend(lib.pipelines);
-    merged.triggers.extend(lib.triggers);
-    merged.collections.extend(lib.collections);
-    merged.views.extend(lib.views);
-    merged.imported_modules.extend(lib.imported_modules);
-    merged.skill_paths.extend(lib.skill_paths);
-    // Permissions + hooks: the PIN says only the space root can
-    // grant them. The space root's value is the authoritative value
-    // (whether the leaf found an explicit `permissions.jsonc` /
-    // `hooks.jsonc` or fell through to the default). Children are
-    // structurally incapable of contributing — a child that
-    // misconfigures its `.ship/permissions.jsonc` cannot escalate
-    // the space's effective grants.
-    if is_space_root {
-        merged.permissions = lib.permissions;
-        merged.hooks = lib.hooks;
-    }
-}
 /// Walk one skill dir and return its `Skill` records (id derived from the
 /// dir name, source = `Custom`). Missing dir → empty. Malformed
 /// `SKILL.md` → skip the entry (lenient contract).

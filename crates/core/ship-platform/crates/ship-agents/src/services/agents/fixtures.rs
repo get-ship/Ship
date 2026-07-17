@@ -14,7 +14,7 @@
 use serde_json::Value;
 
 use super::create::{
-    builtin_harnesses, builtin_permission_presets, builtin_templates, build_create_ctx,
+    builtin_permission_presets, builtin_templates, build_create_ctx,
     AgentsCreateCtx,
 };
 use super::settings_view::{build_tiers, AgentSettingsCtx};

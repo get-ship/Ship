@@ -38,9 +38,7 @@
 
 use std::sync::Arc;
 
-use ship_agents::services::sessions::canonical_projection::{
-    load_sessions, CanonicalSessionStatus,
-};
+use ship_agents::services::sessions::canonical_projection::load_sessions;
 use ship_substrate::events::executor::DestructionCause;
 use ship_substrate::events::emit::emit_executor_session_destroyed;
 use ship_substrate::events::KernelRouter;

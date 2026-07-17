@@ -19,9 +19,9 @@ use std::sync::Arc;
 
 use connectrpc::{ConnectError, RequestContext, Router as ConnectRouter};
 use ship_agents::services::agents::dispatch_core::AgentDispatchPort;
-use ship_agents::services::agents::host::{
-    AgentsGrantHost, AgentsHost, AgentsWatchHost, DispatchHandlePort,
-};
+#[cfg(feature = "ship-code")]
+use ship_agents::services::agents::host::DispatchHandlePort;
+use ship_agents::services::agents::host::{AgentsGrantHost, AgentsHost, AgentsWatchHost};
 use ship_agents::services::agents::service::AgentsService;
 use ship_agents::services::rules::wire::GateFn;
 use ship_agents::services::agents::host::mount_full as host_mount_full;

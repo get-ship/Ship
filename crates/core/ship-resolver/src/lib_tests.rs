@@ -1,7 +1,6 @@
 use super::*;
 use stack_model::{ExtSource, RollupInputs, resolve_library};
 use ship_substrate::ports::LocalFsBroker;
-use serde_json::json;
 use tempfile::TempDir;
 
 fn write_minimal_space() -> (TempDir, std::path::PathBuf) {
@@ -63,12 +62,6 @@ async fn resolve_space_with_no_globals_yields_resolved_config() {
         .await
         .unwrap();
     let resolved = resolve_library(&composed.library, None, None);
-    // The TS-defined agent lands in the resolved config's agent list.
-    let ids: Vec<&str> = resolved
-        .agent_profiles
-        .iter()
-        .map(|a| a.agent.id.as_str())
-        .collect();
     // Phase-2 contract: TS agents appear in the active-agent-shaped
     // list (the leaf's resolve step pulls from `library.agents`).
     // The .ts path populates that list via this crate's merge step.
@@ -1277,6 +1270,8 @@ defineView({
 // `RollupInputs.extensions` audit trail — not the def index or
 // cache. spine_smoke stays the cross-crate end-to-end; this is the
 // roll-up-level proof.
+#[tokio::test(flavor = "current_thread")]
+#[ignore = "was silently disabled (missing #[tokio::test]) and fails once enabled: child extension's agent does not compose — see filed claim"]
 async fn roll_up_two_extensions_compose_with_pin() {
     // 1. Space root with agents in `agents/<id>.ts` files (slice 2c).
     //    The space root claims `root-only` and a SAME-ID `shared` (this
@@ -1512,7 +1507,7 @@ defineAgent({ agent: { id: "child-b-only", name: "Child B Only" } });
 // in that custom dir, and the assertion that the composed library
 // surfaces both the path AND the walked skill record.
 #[tokio::test(flavor = "current_thread")]
-async fn defineConfig_custom_skill_paths_walk_finds_on_disk_skill() {
+async fn define_config_custom_skill_paths_walk_finds_on_disk_skill() {
     let tmp = tempfile::tempdir().unwrap();
     let root = tmp.path().to_path_buf();
     std::fs::create_dir_all(root.join(".ship")).unwrap();

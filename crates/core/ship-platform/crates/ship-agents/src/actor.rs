@@ -17,7 +17,9 @@
 //! write namespaces. `session.*` is in `write_namespaces` because the dispatch
 //! path emits `session.failed` on prep errors.
 
+#[cfg(feature = "ship-code")]
 use std::future::Future;
+#[cfg(feature = "ship-code")]
 use std::pin::Pin;
 use std::sync::Arc;
 

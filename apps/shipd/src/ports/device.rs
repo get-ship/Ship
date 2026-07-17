@@ -15,7 +15,7 @@
 //!     full Runtime-scoped `spaces` projection. A window cannot conjure a
 //!     space the daemon never opened.
 
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use async_trait::async_trait;
 
 use ship_device::ports::{SpaceRegistry, WindowSessions};

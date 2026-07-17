@@ -212,7 +212,6 @@ fn strip_jsonc_preserves_multibyte_utf8() {
 use std::sync::Arc;
 use ship_config::agents_index::{AgentDefIndex, AgentDefQuery};
 use ship_substrate::data::DataService;
-use ship_substrate::home::ShipHome;
 use ship_substrate::ports::{DataStore, LocalFsBroker, SingleBackendDataStore};
 
 /// Build an index over a fresh per-test space.db and reindex the project dir.

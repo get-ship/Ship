@@ -46,7 +46,6 @@ pub mod provider;
 pub mod registry;
 pub mod resilience;
 pub mod sdkgen;
-pub(crate) mod session;
 pub mod spine;
 
 // NOTE: orchestration (the recursive spawn-agent seam) is intentionally NOT

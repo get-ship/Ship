@@ -44,6 +44,8 @@ fn repo_root() -> PathBuf {
         .to_path_buf()
 }
 
+#[tokio::test]
+#[ignore = "was silently disabled (missing #[tokio::test]) and fails once enabled: working-in-helm's stable_id does not match expected value — see filed claim"]
 async fn fm_b2a_helm_extension_supplies_working_in_helm_via_child_root() {
     // 1. The fixture: a tempdir as space root, with NO `stack.config.ts`
     //    at the top level. The spec requires this — the real

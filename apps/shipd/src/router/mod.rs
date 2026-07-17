@@ -15,7 +15,7 @@ use std::sync::Arc;
 
 use deck::config::DeckConfig;
 use crate::{auth, ship_runtime};
-use crate::auth::{attest, session};
+use crate::auth::attest;
 use crate::transport::cors;
 
 use health::{handle_panic, health_check};
@@ -35,7 +35,6 @@ pub fn build_router(
     daemon_mode: deck::DaemonMode,
     apps: Vec<deck::AppServeConfig>,
 ) -> Router {
-    let st = rt.clone();
     // Enumerated routes — one `ApiState`-typed router, registered via
 
     // ONE ShipDataPort for the whole router: deck's serve_index / serve_setup
@@ -97,6 +96,7 @@ pub fn build_router(
         // Bind the runtime state here so the resulting `Router<()>` merges
         // cleanly with the root assembly below.
         .with_state(rt.clone());
+    #[cfg(feature = "ship-code")]
     let auth_registry = session_registry;
     // Hook ingress lives at flat `/hooks/*` (authed, but OFF `/api/v1`):
     // consumed by generated git-hook shell scripts that POST via curl and

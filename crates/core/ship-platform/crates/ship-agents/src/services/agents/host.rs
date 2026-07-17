@@ -183,7 +183,6 @@ fn build_core<H: AgentsHost>(host: &H, gate: GateFn) -> AgentsWireCoreConfig {
         let host = notify_saved_host.clone();
         Box::pin(async move {
             use ship_files::files::Scope;
-            use ship_substrate::ShipHome;
             use ship_substrate::ports::{KernelLog, LocalFsBroker};
             use ship_types::SpaceId;
             let scope = match scope_str.as_str() {

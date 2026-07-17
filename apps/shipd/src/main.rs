@@ -26,7 +26,7 @@ fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
-    let global_dir = ship_substrate::project::get_global_dir()?;
+    let _global_dir = ship_substrate::project::get_global_dir()?;
 
     let logs_dir = ship_substrate::ShipHome::from_env()
         .state_dir()
@@ -200,7 +200,7 @@ fn install_panic_hook() {
         // (no ship_dir, no perm, etc.) fall back to stderr. The
         // crash is the artifact — get it onto disk even if we have
         // to do it badly.
-        if let Ok(global_dir) = ship_substrate::project::get_global_dir() {
+        if let Ok(_global_dir) = ship_substrate::project::get_global_dir() {
             let logs_dir = ship_substrate::ShipHome::from_env()
                 .state_dir()
                 .join("logs");
