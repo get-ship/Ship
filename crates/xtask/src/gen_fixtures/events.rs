@@ -202,8 +202,6 @@ fn payload_stub(payload_type: &str) -> Value {
         "SkillUpdated" => json!({ "scope": "space", "content_hash": "sha256-test" }),
         "SkillDeleted" => json!({ "scope": "space" }),
         "SkillChanged" => json!({ "path": ".ship/skills/test.md", "content_hash": "sha256-test" }),
-        "SkillStarted" => json!({ "skill_id": "test-skill" }),
-        "SkillCompleted" => json!({ "skill_id": "test-skill", "duration_ms": 1234 }),
         "SkillFailed" => json!({ "skill_id": "test-skill", "error": "test failure" }),
 
         // ── Supervisor events ────────────────────────────────────────────────

@@ -3,7 +3,6 @@
 //! (user). See submodules for storage, install, and types.
 
 use std::collections::HashMap;
-use std::fs;
 use std::path::Path;
 
 use anyhow::{Result, anyhow};
@@ -18,10 +17,8 @@ pub use types::{Skill, SkillSource};
 
 use storage::{
     ensure_project_skills_storage, ensure_user_skills_storage, list_skills_from_dir,
-    parse_skill_spec, skill_dir, user_skill_dir, write_skill_spec,
+    parse_skill_spec, skill_dir, user_skill_dir,
 };
-
-// ─── CRUD ─────────────────────────────────────────────────────────────────────
 
 pub fn list_skills(project_dir: &Path) -> Result<Vec<Skill>> {
     let dir = ensure_project_skills_storage(project_dir)?;
@@ -82,118 +79,6 @@ pub fn get_effective_skill(project_dir: &Path, id: &str) -> Result<Skill> {
 
     Err(anyhow!("Skill '{}' not found in project or user scope", id))
 }
-
-pub fn create_skill(project_dir: &Path, id: &str, name: &str, content: &str) -> Result<Skill> {
-    let _ = ensure_project_skills_storage(project_dir)?;
-    let dir = skill_dir(project_dir, id);
-    if dir.exists() {
-        return Err(anyhow!("Skill '{}' already exists", id));
-    }
-    let skill = Skill {
-        id: id.to_string(),
-        name: name.to_string(),
-        description: Some(format!("Project skill '{}'", id)),
-        version: None,
-        authors: vec!["local".to_string()],
-        stable_id: Some(id.to_string()),
-        tags: vec!["custom".to_string()],
-        audience: None,
-        content: content.to_string(),
-        source: SkillSource::Custom,
-        artifacts: vec![],
-    };
-    write_skill_spec(&dir, &skill)?;
-    // A2: the resolved descriptor (roll_up → ResolvedConfig) is the
-    // one source of truth for skill delivery. The pre-cutover write to
-    // `ship_config::project::save_config`'s `config.agent.skills` array
-    // was a side effect of the dead ship.jsonc manifest model — the
-    // `agent.skills` field died with the dot-ship close-out. Skills
-    // arrive via `defineSkill` declare-forms in `stack.config.ts`; the
-    // roll-up re-materializes the descriptor and the active agent's
-    // `skills.refs` is recomputed from the active-profile merge. No
-    // config write is necessary at create time.
-    Ok(skill)
-}
-
-pub fn create_user_skill(id: &str, name: &str, content: &str) -> Result<Skill> {
-    let _ = ensure_user_skills_storage()?;
-    let dir = user_skill_dir(id)?;
-    if dir.exists() {
-        return Err(anyhow!("Skill '{}' already exists", id));
-    }
-    let skill = Skill {
-        id: id.to_string(),
-        name: name.to_string(),
-        description: Some(format!("User skill '{}'", id)),
-        version: None,
-        authors: vec!["local".to_string()],
-        stable_id: Some(id.to_string()),
-        tags: vec!["custom".to_string()],
-        audience: None,
-        content: content.to_string(),
-        source: SkillSource::Custom,
-        artifacts: vec![],
-    };
-    write_skill_spec(&dir, &skill)?;
-    Ok(skill)
-}
-
-pub fn update_skill(
-    project_dir: &Path,
-    id: &str,
-    name: Option<&str>,
-    content: Option<&str>,
-) -> Result<Skill> {
-    let _ = ensure_project_skills_storage(project_dir)?;
-    let dir = skill_dir(project_dir, id);
-    let mut skill = parse_skill_spec(&dir)?;
-    if let Some(n) = name {
-        skill.name = n.to_string();
-    }
-    if let Some(c) = content {
-        skill.content = c.to_string();
-    }
-    write_skill_spec(&dir, &skill)?;
-    Ok(skill)
-}
-
-pub fn update_user_skill(id: &str, name: Option<&str>, content: Option<&str>) -> Result<Skill> {
-    let _ = ensure_user_skills_storage()?;
-    let dir = user_skill_dir(id)?;
-    if !dir.exists() {
-        return Err(anyhow!("Skill '{}' not found", id));
-    }
-    let mut skill = parse_skill_spec(&dir)?;
-    if let Some(n) = name {
-        skill.name = n.to_string();
-    }
-    if let Some(c) = content {
-        skill.content = c.to_string();
-    }
-    write_skill_spec(&dir, &skill)?;
-    Ok(skill)
-}
-
-pub fn delete_skill(project_dir: &Path, id: &str) -> Result<()> {
-    let _ = ensure_project_skills_storage(project_dir)?;
-    let dir = skill_dir(project_dir, id);
-    if !dir.exists() {
-        return Err(anyhow!("Skill '{}' not found", id));
-    }
-    fs::remove_dir_all(dir)?;
-    Ok(())
-}
-
-pub fn delete_user_skill(id: &str) -> Result<()> {
-    let _ = ensure_user_skills_storage()?;
-    let dir = user_skill_dir(id)?;
-    if !dir.exists() {
-        return Err(anyhow!("Skill '{}' not found", id));
-    }
-    fs::remove_dir_all(dir)?;
-    Ok(())
-}
-
 
 #[cfg(test)]
 mod tests;

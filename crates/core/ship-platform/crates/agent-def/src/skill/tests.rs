@@ -4,33 +4,10 @@ use super::install::{
 };
 use super::storage::skill_dir;
 use ship_substrate::fs_util::write_atomic;
+use std::fs;
 #[cfg(unix)]
 use std::os::unix::fs::symlink as symlink_file;
 use tempfile::tempdir;
-
-    #[test]
-    fn create_and_get_round_trip() -> Result<()> {
-        let tmp = tempdir()?;
-        let project_dir = crate::testutil::init_project(tmp.path())?;
-        let s = create_skill(
-            &project_dir,
-            "review",
-            "Code Review",
-            "Review this: $ARGUMENTS",
-        )?;
-        assert_eq!(s.id, "review");
-        assert_eq!(s.source, SkillSource::Custom);
-        let got = get_skill(&project_dir, "review")?;
-        assert_eq!(got.content, "Review this: $ARGUMENTS");
-        assert!(skill_dir(&project_dir, "review").is_dir());
-        assert!(
-            !skill_dir(&project_dir, "review")
-                .join("skill.toml")
-                .exists()
-        );
-        assert!(skill_dir(&project_dir, "review").join("SKILL.md").is_file());
-        Ok(())
-    }
 
     #[test]
     fn rejects_invalid_skill_dir_without_skill_md() -> Result<()> {
@@ -183,52 +160,9 @@ Body.
     }
 
     #[test]
-    fn list_returns_all_skills() -> Result<()> {
-        let tmp = tempdir()?;
-        let project_dir = crate::testutil::init_project(tmp.path())?;
-        create_skill(&project_dir, "a", "A", "content a")?;
-        create_skill(&project_dir, "b", "B", "content b")?;
-        let skills = list_skills(&project_dir)?;
-        assert!(skills.iter().any(|s| s.id == "a"));
-        assert!(skills.iter().any(|s| s.id == "b"));
-        Ok(())
-    }
-
-    #[test]
     fn list_empty_dir_returns_empty() -> Result<()> {
         let tmp = tempdir()?;
         assert!(list_skills(tmp.path())?.is_empty());
-        Ok(())
-    }
-
-    #[test]
-    fn update_skill_persists() -> Result<()> {
-        let tmp = tempdir()?;
-        let project_dir = crate::testutil::init_project(tmp.path())?;
-        create_skill(&project_dir, "s", "Old", "old")?;
-        update_skill(&project_dir, "s", Some("New"), Some("new $ARGUMENTS"))?;
-        let reloaded = get_skill(&project_dir, "s")?;
-        assert_eq!(reloaded.name, "New");
-        assert_eq!(reloaded.content, "new $ARGUMENTS");
-        Ok(())
-    }
-
-    #[test]
-    fn delete_removes_skill() -> Result<()> {
-        let tmp = tempdir()?;
-        let project_dir = crate::testutil::init_project(tmp.path())?;
-        create_skill(&project_dir, "gone", "Gone", "x")?;
-        delete_skill(&project_dir, "gone")?;
-        assert!(get_skill(&project_dir, "gone").is_err());
-        Ok(())
-    }
-
-    #[test]
-    fn duplicate_rejected() -> Result<()> {
-        let tmp = tempdir()?;
-        let project_dir = crate::testutil::init_project(tmp.path())?;
-        create_skill(&project_dir, "dup", "Dup", "x")?;
-        assert!(create_skill(&project_dir, "dup", "Dup2", "y").is_err());
         Ok(())
     }
 

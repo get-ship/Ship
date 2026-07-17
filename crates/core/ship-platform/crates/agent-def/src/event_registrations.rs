@@ -72,6 +72,4 @@ register_event!("rule.updated", [EventScope::Runtime], Retention::Durable, Stabi
 register_event!("skill.created", [EventScope::Runtime], Retention::Durable, Stability::Stable, "SkillCreated", ship_types::payload::SkillCreated);
 register_event!("skill.deleted", [EventScope::Runtime], Retention::Durable, Stability::Stable, "SkillDeleted", ship_types::payload::SkillDeleted);
 register_event!("skill.updated", [EventScope::Runtime], Retention::Durable, Stability::Stable, "SkillUpdated", ship_types::payload::SkillUpdated);
-register_event!("skill.started", [EventScope::Runtime], Retention::Ephemeral, Stability::Deprecated, "SkillStarted", ship_types::payload::SkillStarted);
-register_event!("skill.completed", [EventScope::Runtime], Retention::Ephemeral, Stability::Deprecated, "SkillCompleted", ship_types::payload::SkillCompleted);
 register_event!("skill.failed", [EventScope::Runtime], Retention::Durable, Stability::Deprecated, "SkillFailed", ship_types::payload::SkillFailed);

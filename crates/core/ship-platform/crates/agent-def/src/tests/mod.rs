@@ -11,8 +11,6 @@
 /// Test naming follows `agents_<subdomain>_<scenario>` so the Track A coverage
 /// tool matches them via the `<service>_<method>_*` pattern.
 #[cfg(test)]
-mod integration_skill_resolution;
-#[cfg(test)]
 mod event_scope_discipline;
 #[cfg(test)]
 mod file_changed_consumer;

@@ -23,16 +23,6 @@ fn parse<'de, T: serde::Deserialize<'de>>(json: &'de str, label: &str) -> T {
 // ── Skill aggregate ──────────────────────────────────────────────────────────
 
 #[test]
-fn skill_started_v1_round_trips() {
-    let _: SkillStarted = parse(r#"{"skill_id": "commit"}"#, "SkillStarted");
-}
-
-#[test]
-fn skill_completed_v1_round_trips() {
-    let _: SkillCompleted = parse(r#"{"skill_id": "commit", "duration_ms": 1234}"#, "SkillCompleted");
-}
-
-#[test]
 fn skill_failed_v1_round_trips() {
     let _: SkillFailed = parse(r#"{"skill_id": "commit", "error": "boom"}"#, "SkillFailed");
 }

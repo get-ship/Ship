@@ -41,7 +41,7 @@ pub use crud::{
 };
 pub use daemon::{DaemonOwnerBound, DaemonOwnerUnbound, DaemonPortBindFailed, SupervisorShuttingDown};
 // KernelActor* retired (B2, 2026-06-20).
-pub use skill::{SkillCompleted, SkillFailed, SkillStarted};
+pub use skill::SkillFailed;
 pub use spec6::{AgentTaskComplete, HumanResponse, PipelineStepRetry};
 pub use sync::{SyncPushCompleted, SyncPushFailed, SyncStarted, SyncStopped};
 pub use watcher::{AgentDefUpdated, SkillChanged};
