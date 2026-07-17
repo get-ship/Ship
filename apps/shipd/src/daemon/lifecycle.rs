@@ -13,10 +13,11 @@ use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
+use ship_substrate::events::EventEnvelope;
 use ship_substrate::events::daemon::{
-    PortBindFailedPayload, ShutdownCompletedPayload, event_types as daemon_events,
+    CrashDetectedPayload, PortBindFailedPayload, ShutdownCompletedPayload,
+    event_types as daemon_events,
 };
-use ship_substrate::events::{EventEnvelope, SqliteEventStore};
 
 use crate::ship_runtime::ShipRuntime;
 
@@ -117,6 +118,81 @@ pub(super) fn spawn_leak_diag(rt: &Arc<ShipRuntime>) {
     });
 }
 
+/// Boot-time crash response, log-native: detect an unclean previous run from
+/// the log's own shape (a `daemon.startup_completed` with no
+/// `daemon.shutdown_completed` after it), not by scanning full history. Must
+/// run before this boot's own `daemon.startup_completed` lands, or that event
+/// would shadow the prior run's. Cheap — two lookups against the
+/// `(entity_id, event_type)` index, no table scan.
+///
+/// This responds (log + correlate + emit), it does not backfill: a crashed
+/// run's missing shutdown event stays missing.
+pub(super) async fn detect_prior_crash(rt: &Arc<ShipRuntime>, global_dir: &std::path::Path) {
+    let db_path = ship_substrate::db::runtime_db_path(global_dir);
+    let starts = match ship_substrate::db::events::query_events_by_entity_and_type_at(
+        &db_path,
+        "daemon",
+        daemon_events::DAEMON_STARTUP_COMPLETED,
+    ) {
+        Ok(e) => e,
+        Err(e) => {
+            tracing::warn!("shipd: crash detection: cannot read startup events: {e}");
+            return;
+        }
+    };
+    let Some(last_start) = starts.last() else {
+        return; // first-ever boot: nothing to correlate against.
+    };
+    let stops = match ship_substrate::db::events::query_events_by_entity_and_type_at(
+        &db_path,
+        "daemon",
+        daemon_events::DAEMON_SHUTDOWN_COMPLETED,
+    ) {
+        Ok(e) => e,
+        Err(e) => {
+            tracing::warn!("shipd: crash detection: cannot read shutdown events: {e}");
+            return;
+        }
+    };
+    let clean_shutdown_after = stops.last().is_some_and(|s| s.id > last_start.id);
+    if clean_shutdown_after {
+        return;
+    }
+
+    let crashes_dir = ship_substrate::ShipHome::from_env().state_dir().join("crashes");
+    let mut reports: Vec<String> = std::fs::read_dir(&crashes_dir)
+        .into_iter()
+        .flatten()
+        .filter_map(|e| e.ok())
+        .filter_map(|e| e.file_name().into_string().ok())
+        .filter(|name| name.starts_with("crash-") && name.ends_with(".json"))
+        .collect();
+    reports.sort();
+    reports.reverse(); // most recent first (filename carries a sortable timestamp).
+
+    tracing::error!(
+        prior_started_event_id = %last_start.id,
+        crash_report_count = reports.len(),
+        most_recent_crash_report = reports.first().map(String::as_str).unwrap_or("<none>"),
+        "shipd: prior run ended without a clean shutdown event — crash detected"
+    );
+
+    if let Ok(envelope) = EventEnvelope::new(
+        daemon_events::DAEMON_CRASH_DETECTED,
+        "daemon",
+        &CrashDetectedPayload {
+            prior_started_event_id: last_start.id.clone(),
+            crash_report_count: reports.len(),
+            correlated_crash_reports: reports,
+        },
+    ) {
+        let envelope = envelope.with_actor_id("daemon");
+        if let Err(e) = rt.persist_and_route(&envelope).await {
+            tracing::warn!("shipd: cannot emit daemon.crash_detected: {e}");
+        }
+    }
+}
+
 // ── I/O: listener binding + daemon.* event emit ──────────────────────────
 
 /// Bind the listener with collision retry. On EADDRINUSE we increment
@@ -127,7 +203,7 @@ pub(super) async fn bind_with_retry(
     host: &str,
     desired_port: u16,
     user_pinned: bool,
-    global_dir: &std::path::Path,
+    rt: &Arc<ShipRuntime>,
 ) -> Result<(tokio::net::TcpListener, u16)> {
     let max_retries = if user_pinned { 1 } else { 10 };
     let mut bound_port = desired_port;
@@ -142,9 +218,9 @@ pub(super) async fn bind_with_retry(
                 );
                 bound_port += 1;
                 if bound_port - desired_port >= max_retries {
-                    let already_bound_by_pid = pidfile_pid_for_port(global_dir, desired_port);
+                    let already_bound_by_pid = pidfile_pid_for_port(desired_port);
                     emit_daemon_event(
-                        global_dir,
+                        rt,
                         daemon_events::DAEMON_PORT_BIND_FAILED,
                         "daemon",
                         &PortBindFailedPayload {
@@ -152,7 +228,8 @@ pub(super) async fn bind_with_retry(
                             already_bound_by_pid,
                             error: e.to_string(),
                         },
-                    );
+                    )
+                    .await;
                     return Err(anyhow!(
                         "bind {host}:{desired_port}..{}: {} (giving up after {max_retries} retries)",
                         bound_port - 1,
@@ -161,9 +238,9 @@ pub(super) async fn bind_with_retry(
                 }
             }
             Err(e) => {
-                let already_bound_by_pid = pidfile_pid_for_port(global_dir, bound_port);
+                let already_bound_by_pid = pidfile_pid_for_port(bound_port);
                 emit_daemon_event(
-                    global_dir,
+                    rt,
                     daemon_events::DAEMON_PORT_BIND_FAILED,
                     "daemon",
                     &PortBindFailedPayload {
@@ -171,7 +248,8 @@ pub(super) async fn bind_with_retry(
                         already_bound_by_pid,
                         error: e.to_string(),
                     },
-                );
+                )
+                .await;
                 return Err(anyhow!("bind {host}:{bound_port}: {e}"));
             }
         }
@@ -179,13 +257,11 @@ pub(super) async fn bind_with_retry(
     Ok((listener, bound_port))
 }
 
-/// Append a daemon.* event directly to the runtime event store.
-///
-/// Used in paths where the kernel may not be live (port bind failure) or where
-/// the runtime is already torn down (post-serve shutdown). Fire-and-forget:
-/// telemetry must never block lifecycle decisions.
-pub(super) fn emit_daemon_event<P: serde::Serialize>(
-    global_dir: &std::path::Path,
+/// Emit a daemon.* event through the live kernel router (daemon-internal
+/// Runtime binding). Fire-and-forget: telemetry must never block lifecycle
+/// decisions.
+pub(super) async fn emit_daemon_event<P: serde::Serialize>(
+    rt: &Arc<ShipRuntime>,
     event_type: &str,
     entity_id: &str,
     payload: &P,
@@ -197,31 +273,15 @@ pub(super) fn emit_daemon_event<P: serde::Serialize>(
             return;
         }
     };
-    // daemon.* is Runtime-scoped → write runtime.db.
-    let store = match SqliteEventStore::new_for_scope(
-        global_dir,
-        ship_substrate::events::EventScope::Runtime,
-        None,
-    ) {
-        Ok(s) => s,
-        Err(e) => {
-            tracing::warn!("shipd: cannot open event store for {event_type}: {e}");
-            return;
-        }
-    };
-    // Enforced write: daemon.* is Runtime-scoped and this path may run with no
-    // live kernel/session, so stamp + enforce from the daemon-internal (Runtime)
-    // binding before persist.
-    let binding = ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk);
-    if let Err(e) = store.append_enforced(&envelope, &binding) {
-        tracing::warn!("shipd: cannot append {event_type}: {e}");
+    if let Err(e) = rt.persist_and_route(&envelope).await {
+        tracing::warn!("shipd: cannot emit {event_type}: {e}");
     }
 }
 
 /// Best-effort lookup of the pid currently holding `port`, sourced from the
 /// supervisor's lock-based pidfile. Returns None if the file is missing,
 /// unparseable, or records a different port.
-fn pidfile_pid_for_port(_global_dir: &std::path::Path, port: u16) -> Option<u32> {
+fn pidfile_pid_for_port(port: u16) -> Option<u32> {
     let path = ship_substrate::ShipHome::from_env()
         .daemon_dir()
         .join("shipd.pid");
@@ -338,9 +398,10 @@ mod tests {
 
 // ── shutdown ─────────────────────────────────────────────────────────────
 
-/// Drain agents (bounded), reap sandboxes, shut the runtime down, and emit
-/// `daemon.shutdown_completed`. Runs after axum's graceful shutdown returned.
-pub(super) async fn drain_and_shutdown(rt: &Arc<ShipRuntime>, global_dir: &std::path::Path) {
+/// Drain agents (bounded), reap sandboxes, emit `daemon.shutdown_completed`
+/// while the kernel is still live, then shut the runtime down. Runs after
+/// axum's graceful shutdown returned.
+pub(super) async fn drain_and_shutdown(rt: &Arc<ShipRuntime>) {
     // Bound the agent drain so a stuck child can't hang shutdown forever (#256).
     // axum already drained connections; this cap protects the registry drain
     // (the SIGTERM→SIGKILL hang was an unbounded wait here + un-cancelled SSE).
@@ -372,9 +433,11 @@ pub(super) async fn drain_and_shutdown(rt: &Arc<ShipRuntime>, global_dir: &std::
         tracing::info!(sandboxes_reaped, "reaped sandboxes on shutdown");
     }
     let uptime_secs = rt.uptime().as_secs();
-    rt.shutdown().await;
+    // Emit while the kernel is still alive — `rt.shutdown()` flushes the WAL
+    // and removes liveness files, so the durable shutdown event must land
+    // before that, not after.
     emit_daemon_event(
-        global_dir,
+        rt,
         daemon_events::DAEMON_SHUTDOWN_COMPLETED,
         "daemon",
         &ShutdownCompletedPayload {
@@ -383,5 +446,7 @@ pub(super) async fn drain_and_shutdown(rt: &Arc<ShipRuntime>, global_dir: &std::
             agents_drained,
             trigger: "sigterm".to_string(),
         },
-    );
+    )
+    .await;
+    rt.shutdown().await;
 }

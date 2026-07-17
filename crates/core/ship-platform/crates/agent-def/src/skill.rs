@@ -21,48 +21,6 @@ use storage::{
     parse_skill_spec, skill_dir, user_skill_dir, write_skill_spec,
 };
 
-use ship_substrate::events::EventEnvelope;
-use ship_types::event_types::{SKILL_CHANGED, SKILL_CREATED, SKILL_DELETED, SKILL_UPDATED};
-use ship_types::payload::{SkillChanged, SkillCreated, SkillDeleted, SkillUpdated};
-
-fn content_hash_hex(content: &str) -> String {
-    use sha2::{Digest, Sha256};
-    let mut hasher = Sha256::new();
-    hasher.update(content.as_bytes());
-    let bytes = hasher.finalize();
-    let mut out = String::with_capacity(bytes.len() * 2);
-    for b in bytes {
-        use std::fmt::Write;
-        let _ = write!(out, "{b:02x}");
-    }
-    out
-}
-
-/// Best-effort event emit. Failures are warned, never propagated —
-/// the on-disk write is the source of truth, the event is audit/sync
-/// scaffolding. Callers stay decoupled from event-store availability.
-fn emit_skill_event(event_type: &'static str, id: &str, payload: &impl serde::Serialize) {
-    let envelope = match EventEnvelope::new(event_type, id, payload) {
-        Ok(e) => e,
-        Err(e) => {
-            tracing::warn!("skill event {event_type}: build envelope failed: {e}");
-            return;
-        }
-    };
-    // skill.* — Runtime audit emit (no space_id at call site, no read-back
-    // projection) → runtime.db. See agents::runtime_audit_store.
-    let store = match super::runtime_audit_store() {
-        Ok(s) => s,
-        Err(e) => {
-            tracing::warn!("skill event {event_type}: open store failed: {e}");
-            return;
-        }
-    };
-    if let Err(e) = store.append_enforced(&envelope, &super::runtime_audit_binding()) {
-        tracing::warn!("skill event {event_type}: append failed: {e}");
-    }
-}
-
 // ─── CRUD ─────────────────────────────────────────────────────────────────────
 
 pub fn list_skills(project_dir: &Path) -> Result<Vec<Skill>> {
@@ -145,15 +103,6 @@ pub fn create_skill(project_dir: &Path, id: &str, name: &str, content: &str) -> 
         artifacts: vec![],
     };
     write_skill_spec(&dir, &skill)?;
-    emit_skill_event(
-        SKILL_CREATED,
-        id,
-        &SkillCreated {
-            scope: "project".to_string(),
-            name: name.to_string(),
-            content_hash: content_hash_hex(content),
-        },
-    );
     // A2: the resolved descriptor (roll_up → ResolvedConfig) is the
     // one source of truth for skill delivery. The pre-cutover write to
     // `ship_config::project::save_config`'s `config.agent.skills` array
@@ -186,15 +135,6 @@ pub fn create_user_skill(id: &str, name: &str, content: &str) -> Result<Skill> {
         artifacts: vec![],
     };
     write_skill_spec(&dir, &skill)?;
-    emit_skill_event(
-        SKILL_CREATED,
-        id,
-        &SkillCreated {
-            scope: "user".to_string(),
-            name: name.to_string(),
-            content_hash: content_hash_hex(content),
-        },
-    );
     Ok(skill)
 }
 
@@ -214,22 +154,6 @@ pub fn update_skill(
         skill.content = c.to_string();
     }
     write_skill_spec(&dir, &skill)?;
-    emit_skill_event(
-        SKILL_UPDATED,
-        id,
-        &SkillUpdated {
-            scope: "project".to_string(),
-            content_hash: content_hash_hex(&skill.content),
-        },
-    );
-    emit_skill_event(
-        SKILL_CHANGED,
-        id,
-        &SkillChanged {
-            path: dir.to_string_lossy().to_string(),
-            content_hash: content_hash_hex(&skill.content),
-        },
-    );
     Ok(skill)
 }
 
@@ -247,22 +171,6 @@ pub fn update_user_skill(id: &str, name: Option<&str>, content: Option<&str>) ->
         skill.content = c.to_string();
     }
     write_skill_spec(&dir, &skill)?;
-    emit_skill_event(
-        SKILL_UPDATED,
-        id,
-        &SkillUpdated {
-            scope: "user".to_string(),
-            content_hash: content_hash_hex(&skill.content),
-        },
-    );
-    emit_skill_event(
-        SKILL_CHANGED,
-        id,
-        &SkillChanged {
-            path: dir.to_string_lossy().to_string(),
-            content_hash: content_hash_hex(&skill.content),
-        },
-    );
     Ok(skill)
 }
 
@@ -273,13 +181,6 @@ pub fn delete_skill(project_dir: &Path, id: &str) -> Result<()> {
         return Err(anyhow!("Skill '{}' not found", id));
     }
     fs::remove_dir_all(dir)?;
-    emit_skill_event(
-        SKILL_DELETED,
-        id,
-        &SkillDeleted {
-            scope: "project".to_string(),
-        },
-    );
     Ok(())
 }
 
@@ -290,13 +191,6 @@ pub fn delete_user_skill(id: &str) -> Result<()> {
         return Err(anyhow!("Skill '{}' not found", id));
     }
     fs::remove_dir_all(dir)?;
-    emit_skill_event(
-        SKILL_DELETED,
-        id,
-        &SkillDeleted {
-            scope: "user".to_string(),
-        },
-    );
     Ok(())
 }
 

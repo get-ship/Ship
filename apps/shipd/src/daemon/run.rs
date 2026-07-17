@@ -165,6 +165,11 @@ pub async fn run_network(
     // delivery (`EventEnvelope.target_actor_id`).
     let rt = Arc::new(runtime);
 
+    // Boot-time crash response: detect (from the log's own shape, before this
+    // boot's own daemon.startup_completed lands) whether the prior run ended
+    // without a clean shutdown, and emit daemon.crash_detected if so.
+    super::lifecycle::detect_prior_crash(&rt, &global_dir).await;
+
     // Floki dispatch closure + agent-sessions actor (full orchestrator with
     // ship-code, floki-only without) — see `super::lifecycle::start_agent_stack`.
     super::lifecycle::start_agent_stack(&rt, &global_dir).await;
@@ -317,7 +322,7 @@ pub async fn run_network(
     );
     let user_pinned = port.is_some();
     let (listener, port) =
-        super::lifecycle::bind_with_retry(&host, desired_port, user_pinned, &global_dir).await?;
+        super::lifecycle::bind_with_retry(&host, desired_port, user_pinned, &rt).await?;
     crate::ship_runtime::init::identity_files::write_port_file(&daemon_dir, port)?;
 
     let addr = format!("{host}:{port}");
@@ -392,6 +397,6 @@ pub async fn run_network(
     bundler_watcher.abort();
     // Bounded agent drain + sandbox reap + runtime shutdown + the
     // daemon.shutdown_completed event — see `super::lifecycle::drain_and_shutdown`.
-    super::lifecycle::drain_and_shutdown(&rt, &global_dir).await;
+    super::lifecycle::drain_and_shutdown(&rt).await;
     Ok(())
 }

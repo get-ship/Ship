@@ -7,8 +7,9 @@
 use serde::{Deserialize, Serialize};
 pub mod event_types {
     pub use ship_types::event_types::{
-        DAEMON_CRASHED, DAEMON_PIDFILE_ACQUIRED, DAEMON_PIDFILE_STALE_TAKEN,
-        DAEMON_PORT_BIND_FAILED, DAEMON_SHUTDOWN_COMPLETED, DAEMON_STARTUP_COMPLETED,
+        DAEMON_CRASH_DETECTED, DAEMON_CRASHED, DAEMON_PIDFILE_ACQUIRED,
+        DAEMON_PIDFILE_STALE_TAKEN, DAEMON_PORT_BIND_FAILED, DAEMON_SHUTDOWN_COMPLETED,
+        DAEMON_STARTUP_COMPLETED,
     };
 }
 
@@ -62,4 +63,15 @@ pub struct PidfileStaleTakenPayload {
     pub prior_pid: u32,
     pub prior_started_at: String,
     pub prior_version: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CrashDetectedPayload {
+    /// The `daemon.startup_completed` event id for the run that never
+    /// emitted a matching clean shutdown.
+    pub prior_started_event_id: String,
+    /// Filenames of `crash-*.json` reports found in the crashes dir
+    /// (shipctl's kernel-less crash-report channel), most recent first.
+    pub correlated_crash_reports: Vec<String>,
+    pub crash_report_count: usize,
 }

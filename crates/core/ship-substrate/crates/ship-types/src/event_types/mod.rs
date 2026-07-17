@@ -165,6 +165,7 @@ pub const DAEMON_PIDFILE_ACQUIRED: &str = daemon::PIDFILE_ACQUIRED;
 pub const DAEMON_PIDFILE_STALE_TAKEN: &str = daemon::PIDFILE_STALE_TAKEN;
 pub const DAEMON_OWNER_BOUND: &str = daemon::OWNER_BOUND;
 pub const DAEMON_OWNER_UNBOUND: &str = daemon::OWNER_UNBOUND;
+pub const DAEMON_CRASH_DETECTED: &str = daemon::CRASH_DETECTED;
 pub const SUPERVISOR_SHUTTING_DOWN: &str = supervisor::SHUTTING_DOWN;
 pub const SUPERVISOR_SWEEP_STARTED: &str = supervisor::SWEEP_STARTED;
 pub const SUPERVISOR_SWEEP_COMPLETED: &str = supervisor::SWEEP_COMPLETED;
