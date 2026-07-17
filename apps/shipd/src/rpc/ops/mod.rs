@@ -195,6 +195,7 @@ pub fn router(state: ApiState) -> axum::Router {
         device_pid,
         device_space_fn,
     ));
+    let router = ship_ops_rpc::DeviceServiceExt::register(device_wire, router);
     let router = agents_wire::mount(router, &state, gate.clone());
     // ship.code.v1.CodeService — coding-class dispatch surface; gated
     // behind `--features ship-code` (mount split 2026-07-10). With the
@@ -222,6 +223,9 @@ pub fn router(state: ApiState) -> axum::Router {
     // + component discovery). Crate-owned `UiWire` (ship-ui); closures in
     // `ui_wire`. Replaces the retired `sui.*` and `view.*` services.
     let router = ui_wire::mount(router, &state);
+    // pipelines.* — crate-owned PipelinesWire (ship-pipeline-runtime): definition
+    // CRUD (List/Get/Put/Patch/Delete) over the engine-shaped surface.
+    let router = pipelines_wire::mount(router, &state, &gate);
     // terminal.* — the L2 Connect adapter over the unified live-session
     // registry (ship_agents::services::sessions::Registry). All eight
     // methods: Spawn/Stop/List/Get/SendInput/Resize/SessionBytes/SessionEvents.
