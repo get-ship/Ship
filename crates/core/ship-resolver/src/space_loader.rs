@@ -192,6 +192,34 @@ pub(crate) async fn load_root_library(fs: &dyn FsBroker, root: &Path) -> Result<
     Ok(library)
 }
 
+/// Discover a member root's own nested child extensions: immediate
+/// child directories that carry their own `stack.config.ts` (the W4
+/// phase B multi-extension shape — a stack root may embed further
+/// extension dirs beside its per-noun source dirs). Returned in
+/// lexicographic order by dir name for deterministic composition.
+///
+/// This is NOT the sibling-member scan `roll_up_members` deliberately
+/// forgoes (membership across stacks is explicit, never scanned) — it
+/// is the per-member nested-extension shape: one registered stack root
+/// may itself embed further extension dirs directly beneath it.
+pub(crate) fn discover_child_extension_roots(fs: &dyn FsBroker, root: &Path) -> Result<Vec<PathBuf>> {
+    let cap = SpaceCap::read_only(root);
+    let entries = match fs.list_dir(&cap.cap, "") {
+        Ok(e) => e,
+        Err(FsError::NotFound) => return Ok(Vec::new()),
+        Err(e) => return Err(e.into()),
+    };
+    let mut names: Vec<String> = entries
+        .into_iter()
+        .filter_map(|path| path.file_name().and_then(|n| n.to_str()).map(str::to_string))
+        .filter(|name| fs
+            .exists(&cap.cap, &format!("{name}/{SHIP_CONFIG_FILENAME}"))
+            .unwrap_or(false))
+        .collect();
+    names.sort();
+    Ok(names.into_iter().map(|name| root.join(name)).collect())
+}
+
 /// Default per-noun source dirs. The values are the slice-2c spec
 /// defaults: each lives beside the `stack.config.ts` at the space
 /// root. Per-extension-project overrides are read from `defineConfig`
@@ -245,6 +273,12 @@ pub(crate) fn walk_skills_dir(
         let raw_str = String::from_utf8_lossy(&raw);
         let mut skill = stack_model::skill_parser::parse_skill(stem, &raw_str);
         skill.source = SkillSource::Custom;
+        // No explicit `stable-id:` frontmatter → the on-disk dir name is
+        // the canonical identity (deterministic, same convention as
+        // agent-def's declare-form skills defaulting stable_id to id).
+        if skill.stable_id.is_none() {
+            skill.stable_id = Some(skill.id.clone());
+        }
         skills.push(skill);
     }
     skills.sort_by(|a, b| a.id.cmp(&b.id));

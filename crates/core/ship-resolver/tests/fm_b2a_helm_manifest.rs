@@ -45,7 +45,6 @@ fn repo_root() -> PathBuf {
 }
 
 #[tokio::test]
-#[ignore = "was silently disabled (missing #[tokio::test]) and fails once enabled: working-in-helm's stable_id does not match expected value — see filed claim"]
 async fn fm_b2a_helm_extension_supplies_working_in_helm_via_child_root() {
     // 1. The fixture: a tempdir as space root, with NO `stack.config.ts`
     //    at the top level. The spec requires this — the real
@@ -143,8 +142,11 @@ export default defineConfig({});
     let cache_root = root.join("empty_cache");
     std::fs::create_dir_all(&cache_root).expect("cache dir");
 
+    // `roll_up_members` composes in caller-supplied (registration) order —
+    // it does not re-sort by directory name. Register in the lexicographic
+    // order the assertions below key on (helm, then ship) to match.
     let composed = ship_resolver::roll_up_members(
-        &[root.join("ship"), root.join("helm")],
+        &[root.join("helm"), root.join("ship")],
         Some(&cache_root),
     )
         .await

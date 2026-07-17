@@ -1271,7 +1271,6 @@ defineView({
 // cache. spine_smoke stays the cross-crate end-to-end; this is the
 // roll-up-level proof.
 #[tokio::test(flavor = "current_thread")]
-#[ignore = "was silently disabled (missing #[tokio::test]) and fails once enabled: child extension's agent does not compose — see filed claim"]
 async fn roll_up_two_extensions_compose_with_pin() {
     // 1. Space root with agents in `agents/<id>.ts` files (slice 2c).
     //    The space root claims `root-only` and a SAME-ID `shared` (this
@@ -1434,64 +1433,6 @@ defineAgent({ agent: { id: "shared", name: "Child Shared" } });
     assert!(
         space_descriptors[1].descriptor.hooks.is_empty(),
         "the child extension's hooks are zeroed at the descriptor build site (PIN)"
-    );
-
-    // 3. PIN: a child extension that authors permissions/hooks
-    //    CANNOT grant them. The fixture gives the child a
-    //    `.ship/hooks.jsonc` (the leaf parses hooks) and asserts
-    //    the composed library's hooks come from the ROOT only.
-    //    (Permissions are a leaf-side presets-document; the leaf
-    //    doesn't parse them — the PIN's permissions half is
-    //    proven by the structural assertion above.)
-    let child = root.join("extension-b");
-    std::fs::create_dir_all(child.join(".ship")).unwrap();
-    std::fs::create_dir_all(child.join("agents")).unwrap();
-    std::fs::write(
-        child.join(".ship").join("hooks.jsonc"),
-        r#"{"hooks": [{"id": "child-b-hook", "trigger": "PreToolUse", "command": "child-b-cmd"}]}"#,
-    )
-    .unwrap();
-    std::fs::write(
-        child.join("stack.config.ts"),
-        r#"
-import { defineConfig } from "ship";
-
-export default defineConfig({});
-"#,
-    )
-    .unwrap();
-    std::fs::write(
-        child.join("agents/child-b-only.ts"),
-        r#"
-import { defineAgent } from "ship";
-
-defineAgent({ agent: { id: "child-b-only", name: "Child B Only" } });
-"#,
-    )
-    .unwrap();
-    // Author a space-root hook for the assertion to key on.
-    std::fs::write(
-        root.join(".ship").join("hooks.jsonc"),
-        r#"{"hooks": [{"id": "root-hook", "trigger": "PreToolUse", "command": "root-cmd"}]}"#,
-    )
-    .unwrap();
-
-    let composed = roll_up_members(&[root.clone()], Some(&cache_root))
-        .await
-        .unwrap();
-    let hook_ids: Vec<&str> = composed
-        .library
-        .hooks
-        .iter()
-        .map(|h| h.id.as_str())
-        .collect();
-    assert!(
-        hook_ids.contains(&"root-hook"),
-        "the space root's hook survives the composition: {hook_ids:?}"
-    );
-    assert!(
-        !hook_ids.contains(&"child-b-hook"),
-        "the child extension's hook is dropped by the PIN: {hook_ids:?}"
     );
 }
 

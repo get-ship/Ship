@@ -122,7 +122,18 @@ pub async fn roll_up_members(
     //    push fence is applied at the identity source — permissions +
     //    hooks are zeroed BEFORE the descriptor is built, so a member
     //    cannot grant itself anything regardless of compose order.
-    let mut member_descriptors = Vec::with_capacity(member_roots.len());
+    //
+    //    A member root may itself embed further extension dirs directly
+    //    beneath it (the W4 phase B multi-extension shape — one stack
+    //    root, several `stack.config.ts`-bearing children). Membership
+    //    across STACKS stays explicit (never scanned); this is a scan
+    //    for the nested shape WITHIN one already-registered member, so
+    //    it does not reintroduce sibling-stack discovery. Each child is
+    //    its own `ExtSource::Space` descriptor, declared right after its
+    //    parent member in lexicographic order by dir name, with its
+    //    permissions/hooks zeroed the same way — an extension must not
+    //    grant itself.
+    let mut member_descriptors = Vec::new();
     for root in member_roots {
         let mut lib = space_loader::load_root_library(&fs, root)
             .await
@@ -146,6 +157,49 @@ pub async fn roll_up_members(
             descriptor: lib,
             content_hash,
         });
+
+        let child_roots = space_loader::discover_child_extension_roots(&fs, root)
+            .with_context(|| {
+                format!(
+                    "roll_up_members: discover child extension roots for {}",
+                    root.display()
+                )
+            })?;
+        for child_root in &child_roots {
+            let mut child_lib = space_loader::load_root_library(&fs, child_root)
+                .await
+                .with_context(|| {
+                    format!(
+                        "roll_up_members: load child root library for {}",
+                        child_root.display()
+                    )
+                })?;
+            let child_declarations =
+                ts_resolver::resolve_ts_files(&child_lib.imported_modules, &Value::Null)
+                    .await
+                    .with_context(|| {
+                        format!("roll_up_members: TS eval for {}", child_root.display())
+                    })?;
+            merge_ts_declarations(&mut child_lib, child_declarations, &fs, child_root);
+            child_lib.imported_modules.clear();
+
+            child_lib.permissions = stack_model::Permissions::default();
+            child_lib.hooks = Vec::new();
+
+            let child_content_hash = descriptor::extension_library_content_hash(&child_lib)
+                .with_context(|| {
+                    format!(
+                        "roll_up_members: content hash for {}",
+                        child_root.display()
+                    )
+                })?;
+            member_descriptors.push(ExtensionDescriptor {
+                source: ExtSource::Space,
+                space_root: child_root.clone(),
+                descriptor: child_lib,
+                content_hash: child_content_hash,
+            });
+        }
     }
 
     // 2. Cache tier: the union of every member's own lock.
