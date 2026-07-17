@@ -35,7 +35,7 @@ pub(crate) fn daemon_start_inner(host: &str, unsafe_skip_auth: bool) -> Result<(
 
     let self_exe = std::env::current_exe().context("cannot determine own executable path")?;
 
-    // Ensure ~/.ship/ and machine/crashes/ exist.
+    // Ensure the data dir and state/crashes/ exist.
     std::fs::create_dir_all(&global_dir).context("cannot create ~/.ship/ directory")?;
     let crashes_dir = ship_substrate::ShipHome::from_env()
         .state_dir()

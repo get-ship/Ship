@@ -13,14 +13,14 @@ use serde::{Deserialize, Serialize};
 
 /// Default issuer claim — the brand domain that identifies "tokens from Ship,"
 /// independent of which API host actually mints them. Overridden via
-/// `auth.attestation_issuer` in ~/.ship/config.toml.
+/// `auth.attestation_issuer` in `config_dir()/config.toml`.
 pub const DEFAULT_ATTESTATION_ISSUER: &str = "https://getship.dev";
 
 /// Default JWKS URL — where the daemon fetches public keys to verify
 /// attestation JWTs. The gateway lives on `api.getship.dev` while the
 /// brand sits on `getship.dev`; keeping these decoupled lets the JWT
 /// issuer claim stay stable across env hosts. Overridden via
-/// `auth.attestation_jwks_url` in ~/.ship/config.toml.
+/// `auth.attestation_jwks_url` in `config_dir()/config.toml`.
 pub const DEFAULT_ATTESTATION_JWKS_URL: &str = "https://api.getship.dev/v1/jwks";
 
 /// How long to cache the fetched JWKS.

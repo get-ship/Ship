@@ -136,7 +136,7 @@ impl ProcessState {
 /// `which`-style lookup. Returns the first match on `$PATH`, or `None`.
 /// Used by the isolation-enforce path to find `bun` without depending on
 /// the existing toolchain resolver (which assumes a specific install
-/// layout under `~/.ship/`).
+/// layout under the ship home).
 fn which_bin(name: &str) -> Option<std::path::PathBuf> {
     let which = if cfg!(target_os = "windows") { "where" } else { "which" };
     let out = std::process::Command::new(which).arg(name).output().ok()?;

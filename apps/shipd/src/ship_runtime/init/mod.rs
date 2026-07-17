@@ -260,7 +260,7 @@ impl ShipRuntime {
             ship_dir: global_dir.clone(),
             // Per-scope dbs live at the ship-home root (`runtime.db`,
             // `account.db`, `spaces/<id>/space.db`); `data.db` + `kv.db`
-            // live under `~/.ship/machine/db/`. A workspace attachment does
+            // live at the data root (`data_dir()`). A workspace attachment does
             // NOT fork a second db into `<workspace>/.ship/` — see
             // `crates/core/ship-substrate/src/db/mod.rs`. `platform.db` was
             // deleted in the Phase-4 storage partition; no boot step

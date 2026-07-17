@@ -43,7 +43,7 @@ pub struct Skill {
     #[serde(default)]
     pub source: SkillSource,
     /// Resolved variable values for template substitution.
-    /// Merged from: user state (~/.ship/state/skills/{id}.json) +
+    /// Merged from: user state (state_dir()/skills/{id}.json) +
     /// project state (.ship/state/skills/{id}.json) + vars.json defaults.
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub vars: HashMap<String, serde_json::Value>,

@@ -5,7 +5,7 @@
 # if you reach for one, ask whether a recipe should exist instead.
 #
 # Per devx-04, `just dev` and friends operate on a per-worktree daemon at
-# ~/.ship/machine/daemons/<hash>/, with stashed binaries that survive
+# state_dir()/daemons/<hash>/, with stashed binaries that survive
 # subsequent rebuilds until you run `just dev-restart`.
 
 set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
@@ -108,7 +108,7 @@ status:
 doctor:
     ship doctor
 
-# Populate ~/.ship/runtime/ from local sources for dev: bun from $BUN_PATH
+# Populate runtime_dir() from local sources for dev: bun from $BUN_PATH
 # (defaulting to a `bun` on PATH), sui-compiler from target/release/.
 # Idempotent. Run once after a fresh clone.
 #
@@ -130,7 +130,7 @@ dev-runtime-install:
     fi
     ./target/debug/ship runtime install --bun "$BUN_BIN" --sui-compiler target/release/sui-compiler
 
-# Same as dev-runtime-install but wipes ~/.ship/runtime/ first.
+# Same as dev-runtime-install but wipes runtime_dir() first.
 [group('daily')]
 dev-runtime-update:
     #!/usr/bin/env bash

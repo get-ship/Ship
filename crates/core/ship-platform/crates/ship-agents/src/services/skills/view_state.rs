@@ -44,7 +44,7 @@ pub struct SkillDetail {
 
 /// Source label applied to project-scoped skills (enclosing `.ship/` of cwd).
 pub const SOURCE_PROJECT: &str = "PROJECT SKILLS";
-/// Source label applied to global-scoped skills (`~/.ship/skills/`).
+/// Source label applied to global-scoped skills (`data_dir()/library/skills/`).
 pub const SOURCE_GLOBAL: &str = "USER SKILLS";
 
 pub(crate) fn parse_skill_md(content: &str) -> (std::collections::HashMap<String, String>, String) {

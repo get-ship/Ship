@@ -13,7 +13,7 @@
 //! and uses a unique per-test `space_id` so concurrent test cases don't
 //! overwrite each other's `settings_overlay` rows. The substrate's test
 //! isolation gate then naturally prevents tests from touching the
-//! operator's real `~/.ship`.
+//! operator's real ship home.
 //!
 //! The overlay writer uses the same substrate accessors the
 //! SettingsService ships with, so the resulting row shape matches

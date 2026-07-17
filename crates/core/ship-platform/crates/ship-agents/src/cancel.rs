@@ -12,10 +12,6 @@
 //! is resolved from the session_id via `ProjectionReader::slug_for_session_id`
 //! — keeps this decision off `crate::projections` directly.
 //!
-//! Distinct from the orchestrator's pipeline-run cancel (which additionally
-//! walks fanout lanes and reads the jobs projection for the branch). The agent
-//! cancel is slug-keyed and harness-agnostic.
-//!
 //! The Stop RPC (`AgentsService::stop`) now emits `session.cancelled`
 //! (Runtime-scoped, Durable, canonical payload with slug populated) and returns
 //! optimistically; this handler performs the actual process teardown on receipt

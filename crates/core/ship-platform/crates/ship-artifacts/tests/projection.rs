@@ -17,7 +17,7 @@
 //! materializes its own `collection_artifacts` rows.
 //!
 //! All tests are isolated via `init_project_minimal` so they never touch
-//! `~/.ship`.
+//! the operator's real ship home.
 
 use std::collections::BTreeMap;
 use std::sync::Arc;

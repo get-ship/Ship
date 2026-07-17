@@ -119,7 +119,7 @@ mod tests {
     /// (its `install_collection_projection` + a space.db-bound `CollectionService`)
     /// is read back immediately — the same emit-only round-trip helmd's
     /// `CollectionsService` wire serves. Fully isolated: `init_project_minimal` +
-    /// `new_isolated_for_test` never touch `~/.ship`.
+    /// `new_isolated_for_test` never touch the operator's real ship home.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn notes_round_trips_through_helmd_collection_path() {
         let tmp = tempfile::tempdir().unwrap();

@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 /// On-disk shape of the gateway API key. Persisted under
-/// `~/.ship/machine/daemon/account.jsonc` (mode 0600) via the substrate
+/// `state_dir()/daemon/account.jsonc` (mode 0600) via the substrate
 /// secret-doc seam. The on-wire shape is
 /// `ship_gateway_client::TokenExchangeResponse`; we keep a plain serde record
 /// here because the buffa-generated type carries runtime quirks (default trait,

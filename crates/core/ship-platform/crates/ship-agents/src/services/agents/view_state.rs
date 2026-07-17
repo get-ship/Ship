@@ -108,7 +108,7 @@ pub struct Permissions {
 
 /// Source label for project-scoped agents (enclosing `.ship/` of cwd).
 pub const SOURCE_PROJECT: &str = "PROJECT AGENTS";
-/// Source label for user-scope agents (`~/.ship/library/agents/`).
+/// Source label for user-scope agents (`data_dir()/library/agents/`).
 pub const SOURCE_GLOBAL: &str = "USER AGENTS";
 /// Resolve the enclosing project's space root (the parent of its `.ship/`),
 /// walking up from the current working directory. `None` outside a Ship
@@ -482,7 +482,7 @@ pub async fn agent_id_exists_in_index(index: &AgentDefIndex, id: &str) -> bool {
 // ─── Index-backed reads (AGENTS domain owns its config) ───────────────────────
 //
 // Served ENTIRELY from the `AgentDefIndex` DataStore snapshot — no re-read of
-// `.ship/agents/*.jsonc` or `~/.ship/library/agents/*.jsonc` per call.
+// `.ship/agents/*.jsonc` or `data_dir()/library/agents/*.jsonc` per call.
 // `list_docs`'s "project" scope IS `stack_model::compose_space`'s composed
 // answer (`AgentDefIndex::upsert_composed`): a same-id loser is already
 // excluded there, so no precedence law is re-derived here — id set and

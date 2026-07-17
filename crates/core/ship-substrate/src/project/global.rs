@@ -1,4 +1,4 @@
-//! Global `~/.ship` directory — the XDG split delegate.
+//! Global ship-home directory — the XDG split delegate.
 //!
 //! The single global accessor [`get_global_dir`] is a thin wrapper around
 //! `ShipHome::from_env().data_dir()`. Per the home-layout ADR, the four

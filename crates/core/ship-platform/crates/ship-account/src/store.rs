@@ -1,6 +1,6 @@
 //! Token storage for the gateway account key.
 //!
-//! Lives at `~/.ship/machine/daemon/account.jsonc`, mode 0600. Only the daemon
+//! Lives at `state_dir()/daemon/account.jsonc`, mode 0600. Only the daemon
 //! touches it; CLI account ops go through the daemon. The trait stays async so a
 //! future `KeychainTokenStore` (OS keychain) can swap in without touching
 //! callers — but the **file impl carries ZERO raw `fs`**: every disk op routes
@@ -30,7 +30,7 @@ pub trait AccountTokenStore: Send + Sync {
 
 /// File-backed token store over the substrate secret-doc seam. Mode 0600.
 /// Parent dir created on first write. The path is the daemon's own
-/// `~/.ship/machine/daemon/account.jsonc` (via `ShipHome::account_token_path`),
+/// `state_dir()/daemon/account.jsonc` (via `ShipHome::account_token_path`),
 /// NOT the legacy shared `credentials.jsonc`.
 #[derive(Debug, Clone)]
 pub struct FileTokenStore {

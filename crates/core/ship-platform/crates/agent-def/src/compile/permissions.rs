@@ -38,14 +38,14 @@ pub use stack_model::PermissionPreset as PermissionPreset;
 ///   stores, browser credential DBs. Never readable by any agent, any preset.
 /// - **Local-only credentials** (Read): ambient secrets that don't grant
 ///   off-machine access but feed downstream compromise. Daemon token, MCP
-///   bearer, daemon port info under `~/.ship/state/`.
+///   bearer, daemon port info under `state_dir()`.
 /// - **Ship state** (Write/Edit): corruption causes silent kernel
 ///   inconsistencies and data loss. Event store + projections under
-///   `~/.ship/data/`.
+///   `data_dir()`.
 /// - **History files** (Read): commonly contain unredacted credentials.
 /// - **Bypass operations** (Bash): obvious ways to skirt the above —
 ///   `cat`/`head`/`less` on protected paths, `curl | sh`, `sudo`, etc.
-/// - **Ship dir deletion** (Bash): `rm` patterns protecting `~/.ship/`.
+/// - **Ship dir deletion** (Bash): `rm` patterns protecting the ship home.
 pub const FLOOR_DENIES: &[&str] = &[
     // ── Cross-machine credentials — leak = off-machine compromise ──────────
     "Read(~/.ssh/**)",

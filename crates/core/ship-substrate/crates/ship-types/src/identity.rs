@@ -46,7 +46,7 @@ scope_id! {
 
 /// Process-wide installation handle for the per-machine device identity.
 /// `set_local_device_id` populates it at daemon boot (mint-once in
-/// `~/.ship/machine/device-id`, mode 0600); the `local_device_id` getter
+/// `state_dir()/device-id`, mode 0600); the `local_device_id` getter
 /// returns that value, falling back to `"local-device"` so tests and
 /// pre-boot callers (e.g. `caller.rs::daemon_internal_space_key_roundtrips`)
 /// keep working without the install step.

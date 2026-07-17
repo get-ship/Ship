@@ -21,7 +21,7 @@ use ship_substrate::home::ProjectRoot;
 /// (identity files, port file) and uses this struct's copy for the
 /// pre-construction steps (stale-file cleanup).
 pub struct DaemonPaths {
-    /// `~/.ship` — the global ship dir. Never workspace-scoped.
+    /// The global data dir (`data_dir()`). Never workspace-scoped.
     pub global_dir: PathBuf,
     /// `--workspace` arg, when provided. Drives per-project artifact storage.
     pub workspace_dir: Option<PathBuf>,

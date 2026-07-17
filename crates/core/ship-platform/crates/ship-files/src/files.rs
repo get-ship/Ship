@@ -1,6 +1,6 @@
 //! Shared filesystem helper for domain services that persist to disk.
 //!
-//! One source of truth for reading/writing under `.ship/` and `~/.ship/`.
+//! One source of truth for reading/writing under `.ship/` and the global ship home.
 //! Every file-backed service (agents, skills, rules, mcp, permissions,
 //! pipelines, views, ...) delegates I/O here — path scoping, JSONC
 //! round-trip, atomic writes, and trash-on-delete are uniform.

@@ -72,7 +72,7 @@ pub enum SkillSource {
 /// and can use `$ARGUMENTS`.
 /// Stored as:
 /// - project scope: `.ship/agents/skills/<id>/SKILL.md`
-/// - user scope: `~/.ship/skills/<id>/SKILL.md`
+/// - user scope: `data_dir()/library/skills/<id>/SKILL.md`
 ///
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Skill {

@@ -63,7 +63,7 @@
 //!     wedged driver cannot keep climbing toward the host limit.
 //!   * Hard CYCLE CAP: `MAX_CYCLES = 5000`.
 //!   * Wall-clock TIMEOUT: `WALL_CLOCK_TIMEOUT` — checked every cycle.
-//!   * TEMP workspace via `TempDir` — never `~/.ship` or real data; dropped at
+//!   * TEMP workspace via `TempDir` — never the real ship home or real data; dropped at
 //!     end of scope so teardown happens even on panic/early-return. NO global
 //!     DB / env-resolved path is ever touched (we deliberately do NOT call
 //!     `EventBus::rebuild`, which writes cursors through the global `open_db()`;
@@ -308,7 +308,7 @@ fn linear_slope(points: &[(f64, f64)]) -> f64 {
 /// pool, so its `process::abort` backstop holds regardless.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn daemon_rss_slope_is_flat_under_connection_churn() {
-    // ── Isolated temp workspace — never ~/.ship or real data. Dropped at end
+    // ── Isolated temp workspace — never the real ship home or real data. Dropped at end
     //    of scope (even on panic) so the DB + WAL are cleaned up. ──
     let temp = tempfile::TempDir::new().expect("create temp workspace");
     let ship_dir = temp.path().join(".ship");

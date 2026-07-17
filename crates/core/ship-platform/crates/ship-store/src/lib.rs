@@ -3,7 +3,7 @@
 //! Public API surface for callers:
 //!
 //! - [`install::resolve_and_fetch`] — top-level orchestration.
-//! - [`cache::PackageCache`] — content-addressed cache (`~/.ship/cache/`).
+//! - [`cache::PackageCache`] — content-addressed cache (`cache_dir()`).
 //! - [`constraint::parse_constraint`] / [`constraint::VersionConstraint`] — constraint parsing.
 //! - [`resolver::resolve_version`] — git tag → exact commit resolution.
 //! - [`hash::compute_tree_hash`] / [`hash::compute_file_hash`] — deterministic SHA-256 hashing.

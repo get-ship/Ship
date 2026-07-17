@@ -1,7 +1,7 @@
-//! Ship home layout — typed accessors for `~/.ship/`.
+//! Ship home layout — typed accessors for the ship home.
 //!
 //! Per ADR `home-layout-and-scope-convention`, this module is the only
-//! permitted origin of paths under `~/.ship/`. Raw `.join(".ship")` or
+//! permitted origin of paths under the ship home. Raw `.join(".ship")` or
 //! `home_dir().join(".ship/…")` elsewhere is flagged by
 //! `scripts/lint/check-raw-ship-paths.sh`.
 

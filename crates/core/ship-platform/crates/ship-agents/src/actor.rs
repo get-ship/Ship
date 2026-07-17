@@ -9,11 +9,8 @@
 //!     (detached off the loop under the shared L0 `DISPATCH_GATE`);
 //!   - `session.cancelled` → [`crate::cancel::handle_agent_cancelled`].
 //!
-//! The no-double-spawn invariant: orchestrator deleted its `dispatch.*`
-//! arms, so this actor is the SOLE actor that acts on `dispatch.requested`.
-//! The two actors' separate dedup instances therefore never double-admit a
-//! spawn. orchestrator keeps subscribing to `session.completed/failed`
-//! ONLY to advance composed pipeline sessions — it no longer spawns/cancels.
+//! The no-double-spawn invariant: this actor is the SOLE actor that acts on
+//! `dispatch.requested`.
 //!
 //! `process.*` is in `write_namespaces` because the cancel kill path emits
 //! `process.killed`; the kernel validator rejects emits outside the actor's

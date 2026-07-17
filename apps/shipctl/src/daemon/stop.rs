@@ -25,7 +25,7 @@ const KILL_SETTLE: std::time::Duration = std::time::Duration::from_secs(1);
 
 /// Core stop logic, parameterised on the daemon dir so unit tests can
 /// run against a temp directory without mutating the developer's
-/// `~/.ship/`. The production entry point (`daemon_stop_inner`) calls
+/// real ship home. The production entry point (`daemon_stop_inner`) calls
 /// `discover_running_daemon` and passes its `dir`.
 pub fn daemon_stop_at(daemon_dir: &Path) -> Result<()> {
     let pid = match resolve_supervisor_pid(daemon_dir)? {

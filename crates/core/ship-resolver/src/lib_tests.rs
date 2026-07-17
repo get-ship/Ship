@@ -158,7 +158,7 @@ async fn load_root_library_omits_resolve_step() {
 async fn roll_up_without_lockfile_is_source_only_identity() {
     let (_tmp, root) = write_minimal_space();
     // Point `cache_root` at an empty dir so the roll-up can't
-    // accidentally read from the host's real `~/.ship/cache`.
+    // accidentally read from the host's real `cache_dir()`.
     let cache_root = root.join("empty_cache");
     std::fs::create_dir_all(&cache_root).unwrap();
 

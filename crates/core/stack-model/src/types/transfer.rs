@@ -126,7 +126,7 @@ pub struct PullAgent {
     pub plugins: Option<serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub harness_settings: Option<serde_json::Value>,
-    /// "project" (from .ship/) or "library" (from ~/.ship/).
+    /// "project" (from .ship/) or "library" (from the global ship home).
     #[serde(default = "default_source")]
     pub source: String,
 }

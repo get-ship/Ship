@@ -156,7 +156,7 @@ cargo run -p shipd         # serves http://localhost:9315
 ### Dev install script
 
 `scripts/install.sh` is an explicitly **developer / CI** path — it pulls a
-release tarball, drops both binaries under `~/.ship/bin`, registers a
+release tarball, drops both binaries under the ship home's `bin/` dir, registers a
 systemd-user or launchd service, and opens the setup wizard. It is not the
 end-user distribution story; use it only for dev or CI bootstrapping.
 

@@ -163,7 +163,7 @@ fn version_match_allows_start() {
 }
 
 /// End-to-end spawn of the pidfile adapter is not run by default — it
-/// would fork a real shipd supervisor against the user's `~/.ship/`.
+/// would fork a real shipd supervisor against the user's real ship home.
 /// Kept ignored so anyone debugging routing can opt in with
 /// `cargo test -- --ignored pidfile_adapter_start_stop_round_trip`.
 #[test]

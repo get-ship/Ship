@@ -1,7 +1,7 @@
 //! Round-trip test for the `claim` collection (Slice 1a — Helm cutover).
 //!
 //! Mirrors `tests/projection.rs` for the isolated harness
-//! (`init_project_minimal` + `new_isolated_for_test` — never touches `~/.ship`)
+//! (`init_project_minimal` + `new_isolated_for_test` — never touches the operator's real ship home)
 //! and asserts that a Helm-shaped claim — typed scalar fields plus a nested
 //! `reconciliation` object — round-trips through `CollectionService::create_item`
 //! → projection → `query_items_by_query` exactly. Typed columns are read back as

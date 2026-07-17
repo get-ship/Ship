@@ -4,7 +4,7 @@
 //! using the hoisted `register_event!` macro from `ship_types`.
 //!
 //! Keystone A (2026-06-10): the COLLECTION domain owns its events at L1.
-//! These registrations moved from `ship_substrate::events::payload_registry` (now `ship_substrate::events::payload_registry` does not exist; `payload_registry` lives in the facade `ship_substrate::events::payload_registry`)
+//! These registrations moved from `ship_substrate::events::payload_registry`
 //! into this crate so that payload types and registrations co-locate with
 //! their domain author.
 

@@ -6,7 +6,7 @@
 //! Resolution path:
 //!   dep ref → split package path + within-package path
 //!           → look up package in ship.lock → get `sha256:<hex>` hash
-//!           → cache dir `~/.ship/cache/objects/<hex>/`
+//!           → cache dir `cache_dir()/objects/<hex>/`
 //!           → if `<within-path>/SKILL.md` exists → single skill
 //!           → if `<within-path>/` is a namespace dir (sub-dirs with SKILL.md)
 //!             → expand to all leaf skills within
@@ -97,7 +97,7 @@ pub fn hash_from_lock(lock: &ShipLock, package_path: &str) -> Result<String> {
 
 /// Build the filesystem path to a within-package path under the cache.
 ///
-/// `cache_root` is `~/.ship/cache/` (or a test override).
+/// `cache_root` is `cache_dir()` (or a test override).
 /// Returns `<cache_root>/objects/<hex>/<within_path>`.
 pub fn cache_skill_path(cache_root: &Path, hex: &str, within_path: &str) -> PathBuf {
     cache_root.join("objects").join(hex).join(within_path)
@@ -111,7 +111,7 @@ pub fn cache_skill_path(cache_root: &Path, hex: &str, within_path: &str) -> Path
 ///
 /// `ref_str`    — full dep ref, e.g. `github.com/owner/pkg/better-auth`
 /// `lock`       — parsed ship.lock
-/// `cache_root` — `~/.ship/cache/`
+/// `cache_root` — `cache_dir()`
 pub fn resolve_dep_skill(ref_str: &str, lock: &ShipLock, cache_root: &Path) -> Result<Vec<Skill>> {
     let (package_path, within_path) = parse_dep_ref(ref_str)
         .ok_or_else(|| anyhow::anyhow!("invalid dep skill ref: '{}'", ref_str))?;
@@ -223,7 +223,7 @@ fn list_available_skills(skills_dir: &Path) -> Vec<String> {
 /// - A missing lock or cache hit causes a hard error with an actionable message.
 ///
 /// `lock_path`  — `.ship/ship.lock`
-/// `cache_root` — `~/.ship/cache/` (pass `None` to use the default)
+/// `cache_root` — `cache_dir()` (pass `None` to use the default)
 pub fn resolve_dep_skills(
     skill_refs: &[String],
     local_skills: &[Skill],
@@ -257,7 +257,7 @@ pub fn resolve_dep_skills(
             // Route through `ShipHome::from_env` so SHIP_HOME is honored and
             // the test-context isolation gate kicks in. A raw `home::home_dir()`
             // bypass here would let a non-isolated test resolve the operator's
-            // real `~/.ship/cache/` — see datasafety-shiphome.
+            // real `cache_dir()` — see datasafety-shiphome.
             default_cache = ship_substrate::ShipHome::from_env().cache_dir().to_path_buf();
             &default_cache
         }
@@ -430,7 +430,7 @@ pub struct CachedExtension {
 /// Returns an empty vec when there is no lockfile (no deps installed).
 ///
 /// `lock_path`  — `.ship/ship.lock`
-/// `cache_root` — `~/.ship/cache/` (pass `None` to use the default)
+/// `cache_root` — `cache_dir()` (pass `None` to use the default)
 pub fn load_cached_extensions(
     lock_path: &Path,
     cache_root: Option<&Path>,

@@ -1,5 +1,5 @@
 //! Skill primitive — callable instruction document stored under
-//! `.ship/skills/<id>/SKILL.md` (project) or `~/.ship/skills/<id>/SKILL.md`
+//! `.ship/skills/<id>/SKILL.md` (project) or `data_dir()/library/skills/<id>/SKILL.md`
 //! (user). See submodules for storage, install, and types.
 
 use std::collections::HashMap;

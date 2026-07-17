@@ -6,7 +6,7 @@
 //!   matches the `views/` convention used by built-in apps in-tree).
 //! - `<workspace>/.ship/views/<name>/`   — project-scoped views colocated
 //!   with other `.ship/` config.
-//! - `<global>/views/<name>/`            — global views from `~/.ship/`.
+//! - `<global>/views/<name>/`            — global views from `data_dir()`.
 //!
 //! The two project-scoped roots resolve from the daemon's attached
 //! workspace, NOT from the Ship repo root. That's the key delta from

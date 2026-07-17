@@ -117,7 +117,7 @@ pub async fn install_session_subsystems(
     // Install the per-machine device id so every scope binding minted by
     // `ScopeBinding::daemon_internal` carries the stable id instead of the
     // `"local-device"` placeholder. Read+possible-mint under
-    // `~/.ship/machine/device-id` (mode 0600). Propagating IO errors so a
+    // `state_dir()/device-id` (mode 0600). Propagating IO errors so a
     // mint failure blocks boot — mirrors `read_or_generate_token`'s posture
     // (the device id is a per-machine secret, not per-daemon).
     let home = ShipHome::from_env();

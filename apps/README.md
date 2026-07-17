@@ -9,17 +9,11 @@ and both coexist over this same directory.
 |---|---|---|
 | `shipd/` | Rust | The daemon. Hosts the kernel, projections, HTTP API, view server. |
 | `shipctl/` | Rust | `shipctl` command. The 11 daemon verbs, doctor, and config. |
-| `docs/` | TS | Astro-based docs site at getship.dev/docs. Consumes `docs/` content via `apps/docs/src/content/`. |
-| `site/` | TS | Marketing site at getship.dev. |
-| `shell/` | TS | Web shell — the daemon-served UI shell that hosts views. |
-| `gateway/` | TS | Public ingress for Ship Cloud — auth, routing, billing. |
-| `workers/` | TS | Cloudflare Workers monorepo. Per-worker subdirs (`platform/`, `project/`, shared `drizzle/`, `types/`). |
-| `vscode/` | TS | VS Code extension for `.ship/` config editing. |
 
 ## Workspace membership
 
 - Rust members are listed in `/Cargo.toml` `[workspace] members`.
-- TS members are picked up by the `workspaces` array in the root `package.json` (`apps/{docs,shell,site,gateway,workers/*}`, `packages/*`, `packages/components/*`).
+- TS members are picked up by the `workspaces.packages` array in the root `package.json` (`apps/host`).
 
 ## Where to put what
 

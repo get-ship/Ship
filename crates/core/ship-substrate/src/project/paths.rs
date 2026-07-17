@@ -19,7 +19,7 @@ pub fn skills_dir(ship_dir: &Path) -> PathBuf {
     project_skills_dir(ship_dir)
 }
 
-/// Global/shared skills store: `~/.ship/library/skills/`
+/// Global/shared skills store: `data_dir()/library/skills/`
 pub fn user_skills_dir() -> PathBuf {
     get_global_dir()
         .unwrap_or_else(|_| PathBuf::from(".ship"))

@@ -11,7 +11,7 @@
 //! `space.db`, where its projection materializes its own table.
 //!
 //! All tests are isolated via `init_project_minimal` + `new_isolated_for_test`
-//! so they never touch `~/.ship`.
+//! so they never touch the operator's real ship home.
 
 use std::sync::Arc;
 

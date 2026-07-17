@@ -3,9 +3,7 @@
 //!
 //! `handle_dispatch_requested` is the SOLE handler of `dispatch.requested`
 //! (the spawn-intent channel, #26). It owns the spawn atom for bare
-//! `ship use` / `ship dispatch` / MCP `dispatch_agent` sessions. Pipeline-
-//! composed sessions (`parent_pipeline_run_id` set) are skipped here — the
-//! pipeline composer owns their spawn, and orchestrator advances them.
+//! `ship use` / `ship dispatch` / MCP `dispatch_agent` sessions.
 //!
 //! Drives the L0 runner mechanism (`exit_handler`, the kernel-emit helpers) and
 //! the injected dispatch ports ([`AgentPorts`]). Names no pipeline-DAG type and

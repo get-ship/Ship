@@ -33,7 +33,7 @@ pub fn ensure_daemon_running() -> Result<()> {
 /// Print the daemon URL after a successful `ship daemon start`/`restart`.
 ///
 /// The daemon binds to a per-worktree port written into
-/// `~/.ship/machine/daemons/<hash>/port` *after* the supervisor has spawned
+/// `state_dir()/daemons/<hash>/port` *after* the supervisor has spawned
 /// shipd and shipd has bound its socket. We poll the discover-daemon helper
 /// for up to ~5s so the URL is the actual bound port, not the legacy
 /// `SHIPD_PORT` constant. Bearer credentials are deliberately omitted — they

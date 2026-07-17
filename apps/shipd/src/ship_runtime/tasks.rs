@@ -263,7 +263,7 @@ impl ShipRuntime {
         };
 
         // The index read-model lives in the active space's per-scope db under the
-        // GLOBAL ship-home (~/.ship | $XDG_DATA_DIR), NEVER the project tree
+        // GLOBAL ship-home (`data_dir()`), NEVER the project tree
         // (#279). `project_ship_dir` is for reading the def FILES (below), not
         // the db; rooting the db there forks a per-space store into the repo.
         let space_db = ship_substrate::db::space_db_path(self.ship_dir(), &space_id);
