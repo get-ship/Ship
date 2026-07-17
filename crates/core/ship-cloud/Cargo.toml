@@ -21,6 +21,7 @@ chrono = { workspace = true }
 reqwest = { workspace = true, features = ["blocking", "json", "rustls-tls"] }
 bundle-limits = { path = "../ship-platform/crates/bundle-limits" }
 tracing = { workspace = true }
+tokio = { workspace = true, features = ["sync"] }
 
 [features]
 # Enables SyncServiceHandler — the ServiceHandler actor that drives the push

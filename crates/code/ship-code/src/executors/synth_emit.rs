@@ -6,42 +6,30 @@
 //! ship-substrate was a layering smell. This module lifts the synthesis to
 //! L1 (ship-code) where op.* payloads live. L0 remains a dumb event store.
 //!
-//! Emit path: build the EventEnvelope → SqliteEventStore::append_enforced
-//! (persist + projection apply in one tx) → optional kernel_router delivery.
-//! Same persist-then-deliver semantics as the old hook_events.rs, now at L1.
+//! Emit path: build the EventEnvelope → route through the global
+//! `KernelRouter::emit`, the sole place Retention is honored. `op.*` and
+//! `session.turn.*` are registered `Retention::Ephemeral` — the kernel
+//! delivers them to live subscribers without persisting.
 
 use ship_substrate::db::block_on_anyhow;
 use ship_substrate::events::EventEnvelope;
-use ship_substrate::persistence::event_store::SqliteEventStore;
-use ship_types::event_registry::EventScope;
 use ship_types::event_types::canonical_session as event_types;
 
 fn now_iso8601() -> String {
     chrono::Utc::now().to_rfc3339()
 }
 
-/// Persist an op.* or session.turn.* envelope via the Runtime-scoped store and
-/// optionally deliver through the global kernel router.
+/// Route an op.* or session.turn.* envelope through the global kernel.
 fn emit<P: serde::Serialize>(
     actor_id: &str,
     event_type: &'static str,
     payload: &P,
 ) -> anyhow::Result<()> {
     let envelope = EventEnvelope::new(event_type, actor_id, payload)?.with_actor_id(actor_id);
-    let store = SqliteEventStore::new_for_scope(
-        &ship_substrate::project::get_global_dir()?,
-        EventScope::Runtime,
-        None,
-    )?;
-    let binding = ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk);
-    let stamped = store.append_enforced(&envelope, &binding)?;
-    if let Some(kr) = ship_substrate::events::kernel_router() {
-        let _ = block_on_anyhow(async {
-            kr.lock().await.deliver(&stamped);
-            Ok(())
-        });
-    }
-    Ok(())
+    let kernel = ship_substrate::events::kernel_router()
+        .expect("kernel must be initialized before synth_emit emits");
+    let ctx = ship_types::EmitContext::daemon_internal(None);
+    block_on_anyhow(async move { kernel.lock().await.emit(envelope, &ctx).await })
 }
 
 /// Emit `op.tool_use_started` from the supervisor harness-stream parser.

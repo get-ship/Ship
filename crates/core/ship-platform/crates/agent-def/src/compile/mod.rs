@@ -276,7 +276,6 @@ fn emit_compile_completed(
 ) {
     use ship_substrate::events::EventEnvelope;
     use ship_substrate::events::types::{CompileCompleted, event_types::COMPILE_COMPLETED};
-    use ship_substrate::persistence::event_store::SqliteEventStore;
 
     // The space id comes from the `projects` pointer. An unregistered project
     // records no compile state (space-less) — the daemon registers its
@@ -302,31 +301,24 @@ fn emit_compile_completed(
             return;
         }
     };
-    // compile.* is Space-scoped → write the bound space's space.db under the
-    // global ship-home (the db compile_state::load(space_id) reads). `space_id`
-    // is the scope key.
-    let store = match ship_substrate::project::get_global_dir().and_then(|root| {
-        SqliteEventStore::new_for_scope(
-            &root,
-            ship_types::event_registry::EventScope::Space,
-            Some(space_id.as_str()),
-        )
-    }) {
-        Ok(s) => s,
-        Err(e) => {
-            tracing::warn!("compile: cannot open event store: {e}");
-            return;
-        }
-    };
     // compile.completed is Space-scoped: the binding must be bound to this
     // space so enforce_scope stamps/validates the space key. A daemon-internal
     // Space binding (the compile pass runs in the daemon, no session) carries it.
     let space = ship_types::identity::SpaceId::new(space_id.as_str());
-    let binding = ship_types::ScopeBinding::daemon_internal(
-        Some(space.clone()),
-        ship_types::Authority::Space { space_id: space },
-    );
-    if let Err(e) = store.append_enforced(&envelope, &binding) {
-        tracing::warn!("compile: cannot append compile.completed: {e}");
+    let ctx = ship_types::EmitContext {
+        caller_kind: ship_types::CallerKind::Runtime,
+        skill_id: None,
+        binding: ship_types::ScopeBinding::daemon_internal(
+            Some(space.clone()),
+            ship_types::Authority::Space { space_id: space },
+        ),
+        session_id: None,
+    };
+    let kernel = ship_substrate::events::kernel_router()
+        .expect("kernel must be initialized before compile.completed emits");
+    if let Err(e) = ship_substrate::db::block_on_anyhow(async move {
+        kernel.lock().await.emit(envelope, &ctx).await
+    }) {
+        tracing::warn!("compile: cannot emit compile.completed: {e}");
     }
 }

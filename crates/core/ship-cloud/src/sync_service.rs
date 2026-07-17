@@ -6,24 +6,26 @@
 //!
 //! Pull (routing received events to subscribed actors) is Phase 2 — it requires
 //! kernel access from within the service task, which doesn't exist yet.
+use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Result;
+use tokio::sync::Mutex;
 
-use ship_substrate::db::cursors;
-use ship_substrate::events::{EventEnvelope, SqliteEventStore, query_events_since};
+use ship_substrate::db::{block_on_anyhow, cursors};
+use ship_substrate::events::{EventEnvelope, KernelRouter, SqliteEventStore, query_events_since};
 use ship_substrate::services::ServiceHandler;
 use ship_types::payload::SyncPushCompleted;
 use crate::{PushResponse, SyncClient};
 
 const PUSH_SCOPE_PREFIX: &str = "push:platform";
 
-/// The sync service's writer binding. `sync.*` are Runtime-scoped daemon
+/// The sync service's emit context. `sync.*` are Runtime-scoped daemon
 /// service events with no space binding (the service task has no session), so
 /// the daemon-internal binding is the authoritative non-space binding
 /// `enforce_scope` stamps the Runtime key from.
-fn sync_binding() -> ship_types::ScopeBinding {
-    ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk)
+fn sync_ctx() -> ship_types::EmitContext {
+    ship_types::EmitContext::daemon_internal(None)
 }
 
 /// Transport abstraction over [`SyncClient`] — enables injection in tests.
@@ -69,31 +71,50 @@ impl Default for SyncConfig {
 /// Headless sync service implementing [`ServiceHandler`].
 ///
 /// Push cycle fires on the tick interval and on threshold accumulation.
+///
+/// Holds its own kernel handle (rather than reaching for the process-global
+/// `ship_substrate::events::kernel_router()`) so `sync.*` emission is
+/// injectable — the `ServiceHandler` trait's `store: &SqliteEventStore`
+/// parameter is shared with every other service impl and can't be widened to
+/// an emit port without cascading beyond this file, so the kernel travels
+/// with the handler instead of through the trait.
 pub struct SyncServiceHandler {
     config: SyncConfig,
     client: Box<dyn SyncTransport>,
     elevated_since_push: usize,
+    kernel: Arc<Mutex<KernelRouter>>,
 }
 
 impl SyncServiceHandler {
-    pub fn new(config: SyncConfig) -> Self {
+    pub fn new(config: SyncConfig, kernel: Arc<Mutex<KernelRouter>>) -> Self {
         let client = Box::new(SyncClient::new(&config.endpoint));
-        Self { config, client, elevated_since_push: 0 }
+        Self { config, client, elevated_since_push: 0, kernel }
     }
 
     #[cfg(test)]
     pub(crate) fn with_transport(
         config: SyncConfig,
         client: Box<dyn SyncTransport>,
+        kernel: Arc<Mutex<KernelRouter>>,
     ) -> Self {
-        Self { config, client, elevated_since_push: 0 }
+        Self { config, client, elevated_since_push: 0, kernel }
     }
 
     fn push_scope(&self) -> String {
         format!("{PUSH_SCOPE_PREFIX}:{}", self.config.space_id)
     }
 
-    fn push_cycle(&mut self, store: &SqliteEventStore) -> Result<()> {
+    /// Route a `sync.*` envelope through the kernel — the sole place
+    /// Retention is honored. `sync.push.completed` is Ephemeral (delivered,
+    /// not persisted); `sync.started`/`sync.stopped`/`sync.push.failed` are
+    /// Durable.
+    fn emit(&self, envelope: EventEnvelope) -> Result<()> {
+        let kernel = self.kernel.clone();
+        let ctx = sync_ctx();
+        block_on_anyhow(async move { kernel.lock().await.emit(envelope, &ctx).await })
+    }
+
+    fn push_cycle(&mut self) -> Result<()> {
         let push_start = std::time::Instant::now();
         let scope = self.push_scope();
         let cursor = cursors::get(&scope)?;
@@ -108,14 +129,11 @@ impl SyncServiceHandler {
             events_pushed: resp.accepted as u64,
             duration_ms: push_start.elapsed().as_millis() as u64,
         };
-        store.append_enforced(
-            &EventEnvelope::new(
-                "sync.push.completed",
-                "sync",
-                &serde_json::to_value(&payload)?,
-            )?,
-            &sync_binding(),
-        )?;
+        self.emit(EventEnvelope::new(
+            "sync.push.completed",
+            "sync",
+            &serde_json::to_value(&payload)?,
+        )?)?;
         Ok(())
     }
 }
@@ -125,54 +143,46 @@ impl ServiceHandler for SyncServiceHandler {
         "sync"
     }
 
-    fn handle(&mut self, event: &EventEnvelope, store: &SqliteEventStore) -> Result<()> {
+    fn handle(&mut self, event: &EventEnvelope, _store: &SqliteEventStore) -> Result<()> {
         if event.event_type == "sync.trigger.push" {
-            return self.push_cycle(store);
+            return self.push_cycle();
         }
         if event.elevated {
             self.elevated_since_push += 1;
             if self.elevated_since_push >= self.config.push_threshold {
-                self.push_cycle(store)?;
+                self.push_cycle()?;
             }
         }
         Ok(())
     }
 
-    fn on_start(&mut self, store: &SqliteEventStore) -> Result<()> {
-        store.append_enforced(
-            &EventEnvelope::new(
-                "sync.started",
-                "sync",
-                &serde_json::json!({"space_id": &self.config.space_id}),
-            )?,
-            &sync_binding(),
-        )?;
-        Ok(())
+    fn on_start(&mut self, _store: &SqliteEventStore) -> Result<()> {
+        self.emit(EventEnvelope::new(
+            "sync.started",
+            "sync",
+            &serde_json::json!({"space_id": &self.config.space_id}),
+        )?)
     }
 
-    fn on_stop(&mut self, store: &SqliteEventStore) -> Result<()> {
-        store.append_enforced(
-            &EventEnvelope::new(
-                "sync.stopped",
-                "sync",
-                &serde_json::json!({}),
-            )?,
-            &sync_binding(),
-        )?;
-        Ok(())
+    fn on_stop(&mut self, _store: &SqliteEventStore) -> Result<()> {
+        self.emit(EventEnvelope::new(
+            "sync.stopped",
+            "sync",
+            &serde_json::json!({}),
+        )?)
     }
 
     fn tick_interval(&self) -> Option<Duration> {
         Some(Duration::from_secs(self.config.push_interval_secs))
     }
 
-    fn on_tick(&mut self, store: &SqliteEventStore) -> Result<()> {
-        if let Err(e) = self.push_cycle(store) {
+    fn on_tick(&mut self, _store: &SqliteEventStore) -> Result<()> {
+        if let Err(e) = self.push_cycle() {
             tracing::warn!("sync push_cycle error: {e}");
             let payload = serde_json::json!({"error": e.to_string()});
             let envelope = EventEnvelope::new("sync.push.failed", "sync", &payload)?;
-            if let Err(persist_err) = store.append_enforced(&envelope, &sync_binding()) {
-                tracing::error!("sync: failed to persist sync.push.failed event: {persist_err}");
+            if let Err(emit_err) = self.emit(envelope) {
+                tracing::error!("sync: failed to emit sync.push.failed event: {emit_err}");
             }
         }
         Ok(())
@@ -248,13 +258,14 @@ mod tests {
         .unwrap();
     }
 
-    fn make_store(_tmp: &tempfile::TempDir) -> SqliteEventStore {
-        // Backed by the already-initialised global runtime.db (setup_global_db).
-        // ActorStore is gone (job/actorstore-deletion, 2026-07-06) — the
-        // service now writes through `SqliteEventStore::append_enforced`,
-        // which runs the same stamp/scope/schema gate every other writer
-        // uses.
-        SqliteEventStore::new_at_db_path(&test_runtime_db()).unwrap()
+    /// A kernel isolated to its own tempdir (not the global singleton) — each
+    /// test gets its own router so `push_cycle`'s `sync.push.completed` emit
+    /// has somewhere to route without racing other tests over the global
+    /// `OnceLock` (see `new_isolated_for_test`'s doc).
+    fn isolated_kernel() -> (tempfile::TempDir, Arc<Mutex<KernelRouter>>) {
+        let tmp = tempdir().unwrap();
+        let kernel = ship_substrate::events::new_isolated_for_test(tmp.path().to_path_buf()).unwrap();
+        (tmp, kernel)
     }
 
     #[test]
@@ -262,8 +273,7 @@ mod tests {
         let _global = setup_global_db();
         insert_elevated_event("01JAAAAAAAAAAAAAAAAAAAAAAA");
 
-        let store_tmp = tempdir().unwrap();
-        let store = make_store(&store_tmp);
+        let (_kernel_tmp, kernel) = isolated_kernel();
         let config = SyncConfig {
             space_id: "proj-cursor".to_string(),
             ..SyncConfig::default()
@@ -273,9 +283,10 @@ mod tests {
             Box::new(MockTransport {
                 response_cursor: "01JBBBBBBBBBBBBBBBBBBBBBBBB".to_string(),
             }),
+            kernel,
         );
 
-        handler.push_cycle(&store).unwrap();
+        handler.push_cycle().unwrap();
 
         let scope = format!("push:platform:{}", config.space_id);
         assert_eq!(
@@ -289,8 +300,7 @@ mod tests {
         let _global = setup_global_db();
         // No events inserted — push_cycle must return without touching cursor.
 
-        let store_tmp = tempdir().unwrap();
-        let store = make_store(&store_tmp);
+        let (_kernel_tmp, kernel) = isolated_kernel();
         let config = SyncConfig {
             space_id: "proj-empty".to_string(),
             ..SyncConfig::default()
@@ -300,9 +310,10 @@ mod tests {
             Box::new(MockTransport {
                 response_cursor: "should-not-appear".to_string(),
             }),
+            kernel,
         );
 
-        handler.push_cycle(&store).unwrap();
+        handler.push_cycle().unwrap();
 
         let scope = format!("push:platform:{}", config.space_id);
         assert!(cursors::get(&scope).unwrap().is_none());
@@ -313,16 +324,15 @@ mod tests {
         let _global = setup_global_db();
         insert_elevated_event("01JCCCCCCCCCCCCCCCCCCCCCCCC");
 
-        let store_tmp = tempdir().unwrap();
-        let store = make_store(&store_tmp);
+        let (_kernel_tmp, kernel) = isolated_kernel();
         let config = SyncConfig {
             space_id: "proj-fail".to_string(),
             ..SyncConfig::default()
         };
         let mut handler =
-            SyncServiceHandler::with_transport(config.clone(), Box::new(FailTransport));
+            SyncServiceHandler::with_transport(config.clone(), Box::new(FailTransport), kernel);
 
-        assert!(handler.push_cycle(&store).is_err());
+        assert!(handler.push_cycle().is_err());
 
         let scope = format!("push:platform:{}", config.space_id);
         assert!(
