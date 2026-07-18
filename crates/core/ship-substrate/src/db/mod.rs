@@ -36,6 +36,10 @@ mod tests_kv;
 mod tests_pragma;
 #[cfg(test)]
 mod tests_rebuild;
+#[cfg(test)]
+mod torture_corruption_tests;
+#[cfg(test)]
+mod torture_trigger_tests;
 
 use anyhow::{Context, Result, anyhow};
 use sqlx::sqlite::SqliteConnectOptions;

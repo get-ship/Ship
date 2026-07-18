@@ -9,6 +9,10 @@ mod partitioned_sink_tests;
 mod partition_property_tests;
 #[cfg(test)]
 mod tx_atomicity_tests;
+#[cfg(test)]
+mod torture_atomicity_tests;
+#[cfg(test)]
+mod torture_concurrency_tests;
 
 pub use event_store::{EventStore, SqliteEventStore};
 pub use partitioned_sink::PartitionedSink;

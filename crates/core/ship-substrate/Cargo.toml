@@ -53,5 +53,14 @@ serde_yaml = { workspace = true }
 tokio = { workspace = true, features = ["test-util"] }
 proptest = "1"
 
+# T1 storage-torture (S3): a real child process opens the scope db and begins
+# an append; the parent test SIGKILLs it mid-transaction to prove WAL
+# recovery leaves an all-or-nothing state. Gated behind `unstable` so it
+# never builds (or ships) outside the torture-test gate.
+[[bin]]
+name = "torture_crash_child"
+path = "src/bin/torture_crash_child.rs"
+required-features = ["unstable"]
+
 [lints]
 workspace = true
