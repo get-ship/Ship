@@ -91,35 +91,10 @@ async fn watchkey_dedup_and_survives_partial_drop() {
     assert!(!frame.patches.is_empty());
 }
 
-/// FINDING (T-WATCH), confirmed. After the LAST subscriber on a WatchKey
-/// drops, `ReactiveRegistry`'s shared resolver — and the kernel subscription
-/// underneath it — is never released, regardless of how much further kernel
-/// traffic flows. The resolver task and its kernel subscription leak for the
-/// life of the process.
-///
-/// Root cause: `Resolver::spawn` (`resolver.rs`) exits its loop only on
-/// `event_rx.recv() == Err(RecvError::Closed)`, where `event_rx` is the
-/// receiver half of the PRIVATE filtered channel created inside
-/// `KernelLog::subscribe_filtered`. That channel's forwarding task exits
-/// when `ftx.receiver_count() == 0` — but `ftx`'s only ever receiver is the
-/// resolver's own `event_rx`, held for the resolver task's entire lifetime.
-/// So `ftx.receiver_count()` is 1 for as long as the resolver task is
-/// running, and only reaches 0 once the resolver task has already exited —
-/// a receiver count that can only go to zero as a CONSEQUENCE of the very
-/// exit it is meant to trigger. Nothing in this chain observes the
-/// `PatchFrame` broadcast (`Resolver.tx`) subscriber count at all, so
-/// dropping every `ReactiveRegistry::watch()` caller for a key has zero
-/// effect on the resolver's lifetime — confirmed both with and without
-/// further kernel events emitted after the last drop.
-///
-/// Repro: `watch()` once, drain the initial frame, drop the only receiver,
-/// emit N more kernel events (or none — same result either way), then
-/// `watch()` the same key again. Expected: a fresh resolver spawns (a new
-/// snapshot call). Observed: the dead-but-never-torn-down resolver is
-/// reused — `snapshot_calls` does not increment and no new initial frame
-/// is produced within the timeout. A fix is a separate job.
-#[ignore = "FINDING (T-WATCH): ReactiveRegistry never releases a WatchKey's resolver/kernel \
-            subscription after its last subscriber drops — see doc comment for root cause"]
+/// After the LAST subscriber on a WatchKey drops, `ReactiveRegistry`'s shared
+/// resolver — and the kernel subscription underneath it — must be released
+/// so a subsequent `watch()` for the same key spawns a fresh resolver rather
+/// than reusing the dead one.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn watchkey_last_subscriber_drop_never_releases_resolver() {
     let tmp = tempfile::tempdir().unwrap();
