@@ -16,9 +16,8 @@ use ship_ops_rpc::{
     OwnedSpawnTerminalRequestView, OwnedStopTerminalRequestView, ResizeTerminalResponse,
     SendInputResponse, StopTerminalResponse, TerminalSession, TerminalService, TerminalServiceExt,
 };
-use ship_agents::services::sessions::types::{
-    SessionKind, SessionMeta, SessionStatus,
-};
+use ship_agents::services::sessions::registry::SessionRecord;
+use ship_agents::services::sessions::types::SessionStatus;
 
 use crate::ship_runtime::ApiState;
 
@@ -47,7 +46,7 @@ impl TerminalService for TerminalWire {
     // Phase 3: shell kind only. The new `SpawnTerminalRequest` carries
     // `kind` + `work_dir` — no `agent_id` / `harness`
     // fields. The persistent-harness path (Claude, with --resume) needs
-    // those to call `agent_actor::spawn_or_attach`; the wire refuses
+    // those to call `agent_session_spawner::spawn_or_attach`; the wire refuses
     // `agent` here rather than fabricate. Phase 4 extends the proto
     // (or a separate `SpawnAgent` op) to carry them.
     #[allow(refining_impl_trait)]
@@ -60,8 +59,8 @@ impl TerminalService for TerminalWire {
         let work_dir = resolve_work_dir(&self.state, &request.work_dir);
 
         match kind.as_str() {
-            "shell" => match ship_agents::services::sessions::shell_actor::spawn_shell(
-                self.state.actor_sessions(),
+            "shell" => match ship_agents::services::sessions::terminal_session_spawner::spawn_shell(
+                self.state.live_sessions(),
                 work_dir,
                 self.state.ship_dir().join("logs").join("sessions"),
             ) {
@@ -86,7 +85,7 @@ impl TerminalService for TerminalWire {
         request: OwnedStopTerminalRequestView,
     ) -> ServiceResult<StopTerminalResponse> {
         let id = request.session_id.to_string();
-        if ship_agents::services::sessions::shell_actor::stop(self.state.actor_sessions(), &id) {
+        if ship_agents::services::sessions::terminal_session_spawner::stop(self.state.live_sessions(), &id) {
             return Ok(Response::new(StopTerminalResponse::default()));
         }
         Err(ConnectError::not_found(format!("session '{id}' not found")))
@@ -99,11 +98,11 @@ impl TerminalService for TerminalWire {
         _ctx: RequestContext,
         _request: OwnedListTerminalsRequestView,
     ) -> ServiceResult<ListTerminalsResponse> {
-        ship_agents::services::sessions::lifecycle::sweep_idle(self.state.actor_sessions());
+        ship_agents::services::sessions::lifecycle::sweep_idle(self.state.live_sessions());
         let mut sessions: Vec<TerminalSession> = self
             .state
-            .actor_sessions()
-            .list()
+            .live_sessions()
+            .list_all()
             .into_iter()
             .map(|m| meta_to_wire(&m))
             .collect();
@@ -124,7 +123,7 @@ impl TerminalService for TerminalWire {
         let id = request.session_id.to_string();
         let entry = self
             .state
-            .actor_sessions()
+            .live_sessions()
             .get(&id)
             .ok_or_else(|| ConnectError::not_found(format!("session '{id}' not found")))?;
         Ok(Response::new(meta_to_wire(&entry.meta_snapshot())))
@@ -143,7 +142,7 @@ impl TerminalService for TerminalWire {
         let data = request.data.to_vec();
         let entry = self
             .state
-            .actor_sessions()
+            .live_sessions()
             .get(&id)
             .ok_or_else(|| ConnectError::not_found(format!("session '{id}' not found")))?;
         entry
@@ -164,7 +163,7 @@ impl TerminalService for TerminalWire {
         let rows = request.rows;
         let entry = self
             .state
-            .actor_sessions()
+            .live_sessions()
             .get(&id)
             .ok_or_else(|| ConnectError::not_found(format!("session '{id}' not found")))?;
         entry
@@ -186,7 +185,7 @@ impl TerminalService for TerminalWire {
         let id = request.session_id.to_string();
         let entry = self
             .state
-            .actor_sessions()
+            .live_sessions()
             .get(&id)
             .ok_or_else(|| ConnectError::not_found(format!("session '{id}' not found")))?;
         let log_path = entry.log_path();
@@ -222,7 +221,7 @@ impl TerminalService for TerminalWire {
         let id = request.session_id.to_string();
         let entry = self
             .state
-            .actor_sessions()
+            .live_sessions()
             .get(&id)
             .ok_or_else(|| ConnectError::not_found(format!("session '{id}' not found")))?;
         let mut rx = entry.subscribe_events();
@@ -248,18 +247,24 @@ impl TerminalService for TerminalWire {
 
 // ── Wire conversion ─────────────────────────────────────────────────────────
 //
-// Convert `SessionMeta` (the L1 source of truth) into the
-// `TerminalSession` Connect message. The 18-field union message has
-// fields the L1 layer doesn't track yet (model, outcome, reason, input,
-// parent, turn_count, ended_at) — they stay empty until the canonical
-// session projection (#20) is wired through. That migration is Phase 4
-// territory; the wire shape is set here so callers can start depending
-// on the field set without re-shaping the proto.
+// Convert `SessionRecord` (the L1 process-lifecycle source of truth) into
+// the `TerminalSession` Connect message. The proto's `kind` field is a
+// wire-boundary concern only — the dock genuinely needs one heterogeneous
+// list of everything running, tagged so the client can render agent vs.
+// terminal tabs differently. Internally there is no kind enum; the tag is
+// derived structurally (agent_id present or not) right here at the
+// serialization edge.
+//
+// The 18-field union message has fields the L1 layer doesn't track yet
+// (model, outcome, reason, input, parent, turn_count, ended_at) — they stay
+// empty until the canonical session projection (#20) is wired through.
+// That migration is Phase 4 territory; the wire shape is set here so
+// callers can start depending on the field set without re-shaping the proto.
 
-fn meta_to_wire(m: &SessionMeta) -> TerminalSession {
+fn meta_to_wire(m: &SessionRecord) -> TerminalSession {
     TerminalSession {
         id: m.id.clone(),
-        kind: kind_str(m.kind),
+        kind: kind_str(m),
         agent_id: m.agent_id.clone().unwrap_or_default(),
         harness: m.harness.clone().unwrap_or_default(),
         status: status_str(m.status),
@@ -271,12 +276,8 @@ fn meta_to_wire(m: &SessionMeta) -> TerminalSession {
     }
 }
 
-fn kind_str(k: SessionKind) -> String {
-    match k {
-        SessionKind::Agent => "agent",
-        SessionKind::Shell => "shell",
-    }
-    .to_string()
+fn kind_str(m: &SessionRecord) -> String {
+    if m.agent_id.is_some() { "agent" } else { "shell" }.to_string()
 }
 
 fn status_str(s: SessionStatus) -> String {

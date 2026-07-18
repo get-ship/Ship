@@ -1,40 +1,101 @@
 //! Live-session registry. Holds a [`process_supervisor::ProcessHandle`]
-//! (the unified spawn primitive) plus a session-flavored [`SessionMeta`]
+//! (the unified spawn primitive) plus a session-flavored [`SessionRecord`]
 //! sidecar per entry. Insert is keyed by `ProcessHandle::actor_id`; the
-//! meta's `id` field must match.
+//! record's `id` field must match.
 //!
-//! Shape: `actor_id -> (ProcessHandle, Arc<Mutex<SessionMeta>>)`. The
+//! Shape: `actor_id -> (ProcessHandle, Arc<Mutex<SessionRecord>>)`. The
 //! handle owns process I/O (write_input, subscribe_output, stop). The
 //! sidecar holds session-flavored state the HTTP layer reports —
 //! workspace, agent/harness, status, exit code, harness_session_id —
 //! which doesn't belong inside the supervisor primitive.
+//!
+//! `SessionRecord` is process-lifecycle bookkeeping only, kept as one
+//! shape because both nouns are, underneath, OS processes the supervisor
+//! tracks the same way. It is NOT the query surface: callers that want
+//! "the agent sessions" or "the terminal sessions" go through
+//! [`Registry::list_agent_sessions`] / [`Registry::list_terminal_sessions`],
+//! which hand back the distinct [`super::types::AgentSessionMeta`] /
+//! [`super::types::TerminalSessionMeta`] — never a mixed `Vec`, never a
+//! kind tag the caller has to branch on.
 
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Result;
+use chrono::{DateTime, Utc};
 use parking_lot::Mutex;
 use process_supervisor::ProcessHandle;
 use ship_harnesses::agent_driver::HarnessEvent;
 use tokio::sync::broadcast;
 
-use super::types::{SessionId, SessionMeta};
+use super::types::{AgentSessionMeta, SessionId, SessionStatus, TerminalSessionMeta};
+
+/// Process-lifecycle sidecar. Agent sessions carry `agent_id`/`harness`
+/// (always both `Some` together); terminal sessions carry neither. The
+/// noun is derived structurally from that shape — there is no kind tag.
+#[derive(Clone, Debug)]
+pub struct SessionRecord {
+    pub id: SessionId,
+    pub agent_id: Option<String>,
+    pub harness: Option<String>,
+    pub pid: Option<u32>,
+    pub status: SessionStatus,
+    pub log_path: String,
+    pub spawned_at: DateTime<Utc>,
+    pub last_activity: DateTime<Utc>,
+    pub exit_code: Option<i32>,
+    pub harness_session_id: Option<String>,
+}
+
+impl SessionRecord {
+    /// Build the agent-session query type. `None` for a terminal record.
+    pub fn as_agent_meta(&self) -> Option<AgentSessionMeta> {
+        Some(AgentSessionMeta {
+            id: self.id.clone(),
+            agent_id: self.agent_id.clone()?,
+            harness: self.harness.clone()?,
+            pid: self.pid,
+            status: self.status,
+            log_path: self.log_path.clone(),
+            spawned_at: self.spawned_at,
+            last_activity: self.last_activity,
+            exit_code: self.exit_code,
+            harness_session_id: self.harness_session_id.clone(),
+        })
+    }
+
+    /// Build the terminal-session query type. `None` for an agent record.
+    pub fn as_terminal_meta(&self) -> Option<TerminalSessionMeta> {
+        if self.agent_id.is_some() {
+            return None;
+        }
+        Some(TerminalSessionMeta {
+            id: self.id.clone(),
+            pid: self.pid,
+            status: self.status,
+            log_path: self.log_path.clone(),
+            spawned_at: self.spawned_at,
+            last_activity: self.last_activity,
+            exit_code: self.exit_code,
+        })
+    }
+}
 
 #[derive(Clone)]
 pub struct Entry {
     pub handle: ProcessHandle,
-    pub meta: Arc<Mutex<SessionMeta>>,
-    /// Harness-event broadcast for agent kinds. Reader middleware
+    pub meta: Arc<Mutex<SessionRecord>>,
+    /// Harness-event broadcast for agent sessions. Reader middleware
     /// (harness adapter `parse_output`) publishes here; SSE consumers
-    /// subscribe via `/api/sessions/{id}/events`. Shell entries leave
+    /// subscribe via `/api/sessions/{id}/events`. Terminal entries leave
     /// this `None`; consumers receive `Closed` immediately.
     pub event_tx: Option<broadcast::Sender<HarnessEvent>>,
 }
 
 impl Entry {
     /// Snapshot the session-flavored metadata.
-    pub fn meta_snapshot(&self) -> SessionMeta {
+    pub fn meta_snapshot(&self) -> SessionRecord {
         self.meta.lock().clone()
     }
 
@@ -77,14 +138,14 @@ impl Registry {
         Self::default()
     }
 
-    pub fn insert(&self, handle: ProcessHandle, meta: SessionMeta) -> Entry {
+    pub fn insert(&self, handle: ProcessHandle, meta: SessionRecord) -> Entry {
         self.insert_with(handle, meta, None)
     }
 
     pub fn insert_with(
         &self,
         handle: ProcessHandle,
-        meta: SessionMeta,
+        meta: SessionRecord,
         event_tx: Option<broadcast::Sender<HarnessEvent>>,
     ) -> Entry {
         debug_assert_eq!(handle.actor_id, meta.id, "handle/meta id mismatch");
@@ -107,12 +168,42 @@ impl Registry {
         self.inner.lock().remove(id)
     }
 
-    /// Snapshot every entry's meta, sorted by most recent activity.
-    pub fn list(&self) -> Vec<SessionMeta> {
+    /// Snapshot every live session's raw record, sorted by most recent
+    /// activity, spanning BOTH nouns. Reserved for the wire-boundary
+    /// adapter that genuinely needs a heterogeneous "everything running"
+    /// view (the terminal dock's process list) and for kind-agnostic
+    /// lifecycle sweeps. Any caller that wants "the agent sessions" or
+    /// "the terminal sessions" must use the noun-specific list below —
+    /// this is not that entry point.
+    pub fn list_all(&self) -> Vec<SessionRecord> {
         let guard = self.inner.lock();
-        let mut metas: Vec<SessionMeta> = guard
+        let mut records: Vec<SessionRecord> = guard
             .values()
             .map(|e| e.meta.lock().clone())
+            .collect();
+        records.sort_by_key(|m| std::cmp::Reverse(m.last_activity));
+        records
+    }
+
+    /// Snapshot every **agent session**, sorted by most recent activity.
+    /// Never returns a terminal session.
+    pub fn list_agent_sessions(&self) -> Vec<AgentSessionMeta> {
+        let guard = self.inner.lock();
+        let mut metas: Vec<AgentSessionMeta> = guard
+            .values()
+            .filter_map(|e| e.meta.lock().as_agent_meta())
+            .collect();
+        metas.sort_by_key(|m| std::cmp::Reverse(m.last_activity));
+        metas
+    }
+
+    /// Snapshot every **terminal session**, sorted by most recent
+    /// activity. Never returns an agent session.
+    pub fn list_terminal_sessions(&self) -> Vec<TerminalSessionMeta> {
+        let guard = self.inner.lock();
+        let mut metas: Vec<TerminalSessionMeta> = guard
+            .values()
+            .filter_map(|e| e.meta.lock().as_terminal_meta())
             .collect();
         metas.sort_by_key(|m| std::cmp::Reverse(m.last_activity));
         metas

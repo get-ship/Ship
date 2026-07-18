@@ -93,7 +93,7 @@ pub(super) fn spawn_leak_diag(rt: &Arc<ShipRuntime>) {
         return;
     }
     let diag_kernel = rt.kernel().clone();
-    let diag_sessions = rt.actor_sessions().clone();
+    let diag_sessions = rt.live_sessions().clone();
     let diag_per_turn = rt.session_registry().clone();
     tokio::spawn(async move {
         fn rss_mb() -> f64 {
@@ -109,7 +109,7 @@ pub(super) fn spawn_leak_diag(rt: &Arc<ShipRuntime>) {
             let per_turn = diag_per_turn.lock().await.len();
             tracing::info!(
                 target: "leak193",
-                "DIAG rss={:.1}MB actor_sessions={} per_turn_sessions={} {kline}",
+                "DIAG rss={:.1}MB live_sessions={} per_turn_sessions={} {kline}",
                 rss_mb(),
                 diag_sessions.len(),
                 per_turn,

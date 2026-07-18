@@ -1,11 +1,11 @@
-//! Shell sessions on the supervisor primitive.
+//! Terminal sessions (plain `$SHELL`) on the supervisor primitive.
 //!
 //! Builds a [`ProcessProfile`] for the shell kind, calls
 //! [`process_supervisor::spawn_process`], and registers the resulting
 //! [`Entry`] in the unified [`Registry`]. The supervisor primitive
 //! owns the kernel registration, PTY hold, log file, and `actor.created`
 //! emission; this module owns only the shell-specific shape (`$SHELL` binary,
-//! work dir, no agent/harness) and the sidecar [`SessionMeta`].
+//! work dir, no agent/harness) and the sidecar [`TerminalSessionMeta`].
 
 use std::path::PathBuf;
 
@@ -13,8 +13,8 @@ use anyhow::Result;
 use chrono::Utc;
 use process_supervisor::{spawn_process, ProcessKind, ProcessProfile, TransportKind};
 
-use super::registry::{Entry, Registry};
-use super::types::{SessionKind, SessionMeta, SessionStatus};
+use super::registry::{Entry, Registry, SessionRecord};
+use super::types::SessionStatus;
 
 pub fn spawn_shell(
     registry: &Registry,
@@ -41,9 +41,8 @@ pub fn spawn_shell(
 
     let handle = spawn_process(profile)?;
     let now = Utc::now();
-    let meta = SessionMeta {
+    let meta = SessionRecord {
         id: handle.actor_id.clone(),
-        kind: SessionKind::Shell,
         agent_id: None,
         harness: None,
         pid: handle.pid(),

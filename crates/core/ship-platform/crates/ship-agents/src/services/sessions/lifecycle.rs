@@ -17,7 +17,7 @@ const IDLE_AFTER_SECS: i64 = 3;
 /// before serving `meta()`. Cheap — just compares clock.
 pub fn sweep_idle(registry: &Registry) {
     let now = Utc::now();
-    for meta in registry.list() {
+    for meta in registry.list_all() {
         if meta.status != SessionStatus::Thinking {
             continue;
         }

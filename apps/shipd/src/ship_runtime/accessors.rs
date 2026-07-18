@@ -185,8 +185,8 @@ impl ShipRuntime {
 
 
 
-    pub fn actor_sessions(&self) -> &ship_agents::services::sessions::Registry {
-        &self.actor_sessions
+    pub fn live_sessions(&self) -> &ship_agents::services::sessions::Registry {
+        &self.live_sessions
     }
 
     pub fn session_registry(&self) -> &crate::auth::SessionRegistry {

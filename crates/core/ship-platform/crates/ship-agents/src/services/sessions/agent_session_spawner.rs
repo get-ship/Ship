@@ -10,7 +10,7 @@
 //!    appears in the byte stream. State-aware, fires once per session.
 //! 2. Feeds bytes through the harness adapter line-by-line and
 //!    publishes parsed `HarnessEvent`s on the entry's `event_tx`.
-//! 3. Updates the sidecar `SessionMeta` (status, last_activity).
+//! 3. Updates the sidecar `SessionRecord` (status, last_activity).
 //! 4. Emits `actor.stopped` when the byte stream closes.
 
 use std::path::PathBuf;
@@ -24,8 +24,8 @@ use parking_lot::Mutex;
 use process_supervisor::{spawn_process, ProcessKind, ProcessProfile, TransportKind};
 use tokio::sync::broadcast;
 
-use super::registry::{Entry, Registry};
-use super::types::{SessionKind, SessionMeta, SessionStatus};
+use super::registry::{Entry, Registry, SessionRecord};
+use super::types::SessionStatus;
 
 const NEEDLE: &[u8] = b"dangerously-load-development-channels";
 const EVENT_CAP: usize = 256;
@@ -54,7 +54,7 @@ pub fn spawn_or_attach(
     let adapter = adapter_for(harness).map_err(|e| anyhow!(e))?;
     if !adapter.caps().persistent_session {
         anyhow::bail!(
-            "agent_actor::spawn_or_attach: harness '{harness}' has no persistent-session \
+            "agent_session_spawner::spawn_or_attach: harness '{harness}' has no persistent-session \
              support; respawn-per-turn is not handled here"
         );
     }
@@ -91,9 +91,8 @@ pub fn spawn_or_attach(
     let (event_tx, _) = broadcast::channel::<HarnessEvent>(EVENT_CAP);
 
     let now = Utc::now();
-    let meta = SessionMeta {
+    let meta = SessionRecord {
         id: handle.actor_id.clone(),
-        kind: SessionKind::Agent,
         agent_id: Some(agent_id.to_string()),
         harness: Some(harness.to_string()),
         pid: handle.pid(),

@@ -1,9 +1,9 @@
-//! Integration test for the B17 fix — `shell_actor::stop` must terminate
+//! Integration test for the B17 fix — `terminal_session_spawner::stop` must terminate
 //! the underlying child process, not just remove the registry entry.
 //!
 //! Spawns a real `$SHELL` via the supervisor primitive's PtyTransport
 //! (Linux + macOS dev hosts), captures the pid from the spawned
-//! `ProcessHandle`, calls `shell_actor::stop`, then asserts the pid is no
+//! `ProcessHandle`, calls `terminal_session_spawner::stop`, then asserts the pid is no
 //! longer a live process. Polls with a short backoff because signal
 //! delivery isn't instantaneous — SIGTERM propagation through bash's
 //! exit handling can take a few ms on a busy CI runner.
@@ -17,7 +17,7 @@
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-use ship_agents::services::sessions::shell_actor;
+use ship_agents::services::sessions::terminal_session_spawner;
 use ship_agents::services::sessions::Registry;
 use tempfile::TempDir;
 
@@ -62,7 +62,7 @@ async fn stop_terminates_the_underlying_child() {
     // Spawn a real shell. The supervisor primitive creates a fresh
     // child process via PtyTransport; we capture its pid so we can
     // probe liveness directly with kill(pid, 0).
-    let entry = shell_actor::spawn_shell(
+    let entry = terminal_session_spawner::spawn_shell(
         &registry,
         PathBuf::from(work_dir.path()),
         PathBuf::from(log_dir.path()),
@@ -80,7 +80,7 @@ async fn stop_terminates_the_underlying_child() {
     );
 
     // Act — call stop. Returns true on first hit, false thereafter.
-    let stopped = tokio::task::spawn_blocking(move || shell_actor::stop(&registry, &handle_id))
+    let stopped = tokio::task::spawn_blocking(move || terminal_session_spawner::stop(&registry, &handle_id))
         .await
         .expect("stop join");
     assert!(stopped, "stop must find and stop the just-spawned session");
@@ -92,7 +92,7 @@ async fn stop_terminates_the_underlying_child() {
     let exited = wait_for_exit(pid, STOP_DEADLINE);
     assert!(
         exited,
-        "shell pid {pid} is still alive after shell_actor::stop — \
+        "shell pid {pid} is still alive after terminal_session_spawner::stop — \
          the child process was leaked (B17 regression)",
     );
 
@@ -100,7 +100,7 @@ async fn stop_terminates_the_underlying_child() {
     // session is already gone from the registry). The drop path is
     // safe — we don't double-terminate or panic.
     let registry2 = Registry::new();
-    let second = shell_actor::stop(&registry2, &id);
+    let second = terminal_session_spawner::stop(&registry2, &id);
     assert!(
         !second,
         "stop on an unknown session id must return false, not crash",
@@ -111,7 +111,7 @@ async fn stop_terminates_the_underlying_child() {
 async fn stop_returns_false_for_unknown_id() {
     let registry = Registry::new();
     assert!(
-        !shell_actor::stop(&registry, "session-that-never-existed"),
+        !terminal_session_spawner::stop(&registry, "session-that-never-existed"),
         "stop must report false (not panic) when the id is unknown",
     );
 }

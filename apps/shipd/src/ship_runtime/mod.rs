@@ -68,7 +68,7 @@ pub struct ShipRuntime {
     // watch (SSE subscribe) a session, leaving a permanently-empty map.
     // The ViewService Patch/Append/Signal ops answer "not found" directly.)
     /// Live-session registry — every spawn lands here.
-    pub(super) actor_sessions: ship_agents::services::sessions::Registry,
+    pub(super) live_sessions: ship_agents::services::sessions::Registry,
     /// The space this daemon is currently serving — its mint-once
     /// `space_id` (an owned string, NOT a `SpaceId` newtype). Cached at boot
     /// from a `spaces` registry lookup (`ship_space::spaces::find_by_path`) —

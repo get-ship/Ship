@@ -12,22 +12,22 @@
 //!
 //! * `registry`        — `Registry` + `Entry` keyed on the supervisor's
 //!                       `ProcessHandle`. The unified registry for every
-//!                       live session (shells, persistent agents).
-//! * `agent_actor`     — long-lived agent spawn through the supervisor primitive.
-//! * `shell_actor`     — shell spawn through the supervisor primitive.
+//!                       live session (terminals, persistent agents).
+//! * `agent_session_spawner`    — long-lived agent session spawn through the supervisor primitive.
+//! * `terminal_session_spawner` — terminal session spawn through the supervisor primitive.
 //! * `lifecycle`       — idle reaper + agent-rules loader.
-//! * `types`           — `SessionId`, `SessionKind`, `SessionStatus`, `SessionMeta`.
+//! * `types`           — `SessionId`, `SessionStatus`, `AgentSessionMeta`, `TerminalSessionMeta`.
 //! * `canonical_projection` — read-side projection over the event log.
 
 
 pub mod registry;
-pub mod agent_actor;
+pub mod agent_session_spawner;
 pub mod canonical_projection;
 pub mod lifecycle;
-pub mod shell_actor;
+pub mod terminal_session_spawner;
 pub mod types;
 
-pub use registry::{Entry, Registry};
+pub use registry::{Entry, Registry, SessionRecord};
 pub use canonical_projection::{
     CanonicalSession, CanonicalSessionProjection, CanonicalSessionStatus,
     load_canonical_session_by_slug, load_canonical_session_by_slug_at,
