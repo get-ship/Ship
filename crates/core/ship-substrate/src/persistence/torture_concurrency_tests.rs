@@ -120,37 +120,25 @@ fn hundreds_of_concurrent_thread_appends_never_corrupt_or_orphan() {
     assert_master_invariant(&db_path);
 }
 
-/// **FINDING (T1 storage-torture, scenario 2) — real break, do not fix here.**
+/// t1conc02 repro: 300 threads in ONE process, all calling
+/// `SqliteEventStore::append` against the SAME scope db concurrently (each
+/// `append` opens its OWN connection with `busy_timeout(5s)`). Previously
+/// (no retry) this lost a double-digit percentage of appends to
+/// `SQLITE_BUSY`/`SQLITE_LOCKED` once `busy_timeout` was exhausted by real
+/// contention — up to ~29% in a loaded workspace run, ~12% in isolation.
 ///
-/// Repro: 300 threads in ONE process, all calling `SqliteEventStore::append`
-/// against the SAME scope db concurrently (each `append` opens its OWN
-/// connection with `busy_timeout(5s)`). Observed error rate is load-
-/// dependent and reproduces both ways:
-/// - run as part of the full workspace suite (`cargo test --workspace
-///   --exclude ship-host --features unstable`, real system-wide CPU
-///   contention layered on top of the app-level thread contention): up to
-///   ~88/300 (~29%) appends returned `Err("database is locked")`
-///   (SQLITE_BUSY).
-/// - run BY ITSELF, no competing workspace load, same 300-thread/one-db
-///   shape: still observed 35/300 (~12%) failures — so this is not purely a
-///   test-environment CI-noise artifact; 300 real OS threads contending a
-///   single SQLite writer lock on ordinary hardware exhausts the 5-second
-///   busy_timeout on a double-digit fraction of attempts even in isolation.
-///
-/// `append`'s "no lost appends under concurrency" guarantee is bounded by
-/// `busy_timeout`, and `busy_timeout` is a WALL-CLOCK budget that real
-/// contention — even purely app-level, no external load required — can
-/// exhaust. No orphans or corruption result (the `never_corrupt_or_orphan`
-/// test above holds even when this one doesn't) — the break is specifically
-/// "some legitimate concurrent appends are rejected", not "the log is
-/// inconsistent".
+/// `append` now retries the whole transaction with bounded, jittered
+/// backoff on transient busy/locked ONLY (never on a terminal error), so the
+/// write-lock hand-off that used to exceed the single connection's 5s
+/// busy_timeout gets additional bounded attempts instead of hard-failing.
+/// No orphans or corruption result either way — the `never_corrupt_or_orphan`
+/// test above always held; this test is specifically about lost appends.
 #[test]
-#[ignore = "FINDING: 300 concurrent same-process threads against one scope db exceed the 5s busy_timeout on a double-digit percentage of attempts (reproduces even with no other system load) — 'no lost appends' is not unconditional"]
 fn hundreds_of_concurrent_thread_appends_lose_nothing_under_full_system_load() {
     let tmp = tempfile::tempdir().unwrap();
     let db_path = db::runtime_db_path(tmp.path());
     const N: usize = 300;
     let (ok, err, _elapsed) = drive_concurrent_appends(&db_path, N);
-    assert_eq!(err, 0, "no append should fail under contention (busy_timeout covers it) — {err} of {N} failed");
+    assert_eq!(err, 0, "no append should fail under contention (bounded retry absorbs transient busy/locked) — {err} of {N} failed");
     assert_eq!(ok, N, "no lost appends");
 }

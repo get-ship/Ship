@@ -1,6 +1,7 @@
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use crate::db::envelope::{EVENT_COLS as COLS, envelope_from_row, insert_event_row};
 use crate::db::{block_on, open_db_at};
@@ -161,27 +162,12 @@ impl SqliteEventStore {
             bus,
         })
     }
-}
 
-/// Query a single DB file with the given filter. Returns empty vec if the DB
-/// does not have an events table (e.g. an uninitialized file).
-fn query_one_db(path: &Path, filter: &EventFilter) -> Result<Vec<EventEnvelope>> {
-    crate::persistence::build_event_query(path, filter)
-}
-
-impl EventStore for SqliteEventStore {
-    /// Persist an event row and apply registered projections in a single
-    /// transaction. This is the canonical event write path; `kernel.emit`
-    /// reaches it via `EventSink::persist`.
-    ///
-    /// Atomicity: the event row and any matching projection writes commit
-    /// together, or roll back together. A projection-dispatch error fails the
-    /// transaction — the `BEGIN IMMEDIATE` is rolled back and the event row is
-    /// NOT committed, so a rejected projection leaves no orphaned event whose
-    /// derived state was skipped. The error is returned to the caller (the
-    /// kernel emit path then rejects, and never delivers to mailboxes). See
-    /// `EventBus::dispatch` for the first-error-wins handler semantics.
-    fn append(&self, event: &EventEnvelope) -> Result<()> {
+    /// One attempt at the durable append transaction (BEGIN IMMEDIATE ..
+    /// COMMIT). Never partially commits: a failure at any step rolls back,
+    /// so re-invoking this on retry re-runs the whole transaction rather than
+    /// resuming a partial one.
+    fn append_once(&self, event: &EventEnvelope) -> Result<()> {
         let mut conn = open_db_at(&self.db_path)?;
 
         block_on(async { sqlx::query("BEGIN IMMEDIATE").execute(&mut conn).await })?;
@@ -223,6 +209,96 @@ impl EventStore for SqliteEventStore {
 
         block_on(async { sqlx::query("COMMIT").execute(&mut conn).await })?;
         Ok(())
+    }
+}
+
+/// Bounded retry on transient SQLITE_BUSY/SQLITE_LOCKED contention only.
+/// Each attempt already blocks up to the connection's own 5s `busy_timeout`
+/// before it can even fail transient, so the retry budget has to cover
+/// several such waits, not fractions of one: 8 attempts (1 initial + 7
+/// retries), full-jitter backoff doubling from 20ms up to a 400ms
+/// per-attempt cap between attempts, bounded by a 45s total wall-clock cap
+/// so a single append can retry through several lock hand-off windows
+/// under the 300-thread torture test without masking a genuinely stuck
+/// writer as a slow one.
+const APPEND_RETRY_MAX_ATTEMPTS: u32 = 8;
+const APPEND_RETRY_BASE_BACKOFF_MS: u64 = 20;
+const APPEND_RETRY_MAX_BACKOFF_MS: u64 = 400;
+const APPEND_RETRY_TOTAL_CAP: Duration = Duration::from_secs(45);
+
+/// Extended sqlite result codes are `(family << 8) | primary`; SQLITE_BUSY
+/// (5) and SQLITE_LOCKED (6) are the transient-contention primaries, e.g.
+/// SQLITE_BUSY_TIMEOUT is `773 == (3 << 8) | 5`.
+fn is_transient_sqlite_busy(err: &anyhow::Error) -> bool {
+    err.chain()
+        .find_map(|cause| cause.downcast_ref::<sqlx::Error>())
+        .and_then(|e| e.as_database_error())
+        .and_then(|db_err| db_err.code())
+        .and_then(|code| code.parse::<i32>().ok())
+        .map(|code| matches!(code & 0xff, 5 | 6))
+        .unwrap_or(false)
+}
+
+/// Full-jitter backoff: a pseudo-random delay in `[0, cap_ms]`, seeded from
+/// the wall clock and thread id (no external RNG dependency needed for a
+/// bounded-retry backoff).
+fn append_retry_jitter_ms(attempt: u32, cap_ms: u64) -> u64 {
+    use std::hash::{Hash, Hasher};
+    if cap_ms == 0 {
+        return 0;
+    }
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.subsec_nanos())
+        .unwrap_or(0);
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    attempt.hash(&mut hasher);
+    nanos.hash(&mut hasher);
+    std::thread::current().id().hash(&mut hasher);
+    hasher.finish() % (cap_ms + 1)
+}
+
+/// Query a single DB file with the given filter. Returns empty vec if the DB
+/// does not have an events table (e.g. an uninitialized file).
+fn query_one_db(path: &Path, filter: &EventFilter) -> Result<Vec<EventEnvelope>> {
+    crate::persistence::build_event_query(path, filter)
+}
+
+impl EventStore for SqliteEventStore {
+    /// Persist an event row and apply registered projections in a single
+    /// transaction. This is the canonical event write path; `kernel.emit`
+    /// reaches it via `EventSink::persist`.
+    ///
+    /// Atomicity: the event row and any matching projection writes commit
+    /// together, or roll back together. A projection-dispatch error fails the
+    /// transaction — the `BEGIN IMMEDIATE` is rolled back and the event row is
+    /// NOT committed, so a rejected projection leaves no orphaned event whose
+    /// derived state was skipped. The error is returned to the caller (the
+    /// kernel emit path then rejects, and never delivers to mailboxes). See
+    /// `EventBus::dispatch` for the first-error-wins handler semantics.
+    fn append(&self, event: &EventEnvelope) -> Result<()> {
+        let start = Instant::now();
+        let mut attempt = 0u32;
+        loop {
+            attempt += 1;
+            match self.append_once(event) {
+                Ok(()) => return Ok(()),
+                Err(e) => {
+                    let retryable = attempt < APPEND_RETRY_MAX_ATTEMPTS
+                        && start.elapsed() < APPEND_RETRY_TOTAL_CAP
+                        && is_transient_sqlite_busy(&e);
+                    if !retryable {
+                        return Err(e);
+                    }
+                    let cap_ms = APPEND_RETRY_BASE_BACKOFF_MS
+                        .saturating_mul(1u64 << (attempt - 1).min(6))
+                        .min(APPEND_RETRY_MAX_BACKOFF_MS);
+                    std::thread::sleep(Duration::from_millis(append_retry_jitter_ms(
+                        attempt, cap_ms,
+                    )));
+                }
+            }
+        }
     }
 
     fn get(&self, id: &str) -> Result<Option<EventEnvelope>> {

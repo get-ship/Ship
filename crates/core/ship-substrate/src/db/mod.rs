@@ -326,19 +326,25 @@ pub fn block_on<F, T>(future: F) -> Result<T>
 where
     F: std::future::Future<Output = std::result::Result<T, sqlx::Error>>,
 {
+    // Keeps the original single-line "SQLite operation failed: {e}" display
+    // text (existing callers match substrings of it), but attaches the raw
+    // `sqlx::Error` as the error's source via `context` instead of only
+    // formatting it in — so it stays walkable via `.chain()` for callers
+    // that need to distinguish transient SQLITE_BUSY/SQLITE_LOCKED from a
+    // terminal error (e.g. the append retry in `SqliteEventStore::append`)
+    // without pattern-matching the display string.
+    fn wrap(e: sqlx::Error) -> anyhow::Error {
+        let msg = format!("SQLite operation failed: {e}");
+        anyhow::Error::new(e).context(msg)
+    }
     if let Ok(handle) = tokio::runtime::Handle::try_current() {
-        return tokio::task::block_in_place(|| {
-            handle
-                .block_on(future)
-                .map_err(|e| anyhow!("SQLite operation failed: {e}"))
-        });
+        return tokio::task::block_in_place(|| handle.block_on(future).map_err(wrap));
     }
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_time()
         .build()
         .map_err(|e| anyhow!("Failed to create SQLite runtime: {e}"))?;
-    rt.block_on(future)
-        .map_err(|e| anyhow!("SQLite operation failed: {e}"))
+    rt.block_on(future).map_err(wrap)
 }
 
 /// Like `block_on` but for `anyhow::Result<T>` futures (e.g. EventRouter::emit).
