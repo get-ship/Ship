@@ -22,7 +22,7 @@ dist = true
 # write` on that tap repo. Without those two prereqs, cargo-dist still
 # produces other installers but skips the formula push.
 tap = "madvib/homebrew-tap"
-formula = "ship"
+formula = "shipctl"
 targets = [
     "x86_64-unknown-linux-gnu",
     "aarch64-unknown-linux-gnu",
@@ -42,8 +42,6 @@ include = [
     "packaging/dev.getship.shipd.plist",
     "packaging/installer-assets/LICENSE-INSTALLER.txt",
     "packaging/installer-assets/ship-512.png",
-    "packaging/launchers/macos/Ship.app",
-    "packaging/launchers/windows/ship-launcher.cmd",
     "packaging/postinst/pkg-postinstall.sh",
     "packaging/postinst/msi-postinstall.ps1",
 ]
@@ -53,8 +51,9 @@ include = [
 identifier = "dev.getship.ship"
 install-location = "/usr/local"
 # Invoked by productbuild after files land under install-location.
-# Copies Ship.app into /Applications and calls `ship daemon install-service`
-# in the console user's context.
+# Registers the daemon service via `shipctl daemon install-service` in
+# the console user's context. The desktop app is the Tauri shell,
+# shipped by the desktop release — this .pkg carries CLI + daemon only.
 postinstall-script = "packaging/postinst/pkg-postinstall.sh"
 
 # ── Windows .msi ────────────────────────────────────────────────────────────
@@ -63,9 +62,6 @@ postinstall-script = "packaging/postinst/pkg-postinstall.sh"
 # at the end of the install sequence (deferred, impersonated) so the
 # scheduled task lands in the invoking user's session.
 postinstall-script = "packaging/postinst/msi-postinstall.ps1"
-# Start-menu shortcut launched by the user to open the Ship dashboard.
-# cargo-dist wires this into the MSI's `StartMenuFolder` feature.
-start-menu-shortcut = { target = "packaging/launchers/windows/ship-launcher.cmd", name = "Ship" }
 
 # ── Signing (gated on CI secrets; cargo-dist reads from env vars) ───────────
 [dist.macos-sign]

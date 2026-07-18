@@ -24,13 +24,13 @@ jobs:
         include:
           - platform: macos-latest
             target: aarch64-apple-darwin
-            args: --target aarch64-apple-darwin
+            args: --target aarch64-apple-darwin --config tauri.bundle-runtime.conf.json
           - platform: macos-latest
             target: x86_64-apple-darwin
-            args: --target x86_64-apple-darwin
+            args: --target x86_64-apple-darwin --config tauri.bundle-runtime.conf.json
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
-            args: ''
+            args: --config tauri.bundle-runtime.conf.json
 
     runs-on: ${{ matrix.platform }}
 
@@ -53,6 +53,20 @@ jobs:
       - name: Install frontend dependencies
         working-directory: apps/host
         run: bun install
+
+      # The desktop bundle carries the runtime: tauri.bundle-runtime.conf.json
+      # declares shipctl + shipd as bundle.externalBin, and Tauri resolves
+      # each entry to a target-triple-suffixed file at build time. Stage
+      # both binaries under apps/host/binaries/ before tauri-action runs.
+      - name: Build bundled runtime (shipctl + shipd)
+        shell: bash
+        run: |
+          cargo build --release --target ${{ matrix.target }} -p shipctl -p shipd
+          mkdir -p apps/host/binaries
+          ext=''
+          case '${{ matrix.target }}' in *windows*) ext='.exe' ;; esac
+          cp "target/${{ matrix.target }}/release/shipctl${ext}" "apps/host/binaries/shipctl-${{ matrix.target }}${ext}"
+          cp "target/${{ matrix.target }}/release/shipd${ext}"   "apps/host/binaries/shipd-${{ matrix.target }}${ext}"
 
       - name: Build and release
         uses: tauri-apps/tauri-action@v0

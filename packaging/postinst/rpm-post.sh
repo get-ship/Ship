@@ -25,5 +25,5 @@ export XDG_RUNTIME_DIR
 su - "$TARGET_USER" -c "\
     XDG_RUNTIME_DIR='${XDG_RUNTIME_DIR}' \
     HOME='${USER_HOME}' \
-    /usr/bin/ship daemon install-service --shipd-path /usr/bin/shipd \
+    /usr/bin/shipctl daemon install-service --shipd-path /usr/bin/shipd \
 " || true

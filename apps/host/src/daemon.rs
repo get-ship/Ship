@@ -1,4 +1,4 @@
-//! Daemon lifecycle — the shell supervises the *existing* `ship` daemon rather
+//! Daemon lifecycle — the shell supervises the *existing* Ship daemon rather
 //! than embedding a second copy. One daemon implementation, one IPC handshake;
 //! the shell is just another (operator) client. Discovery/handshake reading is
 //! reused from `ship-substrate` so the shell never re-expresses those layouts.
@@ -66,57 +66,58 @@ pub fn daemon_status() -> DaemonInfo {
     }
 }
 
-/// Canonical binary name of the ship CLI the host shells out to. We look for
-/// this next to the host executable first (the install bundle ships `ship`
-/// alongside `ship-host` so a launched desktop app — where `PATH` rarely
-/// includes `/usr/local/bin` or the user's bin dir — can still find it), then
-/// fall back to `PATH`. `.exe` is appended on Windows; bare on Unix.
+/// Canonical binary name of the shipctl CLI the host shells out to. We look
+/// for this next to the host executable first (the Tauri bundle carries
+/// `shipctl` beside `ship-host` so a launched desktop app — where `PATH`
+/// rarely includes `/usr/local/bin` or the user's bin dir — can still find
+/// it), then fall back to `PATH`. `.exe` is appended on Windows; bare on Unix.
 #[cfg(windows)]
-const SHIP_BINARY_NAME: &str = "ship.exe";
+const SHIPCTL_BINARY_NAME: &str = "shipctl.exe";
 #[cfg(not(windows))]
-const SHIP_BINARY_NAME: &str = "ship";
+const SHIPCTL_BINARY_NAME: &str = "shipctl";
 
-/// Resolve the `ship` CLI path: host-executable directory first, then nothing
-/// (caller falls back to `Command::new("ship")` which searches `PATH`). Pure
-/// — takes the directory to look in as an argument rather than reading
-/// `current_exe()` itself, so the resolver is unit-testable without touching
-/// the process state.
+/// Resolve the `shipctl` CLI path: host-executable directory first, then
+/// nothing (caller falls back to `Command::new("shipctl")` which searches
+/// `PATH`). Pure — takes the directory to look in as an argument rather than
+/// reading `current_exe()` itself, so the resolver is unit-testable without
+/// touching the process state.
 ///
 /// Returns `Some(path)` only if the candidate file actually exists on disk;
-/// an absent host-side `ship` is not an error, it just means PATH is the
+/// an absent host-side `shipctl` is not an error, it just means PATH is the
 /// right next stop. A dangling symlink counts as missing (`is_file` follows
 /// symlinks and reports false when the target is gone).
-fn resolve_ship_in(host_exe_dir: &std::path::Path) -> Option<std::path::PathBuf> {
-    let candidate = host_exe_dir.join(SHIP_BINARY_NAME);
+fn resolve_shipctl_in(host_exe_dir: &std::path::Path) -> Option<std::path::PathBuf> {
+    let candidate = host_exe_dir.join(SHIPCTL_BINARY_NAME);
     candidate.is_file().then_some(candidate)
 }
 
-/// Build the `Command` that runs `ship <args>`: prefers the host-side `ship`
-/// shipped next to this binary, falls back to `PATH` resolution. Used by
-/// `daemon_start` so the launched desktop app (whose `PATH` usually doesn't
-/// include `/usr/local/bin`) can still bring up the daemon.
-fn ship_command(host_exe_dir: &std::path::Path, args: &[&str]) -> std::process::Command {
-    match resolve_ship_in(host_exe_dir) {
+/// Build the `Command` that runs `shipctl <args>`: prefers the host-side
+/// `shipctl` bundled next to this binary, falls back to `PATH` resolution.
+/// Used by `daemon_start` so the launched desktop app (whose `PATH` usually
+/// doesn't include `/usr/local/bin`) can still bring up the daemon.
+fn shipctl_command(host_exe_dir: &std::path::Path, args: &[&str]) -> std::process::Command {
+    match resolve_shipctl_in(host_exe_dir) {
         Some(p) => {
             let mut c = std::process::Command::new(p);
             c.args(args);
             c
         }
         None => {
-            let mut c = std::process::Command::new(SHIP_BINARY_NAME);
+            let mut c = std::process::Command::new(SHIPCTL_BINARY_NAME);
             c.args(args);
             c
         }
     }
 }
 
-/// Start the daemon by delegating to the `ship` CLI (`ship daemon start`), then
-/// poll the handshake until it's alive or we time out (~5s). Delegating keeps a
-/// single daemon-launch path; the shell does not reimplement supervision.
+/// Start the daemon by delegating to the `shipctl` CLI (`shipctl daemon
+/// start`), then poll the handshake until it's alive or we time out (~5s).
+/// Delegating keeps a single daemon-launch path; the shell does not
+/// reimplement supervision.
 ///
-/// The CLI is resolved from the host executable's directory first (the
-/// bundled install ships `ship` next to `ship-host`); PATH is the fallback
-/// when the host-side binary isn't present — covers `cargo run` in dev and
+/// The CLI is resolved from the host executable's directory first (the Tauri
+/// bundle carries `shipctl` next to `ship-host`); PATH is the fallback when
+/// the host-side binary isn't present — covers `cargo run` in dev and
 /// source-tree invocations.
 #[tauri::command]
 pub fn daemon_start() -> Result<DaemonInfo, String> {
@@ -129,10 +130,10 @@ pub fn daemon_start() -> Result<DaemonInfo, String> {
         .ok()
         .and_then(|p| p.parent().map(|p| p.to_path_buf()))
         .unwrap_or_else(|| std::path::PathBuf::from("."));
-    let child = ship_command(&host_exe_dir, &["daemon", "start"])
+    let child = shipctl_command(&host_exe_dir, &["daemon", "start"])
         .spawn()
-        .map_err(|e| format!("spawning `ship daemon start`: {e}"))?;
-    // Optimistic re-check: the `ship daemon start` CLI is short-lived and may
+        .map_err(|e| format!("spawning `shipctl daemon start`: {e}"))?;
+    // Optimistic re-check: the `shipctl daemon start` CLI is short-lived and may
     // have already exited before we got here (e.g. it was already running
     // and just printed status). Bail out early with the live handle rather
     // than blocking the full poll loop.
@@ -142,7 +143,7 @@ pub fn daemon_start() -> Result<DaemonInfo, String> {
             return Ok(from_handle(h));
         }
     }
-    // `ship daemon start` is short-lived — it launches/hands off the daemon and
+    // `shipctl daemon start` is short-lived — it launches/hands off the daemon and
     // exits. Reap it on a detached thread so it doesn't linger as a zombie of
     // the shell process (an un-waited `Child` accumulates a defunct entry on
     // Unix). The reaper outlives this call; the daemon itself is independent.
@@ -224,11 +225,11 @@ mod tests {
     /// cargo's scheduler sees the guard on the way in and waits.
     ///
     /// The happy path of `daemon_start` is *not* exercised here: it requires
-    /// a real `ship` binary that brings up a daemon, which is what
+    /// a real `shipctl` binary that brings up a daemon, which is what
     /// `tests/contract` and the launch smoke test cover. Unit coverage
     /// stays on the two error contracts:
-    ///   1. `ship` missing on PATH → surface the spawn error
-    ///   2. `ship` exits 0 but no handshake ever appears → 5s timeout Err
+    ///   1. `shipctl` missing on PATH → surface the spawn error
+    ///   2. `shipctl` exits 0 but no handshake ever appears → 5s timeout Err
     #[test]
     fn daemon_start_error_paths() {
         let _guard = TEST_ENV_LOCK.lock().unwrap_or_else(|p| p.into_inner());
@@ -237,29 +238,29 @@ mod tests {
         let prev_path = std::env::var_os("PATH");
         std::env::set_current_dir(cwd.path()).unwrap();
 
-        // ---- (1) ship missing on PATH ------------------------------------
+        // ---- (1) shipctl missing on PATH ---------------------------------
         let empty_path = TempDir::new().unwrap();
         std::env::set_var("PATH", empty_path.path());
         let err = daemon_start()
-            .expect_err("expected daemon_start to fail when no `ship` is on PATH");
+            .expect_err("expected daemon_start to fail when no `shipctl` is on PATH");
         assert!(
-            err.to_lowercase().contains("ship") || err.to_lowercase().contains("spawn"),
-            "error must name `ship` or `spawn`; got: {err:?}"
+            err.to_lowercase().contains("shipctl") || err.to_lowercase().contains("spawn"),
+            "error must name `shipctl` or `spawn`; got: {err:?}"
         );
 
-        // ---- (2) ship exists but no handshake ever appears ---------------
-        // A no-op `ship` shim exits 0 immediately. `daemon_start` reaps it
+        // ---- (2) shipctl exists but no handshake ever appears ------------
+        // A no-op `shipctl` shim exits 0 immediately. `daemon_start` reaps it
         // and then polls for a handshake that never arrives. The 5s
         // timeout contract is the load-bearing one: the function must
         // return an Err after the timeout, never panic. The test takes
         // ~5s; that's the cost of a meaningful test for this path.
         let bin_dir = TempDir::new().unwrap();
-        let ship_shim = bin_dir.path().join("ship");
-        std::fs::write(&ship_shim, "#!/bin/sh\nexit 0\n").unwrap();
+        let shipctl_shim = bin_dir.path().join("shipctl");
+        std::fs::write(&shipctl_shim, "#!/bin/sh\nexit 0\n").unwrap();
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(&ship_shim, std::fs::Permissions::from_mode(0o755)).unwrap();
+            std::fs::set_permissions(&shipctl_shim, std::fs::Permissions::from_mode(0o755)).unwrap();
         }
         std::env::set_var("PATH", bin_dir.path());
         let result = std::panic::catch_unwind(|| daemon_start());
@@ -282,76 +283,76 @@ mod tests {
         }
     }
 
-    // -- ship resolver -----------------------------------------------------
+    // -- shipctl resolver ----------------------------------------------------
     //
-    // The host shell can't rely on `PATH` to find `ship` (a launched desktop
-    // app's PATH usually doesn't include the user's bin dir). The resolver
-    // looks in the host executable's directory first and falls back to PATH.
-    // These tests pin the three branches:
-    //   1. host-side `ship` present → Some(absolute path)
-    //   2. host-side `ship` missing → None
-    //   3. host-side `ship` is a directory / dangling symlink → None
-    // and verify the `ship_command` builder wires whichever branch through to
-    // `std::process::Command`'s program path.
+    // The host shell can't rely on `PATH` to find `shipctl` (a launched
+    // desktop app's PATH usually doesn't include the user's bin dir). The
+    // resolver looks in the host executable's directory first and falls back
+    // to PATH. These tests pin the three branches:
+    //   1. host-side `shipctl` present → Some(absolute path)
+    //   2. host-side `shipctl` missing → None
+    //   3. host-side `shipctl` is a directory / dangling symlink → None
+    // and verify the `shipctl_command` builder wires whichever branch through
+    // to `std::process::Command`'s program path.
 
     #[test]
-    fn resolve_ship_in_finds_ship_next_to_host() {
+    fn resolve_shipctl_in_finds_shipctl_next_to_host() {
         let tmp = TempDir::new().unwrap();
-        let ship = tmp.path().join(SHIP_BINARY_NAME);
-        std::fs::write(&ship, b"").unwrap();
-        assert_eq!(resolve_ship_in(tmp.path()), Some(ship));
+        let shipctl = tmp.path().join(SHIPCTL_BINARY_NAME);
+        std::fs::write(&shipctl, b"").unwrap();
+        assert_eq!(resolve_shipctl_in(tmp.path()), Some(shipctl));
     }
 
     #[test]
-    fn resolve_ship_in_returns_none_when_absent() {
+    fn resolve_shipctl_in_returns_none_when_absent() {
         let tmp = TempDir::new().unwrap();
-        assert_eq!(resolve_ship_in(tmp.path()), None);
+        assert_eq!(resolve_shipctl_in(tmp.path()), None);
     }
 
     #[test]
-    fn resolve_ship_in_rejects_directory_and_dangling_symlink() {
+    fn resolve_shipctl_in_rejects_directory_and_dangling_symlink() {
         let tmp = TempDir::new().unwrap();
         // A directory with the right name is NOT a file — resolver must skip
-        // it. The install bundle ships a binary, never a directory named
-        // `ship`.
-        std::fs::create_dir(tmp.path().join(SHIP_BINARY_NAME)).unwrap();
+        // it. The install bundle carries a binary, never a directory named
+        // `shipctl`.
+        std::fs::create_dir(tmp.path().join(SHIPCTL_BINARY_NAME)).unwrap();
         assert_eq!(
-            resolve_ship_in(tmp.path()),
+            resolve_shipctl_in(tmp.path()),
             None,
-            "a directory named `ship` must not match the resolver"
+            "a directory named `shipctl` must not match the resolver"
         );
         // Remove the dir, drop a dangling symlink — `is_file()` follows the
         // symlink and reports false when the target is gone.
-        std::fs::remove_dir(tmp.path().join(SHIP_BINARY_NAME)).unwrap();
+        std::fs::remove_dir(tmp.path().join(SHIPCTL_BINARY_NAME)).unwrap();
         #[cfg(unix)]
-        std::os::unix::fs::symlink("nowhere-target", tmp.path().join(SHIP_BINARY_NAME)).unwrap();
+        std::os::unix::fs::symlink("nowhere-target", tmp.path().join(SHIPCTL_BINARY_NAME)).unwrap();
         #[cfg(not(unix))]
-        std::fs::write(tmp.path().join(SHIP_BINARY_NAME), b"").ok();
+        std::fs::write(tmp.path().join(SHIPCTL_BINARY_NAME), b"").ok();
         assert_eq!(
-            resolve_ship_in(tmp.path()),
+            resolve_shipctl_in(tmp.path()),
             None,
             "a dangling symlink must not match the resolver"
         );
     }
 
     #[test]
-    fn ship_command_uses_host_side_when_present() {
+    fn shipctl_command_uses_host_side_when_present() {
         let tmp = TempDir::new().unwrap();
-        let ship = tmp.path().join(SHIP_BINARY_NAME);
-        std::fs::write(&ship, b"").unwrap();
-        let cmd = ship_command(tmp.path(), &["daemon", "start"]);
+        let shipctl = tmp.path().join(SHIPCTL_BINARY_NAME);
+        std::fs::write(&shipctl, b"").unwrap();
+        let cmd = shipctl_command(tmp.path(), &["daemon", "start"]);
         // Resolved to the host-side binary, not the bare name on PATH.
-        assert_eq!(cmd.get_program(), ship.as_os_str());
+        assert_eq!(cmd.get_program(), shipctl.as_os_str());
     }
 
     #[test]
-    fn ship_command_falls_back_to_bare_name_on_path() {
+    fn shipctl_command_falls_back_to_bare_name_on_path() {
         let tmp = TempDir::new().unwrap();
         // No file dropped in `tmp` — resolver returns None.
-        let cmd = ship_command(tmp.path(), &["daemon", "start"]);
-        // Falls back to `Command::new("ship")` — the program is the literal
+        let cmd = shipctl_command(tmp.path(), &["daemon", "start"]);
+        // Falls back to `Command::new("shipctl")` — the program is the literal
         // binary name; PATH resolution happens at spawn time inside the OS.
-        assert_eq!(cmd.get_program(), std::ffi::OsStr::new(SHIP_BINARY_NAME));
+        assert_eq!(cmd.get_program(), std::ffi::OsStr::new(SHIPCTL_BINARY_NAME));
         // Args still threaded through.
         let args: Vec<&std::ffi::OsStr> = cmd.get_args().collect();
         assert_eq!(
@@ -360,5 +361,5 @@ mod tests {
         );
     }
 
-    // -- end ship resolver --------------------------------------------------
+    // -- end shipctl resolver ------------------------------------------------
 }

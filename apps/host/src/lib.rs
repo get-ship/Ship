@@ -45,7 +45,7 @@ fn parse_app_id() -> Option<String> {
 
 /// Resolve the loopback port the webview should target, starting the daemon if
 /// it isn't already up. `daemon_status` is read-only — on a cold launch its port
-/// is `None`, so we must drive `daemon_start` (which spawns `ship daemon start`
+/// is `None`, so we must drive `daemon_start` (which spawns `shipctl daemon start`
 /// and polls ~5s for the handshake). The whole discover→start→re-discover cycle
 /// is retried a bounded number of times so a slow or racing launch self-heals;
 /// `None` is returned only after every attempt is exhausted, letting the caller

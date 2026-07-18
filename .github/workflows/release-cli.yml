@@ -119,7 +119,7 @@ jobs:
         run: |
           $stage = "ship-${{ steps.version.outputs.version }}-${{ matrix.target }}"
           New-Item -ItemType Directory -Force -Path "dist/$stage" | Out-Null
-          Copy-Item "target/${{ matrix.target }}/release/ship.exe" "dist/$stage/ship.exe"
+          Copy-Item "target/${{ matrix.target }}/release/shipctl.exe" "dist/$stage/shipctl.exe"
           Copy-Item "target/${{ matrix.target }}/release/shipd.exe" "dist/$stage/shipd.exe"
           Copy-Item "README.md" "dist/$stage/README.md"
           if (Test-Path "packaging/installer-assets/LICENSE-INSTALLER.txt") {
