@@ -21,6 +21,13 @@ mod agents_wire;
 mod code_wire;
 mod pipelines_wire;
 pub mod policy;
+// ship.ops.v1.TerminalService — the PTY/harness Connect adapter, part of
+// the ship-code surface. Compiled and mounted only under
+// `--features ship-code`, mirroring `code_wire`: with the feature off no
+// route is registered — the path is absent (structural, not a refused
+// call). The underlying sessions Registry is NOT gated — it serves agent
+// sessions too; only this adapter is.
+#[cfg(feature = "ship-code")]
 mod terminal_wire;
 mod ui_wire;
 pub use policy::{OP_POLICY, OpPolicy, policy_for};
@@ -229,6 +236,8 @@ pub fn router(state: ApiState) -> axum::Router {
     // terminal.* — the L2 Connect adapter over the unified live-session
     // registry (ship_agents::services::sessions::Registry). All eight
     // methods: Spawn/Stop/List/Get/SendInput/Resize/SessionBytes/SessionEvents.
+    // ship-code surface: gated like code_wire — feature off ⇒ route absent.
+    #[cfg(feature = "ship-code")]
     let router = terminal_wire::mount(router, &state);
     // search — ShipdSearchWire (rpc::search) branches on the request scope:
     // THIS_SPACE runs the active-space ShipdSearchContext (the historical
