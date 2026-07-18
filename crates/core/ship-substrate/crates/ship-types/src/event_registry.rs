@@ -62,13 +62,41 @@ impl std::fmt::Display for EventScope {
     }
 }
 
-/// Whether the event is kept in full history or windowed/dropped.
+/// Whether the event is kept in full history, kept for a bounded time
+/// window, or never persisted at all.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Retention {
     /// Persisted forever; replayed during projection bootstrap.
     Durable,
-    /// Windowed; only the last N or a recent time window is retained.
+    /// Persisted exactly like Durable at append time, then deleted by the
+    /// retention sweep once older than `ttl_days`. Projections folding a
+    /// Windowed type must yield correct state from the surviving window
+    /// alone — replay sees only unswept rows.
+    Windowed {
+        /// Retention horizon in days; rows older than this are swept.
+        ttl_days: u16,
+    },
+    /// Deliver-only: routed to live subscribers, NEVER persisted.
+    /// At-most-once, loss-tolerant — a crash or full mailbox drops it and
+    /// nothing replays it.
     Ephemeral,
+}
+
+impl Retention {
+    /// The sweep horizon for Windowed types; `None` for Durable/Ephemeral.
+    pub fn ttl_days(&self) -> Option<u16> {
+        match self {
+            Retention::Windowed { ttl_days } => Some(*ttl_days),
+            _ => None,
+        }
+    }
+
+    /// Whether rows of this retention class are written to the events log
+    /// at route time. Windowed persists exactly like Durable; only
+    /// Ephemeral skips the sink.
+    pub fn persists(&self) -> bool {
+        !matches!(self, Retention::Ephemeral)
+    }
 }
 
 /// Maturity of the event's schema contract.
@@ -248,5 +276,18 @@ mod tests {
                 "duplicate event name in registry: {name}"
             );
         }
+    }
+
+    #[test]
+    fn retention_tiers_split_persist_and_ttl() {
+        // The router's persist-vs-deliver branch and the sweep's type list
+        // both key off these two accessors: only Ephemeral skips the sink,
+        // only Windowed carries a horizon.
+        assert!(Retention::Durable.persists());
+        assert!(Retention::Windowed { ttl_days: 7 }.persists());
+        assert!(!Retention::Ephemeral.persists());
+        assert_eq!(Retention::Windowed { ttl_days: 7 }.ttl_days(), Some(7));
+        assert_eq!(Retention::Durable.ttl_days(), None);
+        assert_eq!(Retention::Ephemeral.ttl_days(), None);
     }
 }

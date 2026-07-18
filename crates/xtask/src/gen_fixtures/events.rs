@@ -295,6 +295,7 @@ fn scope_str(scope: &EventScope) -> &'static str {
 fn retention_str(retention: &Retention) -> &'static str {
     match retention {
         Retention::Durable => "durable",
+        Retention::Windowed { .. } => "windowed",
         Retention::Ephemeral => "ephemeral",
     }
 }

@@ -220,7 +220,7 @@ fn render_proto(
         let msg_name = format!("{}Msg", pascal(ev.name));
         let _ = write!(s, "// {scope} / {retention} — {name}\n",
             scope = if matches!(ev.scope, EventScope::Account) { "account" } else { "space" },
-            retention = if matches!(ev.retention, Retention::Durable) { "durable" } else { "ephemeral" },
+            retention = retention_str(&ev.retention),
             name = ev.name,
         );
         let _ = write!(s, "message {msg_name} {{\n");
@@ -254,6 +254,7 @@ fn scope_str(scope: &EventScope) -> &'static str {
 fn retention_str(retention: &Retention) -> &'static str {
     match retention {
         Retention::Durable => "durable",
+        Retention::Windowed { .. } => "windowed",
         Retention::Ephemeral => "ephemeral",
     }
 }

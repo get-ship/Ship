@@ -105,9 +105,9 @@ impl SyncServiceHandler {
     }
 
     /// Route a `sync.*` envelope through the kernel — the sole place
-    /// Retention is honored. `sync.push.completed` is Ephemeral (delivered,
-    /// not persisted); `sync.started`/`sync.stopped`/`sync.push.failed` are
-    /// Durable.
+    /// Retention is honored. `sync.push.completed` is Windowed (persisted,
+    /// swept past its TTL); `sync.started`/`sync.stopped`/`sync.push.failed`
+    /// are Durable.
     fn emit(&self, envelope: EventEnvelope) -> Result<()> {
         let kernel = self.kernel.clone();
         let ctx = sync_ctx();

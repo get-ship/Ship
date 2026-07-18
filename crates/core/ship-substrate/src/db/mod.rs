@@ -18,6 +18,7 @@ pub mod events;
 pub mod heal;
 pub mod integrity;
 pub mod kv_schema;
+pub mod retention;
 pub mod scope_schema;
 #[cfg(test)]
 mod events_tests;
@@ -37,6 +38,8 @@ mod tests_kv;
 mod tests_pragma;
 #[cfg(test)]
 mod tests_rebuild;
+#[cfg(test)]
+mod tests_retention;
 #[cfg(test)]
 mod torture_corruption_tests;
 #[cfg(test)]

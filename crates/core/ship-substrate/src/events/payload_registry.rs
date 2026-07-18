@@ -43,15 +43,17 @@ register_event!("actor.crashed", [EventScope::Runtime], Retention::Durable, Stab
 // on every rebuild. Reclassifying it as Durable is the right call now that the
 // kernel's `route` consults `Retention` (job/transient-events spike,
 // `.artifacts/transient-events-design.md`): losing it on daemon restart would
-// leave the actors table empty. The activity ticks below (`actor.slept`,
-// `actor.woke`, `actor.stopped`) keep Ephemeral — they are heartbeat-style
-// signals the kernel delivers to live subscribers, not durable state.
+// leave the actors table empty. `actor.stopped` is Durable for the same
+// reason from the other end: it is the lifecycle fact that closes the row
+// (status/exit fields on rebuild). The activity ticks (`actor.slept`,
+// `actor.woke`) keep Ephemeral — heartbeat-style signals the kernel
+// delivers to live subscribers, not durable state.
 register_event!("actor.created", [EventScope::Runtime], Retention::Durable, Stability::Stable, "ActorCreated", crate::events::types::ActorCreated);
 // `actor.mailbox_full` retired (B14, 2026-06-20) — the event had no emitter;
 // the kernel's `route` is delivery-only and silently drops on mailbox full.
 // Backpressure (post-emit signal) is a fast-follow. See `.artifacts/specs/...`.
 register_event!("actor.slept", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "ActorSlept", crate::events::types::ActorSlept);
-register_event!("actor.stopped", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "ActorStopped", crate::events::types::ActorStopped);
+register_event!("actor.stopped", [EventScope::Runtime], Retention::Durable, Stability::Stable, "ActorStopped", crate::events::types::ActorStopped);
 register_event!("actor.woke", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "ActorWoke", crate::events::types::ActorWoke);
 
 // ── agent.* ─────────────────────────────────────────────────────────────────

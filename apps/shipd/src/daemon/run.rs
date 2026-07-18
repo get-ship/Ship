@@ -183,6 +183,9 @@ pub async fn run_network(
     // Per-sandbox backend teardown folds in once SandboxOwner moves
     // from per-actor to per-sandbox.
     rt.start_sandbox_reaper();
+    // Event-retention sweep: trims Windowed-type event rows past their TTL
+    // (boot-time pass, then periodic).
+    rt.start_retention_sweep();
     // (Engine cut 2026-07-10: `spawn_human_gateway` retired with the
     // engine. The `HumanGatewayService` listened for `pipeline.run.blocked`
     // (now deregistered); the spec's "not assumed a drop-in" rule means

@@ -20,10 +20,11 @@ use ship_types::register_event;
 
 // ── sync.* ──────────────────────────────────────────────────────────────────
 // Runtime-scoped daemon-service events: no space binding (the service task
-// has no session). sync.push.completed is Ephemeral (high-frequency,
-// non-durable progress tick); the three state-change events are Durable
-// (started / stopped = lifecycle facts, push.failed = error record).
-register_event!("sync.push.completed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "SyncPushCompleted", ship_types::payload::SyncPushCompleted);
+// has no session). sync.push.completed is Windowed (high-frequency progress
+// tick — the recent push record matters, full history does not; swept past
+// 7 days); the three state-change events are Durable (started / stopped =
+// lifecycle facts, push.failed = error record).
+register_event!("sync.push.completed", [EventScope::Runtime], Retention::Windowed { ttl_days: 7 }, Stability::Stable, "SyncPushCompleted", ship_types::payload::SyncPushCompleted);
 register_event!("sync.push.failed", [EventScope::Runtime], Retention::Durable, Stability::Stable, "SyncPushFailed", ship_types::payload::SyncPushFailed);
 register_event!("sync.started", [EventScope::Runtime], Retention::Durable, Stability::Stable, "SyncStarted", ship_types::payload::SyncStarted);
 register_event!("sync.stopped", [EventScope::Runtime], Retention::Durable, Stability::Stable, "SyncStopped", ship_types::payload::SyncStopped);

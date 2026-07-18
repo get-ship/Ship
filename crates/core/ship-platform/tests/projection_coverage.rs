@@ -106,6 +106,12 @@ const SUPERVISOR_AUDIT: &[&str] = &["supervisor.shutting_down"];
 /// duplicating the feature-gate in the test.
 const COMPILE_AUDIT: &[&str] = &["compile.completed"];
 
+/// **Account audit** — `account.key_refreshed` is the durable record that a
+/// key refresh happened (Account scope syncs it to every device); no derived
+/// table exists — auth state lives in the keychain/token store, not a
+/// projection.
+const ACCOUNT_AUDIT: &[&str] = &["account.key_refreshed"];
+
 /// The complete allowlist. The test asserts every entry is genuinely
 /// audit-only (no `Projection` impl exists in the linked binary OR the impl
 /// exists but is feature-gated). Adding an entry silences the next silent
@@ -148,6 +154,8 @@ const AUDIT_ONLY: &[&str] = &[
     "supervisor.shutting_down",
     // reason eight
     "compile.completed",
+    // reason nine
+    "account.key_refreshed",
 ];
 
 #[test]
@@ -299,4 +307,5 @@ const _AUDIT_REASONS_REFERENCED: () = {
     let _ = FACET_AUDIT;
     let _ = SUPERVISOR_AUDIT;
     let _ = COMPILE_AUDIT;
+    let _ = ACCOUNT_AUDIT;
 };

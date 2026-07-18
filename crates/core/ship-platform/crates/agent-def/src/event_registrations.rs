@@ -21,32 +21,35 @@ use ship_types::register_event;
 // rule: the WHOLE family is Runtime — a session is per-machine execution
 // state, not a collaborative-space concern, and its projection
 // (`canonical_sessions`) lives in `runtime.db`. Retention: coarse events
-// are Durable, turn events are Ephemeral. The workbench family is
-// RETIRED (R6) — no `SessionStarted` workbench payload struct, no
-// `session.attached` etc.
+// are Durable; turn events are Windowed (persisted like Durable, swept
+// past 7 days — projections folding them are bounded by that horizon).
+// The workbench family is RETIRED (R6) — no `SessionStarted` workbench
+// payload struct, no `session.attached` etc.
 register_event!("session.started", [EventScope::Runtime], Retention::Durable, Stability::Stable, "canonical_session::SessionStarted", crate::canonical_session::SessionStarted);
 register_event!("session.completed", [EventScope::Runtime], Retention::Durable, Stability::Stable, "canonical_session::SessionCompleted", crate::canonical_session::SessionCompleted);
 register_event!("session.failed", [EventScope::Runtime], Retention::Durable, Stability::Stable, "canonical_session::SessionFailed", crate::canonical_session::SessionFailed);
 register_event!("session.cancelled", [EventScope::Runtime], Retention::Durable, Stability::Stable, "canonical_session::SessionCancelled", crate::canonical_session::SessionCancelled);
 register_event!("session.suspended", [EventScope::Runtime], Retention::Durable, Stability::Stable, "canonical_session::SessionSuspended", crate::canonical_session::SessionSuspended);
-register_event!("session.turn.started", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "canonical_session::TurnStarted", crate::canonical_session::TurnStarted);
-register_event!("session.turn.ended", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "canonical_session::TurnEnded", crate::canonical_session::TurnEnded);
+register_event!("session.turn.started", [EventScope::Runtime], Retention::Windowed { ttl_days: 7 }, Stability::Stable, "canonical_session::TurnStarted", crate::canonical_session::TurnStarted);
+register_event!("session.turn.ended", [EventScope::Runtime], Retention::Windowed { ttl_days: 7 }, Stability::Stable, "canonical_session::TurnEnded", crate::canonical_session::TurnEnded);
 
-// ── op.* (fine-grained) — Runtime-scoped, Ephemeral ────────────────────────────
+// ── op.* (fine-grained) — Runtime-scoped, Windowed 7d ──────────────────────
 // R2: op.* replaces the retired hook.* family (#25b, merged). Emitters:
 // http_ingress → op.* conversion; ship-code synth_emit.rs → op.tool_use_*.
-// Fine-grained (per tool-call) so Runtime + Ephemeral — same scope rule as
-// `session.turn.*`, just one more level of granularity.
-register_event!("op.tool_use_started", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "op::OpToolUseStarted", crate::op::OpToolUseStarted);
-register_event!("op.tool_use_completed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "op::OpToolUseCompleted", crate::op::OpToolUseCompleted);
-register_event!("op.tool_use_denied", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "op::OpToolUseDenied", crate::op::OpToolUseDenied);
+// Fine-grained (per tool-call): persisted so analytics fold in-TX, swept
+// past 7 days — the analytics projections claim the window, not history.
+register_event!("op.tool_use_started", [EventScope::Runtime], Retention::Windowed { ttl_days: 7 }, Stability::Stable, "op::OpToolUseStarted", crate::op::OpToolUseStarted);
+register_event!("op.tool_use_completed", [EventScope::Runtime], Retention::Windowed { ttl_days: 7 }, Stability::Stable, "op::OpToolUseCompleted", crate::op::OpToolUseCompleted);
+register_event!("op.tool_use_denied", [EventScope::Runtime], Retention::Windowed { ttl_days: 7 }, Stability::Stable, "op::OpToolUseDenied", crate::op::OpToolUseDenied);
 
 // ── dispatch.* (spawn-intent channel, #26) ─────────────────────────────────
-// Runtime-scoped, Ephemeral. The ONE sanctioned driver-edge carrier. Replaces
-// the legacy `agent.session.started` as the hard-failing spawn trigger.
+// Runtime-scoped, Windowed 7d: the intent is fulfilled immediately, but the
+// recent dispatch record is queryable for post-mortems inside the window.
+// The ONE sanctioned driver-edge carrier. Replaces the legacy
+// `agent.session.started` as the hard-failing spawn trigger.
 // The `service.agents` actor subscribes to this event and owns the spawn atom.
 // EXEMPT from the no-driver-edges guard in `crate::guards` — by design.
-register_event!("dispatch.requested", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "dispatch_intent::DispatchRequestedPayload", crate::dispatch_intent::DispatchRequestedPayload);
+register_event!("dispatch.requested", [EventScope::Runtime], Retention::Windowed { ttl_days: 7 }, Stability::Stable, "dispatch_intent::DispatchRequestedPayload", crate::dispatch_intent::DispatchRequestedPayload);
 
 // ── agents-domain facets (keystone-A Phase A, 2026-06-10) ──────────────────
 // Moved from ship-substrate payload_registry.rs: the AGENTS domain owns its

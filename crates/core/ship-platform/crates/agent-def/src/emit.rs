@@ -319,7 +319,7 @@ mod tests {
     }
 
     #[test]
-    fn turn_started_emits_runtime_scoped_ephemeral_envelope() {
+    fn turn_started_emits_runtime_scoped_windowed_envelope() {
         let (mock, sink) = fresh_sink();
         let payload = TurnStarted { session_id: "s1".into(), idx: 0 };
         let env = sink
@@ -335,13 +335,13 @@ mod tests {
             &mock,
             "session.turn.started",
             EventScope::Runtime,
-            Retention::Ephemeral,
+            Retention::Windowed { ttl_days: 7 },
             "s1",
         );
     }
 
     #[test]
-    fn turn_ended_emits_runtime_scoped_ephemeral_envelope() {
+    fn turn_ended_emits_runtime_scoped_windowed_envelope() {
         let (mock, sink) = fresh_sink();
         let payload = TurnEnded {
             session_id: "s1".into(),
@@ -360,7 +360,7 @@ mod tests {
             &mock,
             "session.turn.ended",
             EventScope::Runtime,
-            Retention::Ephemeral,
+            Retention::Windowed { ttl_days: 7 },
             "s1",
         );
     }

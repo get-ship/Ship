@@ -31,6 +31,40 @@ fn full_registry_count_is_pinned() {
     );
 }
 
+/// Windowed pin — the Windowed(TTL) tier is a CLOSED, ruled list. A type in
+/// this tier is persisted + projection-folded like Durable and swept past
+/// its TTL, so every projection folding it must be correct from the
+/// surviving window alone (see ship-platform/tests/retention_replay.rs).
+/// Adding a type here means accepting that bound for all of its
+/// projections — argue the row with the change, don't just append it.
+/// (Windowed tier introduced 2026-07-18: op.tool_use_* ×3,
+/// session.turn.* ×2, dispatch.requested, sync.push.completed at 7d;
+/// actor.stopped and account.key_refreshed left the Ephemeral tier for
+/// Durable in the same re-triage.)
+#[test]
+fn windowed_events_are_the_ruled_set() {
+    let mut actual: Vec<(&str, u16)> = event_registry::registry()
+        .filter_map(|d| d.retention.ttl_days().map(|ttl| (d.name, ttl)))
+        .collect();
+    actual.sort_unstable();
+    assert_eq!(
+        actual,
+        [
+            ("dispatch.requested", 7),
+            ("op.tool_use_completed", 7),
+            ("op.tool_use_denied", 7),
+            ("op.tool_use_started", 7),
+            ("session.turn.ended", 7),
+            ("session.turn.started", 7),
+            ("sync.push.completed", 7),
+        ],
+        "the Windowed retention set changed. This list is ruled: a new \
+         Windowed type must have projections that fold correctly from a \
+         swept log (bounded by its TTL horizon) — verify, then update this \
+         pin with a dated note."
+    );
+}
+
 /// Every registration's carried validator is a LIVE wire: it must reject
 /// non-JSON for every event in the full vocabulary. Phase 4a made the
 /// validator a mandatory registration field; this proves none of them is a

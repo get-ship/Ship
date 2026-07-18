@@ -118,6 +118,45 @@ impl ShipRuntime {
         );
     }
 
+    /// Start the event-retention sweep: deletes event rows of Windowed-
+    /// retention types older than their per-type TTL, across every present
+    /// scope db. Runs immediately at boot, then every
+    /// `ship_substrate::db::retention::SWEEP_PERIOD`.
+    ///
+    /// Maintenance only: the sweep emits nothing through the kernel and
+    /// never touches projection tables. It does durable SQLite work
+    /// (`block_on`), so each pass runs on a `spawn_blocking` thread.
+    pub fn start_retention_sweep(&self) {
+        let ship_dir = self.ship_dir.clone();
+        ship_substrate::task_health::spawn_supervised(
+            &self.health_registry,
+            "retention-sweep",
+            move || {
+                let ship_dir = ship_dir.clone();
+                async move {
+                    loop {
+                        let dir = ship_dir.clone();
+                        match tokio::task::spawn_blocking(move || {
+                            ship_substrate::db::retention::sweep_windowed_events(&dir)
+                        })
+                        .await
+                        {
+                            Ok(Ok(report)) if report.rows_deleted() > 0 => tracing::info!(
+                                rows = report.rows_deleted(),
+                                dbs = report.dbs_visited,
+                                "retention-sweep: trimmed windowed event rows"
+                            ),
+                            Ok(Ok(_)) => {}
+                            Ok(Err(e)) => tracing::warn!("retention-sweep: sweep failed: {e}"),
+                            Err(e) => tracing::warn!("retention-sweep: join error: {e}"),
+                        }
+                        tokio::time::sleep(ship_substrate::db::retention::SWEEP_PERIOD).await;
+                    }
+                }
+            },
+        );
+    }
+
     /// Start the sandbox reaper: periodically scans the dispatcher
     /// for sandboxes idle past their timeout and tears them down.
     ///

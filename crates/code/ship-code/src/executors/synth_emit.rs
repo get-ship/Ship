@@ -8,8 +8,9 @@
 //!
 //! Emit path: build the EventEnvelope → route through the global
 //! `KernelRouter::emit`, the sole place Retention is honored. `op.*` and
-//! `session.turn.*` are registered `Retention::Ephemeral` — the kernel
-//! delivers them to live subscribers without persisting.
+//! `session.turn.*` are registered `Retention::Windowed` — persisted and
+//! projection-folded like Durable, delivered to live subscribers, and
+//! trimmed past their TTL by the substrate retention sweep.
 
 use ship_substrate::db::block_on_anyhow;
 use ship_substrate::events::EventEnvelope;

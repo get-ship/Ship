@@ -22,16 +22,19 @@ mod tests {
     ///   • `session.*` (but NOT `session.turn.*`) → primary scope = Runtime,
     ///     retention = Durable. Coarse-grain session lifecycle events feed
     ///     the `canonical_sessions` projection in `runtime.db`.
-    ///   • `session.turn.*` → primary scope = Runtime, retention = Ephemeral.
-    ///     Turns churn too fast for full history; only the last N are retained.
-    ///   • `op.*` (if any) → primary scope = Runtime, retention = Ephemeral.
-    ///     Fine-grained op events ride the hook stream; not durable.
+    ///   • `session.turn.*` → primary scope = Runtime, retention =
+    ///     Windowed 7d. Turns churn too fast for full history; the log keeps
+    ///     the retention window and the sweep trims the rest.
+    ///   • `op.*` (if any) → primary scope = Runtime, retention = Windowed 7d.
+    ///     Fine-grained op events feed the analytics projections, which
+    ///     claim the window, not full history.
     ///
     /// This generalises the slice-2 payload guard: rather than checking struct
     /// fields, we check the registry metadata directly. Adding a new `session.*`
     /// event with wrong scope/retention will fail here immediately.
     #[test]
     fn event_scope_discipline() {
+        const WINDOWED_7D: Retention = Retention::Windowed { ttl_days: 7 };
         let mut violations: Vec<String> = Vec::new();
 
         for def in event_registry::registry() {
@@ -59,7 +62,7 @@ mod tests {
                 }
             }
 
-            // session.turn.* → Runtime + Ephemeral
+            // session.turn.* → Runtime + Windowed 7d
             if name.starts_with("session.turn.") {
                 if primary != EventScope::Runtime {
                     violations.push(format!(
@@ -68,16 +71,17 @@ mod tests {
                         primary
                     ));
                 }
-                if retention != Retention::Ephemeral {
+                if retention != WINDOWED_7D {
                     violations.push(format!(
-                        "event `{name}`: expected retention Ephemeral (got {:?}); \
-                         turns churn too fast for full history",
+                        "event `{name}`: expected retention Windowed 7d (got {:?}); \
+                         turns churn too fast for full history — the sweep keeps \
+                         the retention window",
                         retention
                     ));
                 }
             }
 
-            // op.* → Runtime + Ephemeral
+            // op.* → Runtime + Windowed 7d
             if name.starts_with("op.") {
                 if primary != EventScope::Runtime {
                     violations.push(format!(
@@ -86,19 +90,21 @@ mod tests {
                         primary
                     ));
                 }
-                if retention != Retention::Ephemeral {
+                if retention != WINDOWED_7D {
                     violations.push(format!(
-                        "event `{name}`: expected retention Ephemeral (got {:?}); \
-                         op events are fine-grained and not retained in full history",
+                        "event `{name}`: expected retention Windowed 7d (got {:?}); \
+                         op events are fine-grained — analytics claim the window, \
+                         not full history",
                         retention
                     ));
                 }
             }
 
-            // dispatch.* → Runtime + Ephemeral
+            // dispatch.* → Runtime + Windowed 7d
             // The spawn-intent channel (#26). Runtime-scoped because it drives
-            // machine-local process spawn; Ephemeral because the intent is
-            // fulfilled immediately (the harness is up or the dispatch failed).
+            // machine-local process spawn; Windowed because the intent is
+            // fulfilled immediately — the recent record serves post-mortems,
+            // full history serves nothing.
             if name.starts_with("dispatch.") {
                 if primary != EventScope::Runtime {
                     violations.push(format!(
@@ -107,10 +113,11 @@ mod tests {
                         primary
                     ));
                 }
-                if retention != Retention::Ephemeral {
+                if retention != WINDOWED_7D {
                     violations.push(format!(
-                        "event `{name}`: expected retention Ephemeral (got {:?}); \
-                         dispatch intent is fulfilled immediately — no durable replay needed",
+                        "event `{name}`: expected retention Windowed 7d (got {:?}); \
+                         dispatch intent is fulfilled immediately — the window \
+                         covers post-mortems, no full-history replay needed",
                         retention
                     ));
                 }

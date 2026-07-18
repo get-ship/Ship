@@ -10,7 +10,6 @@ use tokio::sync::mpsc;
 
 use ship_types::envelope::EventEnvelope;
 pub use ship_types::ActorConfig;
-use ship_types::event_registry::Retention;
 use crate::mailbox::Mailbox;
 use crate::sink::EventSink;
 use crate::validator::EventValidator;
@@ -165,17 +164,20 @@ impl KernelRouter {
         &self.subscriptions
     }
 
-    /// Validate, then either persist (Durable) or skip persistence
-    /// (`Retention::Ephemeral`), and deliver to mailboxes either way.
+    /// Validate, then either persist (Durable and Windowed) or skip
+    /// persistence (`Retention::Ephemeral`), and deliver to mailboxes
+    /// either way.
     ///
     /// `Retention::Ephemeral` events are **transient signals** — delivered
     /// to live in-memory subscribers (`deliver` → per-actor mailboxes;
     /// `KernelLog::broadcast` → external subscribers) but NEVER written to
-    /// the durable events table. The doc on `Retention::Ephemeral` says
-    /// "Windowed; only the last N or a recent time window is retained";
-    /// this is what makes that contract true end-to-end. See
-    /// `.artifacts/transient-events-design.md` (job/transient-events) for
-    /// the spike rationale.
+    /// the events table: at-most-once, loss-tolerant.
+    ///
+    /// `Retention::Windowed` events persist EXACTLY like Durable here —
+    /// row insert + in-TX projection fold, delivery unchanged. The tier
+    /// differs only at sweep and replay (`ship-substrate`'s retention
+    /// sweep deletes rows past their TTL); the router carries no branch
+    /// for it beyond the persist-vs-deliver split below.
     ///
     /// Events with no registered definition (ad-hoc / test) default to
     /// `Durable` to preserve existing emit-site behavior — fail-closed
@@ -189,7 +191,7 @@ impl KernelRouter {
         // Skip the durable write for transient signals. Mailbox delivery
         // below is unaffected.
         if ship_types::event_registry::lookup(&event.event_type)
-            .map(|d| d.retention == Retention::Ephemeral)
+            .map(|d| !d.retention.persists())
             .unwrap_or(false)
         {
             self.deliver(&event);
