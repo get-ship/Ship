@@ -5,7 +5,7 @@
 //! field) — no coercion surprises. Pure unit-level: no event bus, no DB.
 
 use serde_json::json;
-use ship_collection::schema::{parse_schema_doc, validate_item};
+use ship_collection::schema::{parse_item_data, parse_schema_doc, validate_item};
 use ship_collection::types::SchemaDoc;
 
 fn schema(fields: serde_json::Value) -> SchemaDoc {
@@ -176,34 +176,46 @@ fn string_field_accepts_very_long_string() {
     assert!(validate_item(&s, &item).is_ok(), "no documented max-length bound on string fields");
 }
 
-/// FINDING: a deeply nested JSON value (5000 levels) reaching this code path
-/// stack-overflows and SIGABRTs the whole process — not a catchable `Err`.
-/// `validate_item`'s Object/Array checks are O(1) (`value.is_object()` /
-/// `value.is_array()`, no recursive walk), so the crash is not in
-/// `validate_item` itself; it is `serde_json::Value`'s derived recursive
-/// `Drop` (confirmed by removing the `validate_item` call — the overflow
-/// still happens when the nested `Value` merely goes out of scope). The
-/// same shape of value arrives over the wire: `CollectionService::create_item`
-/// / `update_item` call `serde_json::from_slice::<Value>(data_json)` on
-/// caller-controlled bytes with no depth limit, so a single malicious
-/// `data_json` payload for an `object`- or `array`-typed field can crash the
-/// daemon process before `validate_item` ever runs — a total validator
-/// should reject this, not let it take the process down. Left `#[ignore]`
-/// because a stack overflow SIGABRTs the test binary itself (there is no
-/// `Err` to assert against, and running it un-ignored kills the whole suite).
-#[ignore = "FINDING: deeply nested JSON (object/array field, or create_item's raw data_json) stack-overflows the process (SIGABRT) — no depth limit on serde_json::Value recursion reachable from caller-controlled item data"]
+/// FINDING (fixed): a deeply nested JSON value (5000 levels) reaching item
+/// data used to stack-overflow and SIGABRT the whole process — not a
+/// catchable `Err`. `validate_item`'s Object/Array checks are O(1)
+/// (`value.is_object()` / `value.is_array()`, no recursive walk), so the
+/// crash was never in `validate_item` itself; it was `serde_json::Value`'s
+/// recursive `Drop` (confirmed by removing the `validate_item` call — the
+/// overflow still happened when the nested `Value` merely went out of
+/// scope), and `serde_json::from_slice`'s own recursive-descent parse is
+/// equally unbounded. The real ingress is `CollectionService::create_item` /
+/// `update_item`, which call `serde_json::from_slice::<Value>(data_json)` on
+/// caller-controlled bytes — a single malicious `data_json` payload could
+/// crash the daemon before `validate_item` ever ran. The fix is
+/// `schema::parse_item_data`, which bounds nesting depth on the raw bytes
+/// (iteratively, no recursion) BEFORE `serde_json::from_slice` is called, so
+/// an over-depth payload is rejected before a dangerous `Value` tree is ever
+/// constructed. `create_item`/`update_item` now route through it.
+///
+/// This test builds the malicious payload as raw bytes (never materializing
+/// an in-memory deeply-nested `Value`, which is itself a separate hazard
+/// unrelated to this fix — see `deeply_nested_and_chain_does_not_panic` in
+/// `query_contract_torture.rs`) and drives it through the real ingress
+/// (`parse_item_data`), matching how deep item data actually reaches the
+/// daemon over the wire.
 #[test]
 fn deeply_nested_object_field_does_not_stack_overflow() {
-    let s = all_fields_schema();
-    // Build a 5000-deep nested object as the `obj` field's value.
-    let mut v = json!({});
+    // Build a 5000-deep nested JSON object as raw bytes for the `obj` field.
+    let mut nested = String::new();
     for _ in 0..5000 {
-        v = json!({ "nested": v });
+        nested.push_str("{\"nested\":");
     }
-    let item = json!({ "s": "x", "n": 1.0, "obj": v });
-    // Only structural top-level type is checked for Object fields — must not
-    // panic/overflow regardless of nesting depth.
-    let _ = validate_item(&s, &item);
+    nested.push('1');
+    for _ in 0..5000 {
+        nested.push('}');
+    }
+    let data_json = format!(r#"{{"s":"x","n":1.0,"obj":{nested}}}"#);
+
+    // Must be a clean rejection, not a panic/crash — matches the real
+    // create_item/update_item ingress path.
+    let result = parse_item_data(data_json.as_bytes());
+    assert!(result.is_err(), "expected rejection for over-depth item data, got {result:?}");
 }
 
 #[test]

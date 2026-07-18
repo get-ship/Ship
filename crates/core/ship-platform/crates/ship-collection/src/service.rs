@@ -21,7 +21,7 @@ use crate::projection::{
 };
 use crate::types::{ItemRecord, SchemaDoc};
 
-use crate::schema::{parse_schema_doc, validate_item};
+use crate::schema::{parse_item_data, parse_schema_doc, validate_item};
 
 /// Core service — stateless; all state lives in `SpaceContext` + `SchemaRegistry`.
 pub struct CollectionService {
@@ -132,8 +132,7 @@ impl CollectionService {
         data_json: &[u8],
     ) -> Result<ItemRecord, CollectionError> {
         let schema = self.resolve_schema(collection).await?;
-        let data: serde_json::Value = serde_json::from_slice(data_json)
-            .map_err(|e| CollectionError::Validation(format!("invalid data JSON: {e}")))?;
+        let data = parse_item_data(data_json)?;
         validate_item(&schema, &data)?;
 
         let id = new_ulid();
@@ -177,8 +176,7 @@ impl CollectionService {
         data_json: &[u8],
     ) -> Result<ItemRecord, CollectionError> {
         let schema = self.resolve_schema(collection).await?;
-        let patch: serde_json::Value = serde_json::from_slice(data_json)
-            .map_err(|e| CollectionError::Validation(format!("invalid data JSON: {e}")))?;
+        let patch = parse_item_data(data_json)?;
 
         let now = now_rfc3339();
         let original = self.get_item(collection, id).await?;

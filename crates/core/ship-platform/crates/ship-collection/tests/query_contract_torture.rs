@@ -355,47 +355,55 @@ fn non_json_bytes_rejected() {
     assert!(result.is_err());
 }
 
-/// FINDING: a right-leaning `AndNode` chain ~2000 deep stack-overflows and
-/// SIGABRTs the process. Two unbounded recursions compound here: `translate_ast`
-/// first walks the WHOLE AST via `reject_forbidden_nodes` (recursing into
-/// every object/array value with no depth cap), then, once past that,
-/// `collect_predicates` recurses once per `AndNode` link (also uncapped).
-/// `query_items_ast` takes `ast_bytes: &[u8]` straight from the caller with
-/// no size or depth limit before ever reaching `translate_ast`, so a single
-/// malicious inline-AST query payload — not even a large one; ~2000 nested
-/// JSON objects is well under most body-size caps — can crash the daemon
-/// process. This is a direct break of the "fuzz translate_ast ... must not
-/// panic" spirit of master property 3 / scenario 4: the whitelist correctly
-/// rejects disallowed node kinds, but never bounds recursion depth, so a
-/// well-formed-looking (all whitelisted node kinds!) WHERE clause is itself
-/// an attack. Left `#[ignore]` because a stack overflow SIGABRTs the test
-/// binary (no `Err` to assert — the process dies before `translate_ast`
-/// returns).
-#[ignore = "FINDING: ~2000-deep AndNode chain (or equally deep nesting anywhere reject_forbidden_nodes walks) stack-overflows translate_ast (SIGABRT) — no recursion depth limit on caller-controlled inline-AST query bytes"]
+/// FINDING (fixed): a right-leaning `AndNode` chain ~2000 deep used to
+/// stack-overflow and SIGABRT the process. Two unbounded recursions compounded
+/// here: `translate_ast` first walked the WHOLE AST via `reject_forbidden_nodes`
+/// (recursing into every object/array value with no depth cap), then, once
+/// past that, `collect_predicates` recursed once per `AndNode` link (also
+/// uncapped) — and even the initial `serde_json::from_slice` parse of
+/// `ast_bytes` was itself an unbounded recursive descent. `translate_ast` now
+/// enforces `MAX_AST_DEPTH` on the raw bytes before parsing and on both
+/// recursive walks after parsing (see `query::mod::MAX_AST_DEPTH`).
+///
+/// This test still builds (and must drop) a ~2000-deep `serde_json::Value`
+/// fixture in-process to exercise the fix, which is independently at risk of
+/// the well-known `serde_json::Value` recursive-`Drop` stack overflow on the
+/// test harness's default (small) per-test thread — a test-harness artifact,
+/// unrelated to `translate_ast`'s own behavior. Building/dropping the fixture
+/// and calling `translate_ast` all run on a thread given a generous stack so
+/// the assertion below is actually reached.
 #[test]
 fn deeply_nested_and_chain_does_not_panic() {
     // Build a right-leaning AndNode chain 2000 deep — must either translate
     // (flattening into 2000 predicates) or reject cleanly; must not panic or
     // stack-overflow on a plausible-sized adversarial WHERE clause.
-    fn leaf(n: i64) -> serde_json::Value {
-        json!({
-            "kind": "BinaryOperationNode",
-            "op": { "kind": "OperatorNode", "operator": "=" },
-            "leftOperand": { "kind": "ReferenceNode", "column": { "kind": "ColumnNode", "column": { "kind": "IdentifierNode", "name": "title" } } },
-            "rightOperand": { "kind": "ValueNode", "value": { "kind": "PrimitiveValueNode", "value": n, "type": "number" } }
+    let handle = std::thread::Builder::new()
+        .stack_size(64 * 1024 * 1024)
+        .spawn(|| {
+            fn leaf(n: i64) -> serde_json::Value {
+                json!({
+                    "kind": "BinaryOperationNode",
+                    "op": { "kind": "OperatorNode", "operator": "=" },
+                    "leftOperand": { "kind": "ReferenceNode", "column": { "kind": "ColumnNode", "column": { "kind": "IdentifierNode", "name": "title" } } },
+                    "rightOperand": { "kind": "ValueNode", "value": { "kind": "PrimitiveValueNode", "value": n, "type": "number" } }
+                })
+            }
+            let mut expr = leaf(0);
+            for i in 1..2000 {
+                expr = json!({ "kind": "AndNode", "left": leaf(i), "right": expr });
+            }
+            let ast = json!({
+                "kind": "SelectQueryNode",
+                "from": simple_from("tasks"),
+                "where": { "kind": "WhereNode", "where": expr }
+            });
+            // A chain this deep exceeds MAX_AST_DEPTH — must be a clean
+            // Unsupported rejection, not a panic/crash.
+            let result = translate_ast(&serde_json::to_vec(&ast).unwrap(), None, 50);
+            assert!(result.is_err(), "expected Unsupported for an over-depth AND chain, got {result:?}");
         })
-    }
-    let mut expr = leaf(0);
-    for i in 1..2000 {
-        expr = json!({ "kind": "AndNode", "left": leaf(i), "right": expr });
-    }
-    let ast = json!({
-        "kind": "SelectQueryNode",
-        "from": simple_from("tasks"),
-        "where": { "kind": "WhereNode", "where": expr }
-    });
-    // Not asserting Ok/Err — only that it returns rather than crashing.
-    let _ = translate_ast(&serde_json::to_vec(&ast).unwrap(), None, 50);
+        .unwrap();
+    handle.join().unwrap();
 }
 
 // ── value-injection attempts through WHERE operands ───────────────────────
