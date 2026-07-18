@@ -38,19 +38,27 @@
     before paint in the common case; this body is only seen while setup is
     starting/polling the daemon.
 
-    On final failure setup navigates THIS document to `#error` (an in-bootstrap
-    state) rather than hanging on "Connecting…" forever — the `:target` rule
-    above reveals the error block, and "Retry" reloads to re-run discovery
-    once the daemon is up. Daemon lifecycle is the native host's concern
-    (see apps/host/src/daemon.rs).
+    When the generous startup window closes without a daemon, the native
+    watcher navigates THIS document to `#error` (its absolute URL with the
+    fragment swapped — the `:target` rule above reveals the error block) and
+    keeps probing indefinitely. "Retry" (wired in index.js — the CSP forbids
+    inline handlers) drives the native `daemon_status`/`daemon_start` commands
+    and reflects their outcome here; navigation stays native — the watcher
+    picks up any daemon that appears. Daemon lifecycle is the native host's
+    concern (see apps/host/src/daemon.rs).
+
+    This page must stay dependency-free static HTML+JS: no build step, no
+    framework — it is embedded verbatim as the bundled frontendDist.
   -->
   <div class="frame">
     <div class="msg">Connecting to daemon…</div>
     <div id="error" class="err-block">
       <div class="err">Could not reach the Ship daemon. It may have failed to
         start. Check the daemon log, then retry.</div>
-      <button onclick="location.assign('index.html')">Retry</button>
+      <button id="retry" type="button">Retry</button>
+      <div id="retry-status" class="msg" role="status"></div>
     </div>
   </div>
+  <script src="index.js" defer></script>
 </body>
 </html>
