@@ -46,7 +46,6 @@ impl Projection for SpaceStacksProjection {
     }
 
     fn truncate(&self, conn: &mut SqliteConnection) -> Result<()> {
-        block_on(async { sqlx::query("DELETE FROM space_stacks").execute(conn).await })?;
-        Ok(())
+        ship_substrate::db::heal::truncate_or_heal(conn, "space_stacks")
     }
 }

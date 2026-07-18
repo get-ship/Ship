@@ -69,10 +69,7 @@ impl Projection for AuthSessionsProjection {
     }
 
     fn truncate(&self, conn: &mut SqliteConnection) -> Result<()> {
-        block_on(async {
-            sqlx::query("DELETE FROM auth_sessions").execute(conn).await
-        })?;
-        Ok(())
+        ship_substrate::db::heal::truncate_or_heal(conn, "auth_sessions")
     }
 }
 
@@ -210,10 +207,7 @@ impl Projection for DaemonOwnerProjection {
     }
 
     fn truncate(&self, conn: &mut SqliteConnection) -> Result<()> {
-        block_on(async {
-            sqlx::query("DELETE FROM daemon_owner").execute(conn).await
-        })?;
-        Ok(())
+        ship_substrate::db::heal::truncate_or_heal(conn, "daemon_owner")
     }
 }
 

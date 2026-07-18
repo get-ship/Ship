@@ -67,12 +67,7 @@ impl Projection for CompileStateProjection {
     }
 
     fn truncate(&self, conn: &mut SqliteConnection) -> Result<()> {
-        block_on(async {
-            sqlx::query("DELETE FROM project_compile_state")
-                .execute(conn)
-                .await
-        })?;
-        Ok(())
+        ship_substrate::db::heal::truncate_or_heal(conn, "project_compile_state")
     }
 }
 

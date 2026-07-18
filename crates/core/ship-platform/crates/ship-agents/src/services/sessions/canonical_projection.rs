@@ -406,12 +406,7 @@ impl Projection for CanonicalSessionProjection {
     }
 
     fn truncate(&self, conn: &mut SqliteConnection) -> Result<()> {
-        block_on(async {
-            sqlx::query("DELETE FROM canonical_sessions")
-                .execute(conn)
-                .await
-        })?;
-        Ok(())
+        ship_substrate::db::heal::truncate_or_heal(conn, "canonical_sessions")
     }
 }
 

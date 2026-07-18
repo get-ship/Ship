@@ -15,7 +15,6 @@ use sqlx::SqliteConnection;
 
 use super::async_projection::AsyncProjection;
 use super::registry::Projection;
-use crate::db::block_on;
 use crate::events::types::event_types;
 use crate::events::EventEnvelope;
 
@@ -78,10 +77,7 @@ impl Projection for ActorProjection {
     }
 
     fn truncate(&self, conn: &mut SqliteConnection) -> Result<()> {
-        block_on(async {
-            sqlx::query("DELETE FROM actors").execute(conn).await?;
-            Ok(())
-        })
+        crate::db::heal::truncate_or_heal(conn, "actors")
     }
 }
 

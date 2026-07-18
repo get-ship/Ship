@@ -15,6 +15,7 @@ pub mod daemon_settings;
 pub mod spaces;
 pub mod envelope;
 pub mod events;
+pub mod heal;
 pub mod integrity;
 pub mod kv_schema;
 pub mod scope_schema;

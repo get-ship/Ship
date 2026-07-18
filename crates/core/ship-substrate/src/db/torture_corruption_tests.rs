@@ -139,29 +139,13 @@ fn corrupted_log_root_page_is_reported_fatal_not_recoverable() {
 /// The heal path: when corruption hits ONLY the projection table (the log
 /// survives), `rebuild_scope_db` must restore the master invariant —
 /// `actors` reconstructed to exactly fold(events log) — and a follow-up
-/// integrity check must come back clean.
-///
-/// **FINDING (T1 storage-torture, scenario 4) — real break, do not fix here.**
-///
-/// `ActorProjection::truncate` runs `DELETE FROM actors`, which must walk the
-/// SAME structurally-damaged root page the corruption hit. Repro: append N
-/// `actor.created` events, flip one byte in the `actors` table's own b-tree
-/// root-page header (page-type flag), then call `rebuild_projections`. It
-/// returns `Err("database disk image is malformed")` instead of healing.
-///
-/// The `IntegrityStatus::ProjectionsCorrupt` doc comment claims "Caller
-/// should trigger a projection rebuild" as the recovery path — that promise
-/// holds for a wholesale-MISSING table (the existing `destruction_drill_*`
-/// test in `tests_integrity.rs`, which DROPs the table — `CREATE TABLE IF NOT
-/// EXISTS` + replay then works cleanly) but NOT for a projection table whose
-/// own on-disk b-tree structure is corrupted while its schema entry still
-/// exists: `DELETE FROM actors` must read the same broken page `rebuild` was
-/// supposed to fix, so the db is left permanently in the corrupted state —
-/// "recoverable" per the classification, but not recoverable via the only
-/// recovery path this codebase offers. `#[ignore]`d rather than fixed — this
-/// job is test-authoring only, per its own charter.
+/// integrity check must come back clean. `ActorProjection::truncate` clears
+/// the table via `db::heal::truncate_or_heal`, which never needs to read the
+/// table's own (possibly-corrupted) pages: on a plain `DELETE FROM actors`
+/// failure it captures the table's schema from `sqlite_master`, drops the
+/// schema entry + `VACUUM`s to reclaim the damaged pages, then recreates the
+/// empty table from the captured DDL for replay to refill.
 #[test]
-#[ignore = "FINDING: rebuild_projections cannot heal a projection table whose own root page is corrupted (DELETE FROM must read the broken page); real break, reported not fixed"]
 fn heal_restores_master_invariant_when_only_projection_corrupted() {
     let (_tmp, ship_dir, db_path, ids) = setup_with_events(5);
 

@@ -40,8 +40,7 @@ impl Projection for SpacesProjection {
     }
 
     fn truncate(&self, conn: &mut SqliteConnection) -> Result<()> {
-        block_on(async { sqlx::query("DELETE FROM spaces").execute(conn).await })?;
-        Ok(())
+        ship_substrate::db::heal::truncate_or_heal(conn, "spaces")
     }
 }
 

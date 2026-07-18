@@ -79,12 +79,10 @@ impl Projection for AnalyticsProjection {
     }
 
     fn truncate(&self, conn: &mut SqliteConnection) -> Result<()> {
-        block_on(async {
-            sqlx::query("DELETE FROM analytics_sessions").execute(&mut *conn).await?;
-            sqlx::query("DELETE FROM analytics_tool_uses").execute(&mut *conn).await?;
-            sqlx::query("DELETE FROM analytics_turns").execute(&mut *conn).await?;
-            Ok(())
-        })
+        ship_substrate::db::heal::truncate_or_heal(conn, "analytics_sessions")?;
+        ship_substrate::db::heal::truncate_or_heal(conn, "analytics_tool_uses")?;
+        ship_substrate::db::heal::truncate_or_heal(conn, "analytics_turns")?;
+        Ok(())
     }
 }
 

@@ -36,28 +36,10 @@ fn make_service(ctx: Arc<SpaceContext>) -> CollectionService {
 
 // ── Additive evolution: adding columns across multiple schema.changed ────────
 
-/// FINDING: `ship_substrate::db::rebuild::rebuild_scope_db` cannot rebuild
-/// ANY space-scoped db that has ever received a real event, including every
-/// space-scoped collection. `rebuild.rs::full_bus()` registers
-/// `ActorProjection` (Runtime-only; needs the `actors` table) against every
-/// scope's bus unconditionally, and `EventBus::rebuild()`
-/// (`projections/registry.rs`) calls `truncate()` on every registered
-/// projection with no scope filtering. `actors` is deliberately never
-/// created in space dbs (`db/scope_schema.rs` line ~142: "actors ... belong
-/// wherever actor.* events land (runtime.db) and nowhere else"), so
-/// `ActorProjection::truncate` hits `DELETE FROM actors` on a table that
-/// does not exist and the whole rebuild aborts with "no such table: actors"
-/// before the collection projection ever gets a chance to replay.
-///
-/// This breaks master property 1 ("a rebuild from the log reproduces it
-/// exactly") for every real collection, since collections are Space-scoped
-/// by design (`item_projection.rs` doc comment). It is not a
-/// ship-collection bug — root cause is in `ship-substrate::db::rebuild` /
-/// `ship-substrate::projections::registry` (T1's crate this cycle) — but it
-/// directly blocks the collections invariant the dispatch requires. Repro:
-/// call `rebuild_scope_db` on any `spaces/<id>/space.db` that has logged at
-/// least one event; it always errors regardless of collection content.
-#[ignore = "FINDING: rebuild_scope_db always errors on space-scope dbs (\"no such table: actors\") — ActorProjection is Runtime-only but registered/truncated unconditionally by full_bus()+EventBus::rebuild(); root cause in ship-substrate, not ship-collection"]
+/// Master property 1 for a Space-scoped collection: `rebuild_scope_db`
+/// against `spaces/<id>/space.db` must reproduce the live state exactly,
+/// even though the bus also carries Runtime-only projections (e.g.
+/// `ActorProjection`) that own no table in this scope's db.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn additive_columns_accumulate_across_schema_changes() {
     let tmp = tempfile::tempdir().unwrap();
@@ -224,7 +206,6 @@ async fn retyping_a_field_does_not_corrupt_existing_rows() {
 
 // ── Rebuild-from-scratch equality after several evolutions ───────────────────
 
-#[ignore = "FINDING: same rebuild_scope_db \"no such table: actors\" break as additive_columns_accumulate_across_schema_changes — see that test's doc comment"]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn rebuild_after_multiple_evolutions_matches_live_state() {
     let tmp = tempfile::tempdir().unwrap();

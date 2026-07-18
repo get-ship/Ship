@@ -99,14 +99,11 @@ impl Projection for ArtifactProjection {
     }
 
     fn truncate(&self, conn: &mut SqliteConnection) -> Result<()> {
-        // Drop the materialized table so a rebuild re-creates and re-fills it
-        // from `artifact.*` events as they replay.
-        block_on(async {
-            sqlx::query(&format!("DROP TABLE IF EXISTS `{TABLE}`"))
-                .execute(&mut *conn)
-                .await
-        })?;
-        Ok(())
+        // Clears the materialized table so a rebuild re-creates and re-fills
+        // it from `artifact.*` events as they replay. `truncate_or_heal`
+        // tolerates the table being absent (a scope this projection doesn't
+        // touch) and heals a corrupted table without reading its pages.
+        ship_substrate::db::heal::truncate_or_heal(conn, TABLE)
     }
 }
 
