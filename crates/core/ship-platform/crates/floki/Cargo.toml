@@ -3,38 +3,18 @@ name = "floki"
 version = "0.1.0"
 edition = "2024"
 publish = false
-description = "Yoke (crate name still floki) — embeddable native agent harness. Loop, gate, journal, code-mode. Floki is the default profile name long-term, not this crate."
+description = """
+Deprecated package name. Yoke (native harness) lives in get-ship/bridge.
+This crate re-exports `yoke` so Ship can migrate call sites; delete when
+shipd uses Bridge RPC only.
+"""
 
 [lints]
 workspace = true
 
-# Smoke binary: one completion against YOKE_PROVIDER (e.g. nvidia free models).
-[[bin]]
-name = "yoke-smoke"
-path = "src/bin/yoke_smoke.rs"
-
 [dependencies]
-# The L0 engines Floki runs on. durable-execution (ship-exec) journals/resumes; ship-js
-# executes code-mode in a locked-down V8 isolate behind the `Dispatch` seam.
-durable-execution = { path = "../../../../../../ship-exec/crates/durable-execution" }
-ship-js = { git = "https://github.com/get-ship/ship-exec.git", branch = "feat/next", features = ["deno"] }
-# The ONE agent definition both runtimes read. default-features = false:
-# Yoke only needs Agent + session event types; skip kv/sqlx skill_vars.
-agent-def = { path = "../agent-def", default-features = false }
-
-serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true }
-anyhow = { workspace = true }
-thiserror = { workspace = true }
-async-trait = { workspace = true }
-tokio = { workspace = true, features = ["sync", "rt", "macros"] }
-tracing = { workspace = true }
-# The model-turn loop. Pinned to the version the spike proved (not yet a
-# workspace dependency — Floki introduces it).
-rig = { version = "0.38.1", package = "rig-core" }
+# Sibling layout: bridge checkout next to ship.
+yoke = { path = "../../../../../../bridge/crates/yoke" }
 
 [dev-dependencies]
-rig = { version = "0.38.1", package = "rig-core", features = ["test-utils"] }
-ship-kernel = { path = "../../../ship-substrate/crates/ship-kernel" }
-ship-ops-rpc = { path = "../../../ship-ops-rpc" }
-tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time", "test-util"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }

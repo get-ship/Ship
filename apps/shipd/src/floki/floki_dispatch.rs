@@ -19,16 +19,18 @@
 
 use std::sync::Arc;
 
-use floki::{
-    AuthContext as FlokiAuth, BuiltModel, Cancel, FlokiProgram, HeadlessApprover,
-    ScriptExecutor, SessionEventSink, Steer, ToolCtx, build_model,
-};
-use floki::dispatch::GatewayDispatch;
-use floki::provider::{Byok, CredentialSource};
 use agent_def::dispatch_intent::DispatchRequestedPayload;
 use durable_execution::{Journal, JournalStore, execute};
+use floki::dispatch::GatewayDispatch;
+use floki::provider::{Byok, CredentialSource};
+use floki::{
+    AuthContext as FlokiAuth, BuiltModel, Cancel, FlokiProgram, HeadlessApprover, ScriptExecutor,
+    SessionCancelled, SessionCompleted, SessionEventHandler, SessionEventSink, SessionFailed,
+    SessionStarted, SessionSuspended, Steer, ToolCtx, TurnEnded, TurnStarted, build_model,
+};
 use journal_sqlite::SqliteJournalStore;
-use ship_substrate::events::{CallerKind, EmitContext, EventEnvelope, EventSink};
+use ship_substrate::events::{CallerKind, EmitContext, EventEnvelope};
+use ship_types::event_types::canonical_session as session_events;
 use ship_types::{Authority, ScopeBinding};
 
 use crate::floki::gateway::ShipdGateway;
@@ -36,16 +38,11 @@ use crate::ship_runtime::SharedKernel;
 
 // ── ShipdKernelSink ───────────────────────────────────────────────────────────
 
-/// Sync `EventSink` adapter for the shipd kernel.
+/// Maps Yoke [`SessionEventHandler`] callbacks onto the shipd kernel.
 ///
-/// `SessionEventSink` calls `EventSink::persist` synchronously from within an
-/// async context — rig's tool futures must be `Send`, and agent-def's sink is
-/// designed for sync callers. `ShipdKernelSink` bridges the gap by spawning a
-/// background task for each `KernelRouter::emit` call, matching shipd's other
-/// fire-and-forget emit paths (e.g. `pipeline_ports::persist_and_route`).
-///
-/// Failures are logged at WARN and never returned (mirrors the rest of shipd's
-/// emit paths which also use fire-and-forget semantics).
+/// Yoke owns emission (library); this is the **process-edge** adapter so
+/// session/turn events land in Ship projections. No ship-kernel types inside
+/// the `yoke` crate.
 pub struct ShipdKernelSink {
     kernel: SharedKernel,
 }
@@ -54,29 +51,60 @@ impl ShipdKernelSink {
     pub fn new(kernel: SharedKernel) -> Self {
         Self { kernel }
     }
-}
 
-impl EventSink for ShipdKernelSink {
-    fn persist(&self, event: &EventEnvelope) -> anyhow::Result<()> {
+    fn emit_payload<P: serde::Serialize + Send + 'static>(
+        &self,
+        event_type: &'static str,
+        entity_id: &str,
+        payload: P,
+    ) {
         let kernel = self.kernel.clone();
-        let event = event.clone();
-        // Fire-and-forget: spawn a background task so `persist` returns
-        // synchronously. Valid because `persist` is always called from within
-        // a tokio async context (run_step runs as a tokio task).
+        let entity_id = entity_id.to_string();
         tokio::spawn(async move {
+            let Ok(env) = EventEnvelope::new(event_type, &entity_id, &payload) else {
+                tracing::warn!(event_type, "yoke→kernel: failed to build envelope");
+                return;
+            };
             let ctx = EmitContext {
                 caller_kind: CallerKind::Runtime,
                 skill_id: None,
-                binding: ScopeBinding::daemon_internal(
-                    event.space_id().map(ship_types::SpaceId::new),
-                    Authority::Sdk,
-                ),
-                session_id: event.session_id.clone(),
+                binding: ScopeBinding::daemon_internal(None, Authority::Sdk),
+                session_id: Some(entity_id),
             };
-            if let Err(e) = kernel.lock().await.emit(event, &ctx).await {
-                tracing::warn!("floki_floki_dispatch: kernel emit failed: {e}");
+            if let Err(e) = kernel.lock().await.emit(env, &ctx).await {
+                tracing::warn!(event_type, "yoke→kernel: emit failed: {e}");
             }
         });
+    }
+}
+
+impl SessionEventHandler for ShipdKernelSink {
+    fn on_session_started(&self, session_id: &str, ev: &SessionStarted) -> anyhow::Result<()> {
+        self.emit_payload(session_events::SESSION_STARTED, session_id, ev.clone());
+        Ok(())
+    }
+    fn on_session_completed(&self, session_id: &str, ev: &SessionCompleted) -> anyhow::Result<()> {
+        self.emit_payload(session_events::SESSION_COMPLETED, session_id, ev.clone());
+        Ok(())
+    }
+    fn on_session_failed(&self, session_id: &str, ev: &SessionFailed) -> anyhow::Result<()> {
+        self.emit_payload(session_events::SESSION_FAILED, session_id, ev.clone());
+        Ok(())
+    }
+    fn on_session_cancelled(&self, session_id: &str, ev: &SessionCancelled) -> anyhow::Result<()> {
+        self.emit_payload(session_events::SESSION_CANCELLED, session_id, ev.clone());
+        Ok(())
+    }
+    fn on_session_suspended(&self, session_id: &str, ev: &SessionSuspended) -> anyhow::Result<()> {
+        self.emit_payload(session_events::SESSION_SUSPENDED, session_id, ev.clone());
+        Ok(())
+    }
+    fn on_turn_started(&self, session_id: &str, ev: &TurnStarted) -> anyhow::Result<()> {
+        self.emit_payload(session_events::TURN_STARTED, session_id, ev.clone());
+        Ok(())
+    }
+    fn on_turn_ended(&self, session_id: &str, ev: &TurnEnded) -> anyhow::Result<()> {
+        self.emit_payload(session_events::TURN_ENDED, session_id, ev.clone());
         Ok(())
     }
 }

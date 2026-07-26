@@ -80,6 +80,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "agent-schema"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "ahash"
 version = "0.8.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2465,19 +2474,8 @@ dependencies = [
 name = "floki"
 version = "0.1.0"
 dependencies = [
- "agent-def",
- "anyhow",
- "async-trait",
- "durable-execution",
- "rig-core",
- "serde",
- "serde_json",
- "ship-js",
- "ship-kernel",
- "ship-ops-rpc",
- "thiserror 2.0.18",
  "tokio",
- "tracing",
+ "yoke 0.1.0",
 ]
 
 [[package]]
@@ -3425,7 +3423,7 @@ dependencies = [
  "displaydoc",
  "potential_utf",
  "utf8_iter",
- "yoke",
+ "yoke 0.8.2",
  "zerofrom",
  "zerovec",
 ]
@@ -3516,7 +3514,7 @@ dependencies = [
  "serde",
  "stable_deref_trait",
  "writeable",
- "yoke",
+ "yoke 0.8.2",
  "zerofrom",
  "zerotrie",
  "zerovec",
@@ -12120,6 +12118,23 @@ checksum = "cfe53a6657fd280eaa890a3bc59152892ffa3e30101319d168b781ed6529b049"
 
 [[package]]
 name = "yoke"
+version = "0.1.0"
+dependencies = [
+ "agent-schema",
+ "anyhow",
+ "async-trait",
+ "durable-execution",
+ "rig-core",
+ "serde",
+ "serde_json",
+ "ship-js",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "yoke"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "abe8c5fda708d9ca3df187cae8bfb9ceda00dd96231bed36e445a1a48e66f9ca"
@@ -12256,7 +12271,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0f9152d31db0792fa83f70fb2f83148effb5c1f5b8c7686c3459e361d9bc20bf"
 dependencies = [
  "displaydoc",
- "yoke",
+ "yoke 0.8.2",
  "zerofrom",
  "zerovec",
 ]
@@ -12268,7 +12283,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "90f911cbc359ab6af17377d242225f4d75119aec87ea711a880987b18cd7b239"
 dependencies = [
  "serde",
- "yoke",
+ "yoke 0.8.2",
  "zerofrom",
  "zerovec-derive",
 ]
