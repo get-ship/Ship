@@ -23,42 +23,30 @@ use crate::ship_runtime::ShipRuntime;
 
 // ── startup helpers ──────────────────────────────────────────────────────
 
-/// Agent-stack startup: the floki dispatch closure + the agent-sessions
-/// actor (full orchestrator with `ship-code`, floki-only without).
+/// Agent-stack startup: the native-harness Connect dispatch closure + the
+/// agent-sessions actor (full orchestrator with `ship-code`, native-only
+/// without).
 ///
-/// Mount split (2026-07-10): the prior seam-leak-fix §6 boot-posture
-/// announcement (loud `session.failed` on coding dispatch with no
-/// backend) is DELETED. With ship-code off, there is no
-/// `CodeService.Dispatch` route mounted — a coding-agent request
-/// surfaces as a 404, not a refused call (R-A: absence is structural).
-/// The `ship-code` feature is still the single conditional at the
-/// router assembly; this fn just starts the in-process floki runtime
-/// when present.
+/// Native harness (`floki` / `yoke`) always goes out-of-process to Bridge
+/// via ConnectRPC (`ship.yoke.v1`). There is no in-process floki product
+/// path — start `bridge serve` (or set `BRIDGE_YOKE_SOCKET`).
+///
+/// Mount split (2026-07-10): with ship-code off, there is no
+/// `CodeService.Dispatch` route mounted — a coding-agent request surfaces
+/// as a 404, not a refused call (R-A: absence is structural).
 pub(super) async fn start_agent_stack(rt: &Arc<ShipRuntime>, global_dir: &std::path::Path) {
     let ops_router = crate::rpc::ops::router(rt.clone());
     let floki_gateway = std::sync::Arc::new(crate::floki::gateway::ShipdGateway::new(ops_router));
     let floki_kernel = rt.kernel().clone();
-    // Dual path: if BRIDGE_YOKE_SOCKET / SHIP_YOKE_SOCKET is set, dispatch
-    // native sessions over ConnectRPC (ship.yoke.v1) to `bridge serve`;
-    // otherwise keep the in-process floki composition root (dev fallback).
+    // Product path: ConnectRPC to Bridge. Socket from env or Bridge default.
     let floki_run_fn: ship_agents::ports::FlokiRunFn = {
         let gateway = floki_gateway.clone();
         std::sync::Arc::new(move |payload| {
             let gateway = gateway.clone();
             let kernel = floki_kernel.clone();
             Box::pin(async move {
-                if let Some(socket) = crate::floki::yoke_rpc_client::socket_path_from_env() {
-                    crate::floki::yoke_rpc_client::dispatch_yoke_session(
-                        payload,
-                        &socket,
-                        gateway,
-                        kernel,
-                    )
+                crate::floki::yoke_rpc_client::dispatch_yoke_session(payload, gateway, kernel)
                     .await;
-                } else {
-                    crate::floki::floki_dispatch::dispatch_floki_session(payload, gateway, kernel)
-                        .await;
-                }
             })
         })
     };

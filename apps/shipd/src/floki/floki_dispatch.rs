@@ -1,21 +1,11 @@
-//! FIRST-LIGHT — the shipd path that assembles floki's components and runs
-//! a real agent turn in-process.
+//! In-process floki composition — **test / legacy only**.
 //!
-//! Provides:
-//!   - [`ShipdKernelSink`] — sync `EventSink` adapter for the async kernel.
-//!     Bridges `SessionEventSink`'s synchronous `persist` contract to the
-//!     async `KernelRouter::emit` via a background `tokio::spawn`, matching
-//!     the fire-and-forget pattern used by all other shipd emit paths.
-//!   - [`dispatch_floki_session`] — the composition root for a floki-harness
-//!     agent run, wired in `daemon::lifecycle` as the `FlokiRunFn`.
+//! Product native-harness dispatch is out-of-process Connect
+//! ([`super::yoke_rpc_client`]). This module still provides:
+//!   - [`ShipdKernelSink`] — process-edge adapter reused by the Connect client
+//!   - [`dispatch_floki_session`] + smoke tests for gateway + event mapping
 //!
-//! Routing: when `agent.session.started` arrives with `harness == "floki"`,
-//! ship-agents invokes this `FlokiRunFn`. The existing old-harness dispatch
-//! path (`dispatch_agent_session_core`) is unmodified; this is the parallel
-//! first-light entry point.
-//!
-//! Layering: L2 (shipd). Depends on floki (L1) + `ShipdGateway` (also L2).
-//! The floki crate gains NO shipd dependency — arrow is shipd → floki only.
+//! Not wired into `daemon::lifecycle`.
 
 use std::sync::Arc;
 

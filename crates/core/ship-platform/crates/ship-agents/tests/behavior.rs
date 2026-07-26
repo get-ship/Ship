@@ -624,8 +624,8 @@ async fn cancel_without_handle_still_cleans_and_emits() {
 
 // ── Floki routing tests ─────────────────────────────────────────────────────
 
-/// SPEC: when `payload.harness == "floki"` and `floki_run_fn` is set,
-/// dispatch routes to the closure and skips the executor entirely.
+/// SPEC: when `payload.harness` is `"floki"` or `"yoke"` and `floki_run_fn`
+/// is set, dispatch routes to the closure and skips the executor entirely.
 ///
 /// The closure increments a counter so the test can assert it was called.
 /// `spawn_calls` remains zero because the harness-driver path (executor.spawn)
@@ -697,13 +697,55 @@ async fn floki_harness_routes_to_floki_run_fn_and_skips_executor() {
         0,
         "executor.spawn must NOT be called when floki_run_fn routes the session",
     );
+
+    // harness == "yoke" is an alias for the same native Connect path.
+    let floki_called_yoke = Arc::new(AtomicBool::new(false));
+    let floki_called_yoke_inner = floki_called_yoke.clone();
+    let ports_yoke = AgentPorts {
+        floki_run_fn: Some(Arc::new(move |_payload| {
+            let flag = floki_called_yoke_inner.clone();
+            Box::pin(async move {
+                flag.store(true, Ordering::SeqCst);
+            })
+        })),
+        isolation: Arc::new(OkIsolation(tmp.path().join("worktrees/yoke-sess"))),
+        executor: Arc::new(RecordingExecutor {
+            captured: Arc::new(StdMutex::new(None)),
+            spawn_calls: Arc::new(AtomicUsize::new(0)),
+        }),
+        lifecycle: Arc::new(NoopLifecycleSink),
+        platform: Arc::new(TestPlatform {
+            worktrees: tmp.path().join("worktrees"),
+            cleanup_calls: Arc::new(AtomicUsize::new(0)),
+        }),
+        registry: Arc::new(NoopRegistry),
+        spawn_policy: Arc::new(TokenSpawnPolicy),
+        projections: Arc::new(NeverTerminal),
+        event_dedup: Arc::new(EventDedup::new()),
+    };
+    let payload_yoke = started_payload("s-yoke-1", "yoke-sess", Some("yoke"), None);
+    let env_yoke = EventEnvelope::new(
+        dispatch_event_types::DISPATCH_REQUESTED,
+        &payload_yoke.session_id,
+        &payload_yoke,
+    )
+    .unwrap()
+    .with_actor_id("test");
+    ship_agents::handle_agents_event(&kernel, &env_yoke, &ports_yoke).await;
+    for _ in 0..50 {
+        if floki_called_yoke.load(Ordering::SeqCst) {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+    assert!(
+        floki_called_yoke.load(Ordering::SeqCst),
+        "floki_run_fn must be called when harness == 'yoke'",
+    );
 }
 
-/// Loud refusal per seam-leak fix §6: when `harness == "floki"` and no floki
-/// closure is wired, the dispatch was previously *silently* routed to the
-/// harness executor (a footgun — floki's whole point is to skip worktree /
-/// sandbox). After the fix the actor emits a typed `session.failed` event
-/// and the call returns without touching the executor.
+/// Loud refusal: when harness is native (`floki`/`yoke`) and no closure is
+/// wired, emit typed `session.failed` without touching the executor.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn floki_harness_without_closure_emits_session_failed() {
     let tmp = tempfile::TempDir::new().unwrap();

@@ -37,10 +37,9 @@ pub mod rpc;
 // ports: shipd-side implementations of L1 crate ports (DataPort, view tools,
 // pipeline dispatch, device sessions, agent event adapters).
 pub mod ports;
-// floki: the shipd ↔ floki/yoke seam — `gateway` (floki::Gateway over the
-// in-process ops router), `floki_dispatch` (in-process floki sessions), and
-// `yoke_rpc_client` (ConnectRPC to bridge serve when BRIDGE_YOKE_SOCKET is
-// set). No reverse dependency (floki → shipd).
+// floki: shipd ↔ Bridge/yoke seam — `gateway` (op.call answers),
+// `yoke_rpc_client` (Connect product path), `floki_dispatch` (test-only
+// in-process composition + ShipdKernelSink). No reverse dependency.
 pub mod floki;
 // dispatch: job+session dispatch composition root — gated because it
 // directly uses ship-code types (process_registry, dispatch_ports).

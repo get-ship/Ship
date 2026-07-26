@@ -1,14 +1,13 @@
 //! Yoke harness session Connect client (product path).
 //!
-//! When `BRIDGE_YOKE_SOCKET` is set (fallback: `SHIP_YOKE_SOCKET`), shipd
-//! dials Bridge's `ship.yoke.v1.YokeSessionService` over UDS (h2c) and runs
-//! the native agent session out-of-process. Gateway ops arrive as `op_call`
-//! events on the Start stream; this client answers with unary `OpResult`
-//! via [`ShipdGateway`].
-//!
-//! In-process floki remains the default when the socket env is unset.
+//! Native harness sessions (`harness == "floki"` | `"yoke"`) always run
+//! out-of-process via Bridge's `ship.yoke.v1.YokeSessionService` over UDS
+//! (h2c). Socket resolution: `BRIDGE_YOKE_SOCKET` → `SHIP_YOKE_SOCKET` →
+//! default (`$XDG_RUNTIME_DIR/bridge-yoke.sock` or `/tmp/bridge-yoke.sock`).
+//! Gateway ops arrive as `op_call` on the Start stream; this client answers
+//! with unary `OpResult` via [`ShipdGateway`].
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use agent_def::dispatch_intent::DispatchRequestedPayload;
@@ -26,12 +25,10 @@ use super::floki_dispatch::ShipdKernelSink;
 use super::gateway::ShipdGateway;
 use crate::ship_runtime::SharedKernel;
 
-// ── Socket env ───────────────────────────────────────────────────────────────
+// ── Socket resolution ────────────────────────────────────────────────────────
 
-/// Resolve the yoke serve socket path.
-///
-/// Prefer `BRIDGE_YOKE_SOCKET`; fall back to `SHIP_YOKE_SOCKET`. Empty values
-/// are treated as unset.
+/// Explicit socket from env (`BRIDGE_YOKE_SOCKET`, then `SHIP_YOKE_SOCKET`).
+/// Empty values are treated as unset.
 pub fn socket_path_from_env() -> Option<String> {
     if let Ok(p) = std::env::var("BRIDGE_YOKE_SOCKET") {
         if !p.is_empty() {
@@ -41,6 +38,21 @@ pub fn socket_path_from_env() -> Option<String> {
     std::env::var_os("SHIP_YOKE_SOCKET")
         .and_then(|s| s.into_string().ok())
         .filter(|p| !p.is_empty())
+}
+
+/// Default path matching `bridge serve` / Bridge `default_socket_path`.
+pub fn default_socket_path() -> PathBuf {
+    if let Ok(runtime) = std::env::var("XDG_RUNTIME_DIR") {
+        if !runtime.is_empty() {
+            return PathBuf::from(runtime).join("bridge-yoke.sock");
+        }
+    }
+    PathBuf::from("/tmp/bridge-yoke.sock")
+}
+
+/// Product resolution: env override, else the Bridge default path.
+pub fn resolve_socket_path() -> String {
+    socket_path_from_env().unwrap_or_else(|| default_socket_path().display().to_string())
 }
 
 // ── Session outcome ──────────────────────────────────────────────────────────
@@ -57,14 +69,17 @@ pub enum SessionOutcome {
 
 /// Run one harness session over Bridge's Connect yoke service.
 ///
-/// Maps lifecycle events onto the shipd kernel at the process edge and
-/// answers `op_call` via [`ShipdGateway`].
+/// Socket defaults via [`resolve_socket_path`]. Missing socket / transport
+/// errors become `session.failed` at the process edge (no in-process fallback).
+///
+/// Maps lifecycle events onto the shipd kernel and answers `op_call` via
+/// [`ShipdGateway`].
 pub async fn dispatch_yoke_session(
     payload: DispatchRequestedPayload,
-    socket_path: &str,
     gateway: Arc<ShipdGateway>,
     kernel: SharedKernel,
 ) {
+    let socket_path = resolve_socket_path();
     tracing::info!(
         agent_id = %payload.agent_id,
         slug = %payload.slug,
@@ -75,7 +90,27 @@ pub async fn dispatch_yoke_session(
 
     let sink = SessionEventSink::new(Arc::new(ShipdKernelSink::new(kernel)));
 
-    match run_session(socket_path, &payload, gateway, &sink).await {
+    if !Path::new(&socket_path).exists() {
+        let message = format!(
+            "bridge yoke socket not found at {socket_path}; \
+             start Bridge (`bridge serve`) or set BRIDGE_YOKE_SOCKET"
+        );
+        tracing::error!(
+            session_id = %payload.session_id,
+            %message,
+            "yoke-connect: no Bridge harness server",
+        );
+        let _ = sink.emit_session_failed(
+            &payload.session_id,
+            &SessionFailed {
+                session_id: payload.session_id.clone(),
+                reason: message,
+            },
+        );
+        return;
+    }
+
+    match run_session(&socket_path, &payload, gateway, &sink).await {
         Ok(SessionOutcome::Completed { session_id }) => {
             tracing::info!(%session_id, "yoke-connect: session completed");
         }
@@ -352,6 +387,7 @@ mod tests {
             socket_path_from_env().as_deref(),
             Some("/tmp/bridge-yoke.sock")
         );
+        assert_eq!(resolve_socket_path(), "/tmp/bridge-yoke.sock");
 
         unsafe {
             std::env::remove_var("BRIDGE_YOKE_SOCKET");
@@ -365,5 +401,12 @@ mod tests {
             std::env::remove_var("SHIP_YOKE_SOCKET");
         }
         assert_eq!(socket_path_from_env(), None);
+        // No env → Bridge default path (absolute).
+        let resolved = resolve_socket_path();
+        assert!(
+            resolved.ends_with("bridge-yoke.sock"),
+            "default should be bridge-yoke.sock, got {resolved}"
+        );
+        assert!(Path::new(&resolved).is_absolute());
     }
 }

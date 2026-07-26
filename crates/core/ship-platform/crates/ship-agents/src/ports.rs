@@ -50,9 +50,10 @@ pub type FlokiRunFn = Arc<
 /// `#[cfg(feature = "ship-code")]` blocks.
 #[derive(Clone)]
 pub struct AgentPorts {
-    /// Floki-harness dispatch closure. When `Some` and `payload.harness == "floki"`,
-    /// dispatch routes here and skips the harness-driver stack entirely.
-    /// Not behind any cfg gate — the floki path must always compile.
+    /// Native-harness dispatch (Bridge Connect). When `Some` and
+    /// `payload.harness` is `"floki"` or `"yoke"`, dispatch routes here and
+    /// skips the harness-driver stack. Not cfg-gated — always compiles.
+    /// Field name kept as `floki_run_fn` until call sites are renamed.
     pub floki_run_fn: Option<FlokiRunFn>,
     /// Prepares + tears down the per-session isolated worktree.
     #[cfg(feature = "ship-code")]

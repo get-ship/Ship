@@ -54,34 +54,41 @@ pub async fn handle_dispatch_requested(
             return;
         }
     };
-    // R-A (mount split, 2026-07-10): a floki dispatch with no
-    // closure wired still emits a typed `session.failed` — that's
-    // a real misconfiguration (the in-process floki runtime was
-    // not started), not a registry absence. A coding-agent request
-    // with no backend is now an absent service (no route mounted)
-    // and surfaces as a 404, NOT a refused call.
-    let is_floki = payload.harness.as_deref() == Some("floki");
+    // R-A (mount split, 2026-07-10): a native harness dispatch with no
+    // closure wired still emits a typed `session.failed` — that's a real
+    // misconfiguration (shipd did not wire the Bridge Connect client), not
+    // a registry absence. A coding-agent request with no backend is now an
+    // absent service (no route mounted) and surfaces as a 404, NOT a
+    // refused call.
+    //
+    // `floki` is the historical harness id; `yoke` is the product name
+    // (Bridge). Both route to the same out-of-process Connect path.
+    let is_native = matches!(
+        payload.harness.as_deref(),
+        Some("floki") | Some("yoke")
+    );
 
-    if is_floki {
-        // Case (a): floki dispatch, but no closure wired.
+    if is_native {
+        // Case (a): native dispatch, but no closure wired.
         if ports.floki_run_fn.is_none() {
             tracing::warn!(
                 slug = payload.slug,
                 session_id = payload.session_id,
-                "service.agents: floki dispatch.requested but no floki closure \
-                 wired — emitting typed session.failed"
+                harness = ?payload.harness,
+                "service.agents: native harness dispatch.requested but no \
+                 FlokiRunFn wired — emitting typed session.failed"
             );
             emit_session_failed(
                 kernel,
                 &payload.session_id,
                 &payload.slug,
-                "no floki dispatch backend wired (shipd was built/started \
-                 without a floki gateway)",
+                "no native harness backend wired (shipd was built/started \
+                 without the Bridge Connect client)",
             )
             .await;
             return;
         }
-        // Fast path: harness == "floki" + closure wired → spawn it.
+        // Fast path: harness floki|yoke + closure wired → Bridge Connect.
         let run_fn = ports.floki_run_fn.as_ref().expect("checked above").clone();
         let payload = payload.clone();
         tokio::spawn(run_fn(payload));
