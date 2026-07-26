@@ -33,7 +33,7 @@ ship-store = { path = "../ship-store" }
 ship-auth = { path = "../ship-auth" }
 # compiler crate (the engine; services/compile is only the wrapper)
 stack-model = { path = "../../../stack-model", features = ["specta"] }
-harness-config-compiler = { path = "../../../../code/harness-config-compiler", features = ["specta"], optional = true }
+harness-config-compiler = { path = "../../../../../../bridge/crates/harness-config-compiler", features = ["specta"], optional = true }
 # Phase-3 space roll-up — the no-index agent read composes through the SAME
 # world `compile_project`/dispatch-compile do (format-migration W5 follow-up).
 ship-resolver = { path = "../../../ship-resolver" }

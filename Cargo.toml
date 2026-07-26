@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "crates/core/ship-substrate",
+    "crates/core/stack-model",
     "crates/core/ship-substrate/crates/ship-substrate-host",
     "crates/core/ship-substrate/crates/ship-types",
     "crates/core/ship-substrate/crates/ship-paths",
@@ -28,8 +29,6 @@ members = [
     "crates/core/ship-platform/crates/ship-search",
     "crates/core/ship-gateway-client",
     "crates/core/ship-ops-rpc",
-    "crates/core/stack-model",
-    "crates/code/harness-config-compiler",
     "crates/core/agent-config-eval",
     "crates/core/ship-resolver",
     "crates/core/ship-platform/crates/ship-reactive",
@@ -70,6 +69,7 @@ members = [
 default-members = [
     "crates/build-info",
     "crates/core/ship-substrate",
+    "crates/core/stack-model",
     "crates/core/ship-substrate/crates/ship-substrate-host",
     "crates/core/ship-substrate/crates/ship-types",
     "crates/core/ship-substrate/crates/ship-paths",
@@ -84,8 +84,6 @@ default-members = [
     "crates/core/ship-platform/crates/ship-search",
     "crates/core/ship-gateway-client",
     "crates/core/ship-ops-rpc",
-    "crates/core/stack-model",
-    "crates/code/harness-config-compiler",
     "crates/core/agent-config-eval",
     "crates/core/ship-resolver",
     "crates/core/ship-platform/crates/ship-reactive",

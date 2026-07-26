@@ -60,7 +60,7 @@ ship-types = { path = "../../crates/core/ship-substrate/crates/ship-types" }
 # are empty.
 ship-resolver = { path = "../../crates/core/ship-resolver" }
 stack-model = { path = "../../crates/core/stack-model" }
-harness-config-compiler = { path = "../../crates/code/harness-config-compiler" }
+harness-config-compiler = { path = "../../../bridge/crates/harness-config-compiler" }
 # Direct dep on ship-proto so build.rs can read DEP_SHIP_PROTO_PROTO_DIR
 # (the canonical proto root, propagated via `links = "ship-proto"` from
 # ship-proto's own build.rs). Without this, helmd's build.rs would need a

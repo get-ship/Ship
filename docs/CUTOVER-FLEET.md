@@ -21,8 +21,8 @@ Nothing else depends on the `ship` repo. Shared crates **leave ship** toward eng
 - [x] Optional `YOKE_RPC=1` → Connect to fleet/bridge (non-default)
 - [ ] Yoke smoke / multi-provider hardened (engines workstream)
 - [ ] `agent-def` fat split → thin types for yoke + fleet
-- [ ] **ship-code + harness-config-compiler → fleet repo** (the knot)
-- [ ] ship-agents loses ship-code feature graph on default shipd
+- [x] **harness-config-compiler → bridge** (path-deps Ship `stack-model`; schemas still Ship)
+- [ ] **ship-code (executors) → bridge** — Bridge *is* ship-code; do not co-move stack-model / substrate- [ ] ship-agents loses ship-code feature graph on default shipd
 - [ ] helmd retire (pending, separate)
 - [ ] Rename bridge product → fleet when cheap
 

@@ -30,7 +30,7 @@ ship-store = { path = "../ship-store" }
 ship-resolver = { path = "../../../ship-resolver" }
 # the compiler engine — services/compile is the wrapper
 stack-model = { path = "../../../stack-model", features = ["specta"] }
-harness-config-compiler = { path = "../../../../code/harness-config-compiler", features = ["specta"], optional = true }
+harness-config-compiler = { path = "../../../../../../bridge/crates/harness-config-compiler", features = ["specta"], optional = true }
 inventory = { workspace = true }
 include_dir = "0.7"
 # sqlx is optional: only skill_vars_store + compile/projection need it.

@@ -59,7 +59,7 @@ hyper = { version = "1", features = ["client", "http1"], optional = true }
 hyper-util = { version = "0.1", features = ["tokio", "client", "client-legacy", "http1"], optional = true }
 tower = { version = "0.5", features = ["util"], optional = true }
 reqwest = { workspace = true, features = ["rustls-tls", "blocking", "json"], optional = true }
-harness-config-compiler = { path = "../../code/harness-config-compiler", optional = true }
+harness-config-compiler = { path = "../../../../bridge/crates/harness-config-compiler", optional = true }
 stack-model = { path = "../../core/stack-model", optional = true }
 ship-ops-rpc = { path = "../../core/ship-ops-rpc", optional = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"], optional = true }
