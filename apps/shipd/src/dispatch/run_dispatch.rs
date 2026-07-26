@@ -6,9 +6,9 @@
 //! (`ConfigSpawnPolicy` + `ProjectionsReader`) live in
 //! `ship_pipeline_runtime::ports::` and are shared with helmd.
 //!
-//! `floki_run_fn`: when `Some`, injected into `AgentPorts` so the
-//! `service.agents` actor routes floki-harness sessions to it instead of
-//! the harness-driver stack. `None` leaves the floki path unwired (floki
+//! `yoke_run_fn`: when `Some`, injected into `AgentPorts` so the
+//! `service.agents` actor routes yoke-harness sessions to it instead of
+//! the harness-driver stack. `None` leaves the yoke path unwired (floki
 //! sessions with no closure are silently skipped — the started event is
 //! already persisted, but no run fires).
 //!
@@ -17,7 +17,7 @@
 //! agent-run assembly) into the shared dispatch ports. The bare-agent
 //! path is the only dispatch surface post-cut.
 
-use ship_agents::ports::FlokiRunFn;
+use ship_agents::ports::YokeRunFn;
 use ship_agents::{start_agents, AgentPorts};
 
 use ship_code::process_registry::SharedRegistry;
@@ -54,7 +54,7 @@ pub async fn subscribe_job_events(
     session_registry: ship_auth::scopes::SessionRegistry,
     daemon_url: String,
     _served_space_id: Option<String>,
-    floki_run_fn: Option<FlokiRunFn>,
+    yoke_run_fn: Option<YokeRunFn>,
 ) -> Option<DispatchHandle> {
     // RoutingExecutor picks TmuxWindowExecutor (interactive-attach) or
     // ProcessExecutor (headless) per-job based on the `headless` flag set
@@ -97,7 +97,7 @@ pub async fn subscribe_job_events(
         Arc::new(ship_pipeline_runtime::ports::projection_reader::ProjectionsReader);
 
     let agent_ports = Arc::new(AgentPorts {
-        floki_run_fn,
+        yoke_run_fn,
         isolation,
         executor: executor.clone(),
         lifecycle,

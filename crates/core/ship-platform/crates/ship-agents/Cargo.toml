@@ -73,7 +73,7 @@ specta = []
 # With this feature ON:  cancel, terminal_guard, the harness dispatch path,
 #                        executor/isolation/registry/etc. ports, baseline SHA,
 #                        and the `runtime` re-export are all compiled in.
-# With this feature OFF: only the floki path (FlokiRunFn + the floki branch
+# With this feature OFF: only the yoke path (YokeRunFn + the floki branch
 #                        in dispatch.rs) is compiled; ship-code and ship-git are absent.
 ship-code = ["dep:ship-code", "dep:ship-git", "dep:harness-config-compiler", "agent-def/ship-code"]
 

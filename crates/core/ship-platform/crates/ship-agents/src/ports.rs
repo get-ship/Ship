@@ -29,13 +29,12 @@ use ship_code::dispatch_ports::{
 #[cfg(feature = "ship-code")]
 use ship_code::LifecycleSink;
 
-/// Async callback type for floki-harness dispatch.
+/// Async callback for native Yoke harness dispatch.
 ///
-/// Defined here (ungated) so `AgentPorts` carries it regardless of the
-/// `ship-code` feature. The closure captures its own floki + gateway
-/// state; `ship-agents` never imports floki directly. The `DispatchRequestedPayload`
-/// type is L1 (`agent-def`) — the sanctioned driver-edge carrier.
-pub type FlokiRunFn = Arc<
+/// Ungated so `AgentPorts` carries it with or without `ship-code`. The
+/// host (shipd) captures gateway/kernel; `ship-agents` never imports yoke.
+/// Payload type is L1 (`agent-def`).
+pub type YokeRunFn = Arc<
     dyn Fn(DispatchRequestedPayload) -> Pin<Box<dyn Future<Output = ()> + Send>>
         + Send
         + Sync,
@@ -44,17 +43,15 @@ pub type FlokiRunFn = Arc<
 /// Ports for agent-session orchestration. Cloneable (all `Arc`) so the actor
 /// can hand a snapshot to each detached dispatch task.
 ///
-/// With `ship-code` OFF, only `floki_run_fn` is present — the entire
+/// With `ship-code` OFF, only `yoke_run_fn` is present — the entire
 /// harness-driver stack (executor/isolation/registry/etc.) is absent. Callers
 /// that construct `AgentPorts` must wrap every harness field in
 /// `#[cfg(feature = "ship-code")]` blocks.
 #[derive(Clone)]
 pub struct AgentPorts {
-    /// Native-harness dispatch (Bridge Connect). When `Some` and
-    /// `payload.harness` is `"floki"` or `"yoke"`, dispatch routes here and
-    /// skips the harness-driver stack. Not cfg-gated — always compiles.
-    /// Field name kept as `floki_run_fn` until call sites are renamed.
-    pub floki_run_fn: Option<FlokiRunFn>,
+    /// Native Yoke dispatch. When `Some` and harness is `"yoke"` or `"floki"`,
+    /// routes here and skips the ship-code harness-driver stack.
+    pub yoke_run_fn: Option<YokeRunFn>,
     /// Prepares + tears down the per-session isolated worktree.
     #[cfg(feature = "ship-code")]
     pub isolation: Arc<dyn IsolationStrategy>,
@@ -89,63 +86,59 @@ pub struct AgentPorts {
     pub event_dedup: Arc<EventDedup>,
 }
 impl AgentPorts {
-    /// Construct a flag-off `AgentPorts` carrying ONLY the floki-harness
+    /// Construct a flag-off `AgentPorts` carrying ONLY the yoke-harness
     /// dispatch closure. The harness-driver fields (isolation / executor /
     /// platform / registry / spawn_policy / projections / event_dedup) are
     /// absent in this build (`#[cfg(feature = "ship-code")]`-gated);
     /// callers that need them must use the harness-on construction site
     /// (e.g. shipd's `dispatch::run_dispatch::subscribe_job_events`).
     ///
-    /// Wiring the agent-sessions actor with this constructor is what keeps
-    /// floki routable when shipd is built `--no-default-features`. The actor
-    /// is alive, `dispatch.requested` is delivered, and the floki path in
-    /// [`crate::dispatch::handle_dispatch_requested`] dispatches to the
-    /// closure exactly as in the harness-on build.
+    /// Keeps native yoke routable when shipd is built without ship-code.
     ///
     /// Available only when `ship-code` is OFF: with the feature on,
     /// the struct literal needs every harness field set, and the canonical
     /// composition root (`dispatch::run_dispatch::subscribe_job_events`)
     /// owns that wiring.
     #[cfg(not(feature = "ship-code"))]
-    pub fn floki_only(floki_run_fn: Option<FlokiRunFn>) -> Self {
-        Self { floki_run_fn }
+    pub fn yoke_only(yoke_run_fn: Option<YokeRunFn>) -> Self {
+        Self { yoke_run_fn }
     }
 }
 
 #[cfg(all(test, not(feature = "ship-code")))]
 mod tests {
     //! Tests for the flag-off `AgentPorts` shape. With `ship-code` off,
-    //! only the floki path is reachable; these guard the constructor and the
+    //! only the yoke path is reachable; these guard the constructor and the
     //! ungated dispatch seam.
     use super::*;
     use std::sync::atomic::{AtomicBool, Ordering};
 
     /// SPEC: when the ship-code feature is off, the composition root needs a
-    /// way to construct `AgentPorts` carrying only the floki-harness closure,
+    /// way to construct `AgentPorts` carrying only the yoke-harness closure,
     /// and the SAME closure must be invocable through the port bundle — the
-    /// dispatch seam calls `ports.floki_run_fn` to fire a floki session.
+    /// dispatch seam calls `ports.yoke_run_fn` to fire a yoke session.
     /// Asserting closure identity by INVOKING it through the seam (not just
     /// `is_some()`, which a bare struct-literal constructor makes a
     /// tautology) pins the regression a future refactor could introduce by
     /// wrapping or swapping the closure.
     #[tokio::test]
-    async fn floki_only_closure_is_invocable_through_the_port_bundle() {
+    async fn yoke_only_closure_is_invocable_through_the_port_bundle() {
         let called = Arc::new(AtomicBool::new(false));
         let called_inner = called.clone();
-        let run_fn: FlokiRunFn = Arc::new(move |_payload: DispatchRequestedPayload| {
+        let run_fn: YokeRunFn = Arc::new(move |_payload: DispatchRequestedPayload| {
             let called = called_inner.clone();
             Box::pin(async move {
                 called.store(true, Ordering::SeqCst);
             })
         });
 
-        let ports = AgentPorts::floki_only(Some(run_fn));
+        let ports = AgentPorts::yoke_only(Some(run_fn));
         let payload: DispatchRequestedPayload = serde_json::from_value(serde_json::json!({
             "session_id": "s-1",
-            "slug": "floki-seam",
+            "slug": "yoke-seam",
             "agent_id": "dev",
             "workspace": "w",
-            "branch": "job/floki-seam",
+            "branch": "job/yoke-seam",
             "open_tab": false,
             "invocation": "print",
             "keepalive": false,
@@ -153,9 +146,9 @@ mod tests {
         .expect("minimal dispatch payload");
 
         ports
-            .floki_run_fn
+            .yoke_run_fn
             .as_ref()
-            .expect("floki_only must preserve the closure")(payload)
+            .expect("yoke_only must preserve the closure")(payload)
         .await;
         assert!(
             called.load(Ordering::SeqCst),

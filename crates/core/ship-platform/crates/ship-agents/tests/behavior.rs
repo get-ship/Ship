@@ -7,7 +7,7 @@
 //! with port test-doubles — no pipeline-DAG state, no `crate::projections`.
 //!
 //! Gated behind `ship-code`: these build ship_code harness port test-doubles
-//! (incl. proving a floki session SKIPS the harness executor). With the feature off
+//! (incl. proving a yoke session SKIPS the harness executor). With the feature off
 //! there is no harness to test against, and `cargo test -p ship-agents` in isolation
 //! must compile without ship_code. The floki routing path itself is ungated code;
 //! the workspace `--all-targets` build (feature unified on via shipd) runs these.
@@ -263,7 +263,7 @@ fn ports_with(
     platform: Arc<dyn AgentPlatform>,
 ) -> AgentPorts {
     AgentPorts {
-        floki_run_fn: None,
+        yoke_run_fn: None,
         isolation,
         executor,
         lifecycle: Arc::new(NoopLifecycleSink),
@@ -283,7 +283,7 @@ fn ports_with_projection(
     projections: Arc<dyn ProjectionReader>,
 ) -> AgentPorts {
     AgentPorts {
-        floki_run_fn: None,
+        yoke_run_fn: None,
         isolation,
         executor,
         lifecycle: Arc::new(NoopLifecycleSink),
@@ -624,26 +624,26 @@ async fn cancel_without_handle_still_cleans_and_emits() {
 
 // ── Floki routing tests ─────────────────────────────────────────────────────
 
-/// SPEC: when `payload.harness` is `"floki"` or `"yoke"` and `floki_run_fn`
+/// SPEC: when `payload.harness` is `"floki"` or `"yoke"` and `yoke_run_fn`
 /// is set, dispatch routes to the closure and skips the executor entirely.
 ///
 /// The closure increments a counter so the test can assert it was called.
 /// `spawn_calls` remains zero because the harness-driver path (executor.spawn)
 /// is never entered.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn floki_harness_routes_to_floki_run_fn_and_skips_executor() {
-    use ship_agents::ports::FlokiRunFn;
+async fn floki_harness_routes_to_yoke_run_fn_and_skips_executor() {
+    use ship_agents::ports::YokeRunFn;
     use std::sync::atomic::AtomicBool;
 
     let tmp = tempfile::TempDir::new().unwrap();
     let kernel = kernel_with_actor();
 
-    // Closure flag — set to true when the floki_run_fn fires.
+    // Closure flag — set to true when the yoke_run_fn fires.
     let floki_called = Arc::new(AtomicBool::new(false));
     let floki_called_inner = floki_called.clone();
     let spawn_calls = Arc::new(AtomicUsize::new(0));
 
-    let floki_run_fn: FlokiRunFn = Arc::new(move |_payload| {
+    let yoke_run_fn: YokeRunFn = Arc::new(move |_payload| {
         let flag = floki_called_inner.clone();
         Box::pin(async move {
             flag.store(true, Ordering::SeqCst);
@@ -651,7 +651,7 @@ async fn floki_harness_routes_to_floki_run_fn_and_skips_executor() {
     });
 
     let ports = AgentPorts {
-        floki_run_fn: Some(floki_run_fn),
+        yoke_run_fn: Some(yoke_run_fn),
         isolation: Arc::new(OkIsolation(tmp.path().join("worktrees/fl-sess"))),
         executor: Arc::new(RecordingExecutor {
             captured: Arc::new(StdMutex::new(None)),
@@ -680,7 +680,7 @@ async fn floki_harness_routes_to_floki_run_fn_and_skips_executor() {
 
     ship_agents::handle_agents_event(&kernel, &envelope, &ports).await;
 
-    // Poll: the floki_run_fn is spawned as a task; give it time to run.
+    // Poll: the yoke_run_fn is spawned as a task; give it time to run.
     for _ in 0..50 {
         if floki_called.load(Ordering::SeqCst) {
             break;
@@ -690,19 +690,19 @@ async fn floki_harness_routes_to_floki_run_fn_and_skips_executor() {
 
     assert!(
         floki_called.load(Ordering::SeqCst),
-        "floki_run_fn must be called when harness == 'floki'",
+        "yoke_run_fn must be called when harness == 'floki'",
     );
     assert_eq!(
         spawn_calls.load(Ordering::SeqCst),
         0,
-        "executor.spawn must NOT be called when floki_run_fn routes the session",
+        "executor.spawn must NOT be called when yoke_run_fn routes the session",
     );
 
     // harness == "yoke" is an alias for the same native Connect path.
     let floki_called_yoke = Arc::new(AtomicBool::new(false));
     let floki_called_yoke_inner = floki_called_yoke.clone();
     let ports_yoke = AgentPorts {
-        floki_run_fn: Some(Arc::new(move |_payload| {
+        yoke_run_fn: Some(Arc::new(move |_payload| {
             let flag = floki_called_yoke_inner.clone();
             Box::pin(async move {
                 flag.store(true, Ordering::SeqCst);
@@ -740,7 +740,7 @@ async fn floki_harness_routes_to_floki_run_fn_and_skips_executor() {
     }
     assert!(
         floki_called_yoke.load(Ordering::SeqCst),
-        "floki_run_fn must be called when harness == 'yoke'",
+        "yoke_run_fn must be called when harness == 'yoke'",
     );
 }
 
@@ -752,9 +752,9 @@ async fn floki_harness_without_closure_emits_session_failed() {
     let kernel = kernel_with_actor();
     let spawn_calls = Arc::new(AtomicUsize::new(0));
 
-    // floki_run_fn = None — closure not wired.
+    // yoke_run_fn = None — closure not wired.
     let ports = AgentPorts {
-        floki_run_fn: None,
+        yoke_run_fn: None,
         isolation: Arc::new(OkIsolation(tmp.path().join("worktrees/fl-no-fn"))),
         executor: Arc::new(RecordingExecutor {
             captured: Arc::new(StdMutex::new(None)),

@@ -124,7 +124,7 @@ pub fn start_dispatch_runtime(
     let projections: Arc<dyn ProjectionReader> = Arc::new(ProjectionsReader);
     let agent_ports = Arc::new(AgentPorts {
         // helmd wires no floki closure — third-party harnesses only.
-        floki_run_fn: None,
+        yoke_run_fn: None,
         isolation,
         executor: executor.clone(),
         lifecycle,

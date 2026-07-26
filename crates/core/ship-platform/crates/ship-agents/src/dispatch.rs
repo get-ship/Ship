@@ -61,35 +61,32 @@ pub async fn handle_dispatch_requested(
     // absent service (no route mounted) and surfaces as a 404, NOT a
     // refused call.
     //
-    // `floki` is the historical harness id; `yoke` is the product name
-    // (Bridge). Both route to the same out-of-process Connect path.
+    // `yoke` is the native harness id; `floki` is a temporary alias.
+    // Host injects YokeRunFn (shipd: in-process yoke embed by default).
     let is_native = matches!(
         payload.harness.as_deref(),
         Some("floki") | Some("yoke")
     );
 
     if is_native {
-        // Case (a): native dispatch, but no closure wired.
-        if ports.floki_run_fn.is_none() {
+        if ports.yoke_run_fn.is_none() {
             tracing::warn!(
                 slug = payload.slug,
                 session_id = payload.session_id,
                 harness = ?payload.harness,
                 "service.agents: native harness dispatch.requested but no \
-                 FlokiRunFn wired — emitting typed session.failed"
+                 YokeRunFn wired — emitting typed session.failed"
             );
             emit_session_failed(
                 kernel,
                 &payload.session_id,
                 &payload.slug,
-                "no native harness backend wired (shipd was built/started \
-                 without the Bridge Connect client)",
+                "no native harness backend wired (YokeRunFn missing at composition root)",
             )
             .await;
             return;
         }
-        // Fast path: harness floki|yoke + closure wired → Bridge Connect.
-        let run_fn = ports.floki_run_fn.as_ref().expect("checked above").clone();
+        let run_fn = ports.yoke_run_fn.as_ref().expect("checked above").clone();
         let payload = payload.clone();
         tokio::spawn(run_fn(payload));
         return;
@@ -209,7 +206,7 @@ async fn dispatch_agent_session_internal(
         keepalive: payload.keepalive,
         // Per-call fork source. `None` falls back to the daemon's
         // default repo / that repo's HEAD — the same fallback the
-        // floki path always took. Consumed in-call by
+        // yoke path always took. Consumed in-call by
         // `GitWorktreeIsolation::prepare`; never persisted; never
         // exported to env.
         repo_path: payload.repo_path.as_ref().map(std::path::PathBuf::from),
