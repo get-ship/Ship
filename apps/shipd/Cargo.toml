@@ -106,11 +106,10 @@ async-trait = { workspace = true }
 async-stream = "0.3"
 futures = "0.3"
 tower = { version = "0.5", features = ["timeout", "util"] }
-# L1 floki agent runtime — shipd (L2) implements floki::Gateway via ShipdGateway.
-# The floki crate gains no shipd dependency; this is the sole seam.
-floki = { path = "../../crates/core/ship-platform/crates/floki" }
-# Stage-2: durable-execution journal store and execute/resume API used directly
-# by dispatch_floki_session to drive FlokiProgram durably.
+# Native harness types (Gateway, SessionEventSink, …) live in Bridge's yoke.
+# Path dep matches ship-exec sibling layout until published as a git dep.
+yoke = { path = "../../../bridge/crates/yoke" }
+# Durable journal used by in-process composition tests (floki_dispatch).
 durable-execution = { path = "../../../ship-exec/crates/durable-execution" }
 tower-http = { version = "0.6", features = ["catch-panic", "limit", "timeout"] }
 reqwest = { workspace = true, features = ["rustls-tls", "json"] }

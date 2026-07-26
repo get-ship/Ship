@@ -12,7 +12,7 @@ use std::sync::Arc;
 
 use agent_def::dispatch_intent::DispatchRequestedPayload;
 use connectrpc::client::{ClientConfig, Http2Connection};
-use floki::{
+use yoke::{
     AuthContext as FlokiAuth, SessionCancelled, SessionCompleted, SessionEventSink, SessionFailed,
     SessionStarted,
     gateway::{Gateway, GatewayCallKind, GatewayError},

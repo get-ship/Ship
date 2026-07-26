@@ -39,7 +39,7 @@ use ship_substrate::events::CallerKind;
 use tower::ServiceExt as _;
 
 use crate::auth::{AuthContext as ShipdAuth, gate};
-use floki::{
+use yoke::{
     auth::AuthContext as FlokiAuth,
     gateway::{Gateway, GatewayCallKind, GatewayError, is_ask_stance},
 };
@@ -227,7 +227,7 @@ impl Gateway for ShipdGateway {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use floki::{
+    use yoke::{
         auth::AuthContext as FlokiAuth,
         gateway::{GatewayCallKind, GatewayError},
     };

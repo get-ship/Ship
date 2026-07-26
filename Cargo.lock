@@ -2471,14 +2471,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "floki"
-version = "0.1.0"
-dependencies = [
- "tokio",
- "yoke 0.1.0",
-]
-
-[[package]]
 name = "fluent-uri"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8688,7 +8680,6 @@ dependencies = [
  "deck-core",
  "deck-ssr",
  "durable-execution",
- "floki",
  "futures",
  "getrandom 0.2.17",
  "git2",
@@ -8742,6 +8733,7 @@ dependencies = [
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
+ "yoke 0.1.0",
 ]
 
 [[package]]

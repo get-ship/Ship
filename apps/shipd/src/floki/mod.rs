@@ -6,7 +6,7 @@
 //! - [`yoke_rpc_client`] — **product path**: ConnectRPC client to
 //!   `bridge serve` (`ship.yoke.v1`). Always used for native harness
 //!   sessions (`floki` / `yoke`).
-//! - [`floki_dispatch`] — in-process `FlokiProgram` composition used by
+//! - [`floki_dispatch`] — in-process `YokeProgram` composition used by
 //!   unit tests only; not wired into daemon lifecycle.
 //!
 //! Boot wiring (`daemon::lifecycle`) hands a single `FlokiRunFn` that

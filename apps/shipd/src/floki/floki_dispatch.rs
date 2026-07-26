@@ -11,10 +11,10 @@ use std::sync::Arc;
 
 use agent_def::dispatch_intent::DispatchRequestedPayload;
 use durable_execution::{Journal, JournalStore, execute};
-use floki::dispatch::GatewayDispatch;
-use floki::provider::{Byok, CredentialSource};
-use floki::{
-    AuthContext as FlokiAuth, BuiltModel, Cancel, FlokiProgram, HeadlessApprover, ScriptExecutor,
+use yoke::dispatch::GatewayDispatch;
+use yoke::provider::{Byok, CredentialSource};
+use yoke::{
+    AuthContext as FlokiAuth, BuiltModel, Cancel, HeadlessApprover, ScriptExecutor, YokeProgram,
     SessionCancelled, SessionCompleted, SessionEventHandler, SessionEventSink, SessionFailed,
     SessionStarted, SessionSuspended, Steer, ToolCtx, TurnEnded, TurnStarted, build_model,
 };
@@ -104,7 +104,7 @@ impl SessionEventHandler for ShipdKernelSink {
 /// Dispatch entry point invoked from the `service.agents` actor when
 /// `dispatch.requested` arrives with `harness == "floki"`.
 ///
-/// Stage-2: assembles a `FlokiProgram` and drives it through the durable
+/// Stage-2: assembles a `YokeProgram` and drives it through the durable
 /// execution engine (`execute()`), so every rig exchange is journaled and
 /// a crashed/suspended session can resume without re-burning model tokens.
 /// The journal is saved via the persisted `SqliteJournalStore` (P1.0b) —
@@ -112,7 +112,7 @@ impl SessionEventHandler for ShipdKernelSink {
 /// that auto-resumes it.
 ///
 /// Session lifecycle events (`session.started`, `session.completed`) are
-/// emitted by `FlokiProgram::run`, not this function.
+/// emitted by `YokeProgram::run`, not this function.
 ///
 /// FIRST-LIGHT SCOPE: minimal agent construction from payload fields only.
 /// Full agent loading from `.ship/agents/<id>.jsonc` + capability injection
@@ -133,7 +133,7 @@ pub async fn dispatch_floki_session(
         agent_id = %payload.agent_id,
         slug = %payload.slug,
         session_id = %payload.session_id,
-        "floki-dispatch: starting FlokiProgram execute",
+        "floki-dispatch: starting YokeProgram execute",
     );
 
     // ── Credentials + model ───────────────────────────────────────────────
@@ -165,7 +165,7 @@ pub async fn dispatch_floki_session(
         journal_mode: true,
     };
     let executor = Arc::new(ScriptExecutor::spawn());
-    let gw: Arc<dyn floki::Gateway> = gateway;
+    let gw: Arc<dyn yoke::Gateway> = gateway;
     // ── Journal store: the PERSISTED store (P1.0b) so a suspended floki
     // session survives a daemon restart. (Verifier+fresh-eyes caught the
     // committed Stage-2 constructing InMemoryJournalStore per call — no
@@ -186,14 +186,14 @@ pub async fn dispatch_floki_session(
 
     // ── Execute ───────────────────────────────────────────────────────────
     // The two provider arms (`Anthropic` / `OpenAiCompat`) need the same
-    // `FlokiProgram` wiring — only the model type differs. A closure can't
+    // `YokeProgram` wiring — only the model type differs. A closure can't
     // span both arms because each completion-model is a distinct
     // `GenericCompletionModel<M>` type, so we use a local macro to share
     // the construction without monomorphizing through a generic fn (which
     // would also need `M: CompletionModel + ...` bounds at the call site).
     macro_rules! make_program {
         ($model:expr) => {
-            FlokiProgram {
+            YokeProgram {
                 model: $model,
                 preamble: String::new(),
                 initial_input: input.clone(),
@@ -254,7 +254,7 @@ pub async fn dispatch_floki_session(
 mod tests {
     use std::sync::Arc;
 
-    use floki::{
+    use yoke::{
         AuthContext as FlokiAuth, BlastRadius, Cancel, Capability, Disposition, Harness,
         HeadlessApprover, Identity, RecordingSessionEventHandler, ScriptExecutor, SessionEventSink,
         Steer, ToolCtx, run_step,
@@ -266,8 +266,8 @@ mod tests {
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    fn floki_agent(grants: &[&str]) -> floki::Agent {
-        floki::Agent {
+    fn floki_agent(grants: &[&str]) -> yoke::Agent {
+        yoke::Agent {
             harness: Harness {
                 id: "floki".into(),
                 settings: Default::default(),
@@ -329,7 +329,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn floki_dispatch_smoke_c0_read_session_events_and_gate_clear() {
         let harness = crate::test_harness::TestDaemon::new().await;
-        let gw: Arc<dyn floki::Gateway> =
+        let gw: Arc<dyn yoke::Gateway> =
             Arc::new(ShipdGateway::new(crate::rpc::ops::router(harness.state.clone())));
 
         // Script: call collections.read once (C0 — gate clears with no grant),
@@ -384,7 +384,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn floki_dispatch_smoke_denied_c2_gate_verdict_reaches_model_and_session_events() {
         let harness = crate::test_harness::TestDaemon::new().await;
-        let gw: Arc<dyn floki::Gateway> =
+        let gw: Arc<dyn yoke::Gateway> =
             Arc::new(ShipdGateway::new(crate::rpc::ops::router(harness.state.clone())));
 
         // No mcp grant — gate must deny mcp.create (C2 elevated).
