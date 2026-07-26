@@ -13,10 +13,8 @@
 //! See [`super::permissions`] for the consumer.
 
 use anyhow::Result;
-use stack_model::{
-    ExtensionLibrary, McpServerConfig, McpServerType,
-};
 use serde::{Deserialize, Serialize};
+use stack_model::{ExtensionLibrary, McpServerConfig, McpServerType};
 use std::collections::HashMap;
 use std::path::Path;
 

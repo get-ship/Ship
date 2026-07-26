@@ -12,9 +12,9 @@
 //!
 //! vars.json lives at `skills/{id}/assets/vars.json`.
 
+use crate::skill_vars_store::KvNamespace;
 use anyhow::Result;
 use serde_json::Value;
-use crate::skill_vars_store::KvNamespace;
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -290,9 +290,12 @@ mod tests {
         let (_tmp, ship_dir) = setup();
         write_vars_json(&ship_dir, "commit", VARS_JSON);
         set_skill_var(&ship_dir, "commit", "commit_style", json!("gitmoji")).unwrap();
-        let val = crate::skill_vars_store::get(KvNamespace::SkillVarsGlobal("commit".to_string()), "commit_style")
-            .unwrap()
-            .unwrap();
+        let val = crate::skill_vars_store::get(
+            KvNamespace::SkillVarsGlobal("commit".to_string()),
+            "commit_style",
+        )
+        .unwrap()
+        .unwrap();
         assert_eq!(val, json!("gitmoji"));
     }
 
@@ -382,7 +385,10 @@ mod tests {
         assert!(k1.starts_with("v2:"), "key {k1:?} missing v2 prefix");
         let hex = &k1["v2:".len()..];
         assert_eq!(hex.len(), 16, "hex tail {hex:?} not 16 chars");
-        assert!(hex.chars().all(|c| c.is_ascii_hexdigit()), "non-hex chars in {hex:?}");
+        assert!(
+            hex.chars().all(|c| c.is_ascii_hexdigit()),
+            "non-hex chars in {hex:?}"
+        );
         // Different paths hash differently.
         let other = context_key(Path::new("/tmp/skill_vars_other_path"));
         assert_ne!(k1, other);

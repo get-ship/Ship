@@ -404,7 +404,10 @@ mod tests {
         hs.insert("theme".into(), serde_json::json!("dark")); // pass-through extra
 
         let agent = Agent {
-            harness: Harness { id: "claude".into(), settings: hs },
+            harness: Harness {
+                id: "claude".into(),
+                settings: hs,
+            },
             identity: Identity {
                 id: "rev".into(),
                 name: "Reviewer".into(),
@@ -436,16 +439,32 @@ mod tests {
         assert_eq!(again.identity.id, agent.identity.id, "id");
         assert_eq!(again.identity.name, agent.identity.name, "name");
         assert_eq!(again.identity.version, agent.identity.version, "version");
-        assert_eq!(again.identity.description, agent.identity.description, "description");
+        assert_eq!(
+            again.identity.description, agent.identity.description,
+            "description"
+        );
         assert_eq!(again.identity.tags, agent.identity.tags, "tags");
         assert_eq!(again.disposition.rules, agent.disposition.rules, "rules");
         assert_eq!(again.disposition.model, agent.disposition.model, "model");
-        assert_eq!(again.disposition.max_turns, agent.disposition.max_turns, "max_turns");
+        assert_eq!(
+            again.disposition.max_turns, agent.disposition.max_turns,
+            "max_turns"
+        );
         assert_eq!(again.skills, agent.skills, "skills");
         assert_eq!(again.mcp, agent.mcp, "mcp");
-        assert_eq!(again.capabilities.len(), agent.capabilities.len(), "cap count");
-        assert_eq!(again.capabilities[0].domain, agent.capabilities[0].domain, "cap domain");
-        assert_eq!(again.capabilities[0].blast, agent.capabilities[0].blast, "cap blast");
+        assert_eq!(
+            again.capabilities.len(),
+            agent.capabilities.len(),
+            "cap count"
+        );
+        assert_eq!(
+            again.capabilities[0].domain, agent.capabilities[0].domain,
+            "cap domain"
+        );
+        assert_eq!(
+            again.capabilities[0].blast, agent.capabilities[0].blast,
+            "cap blast"
+        );
         // Pass-through harness key must survive (not erased by to_nested_json).
         assert_eq!(
             again.harness.settings.get("theme").and_then(|v| v.as_str()),
@@ -459,7 +478,10 @@ mod tests {
         // A bare Agent with defaults should emit valid canonical JSON with only the
         // required `agent:` block.
         let agent = Agent {
-            harness: Harness { id: "floki".into(), settings: Default::default() },
+            harness: Harness {
+                id: "floki".into(),
+                settings: Default::default(),
+            },
             identity: Identity {
                 id: "bare".into(),
                 name: "Bare".into(),
@@ -476,14 +498,20 @@ mod tests {
         assert_eq!(val["agent"]["id"], "bare");
         assert_eq!(val["agent"]["name"], "Bare");
         // Default version is not emitted (clean output).
-        assert!(val["agent"].get("version").is_none(), "default version omitted");
+        assert!(
+            val["agent"].get("version").is_none(),
+            "default version omitted"
+        );
         // Empty lists / empty rules produce no keys at root.
         assert!(val.get("skills").is_none(), "empty skills omitted");
         assert!(val.get("mcp").is_none(), "empty mcp omitted");
         assert!(val.get("capabilities").is_none(), "empty caps omitted");
         assert!(val.get("rules").is_none(), "empty rules omitted");
         // Empty harness settings → no harness_settings block.
-        assert!(val.get("harness_settings").is_none(), "empty harness_settings omitted");
+        assert!(
+            val.get("harness_settings").is_none(),
+            "empty harness_settings omitted"
+        );
     }
 
     #[test]

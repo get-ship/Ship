@@ -18,7 +18,7 @@ pub mod skill_parser;
 #[cfg(test)]
 mod tests;
 
-pub use loader::{load_library, load_permission_preset, McpEntry, McpFile};
+pub use loader::{McpEntry, McpFile, load_library, load_permission_preset};
 pub use permissions::PermissionPreset;
 // `load_skills` (the agent-def disk-authoring loader) retired with
 // Wave 5 — project skills arrive via `defineSkill` declare-forms in
@@ -167,13 +167,8 @@ fn compile_from_library(
     if !all_skill_refs.is_empty() {
         // ship.lock: STACK ROOT beside stack.config.ts, one location.
         let lock_path = stack_root.join("ship.lock");
-        let dep_skills = resolve_dep_skills(
-            &all_skill_refs,
-            &library.skills,
-            &lock_path,
-            None,
-        )
-        .context("resolving dep skills from cache")?;
+        let dep_skills = resolve_dep_skills(&all_skill_refs, &library.skills, &lock_path, None)
+            .context("resolving dep skills from cache")?;
         library.skills.extend(dep_skills);
     }
 
@@ -209,8 +204,7 @@ fn compile_from_library(
     if library.claude_effort.is_none() {
         library.claude_effort = opts.default_effort.clone();
     }
-    let resolved =
-        stack_model::resolve_library(&library, None, opts.active_agent.as_deref());
+    let resolved = stack_model::resolve_library(&library, None, opts.active_agent.as_deref());
     if !resolved.unresolved_mcp_servers.is_empty() {
         anyhow::bail!(
             "unknown mcp server id(s) referenced by agent '{}': {}",

@@ -33,7 +33,10 @@ stack-model = { path = "../../../stack-model", features = ["specta"] }
 harness-config-compiler = { path = "../../../../code/harness-config-compiler", features = ["specta"], optional = true }
 inventory = { workspace = true }
 include_dir = "0.7"
-sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio-rustls", "migrate", "macros"] }
+# sqlx is optional: only skill_vars_store + compile/projection need it.
+# Yoke/floki links agent-def with `default-features = false` so the native
+# harness graph does not pull sqlite for definition types alone.
+sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio-rustls", "migrate", "macros"], optional = true }
 # The `file_changed_consumer` module (job/transient-events) spawns a tokio
 # task on the kernel-log broadcast. The runner mechanism pulls tokio in
 # transitively, but the consumer needs direct access to `tokio::spawn` /
@@ -65,7 +68,14 @@ chrono = { workspace = true }
 walkdir = "2.3"
 
 [features]
+# Default keeps prior behavior for platform consumers (skills service, CLI).
+# Floki/Yoke opts out via `default-features = false` so sqlx is not required
+# for the thin Agent + session-event surface.
+default = ["kv"]
+# KV-backed skill variables (`skill_vars` / `skill_vars_store`) — needs sqlx.
+kv = ["dep:sqlx"]
 # The stack->harness compile driver (compile/): ship-code's world.
-ship-code = ["dep:harness-config-compiler"]
+# Compile projection + skill_parser vars loading need kv/sqlx.
+ship-code = ["dep:harness-config-compiler", "kv"]
 fixtures = []
 specta = []

@@ -31,8 +31,8 @@ pub enum KvNamespace {
 impl KvNamespace {
     fn as_str(&self) -> std::borrow::Cow<'_, str> {
         match self {
-            Self::SkillVarsGlobal(s)  => format!("skill_vars:{s}").into(),
-            Self::SkillVarsLocal(s)   => format!("skill_vars.local:{s}").into(),
+            Self::SkillVarsGlobal(s) => format!("skill_vars:{s}").into(),
+            Self::SkillVarsLocal(s) => format!("skill_vars.local:{s}").into(),
             Self::SkillVarsProject(s) => format!("skill_vars.project:{s}").into(),
         }
     }
@@ -129,4 +129,3 @@ pub fn list_all(ns: KvNamespace) -> Result<Vec<(String, serde_json::Value)>> {
     }
     Ok(pairs)
 }
-

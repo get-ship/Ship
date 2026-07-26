@@ -24,19 +24,21 @@ pub use invocation::InvocationMode;
 pub mod op;
 pub mod skill;
 pub mod skill_paths;
-pub mod skill_vars;
-pub mod skill_vars_store;
+// KV-backed skill vars need sqlx — gated so Yoke/floki can depend on the thin
+// Agent + session-event surface without sqlite.
 mod event_registrations;
+#[cfg(feature = "kv")]
+pub mod skill_vars;
+#[cfg(feature = "kv")]
+pub mod skill_vars_store;
 pub use agent::{Agent, BlastRadius, Capability, Disposition, Harness, Identity};
 pub use emit::{
-    SessionCancelled, SessionCompleted, SessionEventSink, SessionFailed,
-    SessionStarted, SessionSuspended, TurnEnded, TurnStarted,
+    SessionCancelled, SessionCompleted, SessionEventSink, SessionFailed, SessionStarted,
+    SessionSuspended, TurnEnded, TurnStarted,
 };
 pub use op::{OpToolUseCompleted, OpToolUseDenied, OpToolUseStarted};
 
-
-
-#[cfg(test)]
-mod testutil;
 #[cfg(test)]
 pub mod tests;
+#[cfg(test)]
+mod testutil;

@@ -228,10 +228,7 @@ mod tests {
         ] {
             let s = json.to_string();
             for f in DRIVER_EDGE_FIELDS {
-                assert!(
-                    !s.contains(f),
-                    "{name} must not carry {f}: {s}"
-                );
+                assert!(!s.contains(f), "{name} must not carry {f}: {s}");
             }
         }
     }

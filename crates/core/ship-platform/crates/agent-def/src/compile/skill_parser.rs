@@ -49,7 +49,6 @@ pub fn embedded_capability_skills() -> Vec<Skill> {
     Vec::new()
 }
 
-
 /// The non-`SKILL.md` files inside an embedded sdk-skill directory, as
 /// `(path-relative-to-skill-dir, content)` — e.g.
 /// `("references/docs/git.create.mdoc", "...")`. Empty for ids that aren't
@@ -117,9 +116,10 @@ fn load_skill_vars(
                     continue;
                 }
                 if def.get("type").and_then(|v| v.as_str()) == Some("enum") {
-                    if let (Some(values), Some(current)) =
-                        (def.get("values").and_then(|v| v.as_array()), state.get(name))
-                    {
+                    if let (Some(values), Some(current)) = (
+                        def.get("values").and_then(|v| v.as_array()),
+                        state.get(name),
+                    ) {
                         if let Some(s) = current.as_str() {
                             let allowed: Vec<&str> =
                                 values.iter().filter_map(|v| v.as_str()).collect();
@@ -171,13 +171,17 @@ mod sdk_skill_tests {
     #[ignore = "embedded SDK skills disabled until ship-contracts publishes a ship-sdk-skills crate; see embedded_skill_reference_files()"]
     fn embedded_skill_reference_pages_are_available() {
         let refs = embedded_skill_reference_files("ship-pipelines");
-        assert!(!refs.is_empty(), "ship-pipelines ships per-op reference pages");
+        assert!(
+            !refs.is_empty(),
+            "ship-pipelines ships per-op reference pages"
+        );
         assert!(
             refs.iter().all(|(p, _)| p != "SKILL.md"),
             "SKILL.md is delivered by the compiler, not as a reference file"
         );
         assert!(
-            refs.iter().any(|(p, _)| p.starts_with("references/docs/") && p.ends_with(".mdoc")),
+            refs.iter()
+                .any(|(p, _)| p.starts_with("references/docs/") && p.ends_with(".mdoc")),
             "reference pages live under references/docs/*.mdoc"
         );
         // Unknown ids (authored skills) have no embedded references.

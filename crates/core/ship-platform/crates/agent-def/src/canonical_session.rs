@@ -215,8 +215,8 @@ mod tests {
             },
             "SessionStarted"
         );
-        let _: SessionStarted =
-            serde_json::from_str(&serde_json::to_string(&SessionStarted {
+        let _: SessionStarted = serde_json::from_str(
+            &serde_json::to_string(&SessionStarted {
                 session_id: "s1".into(),
                 agent_id: "claude".into(),
                 harness: "claude".into(),
@@ -226,30 +226,56 @@ mod tests {
                 input: None,
                 parent: None,
             })
-            .unwrap())
-            .unwrap();
-
-        assert_no_driver_edges!(SessionCompleted { session_id: "s1".into() }, "SessionCompleted");
+            .unwrap(),
+        )
+        .unwrap();
 
         assert_no_driver_edges!(
-            SessionFailed { session_id: "s1".into(), reason: "exit 1".into() },
+            SessionCompleted {
+                session_id: "s1".into()
+            },
+            "SessionCompleted"
+        );
+
+        assert_no_driver_edges!(
+            SessionFailed {
+                session_id: "s1".into(),
+                reason: "exit 1".into()
+            },
             "SessionFailed"
         );
 
         assert_no_driver_edges!(
-            SessionCancelled { session_id: "s1".into(), reason: None },
+            SessionCancelled {
+                session_id: "s1".into(),
+                reason: None
+            },
             "SessionCancelled"
         );
 
         assert_no_driver_edges!(
-            SessionSuspended { session_id: "s1".into(), checkpoint: "ckpt-abc".into() },
+            SessionSuspended {
+                session_id: "s1".into(),
+                checkpoint: "ckpt-abc".into()
+            },
             "SessionSuspended"
         );
 
-        assert_no_driver_edges!(TurnStarted { session_id: "s1".into(), idx: 0 }, "TurnStarted");
+        assert_no_driver_edges!(
+            TurnStarted {
+                session_id: "s1".into(),
+                idx: 0
+            },
+            "TurnStarted"
+        );
 
         assert_no_driver_edges!(
-            TurnEnded { session_id: "s1".into(), idx: 0, stop_reason: None, ..Default::default() },
+            TurnEnded {
+                session_id: "s1".into(),
+                idx: 0,
+                stop_reason: None,
+                ..Default::default()
+            },
             "TurnEnded"
         );
     }

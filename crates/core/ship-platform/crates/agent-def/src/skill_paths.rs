@@ -40,8 +40,7 @@ mod tests {
         let space_root = tmp.path();
         let ship_dir = space_root.join(".ship");
         fs::create_dir_all(&ship_dir).unwrap();
-        fs::write(&ship_dir.join("ship.jsonc"), r#"{"id": "test123"}"#)
-            .unwrap();
+        fs::write(&ship_dir.join("ship.jsonc"), r#"{"id": "test123"}"#).unwrap();
         let paths = read_skill_paths(space_root);
         assert_eq!(paths, vec![space_root.join("skills/")]);
     }

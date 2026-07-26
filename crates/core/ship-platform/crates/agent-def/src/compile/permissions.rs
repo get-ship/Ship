@@ -28,7 +28,7 @@ use std::collections::BTreeMap;
 /// remaining callers (the compile path now consumes
 /// `stack_model::PermissionPreset` directly, the re-export is a
 /// forward-compat surface).
-pub use stack_model::PermissionPreset as PermissionPreset;
+pub use stack_model::PermissionPreset;
 
 /// Permission rules baked into every Ship agent. Cannot be overridden.
 ///
@@ -117,10 +117,7 @@ pub fn apply_agent_permissions(
     // (populated by the resolver from
     // `defineConfig.agents.permissions.presets`). The pre-slice-3
     // `ship_dir`-keyed disk read died with `.ship/permissions.jsonc`.
-    let preset_from_file = mp
-        .preset
-        .as_deref()
-        .and_then(|name| presets.get(name));
+    let preset_from_file = mp.preset.as_deref().and_then(|name| presets.get(name));
 
     let mut tools = if let Some(ref preset) = preset_from_file {
         ToolPermissions {
@@ -276,7 +273,12 @@ mod tests {
             &presets,
         );
         assert_eq!(result.default_mode.as_deref(), Some("bypassPermissions"));
-        assert!(result.tools.deny.contains(&"Bash(git push --force*)".to_string()));
+        assert!(
+            result
+                .tools
+                .deny
+                .contains(&"Bash(git push --force*)".to_string())
+        );
         assert!(result.tools.ask.contains(&"Bash(rm -rf*)".to_string()));
     }
 
@@ -293,8 +295,16 @@ mod tests {
         );
         assert!(r.tools.deny.contains(&"Read(~/.ssh/**)".to_string()));
         assert!(r.tools.deny.contains(&"Read(~/.aws/**)".to_string()));
-        assert!(r.tools.deny.contains(&"Read(~/.docker/config.json)".to_string()));
-        assert!(r.tools.deny.contains(&"Read(~/.cargo/credentials.toml)".to_string()));
+        assert!(
+            r.tools
+                .deny
+                .contains(&"Read(~/.docker/config.json)".to_string())
+        );
+        assert!(
+            r.tools
+                .deny
+                .contains(&"Read(~/.cargo/credentials.toml)".to_string())
+        );
     }
 
     #[test]
@@ -361,11 +371,7 @@ mod tests {
             &profile_no_preset(),
             &BTreeMap::new(),
         );
-        let twice = apply_agent_permissions(
-            once.clone(),
-            &profile_no_preset(),
-            &BTreeMap::new(),
-        );
+        let twice = apply_agent_permissions(once.clone(), &profile_no_preset(), &BTreeMap::new());
         for floor in FLOOR_DENIES {
             let count = twice.tools.deny.iter().filter(|d| d == floor).count();
             assert_eq!(count, 1, "floor entry {floor:?} duplicated to {count}");

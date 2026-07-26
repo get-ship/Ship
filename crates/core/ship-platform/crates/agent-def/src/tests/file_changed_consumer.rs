@@ -21,11 +21,13 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use ship_substrate::FsBroker;
-use ship_substrate::events::new_isolated_for_test;
 use ship_substrate::events::EventFilter;
+use ship_substrate::events::new_isolated_for_test;
 use ship_substrate::home::ShipHome;
 use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
-use ship_substrate::ports::{FsCap, FsMode, FsRoot, KernelLog, LocalFsBroker, SpaceId as PortSpaceId};
+use ship_substrate::ports::{
+    FsCap, FsMode, FsRoot, KernelLog, LocalFsBroker, SpaceId as PortSpaceId,
+};
 use ship_types::SpaceId;
 use ship_types::envelope::EventEnvelope;
 use ship_types::event_types;
@@ -38,7 +40,9 @@ async fn setup() -> (tempfile::TempDir, PathBuf, Arc<KernelLog>, SpaceId) {
     let tmp = tempfile::tempdir().unwrap();
     // Marker cutover: content anchors at the STACK ROOT.
     let ship_dir = std::fs::canonicalize(tmp.path()).unwrap();
-    let kernel = Arc::new(KernelLog::new(new_isolated_for_test(ship_dir.clone()).unwrap()));
+    let kernel = Arc::new(KernelLog::new(
+        new_isolated_for_test(ship_dir.clone()).unwrap(),
+    ));
     let space = SpaceId::new("sp-consumer-1");
     // I-2: `PartitionedSink::route()` refuses to write `spaces/<key>/space.db`
     // for a scope_key with no `spaces` registry row. Register the test's
@@ -50,8 +54,9 @@ async fn setup() -> (tempfile::TempDir, PathBuf, Arc<KernelLog>, SpaceId) {
 }
 
 fn agent_def_updated_events(ship_dir: &std::path::Path, space: &str) -> Vec<AgentDefUpdated> {
-    let store = SqliteEventStore::new_at_db_path(&ship_substrate::db::space_db_path(ship_dir, space))
-        .unwrap();
+    let store =
+        SqliteEventStore::new_at_db_path(&ship_substrate::db::space_db_path(ship_dir, space))
+            .unwrap();
     store
         .query(&EventFilter {
             event_type: Some(event_types::AGENT_DEF_UPDATED.to_string()),
@@ -134,7 +139,10 @@ async fn consumer_emits_durable_agent_def_updated_for_agents_domain() {
     let envelope = EventEnvelope::new(event_types::CONFIG_FILE_CHANGED, "alpha.jsonc", &payload)
         .expect("envelope builds");
     let ctx = ship_substrate::events::EmitContext::daemon_internal(Some(space.clone()));
-    kernel.emit(envelope, &ctx).await.expect("emit transient signal");
+    kernel
+        .emit(envelope, &ctx)
+        .await
+        .expect("emit transient signal");
 
     // The consumer wrote ONE durable `agent.def.updated` to the space's db.
     let events = wait_for_events(&ship_dir, space.0.as_str(), 1).await;
@@ -200,8 +208,8 @@ async fn consumer_ignores_unrelated_event_types() {
     // An unregistered event type so the kernel doesn't reject the envelope
     // on payload validation (the production path). The consumer must
     // still NOT convert — the event-type filter is the outer guard.
-    let envelope = EventEnvelope::new("test.unregistered_type_xyz", "x", &payload)
-        .expect("envelope builds");
+    let envelope =
+        EventEnvelope::new("test.unregistered_type_xyz", "x", &payload).expect("envelope builds");
     let ctx = ship_substrate::events::EmitContext::daemon_internal(Some(space.clone()));
     kernel.emit(envelope, &ctx).await.expect("emit");
 
@@ -233,7 +241,11 @@ async fn consumer_propagates_deleted_marker_to_durable_event() {
     kernel.emit(envelope, &ctx).await.expect("emit");
 
     let events = wait_for_events(&ship_dir, space.0.as_str(), 1).await;
-    assert_eq!(events.len(), 1, "deleted marker still produces one durable event");
+    assert_eq!(
+        events.len(),
+        1,
+        "deleted marker still produces one durable event"
+    );
     assert_eq!(events[0].path, "gone.jsonc");
     assert!(
         events[0].content_hash.is_empty(),
@@ -264,7 +276,11 @@ async fn consumer_emits_one_durable_per_transient_no_dedup() {
     }
 
     let events = wait_for_events(&ship_dir, space.0.as_str(), 2).await;
-    assert_eq!(events.len(), 2, "consumer is a 1:1 forwarder; dedup lives in the index");
+    assert_eq!(
+        events.len(),
+        2,
+        "consumer is a 1:1 forwarder; dedup lives in the index"
+    );
     let paths: Vec<&str> = events.iter().map(|e| e.path.as_str()).collect();
     assert!(paths.contains(&"a.jsonc"));
     assert!(paths.contains(&"b.jsonc"));

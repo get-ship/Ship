@@ -8,9 +8,9 @@
 #[cfg(test)]
 mod tests {
     use ship_types::{
-        event_types::canonical_session::{ALL_CANONICAL_OP, ALL_CANONICAL_SESSION},
         event_registry,
         event_registry::{EventScope, Retention},
+        event_types::canonical_session::{ALL_CANONICAL_OP, ALL_CANONICAL_SESSION},
     };
 
     /// EVENT-SCOPE DISCIPLINE — invariant test over the live registry.
@@ -169,19 +169,28 @@ mod tests {
     #[test]
     fn canonical_payload_validators_are_live() {
         use ship_substrate::events::PayloadSchemaValidator;
-        use ship_substrate::events::validator::{CallerKind, EmitContext, EventValidator, ValidationError};
+        use ship_substrate::events::validator::{
+            CallerKind, EmitContext, EventValidator, ValidationError,
+        };
 
         fn ctx() -> EmitContext {
             EmitContext {
                 caller_kind: CallerKind::Runtime,
                 skill_id: None,
-                binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
+                binding: ship_types::ScopeBinding::daemon_internal(
+                    None,
+                    ship_types::Authority::Sdk,
+                ),
                 session_id: None,
             }
         }
 
         // Malformed canonical payloads are REJECTED at emit time.
-        for event_type in ["session.started", "session.turn.ended", "op.tool_use_started"] {
+        for event_type in [
+            "session.started",
+            "session.turn.ended",
+            "op.tool_use_started",
+        ] {
             let event = ship_substrate::events::EventEnvelope::new(
                 event_type,
                 "sess-1",
@@ -206,12 +215,9 @@ mod tests {
             input: None,
             parent: None,
         };
-        let event = ship_substrate::events::EventEnvelope::new(
-            "session.started",
-            "sess-1",
-            &started,
-        )
-        .unwrap();
+        let event =
+            ship_substrate::events::EventEnvelope::new("session.started", "sess-1", &started)
+                .unwrap();
         assert!(
             PayloadSchemaValidator.validate(&event, &ctx()).is_ok(),
             "a well-formed SessionStarted must pass the registration-carried validator"

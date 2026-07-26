@@ -57,10 +57,7 @@ const AGENTS_DOMAIN: &str = "agents";
 /// `config.file_changed` envelope carries no space, so the consumer is the
 /// authoritative link: every transient signal it observes lands as a
 /// durable row in the space this consumer was constructed for.
-pub fn spawn_agent_def_consumer(
-    kernel: Arc<KernelLog>,
-    space: SpaceId,
-) -> JoinHandle<()> {
+pub fn spawn_agent_def_consumer(kernel: Arc<KernelLog>, space: SpaceId) -> JoinHandle<()> {
     let mut rx = kernel.subscribe();
     tokio::spawn(async move {
         loop {
@@ -102,9 +99,7 @@ async fn handle_event(
             // A malformed payload from the watcher is the watcher's bug,
             // not ours — log and skip. The transient signal will not be
             // re-delivered.
-            tracing::warn!(
-                "agent-def consumer: malformed config.file_changed payload: {e}"
-            );
+            tracing::warn!("agent-def consumer: malformed config.file_changed payload: {e}");
             return Ok(());
         }
     };

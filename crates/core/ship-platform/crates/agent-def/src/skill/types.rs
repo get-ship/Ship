@@ -13,8 +13,7 @@ use serde_json::Value;
 /// Source of truth: `schemas/skill.schema.json` at the workspace root. Keeping
 /// the schema string embedded means the runtime can validate every SKILL.md
 /// without depending on an installed copy at runtime.
-const SKILL_SCHEMA_JSON: &str =
-    include_str!("../../../../../../../schemas/skill.schema.json");
+const SKILL_SCHEMA_JSON: &str = include_str!("../../../../../../../schemas/skill.schema.json");
 
 fn skill_schema_validator() -> &'static Validator {
     static VALIDATOR: OnceLock<Validator> = OnceLock::new();

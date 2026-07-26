@@ -25,16 +25,16 @@
 //! adopted in `workbench-teardown` is now the only session-start emit.
 //!
 //! Spec: `.artifacts/agents-architecture.md` (R1–R11).
-use std::sync::Arc;
 use serde::Serialize;
 use ship_kernel::EventSink;
+use std::sync::Arc;
 
 // Re-export canonical payload types so downstream crates (e.g. floki) can
 // build session event payloads through agent-def without adding ship-substrate
 // as a direct runtime dependency.
 pub use crate::canonical_session::{
-    SessionCancelled, SessionCompleted, SessionFailed, SessionStarted,
-    SessionSuspended, TurnEnded, TurnStarted,
+    SessionCancelled, SessionCompleted, SessionFailed, SessionStarted, SessionSuspended, TurnEnded,
+    TurnStarted,
 };
 use ship_types::envelope::EventEnvelope;
 use ship_types::event_types::canonical_session as event_types;
@@ -145,12 +145,7 @@ impl SessionEventSink {
         session_id: &str,
         payload: &TurnStarted,
     ) -> Result<EventEnvelope, serde_json::Error> {
-        emit_runtime(
-            &self.inner,
-            event_types::TURN_STARTED,
-            session_id,
-            payload,
-        )
+        emit_runtime(&self.inner, event_types::TURN_STARTED, session_id, payload)
     }
 
     /// Build + emit a `session.turn.ended` envelope. Runtime-scoped,
@@ -160,12 +155,7 @@ impl SessionEventSink {
         session_id: &str,
         payload: &TurnEnded,
     ) -> Result<EventEnvelope, serde_json::Error> {
-        emit_runtime(
-            &self.inner,
-            event_types::TURN_ENDED,
-            session_id,
-            payload,
-        )
+        emit_runtime(&self.inner, event_types::TURN_ENDED, session_id, payload)
     }
 }
 
@@ -225,8 +215,8 @@ mod tests {
         assert_eq!(e.scope, expected_scope);
         assert_eq!(e.entity_id, expected_entity_id);
         // scope/retention must agree with the registry
-        let def = ship_types::event_registry::lookup(expected_type)
-            .expect("event must be registered");
+        let def =
+            ship_types::event_registry::lookup(expected_type).expect("event must be registered");
         assert_eq!(def.retention, expected_retention);
     }
 
@@ -250,13 +240,21 @@ mod tests {
         assert_eq!(env.scope, EventScope::Runtime);
         let back: SessionStarted = serde_json::from_str(&env.payload_json).unwrap();
         assert_eq!(back, payload);
-        assert_one_event(&mock, "session.started", EventScope::Runtime, Retention::Durable, "s1");
+        assert_one_event(
+            &mock,
+            "session.started",
+            EventScope::Runtime,
+            Retention::Durable,
+            "s1",
+        );
     }
 
     #[test]
     fn session_completed_emits_runtime_scoped_durable_envelope() {
         let (mock, sink) = fresh_sink();
-        let payload = SessionCompleted { session_id: "s1".into() };
+        let payload = SessionCompleted {
+            session_id: "s1".into(),
+        };
         let env = sink
             .emit_session_completed("s1", &payload)
             .expect("envelope builds");
@@ -264,7 +262,13 @@ mod tests {
         assert_eq!(env.scope, EventScope::Runtime);
         let back: SessionCompleted = serde_json::from_str(&env.payload_json).unwrap();
         assert_eq!(back, payload);
-        assert_one_event(&mock, "session.completed", EventScope::Runtime, Retention::Durable, "s1");
+        assert_one_event(
+            &mock,
+            "session.completed",
+            EventScope::Runtime,
+            Retention::Durable,
+            "s1",
+        );
     }
 
     #[test]
@@ -281,7 +285,13 @@ mod tests {
         assert_eq!(env.scope, EventScope::Runtime);
         let back: SessionFailed = serde_json::from_str(&env.payload_json).unwrap();
         assert_eq!(back, payload);
-        assert_one_event(&mock, "session.failed", EventScope::Runtime, Retention::Durable, "s1");
+        assert_one_event(
+            &mock,
+            "session.failed",
+            EventScope::Runtime,
+            Retention::Durable,
+            "s1",
+        );
     }
 
     #[test]
@@ -298,7 +308,13 @@ mod tests {
         assert_eq!(env.scope, EventScope::Runtime);
         let back: SessionCancelled = serde_json::from_str(&env.payload_json).unwrap();
         assert_eq!(back, payload);
-        assert_one_event(&mock, "session.cancelled", EventScope::Runtime, Retention::Durable, "s1");
+        assert_one_event(
+            &mock,
+            "session.cancelled",
+            EventScope::Runtime,
+            Retention::Durable,
+            "s1",
+        );
     }
 
     #[test]
@@ -315,13 +331,22 @@ mod tests {
         assert_eq!(env.scope, EventScope::Runtime);
         let back: SessionSuspended = serde_json::from_str(&env.payload_json).unwrap();
         assert_eq!(back, payload);
-        assert_one_event(&mock, "session.suspended", EventScope::Runtime, Retention::Durable, "s1");
+        assert_one_event(
+            &mock,
+            "session.suspended",
+            EventScope::Runtime,
+            Retention::Durable,
+            "s1",
+        );
     }
 
     #[test]
     fn turn_started_emits_runtime_scoped_windowed_envelope() {
         let (mock, sink) = fresh_sink();
-        let payload = TurnStarted { session_id: "s1".into(), idx: 0 };
+        let payload = TurnStarted {
+            session_id: "s1".into(),
+            idx: 0,
+        };
         let env = sink
             .emit_turn_started("s1", &payload)
             .expect("envelope builds");
@@ -370,7 +395,9 @@ mod tests {
         let (mock, sink) = fresh_sink();
         sink.emit_session_completed(
             "s1",
-            &SessionCompleted { session_id: "s1".into() },
+            &SessionCompleted {
+                session_id: "s1".into(),
+            },
         )
         .unwrap();
         sink.emit_session_failed(
@@ -381,8 +408,14 @@ mod tests {
             },
         )
         .unwrap();
-        sink.emit_turn_started("s3", &TurnStarted { session_id: "s3".into(), idx: 0 })
-            .unwrap();
+        sink.emit_turn_started(
+            "s3",
+            &TurnStarted {
+                session_id: "s3".into(),
+                idx: 0,
+            },
+        )
+        .unwrap();
         let events = mock.captured();
         assert_eq!(events.len(), 3);
         assert_eq!(events[0].event_type, "session.completed");
@@ -411,7 +444,10 @@ mod tests {
             ),
             (
                 "session.completed".into(),
-                serde_json::to_value(SessionCompleted { session_id: "s".into() }).unwrap(),
+                serde_json::to_value(SessionCompleted {
+                    session_id: "s".into(),
+                })
+                .unwrap(),
             ),
             (
                 "session.failed".into(),
@@ -439,7 +475,11 @@ mod tests {
             ),
             (
                 "session.turn.started".into(),
-                serde_json::to_value(TurnStarted { session_id: "s".into(), idx: 0 }).unwrap(),
+                serde_json::to_value(TurnStarted {
+                    session_id: "s".into(),
+                    idx: 0,
+                })
+                .unwrap(),
             ),
             (
                 "session.turn.ended".into(),

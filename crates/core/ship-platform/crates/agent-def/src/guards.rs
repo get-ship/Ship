@@ -39,8 +39,8 @@ pub const DRIVER_EDGE_FIELDS: &[&str] = &["pid", "branch", "worktree", "exit_cod
 mod tests {
     use super::DRIVER_EDGE_FIELDS;
     use crate::canonical_session::{
-        SessionCancelled, SessionCompleted, SessionFailed, SessionStarted,
-        SessionSuspended, TurnEnded, TurnStarted,
+        SessionCancelled, SessionCompleted, SessionFailed, SessionStarted, SessionSuspended,
+        TurnEnded, TurnStarted,
     };
     use crate::op::{OpToolUseCompleted, OpToolUseDenied, OpToolUseStarted};
 
@@ -87,7 +87,10 @@ mod tests {
             ),
             (
                 "SessionCompleted",
-                serde_json::to_value(SessionCompleted { session_id: "s1".into() }).unwrap(),
+                serde_json::to_value(SessionCompleted {
+                    session_id: "s1".into(),
+                })
+                .unwrap(),
             ),
             (
                 "SessionFailed",
@@ -115,7 +118,11 @@ mod tests {
             ),
             (
                 "TurnStarted",
-                serde_json::to_value(TurnStarted { session_id: "s1".into(), idx: 0 }).unwrap(),
+                serde_json::to_value(TurnStarted {
+                    session_id: "s1".into(),
+                    idx: 0,
+                })
+                .unwrap(),
             ),
             (
                 "TurnEnded",

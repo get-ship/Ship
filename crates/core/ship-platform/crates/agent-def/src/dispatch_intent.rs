@@ -17,8 +17,8 @@
 
 use std::collections::HashMap;
 
-use serde::{Deserialize, Serialize};
 use crate::invocation::InvocationMode;
+use serde::{Deserialize, Serialize};
 
 pub mod event_types {
     /// A new agent dispatch has been requested. Carries the full dispatch
@@ -187,10 +187,25 @@ mod tests {
             vars: None,
         };
         let json = serde_json::to_string(&payload).unwrap();
-        assert!(json.contains("branch"), "branch must appear in dispatch payload JSON");
-        assert!(json.contains("baseline_sha"), "baseline_sha must appear in dispatch payload JSON");
-        assert!(json.contains("source_spec_path"), "source_spec_path must appear in dispatch payload JSON");
-        assert!(json.contains("repo_path"), "repo_path must appear in dispatch payload JSON");
-        assert!(json.contains("base_ref"), "base_ref must appear in dispatch payload JSON");
+        assert!(
+            json.contains("branch"),
+            "branch must appear in dispatch payload JSON"
+        );
+        assert!(
+            json.contains("baseline_sha"),
+            "baseline_sha must appear in dispatch payload JSON"
+        );
+        assert!(
+            json.contains("source_spec_path"),
+            "source_spec_path must appear in dispatch payload JSON"
+        );
+        assert!(
+            json.contains("repo_path"),
+            "repo_path must appear in dispatch payload JSON"
+        );
+        assert!(
+            json.contains("base_ref"),
+            "base_ref must appear in dispatch payload JSON"
+        );
     }
 }

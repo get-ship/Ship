@@ -6,7 +6,7 @@
 //! `resolve()` can filter MCP / skill / rule refs against it.
 
 use anyhow::Result;
-use stack_model::{PluginEntry, PluginsManifest, ExtensionLibrary};
+use stack_model::{ExtensionLibrary, PluginEntry, PluginsManifest};
 use std::path::Path;
 
 use super::permissions::apply_agent_permissions;
@@ -82,7 +82,11 @@ pub fn apply_agent_to_library(
                     harness: "claude".to_string(),
                 })
                 .collect(),
-            scope: profile.plugins.scope.clone().unwrap_or_else(|| "project".to_string()),
+            scope: profile
+                .plugins
+                .scope
+                .clone()
+                .unwrap_or_else(|| "project".to_string()),
         };
     }
 

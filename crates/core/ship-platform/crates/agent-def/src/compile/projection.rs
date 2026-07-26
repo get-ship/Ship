@@ -4,7 +4,7 @@
 //! project X" without parsing JSON payloads on every read.
 
 use anyhow::Result;
-use sqlx::{SqliteConnection, Row};
+use sqlx::{Row, SqliteConnection};
 
 use ship_substrate::db::block_on;
 use ship_substrate::projections::registry::Projection;
@@ -76,10 +76,8 @@ impl Projection for CompileStateProjection {
 pub fn load(space_id: &str) -> Result<Option<ProjectCompileState>> {
     // compile.* is Space-scoped → project_compile_state lives in the bounded
     // spaces/<space_id>/space.db; the `space_id` arg IS the scope key.
-    let mut conn = ship_substrate::db::open_space_db(
-        &ship_substrate::project::get_global_dir()?,
-        space_id,
-    )?;
+    let mut conn =
+        ship_substrate::db::open_space_db(&ship_substrate::project::get_global_dir()?, space_id)?;
     let row = block_on(async {
         sqlx::query(
             "SELECT space_id, active_agent, compiled_at, ship_version, harness, plugins_installed_json \
@@ -150,14 +148,20 @@ mod tests {
         setup();
         // Use a space_id that won't collide with prior test runs in the
         // shared global DB.
-        let id = format!("proj-missing-{}", chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0));
+        let id = format!(
+            "proj-missing-{}",
+            chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
+        );
         assert!(load(&id).unwrap().is_none());
     }
 
     #[test]
     fn compile_completed_event_materializes_row() {
         setup();
-        let id = format!("proj-mat-{}", chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0));
+        let id = format!(
+            "proj-mat-{}",
+            chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
+        );
         let mut conn = space_conn(&id);
         let event = compile_event(&id, "planner", "2026-05-04T00:00:00Z");
         bus().dispatch(&event, &mut conn).unwrap();
@@ -172,10 +176,17 @@ mod tests {
     #[test]
     fn second_event_overwrites_row() {
         setup();
-        let id = format!("proj-over-{}", chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0));
+        let id = format!(
+            "proj-over-{}",
+            chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
+        );
         let mut conn = space_conn(&id);
-        bus().dispatch(&compile_event(&id, "a", "2026-05-04T00:00:00Z"), &mut conn).unwrap();
-        bus().dispatch(&compile_event(&id, "b", "2026-05-04T01:00:00Z"), &mut conn).unwrap();
+        bus()
+            .dispatch(&compile_event(&id, "a", "2026-05-04T00:00:00Z"), &mut conn)
+            .unwrap();
+        bus()
+            .dispatch(&compile_event(&id, "b", "2026-05-04T01:00:00Z"), &mut conn)
+            .unwrap();
         let row = load(&id).unwrap().unwrap();
         assert_eq!(row.active_agent.as_deref(), Some("b"));
         assert_eq!(row.compiled_at, "2026-05-04T01:00:00Z");

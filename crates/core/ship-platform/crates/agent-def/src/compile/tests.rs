@@ -2,8 +2,8 @@
 //! Relocated from apps/ship-cli/src/loader_tests.rs and compile/tests*.rs.
 
 use super::*;
-use stack_model::{HookTrigger, McpServerConfig, McpServerType};
 use skill_parser::parse_skill;
+use stack_model::{HookTrigger, McpServerConfig, McpServerType};
 use std::path::Path;
 use tempfile::TempDir;
 
@@ -80,7 +80,10 @@ fn loads_stdio_mcp_server() {
     assert_eq!(lib.mcp_servers.len(), 1);
     assert_eq!(lib.mcp_servers[0].id, "github");
     assert_eq!(lib.mcp_servers[0].command, "npx");
-    assert!(matches!(lib.mcp_servers[0].server_type, McpServerType::Stdio));
+    assert!(matches!(
+        lib.mcp_servers[0].server_type,
+        McpServerType::Stdio
+    ));
 }
 
 #[test]
@@ -103,9 +106,11 @@ fn loads_http_mcp_server_by_url() {
 }"#,
     );
     let lib = load_library(&ship_dir).unwrap();
-    assert!(matches!(lib.mcp_servers[0].server_type, McpServerType::Http));
+    assert!(matches!(
+        lib.mcp_servers[0].server_type,
+        McpServerType::Http
+    ));
 }
-
 
 // `loads_skill_from_skill_md` retired with format-migration Wave 5. The test exercised
 // the agent-def leaf's `.ship/agents/*.jsonc` and/or
@@ -125,7 +130,6 @@ fn loads_http_mcp_server_by_url() {
 // now arrive exclusively via `defineAgent({ rules: { inline } })`,
 // the inline block on the agent composition.
 
-
 // `loads_skill_from_flat_md` retired with format-migration Wave 5. The test exercised
 // the agent-def leaf's `.ship/agents/*.jsonc` and/or
 // `.ship/skills/<id>/SKILL.md` reads — paths the leaf no longer walks
@@ -139,7 +143,6 @@ fn loads_http_mcp_server_by_url() {
 // disk-shape for permissions / hooks / mcp only — rules live on
 // the agent composition (`defineAgent({ rules: { inline } })`).
 
-
 // `loads_skills_mixed_formats` retired with format-migration Wave 5. The test exercised
 // the agent-def leaf's `.ship/agents/*.jsonc` and/or
 // `.ship/skills/<id>/SKILL.md` reads — paths the leaf no longer walks
@@ -152,7 +155,6 @@ fn loads_http_mcp_server_by_url() {
 // `ship_resolver::roll_up`). The leaf's `load_library` is now
 // disk-shape for permissions / hooks / mcp only — rules live on
 // the agent composition (`defineAgent({ rules: { inline } })`).
-
 
 // `load_permission_preset` retired from disk reads with the slice 3
 // close-out. The function is now an in-memory lookup against
@@ -180,7 +182,11 @@ fn load_permission_preset_returns_named_entry() {
     let preset = load_permission_preset(&presets, "ship-standard").unwrap();
     assert_eq!(preset.default_mode.as_deref(), Some("acceptEdits"));
     assert!(preset.tools_ask.contains(&"Bash(rm -rf*)".to_string()));
-    assert!(preset.tools_deny.contains(&"Bash(git push --force*)".to_string()));
+    assert!(
+        preset
+            .tools_deny
+            .contains(&"Bash(git push --force*)".to_string())
+    );
 }
 
 #[test]
@@ -215,7 +221,6 @@ fn load_permission_preset_empty_map_returns_none() {
 // descriptor (`compile_project_from_library` /
 // `ship_resolver::roll_up`). The leaf's `load_library` is now
 // disk-shape for permissions / hooks / mcp / rules only.
-
 
 #[test]
 fn agent_profiles_empty_when_dir_missing() {
@@ -258,7 +263,9 @@ fn agent_profile_with_mcp_refs(id: &str, servers: &[&str]) -> stack_model::Agent
 fn compile_errors_naming_unresolved_mcp_server_refs() {
     let tmp = TempDir::new().unwrap();
     let mut library = stack_model::ExtensionLibrary::default();
-    library.agent_profiles.push(agent_profile_with_mcp_refs("planner", &["nonexistent"]));
+    library
+        .agent_profiles
+        .push(agent_profile_with_mcp_refs("planner", &["nonexistent"]));
 
     let opts = CompileOptions {
         space_root: tmp.path().to_path_buf(),
@@ -277,7 +284,9 @@ fn compile_errors_naming_unresolved_mcp_server_refs() {
 fn compile_succeeds_when_agent_mcp_refs_resolve_against_catalog() {
     let tmp = TempDir::new().unwrap();
     let mut library = stack_model::ExtensionLibrary::default();
-    library.agent_profiles.push(agent_profile_with_mcp_refs("planner", &["github"]));
+    library
+        .agent_profiles
+        .push(agent_profile_with_mcp_refs("planner", &["github"]));
     library.mcp_servers.push(McpServerConfig {
         id: "github".to_string(),
         name: "github".to_string(),
