@@ -30,9 +30,9 @@ Nothing else depends on the `ship` repo. Shared crates **leave ship** toward eng
 
 1. Yoke embed solid in shipd (this doc’s “done” for product path)
 2. agent-def-types (unblock clean ship-code move)
-3. Move ship-code + harness-config-compiler into fleet; ship drops `crates/code`
+3. Move **ship-code** (executors / process assembly) into bridge — Bridge *is* that product. Do **not** co-move stack-model, substrate, isolation, auth.
 4. ship-agents: native = yoke port only; 3P via fleet process/RPC if needed later
-5. Engines monorepo option: collocate yoke + durable + agent-schema (+ eval harness) under a **generic** name (not “ship”); fleet product stays separate or same monorepo with clean Cargo boundaries
+5. Shared stack/agent types leave Ship only into an engines/substrate home — never “because bridge needed a path”
 
 ## Repo gravity (direction)
 
