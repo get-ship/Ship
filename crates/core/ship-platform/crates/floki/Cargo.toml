@@ -14,9 +14,9 @@ name = "yoke-smoke"
 path = "src/bin/yoke_smoke.rs"
 
 [dependencies]
-# The L0 engines Floki runs on. durable-execution journals/resumes; ship-js
+# The L0 engines Floki runs on. durable-execution (ship-exec) journals/resumes; ship-js
 # executes code-mode in a locked-down V8 isolate behind the `Dispatch` seam.
-durable-execution = { path = "../../../ship-substrate/crates/durable-execution" }
+durable-execution = { path = "../../../../../../ship-exec/crates/durable-execution" }
 ship-js = { git = "https://github.com/get-ship/ship-exec.git", branch = "feat/next", features = ["deno"] }
 # The ONE agent definition both runtimes read. default-features = false:
 # Yoke only needs Agent + session event types; skip kv/sqlx skill_vars.

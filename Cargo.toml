@@ -7,7 +7,6 @@ members = [
     "crates/core/ship-substrate/crates/ship-auth-types",
     "crates/core/ship-substrate/crates/ship-kernel",
     "crates/core/ship-substrate/crates/ship-pipelines",
-    "crates/core/ship-substrate/crates/durable-execution",
     "crates/core/ship-substrate/crates/journal-sqlite",
     "crates/core/ship-substrate/crates/content-scan",
     "crates/core/ship-substrate/crates/fs-util",

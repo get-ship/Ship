@@ -111,7 +111,7 @@ tower = { version = "0.5", features = ["timeout", "util"] }
 floki = { path = "../../crates/core/ship-platform/crates/floki" }
 # Stage-2: durable-execution journal store and execute/resume API used directly
 # by dispatch_floki_session to drive FlokiProgram durably.
-durable-execution = { path = "../../crates/core/ship-substrate/crates/durable-execution" }
+durable-execution = { path = "../../../ship-exec/crates/durable-execution" }
 tower-http = { version = "0.6", features = ["catch-panic", "limit", "timeout"] }
 reqwest = { workspace = true, features = ["rustls-tls", "json"] }
 git2 = { version = "0.19" }
