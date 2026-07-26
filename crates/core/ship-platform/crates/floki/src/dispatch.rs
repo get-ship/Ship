@@ -57,7 +57,9 @@ impl Dispatch for GatewayDispatch {
             Ok(v) => Ok(v),
             // A denial is data the program reads, never retried (the contract's
             // `Terminal`). ship-js flattens this to `{ error }` for the isolate.
-            Err(GatewayError::Denied(msg)) => Err(DispatchError::Terminal(format!("DENIED: {msg}"))),
+            Err(GatewayError::Denied(msg)) => {
+                Err(DispatchError::Terminal(format!("DENIED: {msg}")))
+            }
             Err(GatewayError::Ask { op, request_id, .. }) => Err(DispatchError::Terminal(format!(
                 "DENIED: op `{op}` requires human approval (id={request_id}); not available in a script step"
             ))),
@@ -93,7 +95,10 @@ mod tests {
             .await
             .expect("granted baseline op should succeed through the seam");
         assert_eq!(v.get("ok").and_then(Value::as_bool), Some(true));
-        assert_eq!(v.get("op").and_then(Value::as_str), Some("collections.read"));
+        assert_eq!(
+            v.get("op").and_then(Value::as_str),
+            Some("collections.read")
+        );
     }
 
     // A gate denial becomes a TERMINAL DispatchError (never retried), carrying
@@ -107,9 +112,14 @@ mod tests {
             .expect_err("ungranted C2 op must be denied at the gate");
         match err {
             DispatchError::Terminal(msg) => {
-                assert!(msg.to_lowercase().contains("denied"), "reason carried: {msg}");
+                assert!(
+                    msg.to_lowercase().contains("denied"),
+                    "reason carried: {msg}"
+                );
             }
-            DispatchError::Transient(msg) => panic!("a denial must be terminal, not transient: {msg}"),
+            DispatchError::Transient(msg) => {
+                panic!("a denial must be terminal, not transient: {msg}")
+            }
         }
     }
 
@@ -117,7 +127,10 @@ mod tests {
     #[tokio::test]
     async fn unknown_op_is_terminal() {
         let d = dispatch(&[]);
-        let err = d.call("nope.nope", json!({})).await.expect_err("unknown op");
+        let err = d
+            .call("nope.nope", json!({}))
+            .await
+            .expect_err("unknown op");
         assert!(matches!(err, DispatchError::Terminal(_)));
     }
 
@@ -133,11 +146,21 @@ mod tests {
         // Ask (ask-stance). Two distinct variants from the SAME op, by auth alone.
         let gw = InProcessGateway::default();
         let no_grant = gw
-            .call("mcp.create", json!({}), &auth(&["collections"]), GatewayCallKind::First)
+            .call(
+                "mcp.create",
+                json!({}),
+                &auth(&["collections"]),
+                GatewayCallKind::First,
+            )
             .await
             .expect_err("no mcp grant");
         let with_grant = gw
-            .call("mcp.create", json!({}), &auth(&["mcp"]), GatewayCallKind::First)
+            .call(
+                "mcp.create",
+                json!({}),
+                &auth(&["mcp"]),
+                GatewayCallKind::First,
+            )
             .await
             .expect_err("mcp grant");
         assert!(
@@ -161,7 +184,13 @@ mod tests {
             .expect_err("mcp grant → ask-stance, terminal in a script step");
         let (DispatchError::Terminal(d) | DispatchError::Transient(d)) = denied;
         let (DispatchError::Terminal(a) | DispatchError::Transient(a)) = asked;
-        assert!(d.contains("mcp"), "ungranted reason names the missing service: {d}");
-        assert!(a.to_lowercase().contains("approval"), "granted reason is the ask: {a}");
+        assert!(
+            d.contains("mcp"),
+            "ungranted reason names the missing service: {d}"
+        );
+        assert!(
+            a.to_lowercase().contains("approval"),
+            "granted reason is the ask: {a}"
+        );
     }
 }

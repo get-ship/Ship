@@ -214,7 +214,10 @@ mod tests {
                 GatewayCallKind::Approved,
             )
             .await;
-        assert!(r.is_ok(), "approved re-dispatch must succeed for a granted op");
+        assert!(
+            r.is_ok(),
+            "approved re-dispatch must succeed for a granted op"
+        );
     }
 
     // An ask-stance op WITHOUT its service grant is denied at the gate — the
@@ -231,7 +234,10 @@ mod tests {
             .await;
         match r {
             Err(GatewayError::Denied(reason)) => {
-                assert!(reason.contains("mcp"), "denial names the missing service: {reason}");
+                assert!(
+                    reason.contains("mcp"),
+                    "denial names the missing service: {reason}"
+                );
             }
             other => panic!("expected a gate denial, got: {other:?}"),
         }
@@ -289,8 +295,8 @@ mod tests {
         let shared = ["mcp.create", "mcp.delete"];
 
         for op in shared {
-            let floki_blast = registry::blast_of(op)
-                .unwrap_or_else(|| panic!("floki registry missing op {op}"));
+            let floki_blast =
+                registry::blast_of(op).unwrap_or_else(|| panic!("floki registry missing op {op}"));
             let proto_policy = ship_ops_rpc::policy::policy_for(op)
                 .unwrap_or_else(|| panic!("proto missing op {op}"));
             let proto_blast = proto_policy.blast;

@@ -168,11 +168,7 @@ pub fn verify_edit(path: &str, src: &str) -> Result<(), SpineError> {
 /// The testable core of `verify_edit`: takes the backend explicitly so tests
 /// can inject one that reports an error vs. a clean one, without hardcoding
 /// tsgo output. The public `verify_edit` is a one-line wrapper around this.
-pub fn verify_edit_with(
-    backend: &dyn LspBackend,
-    path: &str,
-    src: &str,
-) -> Result<(), SpineError> {
+pub fn verify_edit_with(backend: &dyn LspBackend, path: &str, src: &str) -> Result<(), SpineError> {
     let errors: Vec<String> = backend
         .diagnostics(path, src)
         .into_iter()
@@ -269,7 +265,10 @@ mod tests {
         let r = verify_edit_with(&backend, "foo.ts", "src");
         match r {
             Err(SpineError::Unverified(msg)) => {
-                assert!(msg.contains("type mismatch"), "message must surface the diagnostic: {msg}");
+                assert!(
+                    msg.contains("type mismatch"),
+                    "message must surface the diagnostic: {msg}"
+                );
                 assert!(msg.contains("7"), "message must surface the line: {msg}");
             }
             other => panic!("expected Unverified, got {other:?}"),
@@ -349,10 +348,19 @@ mod tests {
         use crate::sdkgen::surface;
         let grants = vec!["lsp".to_string()];
         let surface_names: Vec<&str> = surface(&grants).iter().map(|i| i.export_name()).collect();
-        assert!(surface_names.contains(&"lsp"), "lsp must appear in surface for an lsp grant; got {surface_names:?}");
+        assert!(
+            surface_names.contains(&"lsp"),
+            "lsp must appear in surface for an lsp grant; got {surface_names:?}"
+        );
 
         let dts = generate_dts(&grants);
-        assert!(dts.contains("diagnostics"), "lsp.diagnostics must be declared in the .d.ts");
-        assert!(dts.contains("hover"), "lsp.hover must be declared in the .d.ts");
+        assert!(
+            dts.contains("diagnostics"),
+            "lsp.diagnostics must be declared in the .d.ts"
+        );
+        assert!(
+            dts.contains("hover"),
+            "lsp.hover must be declared in the .d.ts"
+        );
     }
 }

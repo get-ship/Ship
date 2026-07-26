@@ -22,12 +22,12 @@ use rig::agent::AgentBuilder;
 use rig::completion::{CompletionModel, Prompt, ToolDefinition};
 use rig::tool::Tool;
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tokio::sync::mpsc;
 
 use agent_def::{
-    Agent, SessionCancelled, SessionCompleted, SessionEventSink, SessionFailed,
-    SessionStarted, SessionSuspended, TurnEnded, TurnStarted,
+    Agent, SessionCancelled, SessionCompleted, SessionEventSink, SessionFailed, SessionStarted,
+    SessionSuspended, TurnEnded, TurnStarted,
 };
 use ship_js::Dispatch;
 use ship_js::deno::ScriptExecutor;
@@ -66,7 +66,9 @@ pub struct Steer {
     pending: Arc<Mutex<VecDeque<String>>>,
 }
 impl Steer {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
     /// Push a steered user message. The model sees it on the next turn.
     pub fn push(&self, text: impl Into<String>) {
         self.pending.lock().unwrap().push_back(text.into());
@@ -91,9 +93,15 @@ pub struct Cancel {
     flag: Arc<AtomicBool>,
 }
 impl Cancel {
-    pub fn new() -> Self { Self::default() }
-    pub fn cancel(&self) { self.flag.store(true, Ordering::SeqCst); }
-    pub fn is_cancelled(&self) -> bool { self.flag.load(Ordering::SeqCst) }
+    pub fn new() -> Self {
+        Self::default()
+    }
+    pub fn cancel(&self) {
+        self.flag.store(true, Ordering::SeqCst);
+    }
+    pub fn is_cancelled(&self) -> bool {
+        self.flag.load(Ordering::SeqCst)
+    }
 }
 /// The decision authority for an `Ask`-stance effect. Two impls: a
 /// `HeadlessApprover` (denies anything — no human ⇒ deny), and a
@@ -112,7 +120,10 @@ pub struct HeadlessApprover;
 #[async_trait]
 impl Approver for HeadlessApprover {
     async fn request(&self, _op: &str, _args: &Value, request_id: &str) -> UserInput {
-        UserInput::Deny { request_id: request_id.to_string(), reason: "no human in loop".into() }
+        UserInput::Deny {
+            request_id: request_id.to_string(),
+            reason: "no human in loop".into(),
+        }
     }
 }
 /// Scripted approver: awaits a `UserInput` on the receiver. Tests push
@@ -130,7 +141,12 @@ impl ScriptedApprover {
     /// Channel end for the test driver to push scripted decisions on.
     pub fn channel() -> (mpsc::Sender<UserInput>, Self) {
         let (tx, rx) = mpsc::channel(16);
-        (tx, Self { rx: Arc::new(tokio::sync::Mutex::new(rx)) })
+        (
+            tx,
+            Self {
+                rx: Arc::new(tokio::sync::Mutex::new(rx)),
+            },
+        )
     }
 }
 
@@ -265,7 +281,16 @@ impl Tool for ShipOpTool {
             return Ok(json!({ "cancelled": "user-requested" }).to_string());
         }
 
-        match self.gateway.call(&a.op, a.args.clone(), &self.auth, crate::gateway::GatewayCallKind::First).await {
+        match self
+            .gateway
+            .call(
+                &a.op,
+                a.args.clone(),
+                &self.auth,
+                crate::gateway::GatewayCallKind::First,
+            )
+            .await
+        {
             // VERIFY: nothing accepted blindly — the result must confirm itself.
             Ok(v) => {
                 let body = if v.get("ok").and_then(Value::as_bool) == Some(true) {
@@ -279,14 +304,19 @@ impl Tool for ShipOpTool {
                 Ok(annotate_with_steer(&self.ctx, body))
             }
             // A gate denial is a RESULT the model reads, not an exception.
-            Err(GatewayError::Denied(msg)) => {
-                Ok(annotate_with_steer(&self.ctx, json!({ "denied": msg }).to_string()))
-            }
+            Err(GatewayError::Denied(msg)) => Ok(annotate_with_steer(
+                &self.ctx,
+                json!({ "denied": msg }).to_string(),
+            )),
             // Ask stance: the gate would allow, but a human must approve.
             // Emit session.suspended, await the decision, then re-dispatch on
             // Approve (the gate still runs) or surface as a denial
             // result on Deny. The op is NEVER dispatched before approval.
-            Err(GatewayError::Ask { op, args, request_id }) => {
+            Err(GatewayError::Ask {
+                op,
+                args,
+                request_id,
+            }) => {
                 self.ctx.emit_approval_requested(&op, &args, &request_id);
                 // Journal-driven path (Stage 2): instead of blocking on the approver,
                 // return a structured suspension marker so the outer FlokiProgram can
@@ -317,7 +347,16 @@ impl Tool for ShipOpTool {
                     ));
                 }
                 match decision {
-                    UserInput::Approve { .. } => match self.gateway.call(&op, args, &self.auth, crate::gateway::GatewayCallKind::Approved).await {
+                    UserInput::Approve { .. } => match self
+                        .gateway
+                        .call(
+                            &op,
+                            args,
+                            &self.auth,
+                            crate::gateway::GatewayCallKind::Approved,
+                        )
+                        .await
+                    {
                         Ok(v) => {
                             if v.get("ok").and_then(Value::as_bool) == Some(true) {
                                 Ok(annotate_with_steer(&self.ctx, v.to_string()))
@@ -327,9 +366,10 @@ impl Tool for ShipOpTool {
                                 )))
                             }
                         }
-                        Err(GatewayError::Denied(msg)) => {
-                            Ok(annotate_with_steer(&self.ctx, json!({ "denied": msg }).to_string()))
-                        }
+                        Err(GatewayError::Denied(msg)) => Ok(annotate_with_steer(
+                            &self.ctx,
+                            json!({ "denied": msg }).to_string(),
+                        )),
                         Err(e) => Err(SpineError::Execute(e.to_string())),
                     },
                     UserInput::Deny { reason, .. } => Ok(annotate_with_steer(
@@ -356,10 +396,7 @@ fn annotate_with_steer(ctx: &ToolCtx, body: String) -> String {
     } else {
         // JSON-encode the steered text as a structured side-channel value
         // so the model can distinguish it from the op's own result.
-        let steered: Vec<Value> = pending
-            .into_iter()
-            .map(|t| json!({ "steer": t }))
-            .collect();
+        let steered: Vec<Value> = pending.into_iter().map(|t| json!({ "steer": t })).collect();
         json!({ "result": Value::String(body), "steers": steered }).to_string()
     }
 }
@@ -417,8 +454,10 @@ impl Tool for RunScriptTool {
         // layer: the gate, reached through the `Dispatch` adapter over
         // (gateway, auth). ship-js runs the module on its !Send VM thread and
         // returns whatever the script `op_emit`ted.
-        let dispatch: Arc<dyn Dispatch> =
-            Arc::new(GatewayDispatch::new(self.gateway.clone(), self.auth.clone()));
+        let dispatch: Arc<dyn Dispatch> = Arc::new(GatewayDispatch::new(
+            self.gateway.clone(),
+            self.auth.clone(),
+        ));
         let sdk = sdkgen::generate_sdk(&self.grants);
         let emitted = self
             .executor
@@ -464,7 +503,10 @@ where
     // it and emits `session.cancelled`.
     if ctx.cancel.is_cancelled() {
         ctx.emit_cancelled("user-requested");
-        return Ok(AgentOutput { text: String::new(), json: None });
+        return Ok(AgentOutput {
+            text: String::new(),
+            json: None,
+        });
     }
 
     // Emit session.started — the canonical session-open event.
@@ -491,7 +533,10 @@ where
     ctx.session_sink
         .emit_turn_started(
             &ctx.session_id,
-            &TurnStarted { session_id: ctx.session_id.clone(), idx: 0 },
+            &TurnStarted {
+                session_id: ctx.session_id.clone(),
+                idx: 0,
+            },
         )
         .ok();
 
@@ -557,7 +602,9 @@ where
             ctx.session_sink
                 .emit_session_completed(
                     &ctx.session_id,
-                    &SessionCompleted { session_id: ctx.session_id.clone() },
+                    &SessionCompleted {
+                        session_id: ctx.session_id.clone(),
+                    },
                 )
                 .ok();
             Ok(AgentOutput { text, json: None })
@@ -588,9 +635,9 @@ mod tests {
     use rig::test_utils::{MockCompletionModel, MockTurn};
     use ship_kernel::testing::MockSink;
 
+    use super::*;
     use crate::approver::UserInput;
     use crate::gateway::{GatewayCallKind, InProcessGateway};
-    use super::*;
 
     fn auth(grants: &[&str]) -> AuthContext {
         AuthContext::in_process("t", grants.iter().map(|s| s.to_string()).collect())
@@ -649,9 +696,16 @@ mod tests {
     #[tokio::test]
     async fn tool_returns_result_for_granted_op() {
         let (ctx, _mock) = test_ctx();
-        let tool = ShipOpTool { gateway: Arc::new(InProcessGateway::default()), auth: auth(&["collections"]), ctx };
+        let tool = ShipOpTool {
+            gateway: Arc::new(InProcessGateway::default()),
+            auth: auth(&["collections"]),
+            ctx,
+        };
         let out = tool
-            .call(OpArgs { op: "collections.read".into(), args: json!({}) })
+            .call(OpArgs {
+                op: "collections.read".into(),
+                args: json!({}),
+            })
             .await
             .expect("granted op should succeed");
         assert!(!out.contains("denied"), "granted op must not be denied");
@@ -660,11 +714,18 @@ mod tests {
     #[tokio::test]
     async fn tool_surfaces_denial_as_result_not_error() {
         let (ctx, _mock) = test_ctx();
-        let tool = ShipOpTool { gateway: Arc::new(InProcessGateway::default()), auth: auth(&["collections"]), ctx };
+        let tool = ShipOpTool {
+            gateway: Arc::new(InProcessGateway::default()),
+            auth: auth(&["collections"]),
+            ctx,
+        };
         // runtime is ungranted; the gate denies the C2 op. The tool returns it
         // as DATA (`{ denied }`), not a thrown error.
         let out = tool
-            .call(OpArgs { op: "runtime.dispatch".into(), args: json!({}) })
+            .call(OpArgs {
+                op: "runtime.dispatch".into(),
+                args: json!({}),
+            })
             .await
             .expect("denial is a result, not a tool error");
         assert!(out.contains("denied"), "ungranted op must come back denied");
@@ -679,7 +740,13 @@ mod tests {
     }
     #[async_trait]
     impl Gateway for RecordingGateway {
-        async fn call(&self, op: &str, args: Value, a: &AuthContext, _kind: GatewayCallKind) -> Result<Value, GatewayError> {
+        async fn call(
+            &self,
+            op: &str,
+            args: Value,
+            a: &AuthContext,
+            _kind: GatewayCallKind,
+        ) -> Result<Value, GatewayError> {
             self.seen.lock().unwrap().push(op.to_string());
             self.inner.call(op, args, a, _kind).await
         }
@@ -688,26 +755,44 @@ mod tests {
     #[tokio::test]
     async fn model_tool_call_routes_through_the_gate() {
         let seen = Arc::new(Mutex::new(Vec::new()));
-        let gw = Arc::new(RecordingGateway { inner: InProcessGateway::default(), seen: seen.clone() });
+        let gw = Arc::new(RecordingGateway {
+            inner: InProcessGateway::default(),
+            seen: seen.clone(),
+        });
 
         // Scripted model: call ship_op once, then answer.
         let model = MockCompletionModel::new([
-            MockTurn::tool_call("1", "ship_op", json!({ "op": "collections.read", "args": {} })),
+            MockTurn::tool_call(
+                "1",
+                "ship_op",
+                json!({ "op": "collections.read", "args": {} }),
+            ),
             MockTurn::text("done"),
         ]);
         let agent = demo_agent("mock", &["collections"]);
         let exec = Arc::new(ScriptExecutor::spawn());
         let (ctx, _mock) = test_ctx();
 
-        let out = run_step(model, &agent, gw, auth(&["collections"]), exec, ctx, "read the leads")
-            .await
-            .expect("loop should complete");
+        let out = run_step(
+            model,
+            &agent,
+            gw,
+            auth(&["collections"]),
+            exec,
+            ctx,
+            "read the leads",
+        )
+        .await
+        .expect("loop should complete");
 
         // Behavioral: the loop finished AND the op the model requested actually
         // crossed the gateway — the model→tool→one-door path is wired.
         assert!(out.text.contains("done"));
         assert!(
-            seen.lock().unwrap().iter().any(|op| op == "collections.read"),
+            seen.lock()
+                .unwrap()
+                .iter()
+                .any(|op| op == "collections.read"),
             "the model's tool call must route through the gateway"
         );
     }
@@ -740,7 +825,10 @@ mod tests {
             .to_lowercase();
         // The gate ran on the dedicated thread: the granted op is clean, the
         // ungranted raw op is denied (GatewayError Display is "DENIED: ...").
-        assert!(out.contains("denied"), "ungranted op must be gate-denied in code-mode");
+        assert!(
+            out.contains("denied"),
+            "ungranted op must be gate-denied in code-mode"
+        );
     }
 
     // The model drives code-mode end to end: a run_script tool call executes JS
@@ -788,18 +876,32 @@ mod tests {
             journal_mode: false,
         };
         // mcp.create is ask-stance; the agent must have the mcp grant.
-        let tool = ShipOpTool { gateway: Arc::new(InProcessGateway::default()), auth: auth(&["mcp"]), ctx };
+        let tool = ShipOpTool {
+            gateway: Arc::new(InProcessGateway::default()),
+            auth: auth(&["mcp"]),
+            ctx,
+        };
 
         // Script: approve the request when it arrives.
-        tx.send(UserInput::Approve { request_id: "x".into() }).await.unwrap();
+        tx.send(UserInput::Approve {
+            request_id: "x".into(),
+        })
+        .await
+        .unwrap();
 
         let out = tool
-            .call(OpArgs { op: "mcp.create".into(), args: json!({}) })
+            .call(OpArgs {
+                op: "mcp.create".into(),
+                args: json!({}),
+            })
             .await
             .expect("approval + dispatch should produce a result");
         // Behavioral: the request was approved AND the op actually ran (no
         // `denied` in the output).
-        assert!(!out.contains("denied"), "approved op must not surface as denied: {out}");
+        assert!(
+            !out.contains("denied"),
+            "approved op must not surface as denied: {out}"
+        );
         // The supervisor saw a session.suspended event (approval gate raised).
         let evs = mock.captured();
         assert!(
@@ -815,10 +917,19 @@ mod tests {
         // Wrap the gateway so we can count its calls — the Ask probe is
         // one call; the re-dispatch on approval would be a second. A
         // deny must result in exactly ONE call (the probe) and no echo.
-        struct CountingGateway { inner: InProcessGateway, calls: Arc<Mutex<Vec<String>>> }
+        struct CountingGateway {
+            inner: InProcessGateway,
+            calls: Arc<Mutex<Vec<String>>>,
+        }
         #[async_trait]
         impl Gateway for CountingGateway {
-            async fn call(&self, op: &str, args: Value, a: &AuthContext, _kind: GatewayCallKind) -> Result<Value, GatewayError> {
+            async fn call(
+                &self,
+                op: &str,
+                args: Value,
+                a: &AuthContext,
+                _kind: GatewayCallKind,
+            ) -> Result<Value, GatewayError> {
                 self.calls.lock().unwrap().push(op.to_string());
                 self.inner.call(op, args, a, _kind).await
             }
@@ -828,7 +939,10 @@ mod tests {
         let mock = Arc::new(MockSink::new());
         let session_sink = SessionEventSink::new(mock.clone());
         let calls = Arc::new(Mutex::new(Vec::new()));
-        let gw = Arc::new(CountingGateway { inner: InProcessGateway::default(), calls: calls.clone() });
+        let gw = Arc::new(CountingGateway {
+            inner: InProcessGateway::default(),
+            calls: calls.clone(),
+        });
         let ctx = ToolCtx {
             session_sink,
             session_id: "test-session".into(),
@@ -838,22 +952,46 @@ mod tests {
             cancel: Cancel::new(),
             journal_mode: false,
         };
-        let tool = ShipOpTool { gateway: gw, auth: auth(&["mcp"]), ctx };
+        let tool = ShipOpTool {
+            gateway: gw,
+            auth: auth(&["mcp"]),
+            ctx,
+        };
 
-        tx.send(UserInput::Deny { request_id: "x".into(), reason: "not now".into() }).await.unwrap();
+        tx.send(UserInput::Deny {
+            request_id: "x".into(),
+            reason: "not now".into(),
+        })
+        .await
+        .unwrap();
 
         let out = tool
-            .call(OpArgs { op: "mcp.create".into(), args: json!({ "name": "blocked" }) })
+            .call(OpArgs {
+                op: "mcp.create".into(),
+                args: json!({ "name": "blocked" }),
+            })
             .await
             .expect("denial is data, not a tool error");
-        assert!(out.contains("denied"), "denied approval must surface as denied data: {out}");
-        assert!(out.contains("not now"), "the human's reason should be visible: {out}");
+        assert!(
+            out.contains("denied"),
+            "denied approval must surface as denied data: {out}"
+        );
+        assert!(
+            out.contains("not now"),
+            "the human's reason should be visible: {out}"
+        );
         // With deny, only the probe runs (no re-dispatch).
         let seen = calls.lock().unwrap().clone();
-        assert_eq!(seen.len(), 1, "denied ask must not re-dispatch: calls={seen:?}");
+        assert_eq!(
+            seen.len(),
+            1,
+            "denied ask must not re-dispatch: calls={seen:?}"
+        );
         // The session.suspended event WAS emitted before the denial.
         assert!(
-            mock.captured().iter().any(|e| e.event_type == "session.suspended"),
+            mock.captured()
+                .iter()
+                .any(|e| e.event_type == "session.suspended"),
             "approval gate must emit session.suspended even when denied"
         );
     }
@@ -863,12 +1001,19 @@ mod tests {
     #[tokio::test]
     async fn headless_ask_resolves_to_deny_deterministically() {
         let (ctx, mock) = test_ctx();
-        let tool = ShipOpTool { gateway: Arc::new(InProcessGateway::default()), auth: auth(&["mcp"]), ctx };
+        let tool = ShipOpTool {
+            gateway: Arc::new(InProcessGateway::default()),
+            auth: auth(&["mcp"]),
+            ctx,
+        };
         // No scripted approver; the test_ctx uses HeadlessApprover. A
         // headless run must NEVER block waiting for a human.
         let out = tokio::time::timeout(
             std::time::Duration::from_secs(1),
-            tool.call(OpArgs { op: "mcp.create".into(), args: json!({}) }),
+            tool.call(OpArgs {
+                op: "mcp.create".into(),
+                args: json!({}),
+            }),
         )
         .await
         .expect("headless ask must not hang")
@@ -878,7 +1023,9 @@ mod tests {
         assert!(out.contains("no human in loop"));
         // The session.suspended event was emitted.
         assert!(
-            mock.captured().iter().any(|e| e.event_type == "session.suspended"),
+            mock.captured()
+                .iter()
+                .any(|e| e.event_type == "session.suspended"),
             "headless ask must still emit session.suspended"
         );
     }
@@ -907,21 +1054,40 @@ mod tests {
             cancel: Cancel::new(),
             journal_mode: true,
         };
-        let tool = ShipOpTool { gateway: Arc::new(InProcessGateway::default()), auth: auth(&["mcp"]), ctx };
+        let tool = ShipOpTool {
+            gateway: Arc::new(InProcessGateway::default()),
+            auth: auth(&["mcp"]),
+            ctx,
+        };
 
         let out = tool
-            .call(OpArgs { op: "mcp.create".into(), args: json!({}) })
+            .call(OpArgs {
+                op: "mcp.create".into(),
+                args: json!({}),
+            })
             .await
             .expect("journal-mode ask must return data, not an error");
 
         // Must contain the suspension marker, not a denial or error.
-        assert!(out.contains("\"suspended\""), "journal-mode ask must return suspension marker: {out}");
-        assert!(out.contains("approval:"), "suspension marker must include approval: prefix: {out}");
-        assert!(out.contains("mcp.create"), "suspension marker must name the op: {out}");
+        assert!(
+            out.contains("\"suspended\""),
+            "journal-mode ask must return suspension marker: {out}"
+        );
+        assert!(
+            out.contains("approval:"),
+            "suspension marker must include approval: prefix: {out}"
+        );
+        assert!(
+            out.contains("mcp.create"),
+            "suspension marker must name the op: {out}"
+        );
         // session.suspended event must still be emitted.
         assert!(
-            mock.captured().iter().any(|e| e.event_type == "session.suspended"),
-            "journal-mode ask must still emit session.suspended; got: {:?}", mock.captured()
+            mock.captured()
+                .iter()
+                .any(|e| e.event_type == "session.suspended"),
+            "journal-mode ask must still emit session.suspended; got: {:?}",
+            mock.captured()
         );
     }
 
@@ -942,11 +1108,18 @@ mod tests {
             cancel: Cancel::new(),
             journal_mode: false,
         };
-        let tool = ShipOpTool { gateway: Arc::new(InProcessGateway::default()), auth: auth(&["collections"]), ctx };
+        let tool = ShipOpTool {
+            gateway: Arc::new(InProcessGateway::default()),
+            auth: auth(&["collections"]),
+            ctx,
+        };
 
         // Run a baseline op (no steer queued) — result is plain.
         let out1 = tool
-            .call(OpArgs { op: "collections.read".into(), args: json!({}) })
+            .call(OpArgs {
+                op: "collections.read".into(),
+                args: json!({}),
+            })
             .await
             .expect("baseline");
         assert!(!out1.contains("steers"));
@@ -954,11 +1127,20 @@ mod tests {
         // Push a steer; the NEXT tool call must surface it.
         steer.push("please focus on Q4");
         let out2 = tool
-            .call(OpArgs { op: "collections.read".into(), args: json!({}) })
+            .call(OpArgs {
+                op: "collections.read".into(),
+                args: json!({}),
+            })
             .await
             .expect("steer-annotated");
-        assert!(out2.contains("please focus on Q4"), "steer must be visible: {out2}");
-        assert!(out2.contains("\"steers\""), "steer must be in the side-channel: {out2}");
+        assert!(
+            out2.contains("please focus on Q4"),
+            "steer must be visible: {out2}"
+        );
+        assert!(
+            out2.contains("\"steers\""),
+            "steer must be in the side-channel: {out2}"
+        );
 
         // After draining, no more steers.
         assert!(steer.is_empty(), "steer must be drained on read");
@@ -972,7 +1154,13 @@ mod tests {
         struct PanicOnCall; // must never be invoked.
         #[async_trait]
         impl Gateway for PanicOnCall {
-            async fn call(&self, op: &str, _args: Value, _a: &AuthContext, _kind: GatewayCallKind) -> Result<Value, GatewayError> {
+            async fn call(
+                &self,
+                op: &str,
+                _args: Value,
+                _a: &AuthContext,
+                _kind: GatewayCallKind,
+            ) -> Result<Value, GatewayError> {
                 panic!("gateway must NOT be called after a cancel: op={op}");
             }
         }
@@ -989,17 +1177,30 @@ mod tests {
             cancel,
             journal_mode: false,
         };
-        let tool = ShipOpTool { gateway: Arc::new(PanicOnCall), auth: auth(&["collections"]), ctx };
+        let tool = ShipOpTool {
+            gateway: Arc::new(PanicOnCall),
+            auth: auth(&["collections"]),
+            ctx,
+        };
 
         let out = tool
-            .call(OpArgs { op: "collections.read".into(), args: json!({}) })
+            .call(OpArgs {
+                op: "collections.read".into(),
+                args: json!({}),
+            })
             .await
             .expect("cancel surfaces as data, not a tool error");
-        assert!(out.contains("cancelled"), "tool must surface cancellation as data: {out}");
+        assert!(
+            out.contains("cancelled"),
+            "tool must surface cancellation as data: {out}"
+        );
         // The session.cancelled event was emitted.
         assert!(
-            mock.captured().iter().any(|e| e.event_type == "session.cancelled"),
-            "cancel must emit session.cancelled; got: {:?}", mock.captured()
+            mock.captured()
+                .iter()
+                .any(|e| e.event_type == "session.cancelled"),
+            "cancel must emit session.cancelled; got: {:?}",
+            mock.captured()
         );
     }
     // run_step with a pre-cancelled run: emits session.cancelled and returns
@@ -1037,10 +1238,17 @@ mod tests {
         .expect("cancelled run is a clean result, not an error");
         // No model output; session.cancelled event was emitted; rig was never called.
         assert!(out.text.is_empty());
-        assert_eq!(model.request_count(), 0, "model must not be invoked when cancel is pre-set");
+        assert_eq!(
+            model.request_count(),
+            0,
+            "model must not be invoked when cancel is pre-set"
+        );
         assert!(
-            mock.captured().iter().any(|e| e.event_type == "session.cancelled"),
-            "pre-cancelled run must emit session.cancelled; got: {:?}", mock.captured()
+            mock.captured()
+                .iter()
+                .any(|e| e.event_type == "session.cancelled"),
+            "pre-cancelled run must emit session.cancelled; got: {:?}",
+            mock.captured()
         );
     }
 
@@ -1089,7 +1297,11 @@ mod tests {
         });
         let model = MockCompletionModel::new([
             // runtime.dispatch is C2, ungranted for a collections-only agent.
-            MockTurn::tool_call("1", "ship_op", json!({ "op": "runtime.dispatch", "args": {} })),
+            MockTurn::tool_call(
+                "1",
+                "ship_op",
+                json!({ "op": "runtime.dispatch", "args": {} }),
+            ),
             MockTurn::text("that was denied — adjusting"),
         ]);
         let agent = demo_agent("mock", &["collections"]);
@@ -1106,9 +1318,15 @@ mod tests {
         )
         .await
         .expect("the loop completes even though the requested op was denied");
-        assert!(out.text.contains("adjusting"), "the model continues after the denial");
         assert!(
-            seen.lock().unwrap().iter().any(|op| op == "runtime.dispatch"),
+            out.text.contains("adjusting"),
+            "the model continues after the denial"
+        );
+        assert!(
+            seen.lock()
+                .unwrap()
+                .iter()
+                .any(|op| op == "runtime.dispatch"),
             "the ungranted op still crossed the gateway (and was denied as data)",
         );
     }

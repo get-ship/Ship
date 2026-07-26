@@ -1,5 +1,11 @@
 //! Floki (L1) — Ship's first-party, embedded, code-mode agent runtime.
 //!
+//! **Naming (Bridge carve):** this crate *is* the embeddable native harness
+//! library (**Yoke** in the Bridge/Yoke product map). Long-term, **Floki**
+//! names the default agent *profile* that runs on Yoke; the crate may keep
+//! the `floki` package name until an explicit rename. Cross-harness spawn
+//! lives in the `bridge` library (`HarnessDriver`); Yoke is one backend.
+//!
 //! Floki is the runtime where **we own the loop**. That ownership is the whole
 //! point: because the loop is ours, every effect an agent causes enters at the
 //! one door (`gateway::Gateway`) where the gate runs; code-mode JS executes in a
@@ -36,9 +42,9 @@ pub mod agent_loop;
 pub mod approver;
 pub mod auth;
 pub mod dispatch;
+pub mod dtsgen;
 pub mod durable;
 pub mod durable_loop;
-pub mod dtsgen;
 pub mod gate;
 pub mod gateway;
 pub mod lsp;
@@ -55,14 +61,14 @@ pub mod spine;
 // test-shaped trait now would bake in an API D5 must immediately break.
 
 pub use agent_def::{
-    Agent, SessionCancelled, SessionCompleted, SessionEventSink, SessionFailed,
-    SessionStarted, SessionSuspended, TurnEnded, TurnStarted,
+    Agent, SessionCancelled, SessionCompleted, SessionEventSink, SessionFailed, SessionStarted,
+    SessionSuspended, TurnEnded, TurnStarted,
 };
 pub use agent_loop::{AgentOutput, Approver, Cancel, HeadlessApprover, Steer, ToolCtx, run_step};
-pub use durable_loop::{FlokiProgram, RigTurnOutcome};
-pub use ship_js::deno::ScriptExecutor;
 pub use approver::UserInput;
 pub use auth::AuthContext;
 pub use dispatch::GatewayDispatch;
+pub use durable_loop::{FlokiProgram, RigTurnOutcome};
 pub use gateway::{Gateway, GatewayCallKind, GatewayError, InProcessGateway, is_ask_stance};
 pub use provider::{BuiltModel, Credential, Provider, build_model};
+pub use ship_js::deno::ScriptExecutor;

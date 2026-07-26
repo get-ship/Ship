@@ -69,12 +69,42 @@ pub struct Service {
 const COLLECTIONS: Service = Service {
     name: "collections",
     methods: &[
-        Method { name: "read", args: None, returns: None, blast: Blast::C0Safe },
-        Method { name: "get", args: None, returns: None, blast: Blast::C0Safe },
-        Method { name: "items", args: None, returns: None, blast: Blast::C0Safe },
-        Method { name: "put", args: None, returns: None, blast: Blast::C1Space },
-        Method { name: "patch", args: None, returns: None, blast: Blast::C1Space },
-        Method { name: "delete", args: None, returns: None, blast: Blast::C1Space },
+        Method {
+            name: "read",
+            args: None,
+            returns: None,
+            blast: Blast::C0Safe,
+        },
+        Method {
+            name: "get",
+            args: None,
+            returns: None,
+            blast: Blast::C0Safe,
+        },
+        Method {
+            name: "items",
+            args: None,
+            returns: None,
+            blast: Blast::C0Safe,
+        },
+        Method {
+            name: "put",
+            args: None,
+            returns: None,
+            blast: Blast::C1Space,
+        },
+        Method {
+            name: "patch",
+            args: None,
+            returns: None,
+            blast: Blast::C1Space,
+        },
+        Method {
+            name: "delete",
+            args: None,
+            returns: None,
+            blast: Blast::C1Space,
+        },
     ],
 };
 
@@ -90,16 +120,36 @@ const MCP: Service = Service {
         // for a foreign protocol (the antipattern). Floki reaches foreign tools
         // through the harness/driver layer, never by re-exposing MCP as a ship
         // op. Only the config ops remain, and only as parked config CRUD.
-        Method { name: "create", args: None, returns: None, blast: Blast::C2Elevated },
-        Method { name: "delete", args: None, returns: None, blast: Blast::C2Elevated },
+        Method {
+            name: "create",
+            args: None,
+            returns: None,
+            blast: Blast::C2Elevated,
+        },
+        Method {
+            name: "delete",
+            args: None,
+            returns: None,
+            blast: Blast::C2Elevated,
+        },
     ],
 };
 
 const RUNTIME: Service = Service {
     name: "runtime",
     methods: &[
-        Method { name: "dispatch", args: None, returns: None, blast: Blast::C2Elevated },
-        Method { name: "parallel", args: None, returns: None, blast: Blast::C2Elevated },
+        Method {
+            name: "dispatch",
+            args: None,
+            returns: None,
+            blast: Blast::C2Elevated,
+        },
+        Method {
+            name: "parallel",
+            args: None,
+            returns: None,
+            blast: Blast::C2Elevated,
+        },
     ],
 };
 
@@ -107,16 +157,29 @@ const LSP: Service = Service {
     name: "lsp",
     methods: &[
         // Read-only analysis — baseline.
-        Method { name: "diagnostics", args: None, returns: None, blast: Blast::C0Safe },
-        Method { name: "hover", args: None, returns: None, blast: Blast::C0Safe },
+        Method {
+            name: "diagnostics",
+            args: None,
+            returns: None,
+            blast: Blast::C0Safe,
+        },
+        Method {
+            name: "hover",
+            args: None,
+            returns: None,
+            blast: Blast::C0Safe,
+        },
     ],
 };
 
 const ACCOUNT: Service = Service {
     name: "account",
-    methods: &[
-        Method { name: "rotate_key", args: None, returns: None, blast: Blast::C3Critical },
-    ],
+    methods: &[Method {
+        name: "rotate_key",
+        args: None,
+        returns: None,
+        blast: Blast::C3Critical,
+    }],
 };
 
 /// The full descriptor set — the SINGLE source of truth for which services
@@ -141,7 +204,10 @@ pub fn service(name: &str) -> Option<&'static Service> {
 /// Look up a method on a service by its short name (`"read"`, `"get"`, …).
 /// `None` if the service or method is unknown.
 pub fn method(service_name: &str, op_name: &str) -> Option<&'static Method> {
-    service(service_name)?.methods.iter().find(|m| m.name == op_name)
+    service(service_name)?
+        .methods
+        .iter()
+        .find(|m| m.name == op_name)
 }
 
 /// Intrinsic blast for an op by its fully-qualified name
@@ -169,7 +235,11 @@ mod tests {
         // The known op set is exactly the descriptor set.
         let known: Vec<String> = services()
             .iter()
-            .flat_map(|s| s.methods.iter().map(move |m| format!("{}.{}", s.name, m.name)))
+            .flat_map(|s| {
+                s.methods
+                    .iter()
+                    .map(move |m| format!("{}.{}", s.name, m.name))
+            })
             .collect();
         for op in &known {
             assert!(

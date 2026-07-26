@@ -102,7 +102,9 @@ mod tests {
     async fn code_mode_ops_are_journaled_in_order() {
         let exec = ScriptExecutor::spawn();
         let calls = Arc::new(AtomicU32::new(0));
-        let base: Arc<dyn Dispatch> = Arc::new(Counting { calls: calls.clone() });
+        let base: Arc<dyn Dispatch> = Arc::new(Counting {
+            calls: calls.clone(),
+        });
         let (emitted, journal) =
             run_durable_script(&exec, base, Journal::new(), SDK.into(), SRC.into()).await;
         let emitted = emitted.expect("durable run completes");
@@ -110,7 +112,11 @@ mod tests {
         assert_eq!(journal.entries().len(), 2, "both ops are journaled");
         assert_eq!(journal.entries()[0].op, "collections.read");
         assert_eq!(journal.entries()[1].op, "collections.put");
-        assert_eq!(calls.load(Ordering::SeqCst), 2, "the live run dispatched both ops");
+        assert_eq!(
+            calls.load(Ordering::SeqCst),
+            2,
+            "the live run dispatched both ops"
+        );
     }
 
     // Replay: re-running against the populated journal returns logged results and
@@ -121,7 +127,9 @@ mod tests {
 
         // Run 1 — live, populate the journal.
         let calls1 = Arc::new(AtomicU32::new(0));
-        let base1: Arc<dyn Dispatch> = Arc::new(Counting { calls: calls1.clone() });
+        let base1: Arc<dyn Dispatch> = Arc::new(Counting {
+            calls: calls1.clone(),
+        });
         let (emitted1, journal) =
             run_durable_script(&exec, base1, Journal::new(), SDK.into(), SRC.into()).await;
         let emitted1 = emitted1.expect("live run completes");
@@ -130,7 +138,9 @@ mod tests {
         // Run 2 — replay with the populated journal. The JS re-executes, but every
         // op is served from the journal: the inner dispatch must be hit ZERO times.
         let calls2 = Arc::new(AtomicU32::new(0));
-        let base2: Arc<dyn Dispatch> = Arc::new(Counting { calls: calls2.clone() });
+        let base2: Arc<dyn Dispatch> = Arc::new(Counting {
+            calls: calls2.clone(),
+        });
         let (emitted2, journal2) =
             run_durable_script(&exec, base2, journal, SDK.into(), SRC.into()).await;
         let emitted2 = emitted2.expect("replay completes");
@@ -144,7 +154,11 @@ mod tests {
             emitted1, emitted2,
             "replay reproduces the same emitted values from the logged results",
         );
-        assert_eq!(journal2.entries().len(), 2, "the journal is unchanged on replay");
+        assert_eq!(
+            journal2.entries().len(),
+            2,
+            "the journal is unchanged on replay"
+        );
     }
 
     // The journal is returned even when the script crashes: ops that ran before
@@ -153,7 +167,9 @@ mod tests {
     async fn partial_journal_survives_a_script_error() {
         let exec = ScriptExecutor::spawn();
         let calls = Arc::new(AtomicU32::new(0));
-        let base: Arc<dyn Dispatch> = Arc::new(Counting { calls: calls.clone() });
+        let base: Arc<dyn Dispatch> = Arc::new(Counting {
+            calls: calls.clone(),
+        });
         // One op runs, then the script throws — the run errors mid-flight.
         let crashing = r#"
             import { call } from "ship";
@@ -169,6 +185,10 @@ mod tests {
             "the op that ran before the crash is journaled (partial progress survives)",
         );
         assert_eq!(journal.entries()[0].op, "collections.read");
-        assert_eq!(calls.load(Ordering::SeqCst), 1, "exactly the pre-crash op dispatched");
+        assert_eq!(
+            calls.load(Ordering::SeqCst),
+            1,
+            "exactly the pre-crash op dispatched"
+        );
     }
 }

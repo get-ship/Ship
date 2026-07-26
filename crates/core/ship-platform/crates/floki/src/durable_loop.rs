@@ -23,8 +23,8 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use rig::agent::AgentBuilder;
-use rig::completion::{Chat, CompletionModel, Message};
 use rig::completion::message::{ToolResultContent, UserContent};
+use rig::completion::{Chat, CompletionModel, Message};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
@@ -76,11 +76,17 @@ pub struct RigTurnOutcome {
 /// "steers": [...]}` envelope, we unwrap the inner `"result"` string first.
 fn extract_suspension_from_history(messages: &[Message]) -> Option<String> {
     for msg in messages {
-        let Message::User { content } = msg else { continue };
+        let Message::User { content } = msg else {
+            continue;
+        };
         for item in content.iter() {
-            let UserContent::ToolResult(result) = item else { continue };
+            let UserContent::ToolResult(result) = item else {
+                continue;
+            };
             for content_item in result.content.iter() {
-                let ToolResultContent::Text(text_block) = content_item else { continue };
+                let ToolResultContent::Text(text_block) = content_item else {
+                    continue;
+                };
                 if let Some(cp) = parse_suspension_from_text(&text_block.text) {
                     return Some(cp);
                 }
@@ -184,7 +190,11 @@ where
     // Detect an Ask-stance suspension marker in the new messages.
     let pending_suspension = extract_suspension_from_history(&chat_history[history_before..]);
 
-    Ok(RigTurnOutcome { text, history_delta, pending_suspension })
+    Ok(RigTurnOutcome {
+        text,
+        history_delta,
+        pending_suspension,
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -365,7 +375,7 @@ where
 mod tests {
     use std::sync::Arc;
 
-    use agent_def::{SessionEventSink};
+    use agent_def::SessionEventSink;
     use durable_execution::{InMemoryJournalStore, Journal, JournalStore, RunStatus, execute};
     use rig::test_utils::{MockCompletionModel, MockTurn};
     use serde_json::json;
@@ -402,7 +412,10 @@ mod tests {
         }
     }
 
-    fn dummy_dispatch(gateway: Arc<dyn Gateway>, auth: AuthContext) -> Arc<dyn durable_execution::Dispatch> {
+    fn dummy_dispatch(
+        gateway: Arc<dyn Gateway>,
+        auth: AuthContext,
+    ) -> Arc<dyn durable_execution::Dispatch> {
         Arc::new(GatewayDispatch::new(gateway, auth))
     }
 
@@ -443,12 +456,17 @@ mod tests {
         let auth = AuthContext::in_process("t", vec!["collections".into()]);
         let dispatch = dummy_dispatch(Arc::new(InProcessGateway::default()), auth.clone());
 
-        let (status_first, journal_first) = execute(Journal::new(), dispatch.clone(), &program_first).await;
+        let (status_first, journal_first) =
+            execute(Journal::new(), dispatch.clone(), &program_first).await;
         assert!(
             matches!(status_first, RunStatus::Completed(_)),
             "first run must complete: {status_first:?}"
         );
-        assert_eq!(model_first.request_count(), 1, "first run must invoke the model once");
+        assert_eq!(
+            model_first.request_count(),
+            1,
+            "first run must invoke the model once"
+        );
 
         // Save the journal.
         let store = InMemoryJournalStore::new();
@@ -469,7 +487,8 @@ mod tests {
             "replay must complete: {status_second:?}"
         );
         assert_eq!(
-            model_second.request_count(), 0,
+            model_second.request_count(),
+            0,
             "replay must NOT invoke the model (turn logged in journal)"
         );
     }
@@ -486,7 +505,11 @@ mod tests {
         // With the rig default max_turns (0), one tool call + final text = 2 rig iterations.
         let mock = Arc::new(MockSink::new());
         let model_live = MockCompletionModel::new([
-            MockTurn::tool_call("tc1", "ship_op", json!({ "op": "collections.read", "args": {} })),
+            MockTurn::tool_call(
+                "tc1",
+                "ship_op",
+                json!({ "op": "collections.read", "args": {} }),
+            ),
             MockTurn::text("turn-0 done"),
             MockTurn::text("turn-1 done"),
         ]);
@@ -536,7 +559,8 @@ mod tests {
         // In our 2-outer-turn setup, turn-0 is already logged so it replays;
         // since turn-0's text breaks the loop immediately, turn-1 never runs.
         assert_eq!(
-            model_replay.request_count(), 0,
+            model_replay.request_count(),
+            0,
             "replay must not call the model (all turns already logged): got {}",
             model_replay.request_count()
         );
@@ -570,7 +594,11 @@ mod tests {
             // First run — turn.0:
             // Model issues tool call → tool returns suspension marker →
             // rig makes follow-up model call → model returns text → outcome logged.
-            MockTurn::tool_call("tc1", "ship_op", json!({ "op": "mcp.create", "args": { "name": "test" } })),
+            MockTurn::tool_call(
+                "tc1",
+                "ship_op",
+                json!({ "op": "mcp.create", "args": { "name": "test" } }),
+            ),
             MockTurn::text("suspended turn text"),
             // Second run (resume) — turn.1 (turn.0 replays from journal):
             MockTurn::text("all done after approval"),
@@ -595,7 +623,10 @@ mod tests {
             matches!(status, RunStatus::Suspended),
             "first execute must suspend (Ask-stance in journal_mode): {status:?}"
         );
-        assert!(journal.is_suspended(), "journal must have a Suspended entry");
+        assert!(
+            journal.is_suspended(),
+            "journal must have a Suspended entry"
+        );
 
         // Save and load the journal across the "boundary".
         let store = InMemoryJournalStore::new();
@@ -661,7 +692,10 @@ mod tests {
             matches!(status, RunStatus::Completed(_)),
             "headless path must complete (denial is data, not suspension): {status:?}"
         );
-        assert!(!journal.is_suspended(), "headless path must NOT produce a Suspended entry");
+        assert!(
+            !journal.is_suspended(),
+            "headless path must NOT produce a Suspended entry"
+        );
 
         // session.suspended event must NOT be emitted (denial is not a suspension here).
         // (The headless approver emits session.suspended for the "denied" path too,

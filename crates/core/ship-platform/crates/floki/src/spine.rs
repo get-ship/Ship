@@ -56,11 +56,13 @@ mod tests {
     // execute ok + verify ok → the verified value is accepted.
     #[tokio::test]
     async fn verify_accepts_a_confirmed_result() {
-        let out = run(
-            "ok",
-            async { Ok::<i32, SpineError>(42) },
-            |v| if *v == 42 { Ok("accepted".into()) } else { Err("bad".into()) },
-        )
+        let out = run("ok", async { Ok::<i32, SpineError>(42) }, |v| {
+            if *v == 42 {
+                Ok("accepted".into())
+            } else {
+                Err("bad".into())
+            }
+        })
         .await
         .expect("a confirmed result is accepted");
         assert_eq!(out, "accepted");
@@ -69,7 +71,10 @@ mod tests {
     // execute ok + verify err → refused as Unverified (NOT folded in as success).
     #[tokio::test]
     async fn verify_refuses_an_unverifiable_result() {
-        let r = run("bad", async { Ok::<i32, SpineError>(1) }, |_v| Err("nope".into())).await;
+        let r = run("bad", async { Ok::<i32, SpineError>(1) }, |_v| {
+            Err("nope".into())
+        })
+        .await;
         assert!(
             matches!(r, Err(SpineError::Unverified(_))),
             "an unverifiable result must be refused, not accepted",

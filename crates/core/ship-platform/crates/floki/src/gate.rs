@@ -47,9 +47,7 @@ pub fn decide(blast: Blast, service: &str, auth: &AuthContext) -> Decision {
         return Decision::Allow;
     }
     match blast {
-        Blast::C3Critical => {
-            Decision::Deny("op requires a human-operator credential (2FA)".into())
-        }
+        Blast::C3Critical => Decision::Deny("op requires a human-operator credential (2FA)".into()),
         Blast::C0Safe | Blast::C1Space => Decision::Allow,
         Blast::C2Elevated => {
             if auth.grants.iter().any(|s| s == service) {
@@ -76,8 +74,12 @@ mod tests {
         a.operator_cred = true;
         a
     }
-    fn is_allow(d: Decision) -> bool { matches!(d, Decision::Allow) }
-    fn is_deny(d: Decision) -> bool { matches!(d, Decision::Deny(_)) }
+    fn is_allow(d: Decision) -> bool {
+        matches!(d, Decision::Allow)
+    }
+    fn is_deny(d: Decision) -> bool {
+        matches!(d, Decision::Deny(_))
+    }
 
     // Reads/writes are baseline — granted to any agent, whatever its grants.
     #[test]
@@ -89,8 +91,16 @@ mod tests {
     // C2 is gated on the SERVICE being granted — not on identity, not on a tier claim.
     #[test]
     fn c2_requires_the_named_service_grant() {
-        assert!(is_deny(decide(Blast::C2Elevated, "svcA", &agent(&["svcB"]))));
-        assert!(is_allow(decide(Blast::C2Elevated, "svcA", &agent(&["svcA"]))));
+        assert!(is_deny(decide(
+            Blast::C2Elevated,
+            "svcA",
+            &agent(&["svcB"])
+        )));
+        assert!(is_allow(decide(
+            Blast::C2Elevated,
+            "svcA",
+            &agent(&["svcA"])
+        )));
     }
 
     // C3 is operator-only; grants never reach it.
@@ -103,7 +113,12 @@ mod tests {
     // Operator clears every tier.
     #[test]
     fn operator_clears_all_tiers() {
-        for b in [Blast::C0Safe, Blast::C1Space, Blast::C2Elevated, Blast::C3Critical] {
+        for b in [
+            Blast::C0Safe,
+            Blast::C1Space,
+            Blast::C2Elevated,
+            Blast::C3Critical,
+        ] {
             assert!(is_allow(decide(b, "svc", &operator())));
         }
     }

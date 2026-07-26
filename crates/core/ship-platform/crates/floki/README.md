@@ -1,6 +1,27 @@
 # floki
 
-**Layer:** L1 — Ship's first-party, embedded, code-mode agent runtime.
+**Layer:** L1 — **Yoke** (crate still named `floki`): embeddable native agent harness.
+**Floki** is reserved as a default agent *profile* / future model-family name, not this crate.
+
+## Providers (no `SHIP_*` selection)
+
+| Provider | `YOKE_PROVIDER` | API key env | Base URL |
+|----------|-----------------|-------------|----------|
+| Anthropic | `anthropic` | `ANTHROPIC_API_KEY` | n/a |
+| OpenAI | `openai` | `OPENAI_API_KEY` | optional `OPENAI_BASE_URL` |
+| **NVIDIA Build / Integrate** | `nvidia` | **`NVIDIA_API_KEY`** | optional `NVIDIA_BASE_URL` (default Integrate `/v1`) |
+| Generic OpenAI-wire | `openai-compat` | `OPENAI_COMPAT_API_KEY` | required `OPENAI_COMPAT_BASE_URL` |
+
+Selection: `YOKE_PROVIDER` + `YOKE_MODEL`. Never put an NVIDIA key in `OPENAI_API_KEY`.
+
+### Smoke (no Ship)
+
+```bash
+export YOKE_PROVIDER=nvidia
+export NVIDIA_API_KEY=nvapi-...
+export YOKE_MODEL=<catalog-model-id>
+cargo run -p floki --bin yoke-smoke
+```
 
 Floki is the runtime where Ship owns the agent loop. Because the loop is ours, every effect enters at the single gated door (`gateway::Gateway`); code-mode JS runs in a locked-down V8 isolate (`ship-js`) whose only effect path is the same gate.
 

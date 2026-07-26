@@ -14,7 +14,7 @@
 //! Typed args stay loose (`unknown`) for now: the spec calls out the surface
 //! shape as the load-bearing part; the per-op argument schemas can land
 //! alongside the proto descriptor set.
-use crate::sdkgen::{surface, SurfaceItem};
+use crate::sdkgen::{SurfaceItem, surface};
 
 /// Generate the scoped SDK `.d.ts` for a set of granted service domains.
 /// Mirrors `generate_sdk` exactly: the exported names, and the set of
@@ -237,7 +237,6 @@ mod tests {
         let dts = generate_dts(&grants);
         assert!(!sdk.contains("nope."));
         assert!(!dts.contains("nope."));
-
     }
 
     // NOTE: the spike's `mcp_call_is_typed_iff_mcp_grant_is_present` test was

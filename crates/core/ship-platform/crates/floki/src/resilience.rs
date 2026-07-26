@@ -28,7 +28,9 @@ pub struct RetryPolicy {
 impl RetryPolicy {
     /// At least one attempt is always made (a 0 is clamped to 1).
     pub fn new(max_attempts: u32) -> Self {
-        Self { max_attempts: max_attempts.max(1) }
+        Self {
+            max_attempts: max_attempts.max(1),
+        }
     }
 }
 
@@ -86,7 +88,10 @@ where
             session_id,
             &SessionFailed {
                 session_id: session_id.to_string(),
-                reason: format!("{label}: exhausted {} attempt(s): {err}", policy.max_attempts),
+                reason: format!(
+                    "{label}: exhausted {} attempt(s): {err}",
+                    policy.max_attempts
+                ),
             },
         )
         .ok();
@@ -140,7 +145,10 @@ mod tests {
         assert_eq!(calls.load(Ordering::SeqCst), 2, "must have retried once");
         // No session.failed on a successful run.
         assert!(
-            !mock.captured().iter().any(|e| e.event_type == "session.failed"),
+            !mock
+                .captured()
+                .iter()
+                .any(|e| e.event_type == "session.failed"),
             "no session.failed must be emitted for a successful retried run",
         );
     }
@@ -163,10 +171,17 @@ mod tests {
         )
         .await;
         assert!(matches!(r, Err(SpineError::Denied(_))));
-        assert_eq!(calls.load(Ordering::SeqCst), 1, "a denial must not be retried");
+        assert_eq!(
+            calls.load(Ordering::SeqCst),
+            1,
+            "a denial must not be retried"
+        );
         // Terminal denial does NOT emit session.failed (not the same as session exhaustion).
         assert!(
-            !mock.captured().iter().any(|e| e.event_type == "session.failed"),
+            !mock
+                .captured()
+                .iter()
+                .any(|e| e.event_type == "session.failed"),
             "a terminal denial must not record session.failed",
         );
     }
@@ -189,9 +204,16 @@ mod tests {
         )
         .await;
         assert!(matches!(r, Err(SpineError::Unverified(_))));
-        assert_eq!(calls.load(Ordering::SeqCst), 1, "an unverified result must not be retried");
+        assert_eq!(
+            calls.load(Ordering::SeqCst),
+            1,
+            "an unverified result must not be retried"
+        );
         assert!(
-            !mock.captured().iter().any(|e| e.event_type == "session.failed"),
+            !mock
+                .captured()
+                .iter()
+                .any(|e| e.event_type == "session.failed"),
             "an unverified terminal must not record session.failed",
         );
     }
@@ -217,7 +239,11 @@ mod tests {
         .await;
         assert!(matches!(r, Err(SpineError::Execute(_))));
         // Proof of retry: both attempts of RetryPolicy::new(2) executed.
-        assert_eq!(calls.load(Ordering::SeqCst), 2, "both attempts must run before exhausting");
+        assert_eq!(
+            calls.load(Ordering::SeqCst),
+            2,
+            "both attempts must run before exhausting"
+        );
         // Canonical session.failed was emitted via the kernel-emit port.
         let captured = mock.captured();
         assert!(
@@ -225,10 +251,19 @@ mod tests {
             "an exhausted run must emit session.failed; got: {captured:?}",
         );
         // The reason references the label and the attempt count.
-        let failed = captured.iter().find(|e| e.event_type == "session.failed").unwrap();
+        let failed = captured
+            .iter()
+            .find(|e| e.event_type == "session.failed")
+            .unwrap();
         let payload: serde_json::Value = serde_json::from_str(&failed.payload_json).unwrap();
         let reason = payload["reason"].as_str().unwrap_or("");
-        assert!(reason.contains("op"), "reason must reference the label: {reason}");
-        assert!(reason.contains("2"), "reason must reference the attempt count: {reason}");
+        assert!(
+            reason.contains("op"),
+            "reason must reference the label: {reason}"
+        );
+        assert!(
+            reason.contains("2"),
+            "reason must reference the attempt count: {reason}"
+        );
     }
 }

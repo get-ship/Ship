@@ -20,8 +20,13 @@ mod tests {
 
     #[test]
     fn user_input_variants_carry_request_id() {
-        let a = UserInput::Approve { request_id: "r".into() };
-        let d = UserInput::Deny { request_id: "r".into(), reason: "no".into() };
+        let a = UserInput::Approve {
+            request_id: "r".into(),
+        };
+        let d = UserInput::Deny {
+            request_id: "r".into(),
+            reason: "no".into(),
+        };
         match a {
             UserInput::Approve { request_id } => assert_eq!(request_id, "r"),
             _ => panic!("expected Approve"),
