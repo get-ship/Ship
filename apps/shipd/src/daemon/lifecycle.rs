@@ -38,10 +38,9 @@ pub(super) async fn start_agent_stack(rt: &Arc<ShipRuntime>, global_dir: &std::p
     let ops_router = crate::rpc::ops::router(rt.clone());
     let floki_gateway = std::sync::Arc::new(crate::floki::gateway::ShipdGateway::new(ops_router));
     let floki_kernel = rt.kernel().clone();
-    // Dual path (H3 spike): if BRIDGE_YOKE_SOCKET / SHIP_YOKE_SOCKET is set,
-    // dispatch native sessions over UDS NDJSON to bridge serve; otherwise
-    // keep the in-process floki composition root. Floki stays until RPC is
-    // proven — do not remove the else branch.
+    // Dual path: if BRIDGE_YOKE_SOCKET / SHIP_YOKE_SOCKET is set, dispatch
+    // native sessions over ConnectRPC (ship.yoke.v1) to `bridge serve`;
+    // otherwise keep the in-process floki composition root (dev fallback).
     let floki_run_fn: ship_agents::ports::FlokiRunFn = {
         let gateway = floki_gateway.clone();
         std::sync::Arc::new(move |payload| {
@@ -49,7 +48,13 @@ pub(super) async fn start_agent_stack(rt: &Arc<ShipRuntime>, global_dir: &std::p
             let kernel = floki_kernel.clone();
             Box::pin(async move {
                 if let Some(socket) = crate::floki::yoke_rpc_client::socket_path_from_env() {
-                    crate::floki::yoke_rpc_client::dispatch_yoke_session(payload, &socket).await;
+                    crate::floki::yoke_rpc_client::dispatch_yoke_session(
+                        payload,
+                        &socket,
+                        gateway,
+                        kernel,
+                    )
+                    .await;
                 } else {
                     crate::floki::floki_dispatch::dispatch_floki_session(payload, gateway, kernel)
                         .await;

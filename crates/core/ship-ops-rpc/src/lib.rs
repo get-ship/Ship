@@ -16,6 +16,10 @@
 pub use ship_proto::ship;
 pub use ship_proto::ship::ops::v1::*;
 
+/// Yoke harness session Connect surface (`ship.yoke.v1`) — Bridge server,
+/// shipd client. Not part of the public ops registry.
+pub use ship_proto::ship::yoke;
+
 pub mod policy;
 pub use policy::BlastRadius;
 

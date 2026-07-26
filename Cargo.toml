@@ -246,3 +246,9 @@ debug = "line-tables-only"
 lto = "thin"
 codegen-units = 1
 strip = "debuginfo"
+
+# Local ship-contracts for yoke session Connect surface (Phase 3).
+# Remove once ship-contracts feat/next with ship.yoke.v1 is published/pushed.
+[patch."https://github.com/get-ship/ship-contracts.git"]
+ship-proto = { path = "../ship-contracts/crates/ship-proto" }
+

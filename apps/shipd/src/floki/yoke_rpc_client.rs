@@ -1,40 +1,30 @@
-//! Yoke harness session RPC client (H3 spike).
+//! Yoke harness session Connect client (product path).
 //!
-//! Dual dispatch path for native agent sessions:
-//! - **RPC path** (this module): when `BRIDGE_YOKE_SOCKET` is set (fallback:
-//!   `SHIP_YOKE_SOCKET`), shipd connects over a Unix domain stream and runs
-//!   the session via Bridge/Yoke `bridge serve` (NDJSON v1 harness RPC).
-//! - **In-process floki path**: default when the socket env is unset —
-//!   [`super::floki_dispatch::dispatch_floki_session`].
+//! When `BRIDGE_YOKE_SOCKET` is set (fallback: `SHIP_YOKE_SOCKET`), shipd
+//! dials Bridge's `ship.yoke.v1.YokeSessionService` over UDS (h2c) and runs
+//! the native agent session out-of-process. Gateway ops arrive as `op_call`
+//! events on the Start stream; this client answers with unary `OpResult`
+//! via [`ShipdGateway`].
 //!
-//! Floki is intentionally kept until RPC is proven. Do not delete it.
-//!
-//! Wire types live in [`super::yoke_rpc_protocol`] (hand-rolled mirrors of
-//! bridge protocol — no path-dep on the bridge crate).
-//!
-//! Spike behaviour for `op.call`: reply with denied `op.result`. A real
-//! `ShipdGateway` host answer is a follow-on.
-//!
-//! ## Smoke
-//!
-//! ```text
-//! # terminal A
-//! cargo run -p bridge --bin bridge -- serve --mock --socket /tmp/bridge-yoke.sock
-//!
-//! # terminal B
-//! BRIDGE_YOKE_SOCKET=/tmp/bridge-yoke.sock shipd   # then dispatch a floki harness session
-//! ```
+//! In-process floki remains the default when the socket env is unset.
 
 use std::path::Path;
+use std::sync::Arc;
 
 use agent_def::dispatch_intent::DispatchRequestedPayload;
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use tokio::net::UnixStream;
-
-use super::yoke_rpc_protocol::{
-    ClientEnvelope, ClientMessage, OpResult, PROTOCOL_VERSION, ServerEnvelope, ServerMessage,
-    SessionStart,
+use connectrpc::client::{ClientConfig, Http2Connection};
+use floki::{
+    AuthContext as FlokiAuth, SessionCancelled, SessionCompleted, SessionEventSink, SessionFailed,
+    SessionStarted,
+    gateway::{Gateway, GatewayCallKind, GatewayError},
 };
+use ship_ops_rpc::yoke::v1::{
+    OpResultRequest, StartSessionRequest, YokeSessionServiceClient,
+    __buffa::view::oneof::session_event as view_event,
+};
+use super::floki_dispatch::ShipdKernelSink;
+use super::gateway::ShipdGateway;
+use crate::ship_runtime::SharedKernel;
 
 // ── Socket env ───────────────────────────────────────────────────────────────
 
@@ -48,7 +38,6 @@ pub fn socket_path_from_env() -> Option<String> {
             return Some(p);
         }
     }
-    // `var_os` avoids the raw `env::var("SHIP_…")` lint surface.
     std::env::var_os("SHIP_YOKE_SOCKET")
         .and_then(|s| s.into_string().ok())
         .filter(|p| !p.is_empty())
@@ -56,7 +45,7 @@ pub fn socket_path_from_env() -> Option<String> {
 
 // ── Session outcome ──────────────────────────────────────────────────────────
 
-/// Terminal outcome of a harness session over UDS.
+/// Terminal outcome of a harness session over Connect.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SessionOutcome {
     Completed { session_id: String },
@@ -66,40 +55,54 @@ pub enum SessionOutcome {
 
 // ── Dispatch entry ───────────────────────────────────────────────────────────
 
-/// Run one harness session over the yoke UDS RPC (spike).
+/// Run one harness session over Bridge's Connect yoke service.
 ///
-/// Sends `session.start` from `payload`, reads events until a terminal
-/// lifecycle message, logs `session.output`, and denies any `op.call`.
-pub async fn dispatch_yoke_session(payload: DispatchRequestedPayload, socket_path: &str) {
+/// Maps lifecycle events onto the shipd kernel at the process edge and
+/// answers `op_call` via [`ShipdGateway`].
+pub async fn dispatch_yoke_session(
+    payload: DispatchRequestedPayload,
+    socket_path: &str,
+    gateway: Arc<ShipdGateway>,
+    kernel: SharedKernel,
+) {
     tracing::info!(
         agent_id = %payload.agent_id,
         slug = %payload.slug,
         session_id = %payload.session_id,
         socket = %socket_path,
-        "yoke-rpc: starting session over UDS",
+        "yoke-connect: starting session",
     );
 
-    match run_session(socket_path, &payload).await {
+    let sink = SessionEventSink::new(Arc::new(ShipdKernelSink::new(kernel)));
+
+    match run_session(socket_path, &payload, gateway, &sink).await {
         Ok(SessionOutcome::Completed { session_id }) => {
-            tracing::info!(%session_id, "yoke-rpc: session completed");
+            tracing::info!(%session_id, "yoke-connect: session completed");
         }
         Ok(SessionOutcome::Failed {
             session_id,
             message,
         }) => {
-            tracing::error!(%session_id, %message, "yoke-rpc: session failed");
+            tracing::error!(%session_id, %message, "yoke-connect: session failed");
         }
         Ok(SessionOutcome::Cancelled {
             session_id,
             reason,
         }) => {
-            tracing::warn!(%session_id, ?reason, "yoke-rpc: session cancelled");
+            tracing::warn!(%session_id, ?reason, "yoke-connect: session cancelled");
         }
         Err(e) => {
             tracing::error!(
                 session_id = %payload.session_id,
                 error = %e,
-                "yoke-rpc: transport or protocol error",
+                "yoke-connect: transport or protocol error",
+            );
+            let _ = sink.emit_session_failed(
+                &payload.session_id,
+                &SessionFailed {
+                    session_id: payload.session_id.clone(),
+                    reason: e.to_string(),
+                },
             );
         }
     }
@@ -109,14 +112,21 @@ pub async fn dispatch_yoke_session(payload: DispatchRequestedPayload, socket_pat
 pub async fn run_session(
     socket_path: &str,
     payload: &DispatchRequestedPayload,
+    gateway: Arc<ShipdGateway>,
+    sink: &SessionEventSink,
 ) -> anyhow::Result<SessionOutcome> {
     if !Path::new(socket_path).exists() {
         anyhow::bail!("yoke socket not found: {socket_path}");
     }
 
-    let stream = UnixStream::connect(socket_path).await?;
-    let (reader, mut writer) = stream.into_split();
-    let mut lines = BufReader::new(reader).lines();
+    let authority: http::Uri = "http://bridge.local"
+        .parse()
+        .map_err(|e| anyhow::anyhow!("authority: {e}"))?;
+    let conn = Http2Connection::lazy_unix(socket_path, authority.clone()).shared(32);
+    let config = ClientConfig::new(authority);
+    let client = YokeSessionServiceClient::new(conn.clone(), config.clone());
+    // Second client for concurrent OpResult unaries while Start streams.
+    let op_client = YokeSessionServiceClient::new(conn, config);
 
     let prompt = payload
         .prompt
@@ -125,101 +135,200 @@ pub async fn run_session(
         .unwrap_or("(no input provided)")
         .to_string();
 
-    let start = ClientEnvelope::new(ClientMessage::SessionStart(SessionStart {
-        session_id: Some(payload.session_id.clone()),
-        agent_id: payload.agent_id.clone(),
-        prompt,
-        provider: None,
-        model: payload.model.clone(),
-        max_turns: None,
-        workspace: payload.repo_path.clone(),
-    }));
-    writer
-        .write_all(start.to_json_line()?.as_bytes())
-        .await?;
-    writer.flush().await?;
+    let workspace = payload.repo_path.clone().unwrap_or_default();
+
+    let mut stream = client
+        .start(StartSessionRequest {
+            session_id: payload.session_id.clone(),
+            agent_id: payload.agent_id.clone(),
+            prompt,
+            model: payload.model.clone().unwrap_or_default(),
+            workspace,
+            ..Default::default()
+        })
+        .await
+        .map_err(|e| anyhow::anyhow!("YokeSessionService.Start: {e}"))?;
+
+    let auth = FlokiAuth::in_process(&payload.agent_id, vec![]);
 
     loop {
-        let line = lines
-            .next_line()
-            .await?
-            .ok_or_else(|| anyhow::anyhow!("yoke socket closed before session terminal event"))?;
-        if line.trim().is_empty() {
-            continue;
-        }
-
-        let env = match ServerEnvelope::from_json_line(&line) {
-            Ok(e) => e,
-            Err(e) => {
-                tracing::warn!(error = %e, raw = %line, "yoke-rpc: bad server line");
-                continue;
-            }
+        let Some(ev) = stream
+            .message()
+            .await
+            .map_err(|e| anyhow::anyhow!("Start stream: {e}"))?
+        else {
+            anyhow::bail!("yoke Start stream closed before terminal event");
         };
-        if env.v != PROTOCOL_VERSION {
-            tracing::warn!(v = env.v, "yoke-rpc: unexpected protocol version");
-        }
 
-        match env.message {
-            ServerMessage::SessionStarted(s) => {
+        let session_id = ev.session_id.to_string();
+        match ev.event.as_ref() {
+            Some(view_event::Event::Started(s)) => {
                 tracing::info!(
-                    session_id = %s.session_id,
-                    agent_id = ?s.agent_id,
-                    "yoke-rpc: session.started",
+                    %session_id,
+                    agent_id = %s.agent_id,
+                    "yoke-connect: session.started",
+                );
+                let _ = sink.emit_session_started(
+                    &session_id,
+                    &SessionStarted {
+                        session_id: session_id.clone(),
+                        agent_id: s.agent_id.to_string(),
+                        harness: "yoke".into(),
+                        model: payload.model.clone(),
+                        slug: Some(payload.slug.clone()),
+                        input: payload.prompt.clone().or(payload.spec.clone()),
+                        ..Default::default()
+                    },
                 );
             }
-            ServerMessage::SessionOutput(o) => {
+            Some(view_event::Event::Output(o)) => {
                 tracing::info!(
-                    session_id = %o.session_id,
+                    %session_id,
                     text_len = o.text.len(),
-                    "yoke-rpc: session.output"
+                    "yoke-connect: session.output"
                 );
-                tracing::debug!(session_id = %o.session_id, text = %o.text, "yoke-rpc: output text");
+                tracing::debug!(%session_id, text = %o.text, "yoke-connect: output text");
             }
-            ServerMessage::SessionCompleted(c) => {
-                return Ok(SessionOutcome::Completed {
-                    session_id: c.session_id,
-                });
+            Some(view_event::Event::Completed(_)) => {
+                let _ = sink.emit_session_completed(
+                    &session_id,
+                    &SessionCompleted {
+                        session_id: session_id.clone(),
+                    },
+                );
+                return Ok(SessionOutcome::Completed { session_id });
             }
-            ServerMessage::SessionFailed(f) => {
+            Some(view_event::Event::Failed(f)) => {
+                let message = f.message.to_string();
+                let _ = sink.emit_session_failed(
+                    &session_id,
+                    &SessionFailed {
+                        session_id: session_id.clone(),
+                        reason: message.clone(),
+                    },
+                );
                 return Ok(SessionOutcome::Failed {
-                    session_id: f.session_id,
-                    message: f.message,
+                    session_id,
+                    message,
                 });
             }
-            ServerMessage::SessionCancelled(c) => {
+            Some(view_event::Event::Cancelled(c)) => {
+                let reason = if c.reason.is_empty() {
+                    None
+                } else {
+                    Some(c.reason.to_string())
+                };
+                let _ = sink.emit_session_cancelled(
+                    &session_id,
+                    &SessionCancelled {
+                        session_id: session_id.clone(),
+                        reason: reason.clone(),
+                    },
+                );
                 return Ok(SessionOutcome::Cancelled {
-                    session_id: c.session_id,
-                    reason: c.reason,
+                    session_id,
+                    reason,
                 });
             }
-            ServerMessage::OpCall(call) => {
-                // Spike: deny-all host gateway. Real ShipdGateway later.
-                tracing::warn!(
-                    id = %call.id,
-                    session_id = %call.session_id,
-                    op = %call.op,
-                    "yoke-rpc: op.call denied (spike)",
+            Some(view_event::Event::OpCall(call)) => {
+                let id = call.id.to_string();
+                let op = call.op.to_string();
+                let args_json = call.args_json;
+                tracing::info!(
+                    %id,
+                    %session_id,
+                    %op,
+                    "yoke-connect: op_call",
                 );
-                let deny = ClientEnvelope::new(ClientMessage::OpResult(OpResult {
-                    id: call.id,
-                    session_id: call.session_id,
-                    ok: false,
-                    result: None,
-                    error: Some("denied: ShipdGateway not wired on yoke-rpc spike".into()),
-                }));
-                writer
-                    .write_all(deny.to_json_line()?.as_bytes())
-                    .await?;
-                writer.flush().await?;
+                let result_req = answer_op_call(
+                    gateway.as_ref(),
+                    &auth,
+                    &id,
+                    &session_id,
+                    &op,
+                    args_json,
+                )
+                .await;
+                if let Err(e) = op_client.op_result(result_req).await {
+                    tracing::warn!(
+                        %id,
+                        error = %e,
+                        "yoke-connect: OpResult failed",
+                    );
+                }
             }
-            ServerMessage::Error(err) => {
-                anyhow::bail!(
-                    "yoke-rpc protocol error (id={:?}): {}",
-                    err.id,
-                    err.message
-                );
+            None => {
+                tracing::warn!(%session_id, "yoke-connect: empty event oneof");
             }
         }
+    }
+}
+
+async fn answer_op_call(
+    gateway: &ShipdGateway,
+    auth: &FlokiAuth,
+    id: &str,
+    session_id: &str,
+    op: &str,
+    args_json: &str,
+) -> OpResultRequest {
+    let args: serde_json::Value = if args_json.is_empty() {
+        serde_json::json!({})
+    } else {
+        serde_json::from_str(args_json).unwrap_or_else(|_| serde_json::json!({}))
+    };
+
+    match gateway
+        .call(op, args, auth, GatewayCallKind::First)
+        .await
+    {
+        Ok(value) => OpResultRequest {
+            id: id.to_string(),
+            session_id: session_id.to_string(),
+            ok: true,
+            result_json: serde_json::to_string(&value).unwrap_or_else(|_| "null".into()),
+            error: String::new(),
+            ..Default::default()
+        },
+        Err(GatewayError::Denied(msg)) => OpResultRequest {
+            id: id.to_string(),
+            session_id: session_id.to_string(),
+            ok: false,
+            result_json: String::new(),
+            error: msg,
+            ..Default::default()
+        },
+        Err(GatewayError::Ask {
+            op: ask_op,
+            request_id,
+            ..
+        }) => OpResultRequest {
+            id: id.to_string(),
+            session_id: session_id.to_string(),
+            ok: false,
+            result_json: String::new(),
+            error: format!(
+                "ask required for `{ask_op}` (request_id={request_id}); \
+                 headless Connect path cannot approve"
+            ),
+            ..Default::default()
+        },
+        Err(GatewayError::UnknownOp(name)) => OpResultRequest {
+            id: id.to_string(),
+            session_id: session_id.to_string(),
+            ok: false,
+            result_json: String::new(),
+            error: format!("unknown op `{name}`"),
+            ..Default::default()
+        },
+        Err(GatewayError::Dispatch(msg)) => OpResultRequest {
+            id: id.to_string(),
+            session_id: session_id.to_string(),
+            ok: false,
+            result_json: String::new(),
+            error: msg,
+            ..Default::default()
+        },
     }
 }
 

@@ -265,13 +265,12 @@ mod tests {
     use std::sync::Arc;
 
     use floki::{
-        AuthContext as FlokiAuth, Cancel, HeadlessApprover, ScriptExecutor,
-        SessionEventSink, Steer, ToolCtx, run_step,
+        AuthContext as FlokiAuth, BlastRadius, Cancel, Capability, Disposition, Harness,
+        HeadlessApprover, Identity, RecordingSessionEventHandler, ScriptExecutor, SessionEventSink,
+        Steer, ToolCtx, run_step,
     };
     use rig::test_utils::{MockCompletionModel, MockTurn};
     use serde_json::json;
-    use ship_agents::agent_domain::{BlastRadius, Capability, Disposition, Harness, Identity};
-    use ship_kernel::testing::MockSink;
 
     use crate::floki::gateway::ShipdGateway;
 
@@ -279,7 +278,10 @@ mod tests {
 
     fn floki_agent(grants: &[&str]) -> floki::Agent {
         floki::Agent {
-            harness: Harness { id: "floki".into(), settings: Default::default() },
+            harness: Harness {
+                id: "floki".into(),
+                settings: Default::default(),
+            },
             identity: Identity {
                 id: "first-light".into(),
                 name: "first-light".into(),
@@ -302,10 +304,11 @@ mod tests {
         }
     }
 
-    /// `ToolCtx` wired to a `MockSink` so tests can assert on emitted events.
-    fn test_ctx_with_mock(session_id: &str) -> (ToolCtx, Arc<MockSink>) {
-        let mock = Arc::new(MockSink::new());
-        let session_sink = SessionEventSink::new(mock.clone());
+    /// `ToolCtx` wired to a recording sink so tests can assert on emitted events.
+    fn test_ctx_with_mock(
+        session_id: &str,
+    ) -> (ToolCtx, Arc<RecordingSessionEventHandler>) {
+        let (session_sink, rec) = SessionEventSink::recording();
         let ctx = ToolCtx {
             session_sink,
             session_id: session_id.into(),
@@ -315,7 +318,7 @@ mod tests {
             cancel: Cancel::new(),
             journal_mode: false,
         };
-        (ctx, mock)
+        (ctx, rec)
     }
 
     // ── Tests ─────────────────────────────────────────────────────────────────
@@ -363,14 +366,13 @@ mod tests {
         assert!(out.text.contains("done"), "loop output must contain 'done': {:?}", out.text);
 
         // (1) + (2) Session lifecycle events emitted.
-        let events = mock.captured();
-        let event_types: Vec<&str> = events.iter().map(|e| e.event_type.as_str()).collect();
+        let event_types = mock.names();
         assert!(
-            event_types.contains(&"session.started"),
+            event_types.iter().any(|e| e == "session.started"),
             "session.started must be emitted; got: {event_types:?}",
         );
         assert!(
-            event_types.contains(&"session.completed"),
+            event_types.iter().any(|e| e == "session.completed"),
             "session.completed must be emitted; got: {event_types:?}",
         );
 
@@ -425,14 +427,13 @@ mod tests {
         );
 
         // Session lifecycle events fire regardless of gate outcome.
-        let events = mock.captured();
-        let types: Vec<&str> = events.iter().map(|e| e.event_type.as_str()).collect();
+        let types = mock.names();
         assert!(
-            types.contains(&"session.started"),
+            types.iter().any(|e| e == "session.started"),
             "session.started must fire even on a denied run; got: {types:?}",
         );
         assert!(
-            types.contains(&"session.completed"),
+            types.iter().any(|e| e == "session.completed"),
             "session.completed must fire after the denied run; got: {types:?}",
         );
     }
