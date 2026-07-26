@@ -1,17 +1,15 @@
-//! The shipd ↔ floki / yoke seam (L2 → L1, one-way arrow).
+//! shipd ↔ Yoke seam (L2 host → L1 embeddable harness).
 //!
-//! - [`gateway`] — `ShipdGateway`, answers Bridge `op_call`s by routing
-//!   through the in-process ops router (`tower::oneshot`). Same capability
-//!   gate as the socket path.
-//! - [`yoke_rpc_client`] — **product path**: ConnectRPC client to
-//!   `bridge serve` (`ship.yoke.v1`). Always used for native harness
-//!   sessions (`floki` / `yoke`).
-//! - [`floki_dispatch`] — in-process `YokeProgram` composition used by
-//!   unit tests only; not wired into daemon lifecycle.
+//! Yoke is a **headless rig** — it does not depend on Bridge/fleet.
+//! shipd embeds it in-process and supplies [`gateway::ShipdGateway`] + kernel sink.
 //!
-//! Boot wiring (`daemon::lifecycle`) hands a single `FlokiRunFn` that
-//! always dials Bridge. The floki crate (L1) gains no shipd dependency.
+//! - [`gateway`] — answers Yoke `Gateway` calls via the in-process ops router
+//! - [`embed`] — **product path**: in-process `YokeProgram` + durable journal
+//! - [`yoke_rpc_client`] — optional out-of-process fleet (`bridge serve`) path;
+//!   not required for native shipd sessions
+//!
+//! Boot wiring (`daemon::lifecycle`) hands a `YokeRunFn` that defaults to embed.
 
-pub mod floki_dispatch;
+pub mod embed;
 pub mod gateway;
 pub mod yoke_rpc_client;

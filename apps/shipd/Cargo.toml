@@ -106,10 +106,10 @@ async-trait = { workspace = true }
 async-stream = "0.3"
 futures = "0.3"
 tower = { version = "0.5", features = ["timeout", "util"] }
-# Native harness types (Gateway, SessionEventSink, …) live in Bridge's yoke.
+# Native harness (embeddable). Path dep until engines monorepo publish.
 # Path dep matches ship-exec sibling layout until published as a git dep.
 yoke = { path = "../../../bridge/crates/yoke" }
-# Durable journal used by in-process composition tests (floki_dispatch).
+# Durable journal used by in-process yoke embed (apps/shipd/src/yoke/embed).
 durable-execution = { path = "../../../ship-exec/crates/durable-execution" }
 tower-http = { version = "0.6", features = ["catch-panic", "limit", "timeout"] }
 reqwest = { workspace = true, features = ["rustls-tls", "json"] }

@@ -1,11 +1,10 @@
-//! In-process floki composition — **test / legacy only**.
+//! In-process Yoke composition — **product path** for native harness sessions.
 //!
-//! Product native-harness dispatch is out-of-process Connect
-//! ([`super::yoke_rpc_client`]). This module still provides:
-//!   - [`ShipdKernelSink`] — process-edge adapter reused by the Connect client
-//!   - [`dispatch_floki_session`] + smoke tests for gateway + event mapping
+//! shipd embeds [`yoke::YokeProgram`] directly. No Bridge/fleet process required.
+//! Optional out-of-process path lives in [`super::yoke_rpc_client`] (not default).
 //!
-//! Not wired into `daemon::lifecycle`.
+//! - [`ShipdKernelSink`] — process-edge adapter (Yoke events → ship kernel)
+//! - [`dispatch_yoke_session`] — durable in-process run
 
 use std::sync::Arc;
 
@@ -14,7 +13,7 @@ use durable_execution::{Journal, JournalStore, execute};
 use yoke::dispatch::GatewayDispatch;
 use yoke::provider::{Byok, CredentialSource};
 use yoke::{
-    AuthContext as FlokiAuth, BuiltModel, Cancel, HeadlessApprover, ScriptExecutor, YokeProgram,
+    AuthContext as YokeAuth, BuiltModel, Cancel, HeadlessApprover, ScriptExecutor, YokeProgram,
     SessionCancelled, SessionCompleted, SessionEventHandler, SessionEventSink, SessionFailed,
     SessionStarted, SessionSuspended, Steer, ToolCtx, TurnEnded, TurnStarted, build_model,
 };
@@ -23,7 +22,7 @@ use ship_substrate::events::{CallerKind, EmitContext, EventEnvelope};
 use ship_types::event_types::canonical_session as session_events;
 use ship_types::{Authority, ScopeBinding};
 
-use crate::floki::gateway::ShipdGateway;
+use crate::yoke::gateway::ShipdGateway;
 use crate::ship_runtime::SharedKernel;
 
 // ── ShipdKernelSink ───────────────────────────────────────────────────────────
@@ -99,10 +98,10 @@ impl SessionEventHandler for ShipdKernelSink {
     }
 }
 
-// ── Floki-harness dispatch entry point ────────────────────────────────────────
+// ── Yoke harness dispatch entry point ────────────────────────────────────────
 
 /// Dispatch entry point invoked from the `service.agents` actor when
-/// `dispatch.requested` arrives with `harness == "floki"`.
+/// `dispatch.requested` arrives with `harness == "yoke" (alias "floki")`.
 ///
 /// Stage-2: assembles a `YokeProgram` and drives it through the durable
 /// execution engine (`execute()`), so every rig exchange is journaled and
@@ -117,7 +116,7 @@ impl SessionEventHandler for ShipdKernelSink {
 /// FIRST-LIGHT SCOPE: minimal agent construction from payload fields only.
 /// Full agent loading from `.ship/agents/<id>.jsonc` + capability injection
 /// is a follow-on slice once the dispatch wiring is verified end-to-end.
-pub async fn dispatch_floki_session(
+pub async fn dispatch_yoke_session(
     payload: DispatchRequestedPayload,
     gateway: Arc<ShipdGateway>,
     kernel: SharedKernel,
@@ -133,7 +132,7 @@ pub async fn dispatch_floki_session(
         agent_id = %payload.agent_id,
         slug = %payload.slug,
         session_id = %payload.session_id,
-        "floki-dispatch: starting YokeProgram execute",
+        "yoke-embed: starting YokeProgram execute",
     );
 
     // ── Credentials + model ───────────────────────────────────────────────
@@ -142,12 +141,12 @@ pub async fn dispatch_floki_session(
         Err(e) => {
             tracing::error!(
                 session_id = %payload.session_id,
-                "floki-dispatch: credential resolution failed: {e:#}",
+                "yoke-embed: credential resolution failed: {e:#}",
             );
             return;
         }
     };
-    let auth = FlokiAuth::in_process(&payload.agent_id, vec![]);
+    let auth = YokeAuth::in_process(&payload.agent_id, vec![]);
     // Resolve the ship dir BEFORE the kernel Arc moves into the sink.
     let ship_dir = kernel.lock().await.base_dir().to_path_buf();
     let session_sink = SessionEventSink::new(Arc::new(ShipdKernelSink::new(kernel)));
@@ -174,7 +173,7 @@ pub async fn dispatch_floki_session(
     let store = match SqliteJournalStore::open(&ship_substrate::db::runtime_db_path(&ship_dir)).await {
         Ok(s) => s,
         Err(e) => {
-            tracing::error!(error = %e, "floki: cannot open the journal store; session will not be durable");
+            tracing::error!(error = %e, "yoke: cannot open the journal store; session will not be durable");
             return;
         }
     };
@@ -221,7 +220,7 @@ pub async fn dispatch_floki_session(
             Err(e) => {
                 tracing::error!(
                     session_id = %payload.session_id,
-                    "floki-dispatch: build_model failed: {e:#}",
+                    "yoke-embed: build_model failed: {e:#}",
                 );
                 // Return a Failed status so the session is logged but no panic.
                 (durable_execution::RunStatus::Failed(e.to_string()), Journal::new())
@@ -237,13 +236,13 @@ pub async fn dispatch_floki_session(
     if let Err(e) = store.save(&payload.session_id, &advanced_journal).await {
         tracing::warn!(
             session_id = %payload.session_id,
-            "floki-dispatch: journal save failed: {e}",
+            "yoke-embed: journal save failed: {e}",
         );
     }
 
     tracing::info!(
         session_id = %payload.session_id,
-        "floki-dispatch: session finished with status: {status:?}",
+        "yoke-embed: session finished with status: {status:?}",
     );
 }
 
@@ -255,21 +254,21 @@ mod tests {
     use std::sync::Arc;
 
     use yoke::{
-        AuthContext as FlokiAuth, BlastRadius, Cancel, Capability, Disposition, Harness,
+        AuthContext as YokeAuth, BlastRadius, Cancel, Capability, Disposition, Harness,
         HeadlessApprover, Identity, RecordingSessionEventHandler, ScriptExecutor, SessionEventSink,
         Steer, ToolCtx, run_step,
     };
     use rig::test_utils::{MockCompletionModel, MockTurn};
     use serde_json::json;
 
-    use crate::floki::gateway::ShipdGateway;
+    use crate::yoke::gateway::ShipdGateway;
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     fn floki_agent(grants: &[&str]) -> yoke::Agent {
         yoke::Agent {
             harness: Harness {
-                id: "floki".into(),
+                id: "yoke".into(),
                 settings: Default::default(),
             },
             identity: Identity {
@@ -327,7 +326,7 @@ mod tests {
     ///   3. Loop completes and returns the scripted text.
     ///   4. The C0 op does NOT appear as denied in the output.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn floki_dispatch_smoke_c0_read_session_events_and_gate_clear() {
+    async fn yoke_embed_smoke_c0_read_session_events_and_gate_clear() {
         let harness = crate::test_harness::TestDaemon::new().await;
         let gw: Arc<dyn yoke::Gateway> =
             Arc::new(ShipdGateway::new(crate::rpc::ops::router(harness.state.clone())));
@@ -346,7 +345,7 @@ mod tests {
         let agent = floki_agent(&["collections"]);
         let executor = Arc::new(ScriptExecutor::spawn());
         let (ctx, mock) = test_ctx_with_mock("fl-smoke-c0");
-        let auth = FlokiAuth::in_process("first-light", vec!["collections".into()]);
+        let auth = YokeAuth::in_process("first-light", vec!["collections".into()]);
 
         let out = run_step(model, &agent, gw, auth, executor, ctx, "list collections")
             .await
@@ -382,7 +381,7 @@ mod tests {
     /// This validates the gate-verdict-reaches-model path through the real ops
     /// router, not the stub InProcessGateway.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn floki_dispatch_smoke_denied_c2_gate_verdict_reaches_model_and_session_events() {
+    async fn yoke_embed_smoke_denied_c2_gate_verdict_reaches_model_and_session_events() {
         let harness = crate::test_harness::TestDaemon::new().await;
         let gw: Arc<dyn yoke::Gateway> =
             Arc::new(ShipdGateway::new(crate::rpc::ops::router(harness.state.clone())));
@@ -404,7 +403,7 @@ mod tests {
         let agent = floki_agent(&[]); // no grants
         let executor = Arc::new(ScriptExecutor::spawn());
         let (ctx, mock) = test_ctx_with_mock("fl-smoke-c2-denied");
-        let auth = FlokiAuth::in_process("first-light", vec![]); // no grants
+        let auth = YokeAuth::in_process("first-light", vec![]); // no grants
 
         let out = run_step(model, &agent, gw, auth, executor, ctx, "create mcp server")
             .await

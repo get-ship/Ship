@@ -23,37 +23,41 @@ use crate::ship_runtime::ShipRuntime;
 
 // ── startup helpers ──────────────────────────────────────────────────────
 
-/// Agent-stack startup: the native-harness Connect dispatch closure + the
-/// agent-sessions actor (full orchestrator with `ship-code`, native-only
-/// without).
+/// Agent-stack startup: in-process Yoke + agent-sessions actor
+/// (full orchestrator with `ship-code`, yoke-only without).
 ///
-/// Native harness (`floki` / `yoke`) always goes out-of-process to Bridge
-/// via ConnectRPC (`ship.yoke.v1`). There is no in-process floki product
-/// path — start `bridge serve` (or set `BRIDGE_YOKE_SOCKET`).
+/// Native harness (`yoke`, alias `floki`) embeds Yoke in-process — no
+/// Bridge/fleet required. Set `YOKE_RPC=1` to force optional Connect to fleet.
 ///
 /// Mount split (2026-07-10): with ship-code off, there is no
 /// `CodeService.Dispatch` route mounted — a coding-agent request surfaces
 /// as a 404, not a refused call (R-A: absence is structural).
 pub(super) async fn start_agent_stack(rt: &Arc<ShipRuntime>, global_dir: &std::path::Path) {
     let ops_router = crate::rpc::ops::router(rt.clone());
-    let floki_gateway = std::sync::Arc::new(crate::floki::gateway::ShipdGateway::new(ops_router));
-    let floki_kernel = rt.kernel().clone();
-    // Product path: ConnectRPC to Bridge. Socket from env or Bridge default.
-    let floki_run_fn: ship_agents::ports::FlokiRunFn = {
-        let gateway = floki_gateway.clone();
+    let yoke_gateway = std::sync::Arc::new(crate::yoke::gateway::ShipdGateway::new(ops_router));
+    let yoke_kernel = rt.kernel().clone();
+    let yoke_rpc = std::env::var("YOKE_RPC").as_deref() == Ok("1");
+    let yoke_run_fn: ship_agents::ports::YokeRunFn = {
+        let gateway = yoke_gateway.clone();
         std::sync::Arc::new(move |payload| {
             let gateway = gateway.clone();
-            let kernel = floki_kernel.clone();
+            let kernel = yoke_kernel.clone();
             Box::pin(async move {
-                crate::floki::yoke_rpc_client::dispatch_yoke_session(payload, gateway, kernel)
+                if yoke_rpc {
+                    crate::yoke::yoke_rpc_client::dispatch_yoke_session_rpc(
+                        payload, gateway, kernel,
+                    )
                     .await;
+                } else {
+                    crate::yoke::embed::dispatch_yoke_session(payload, gateway, kernel).await;
+                }
             })
         })
     };
 
     #[cfg(feature = "ship-code")]
     {
-        // Harness-on: hand the floki closure to the full composition root
+        // Harness-on: hand the yoke closure to the full composition root
         // (RunManager → subscribe_job_events). That path builds the full
         // AgentPorts (with harness fields) AND starts the agent-sessions
         // actor with them — the actor is the SAME one that would otherwise
@@ -65,21 +69,19 @@ pub(super) async fn start_agent_stack(rt: &Arc<ShipRuntime>, global_dir: &std::p
             rt.session_registry().clone(),
             rt.daemon_origin(),
             rt.active_space_id(),
-            Some(floki_run_fn),
+            Some(yoke_run_fn),
         )
         .await;
     }
     #[cfg(not(feature = "ship-code"))]
     {
-        // Flag-off: skip the orchestrator entirely (its OrchestratorContext
-        // and all the harness ports are ship-code-typed), but still start
-        // the agent-sessions actor with a floki-only AgentPorts so floki
-        // sessions keep flowing through the kernel. Non-floki sessions
-        // become no-ops on this actor (the harness-driver stack is
+        // Flag-off: skip the orchestrator (harness ports are ship-code-typed),
+        // but still start agent-sessions with yoke-only AgentPorts so native
+        // sessions keep flowing. Non-yoke sessions no-op (harness-driver stack
         // cfg-omitted from `handle_agent_session_started`).
         let _ = global_dir;
         use ship_substrate::task_health::spawn_monitored;
-        let ports = std::sync::Arc::new(ship_agents::AgentPorts::floki_only(Some(floki_run_fn)));
+        let ports = std::sync::Arc::new(ship_agents::AgentPorts::yoke_only(Some(yoke_run_fn)));
         let kernel_actor = rt.kernel().clone();
         let hr = rt.health_registry();
         spawn_monitored(hr, "agent-sessions", async move {

@@ -40,7 +40,7 @@ use tower::ServiceExt as _;
 
 use crate::auth::{AuthContext as ShipdAuth, gate};
 use yoke::{
-    auth::AuthContext as FlokiAuth,
+    auth::AuthContext as YokeAuth,
     gateway::{Gateway, GatewayCallKind, GatewayError, is_ask_stance},
 };
 
@@ -80,7 +80,7 @@ fn next_request_id(op: &str) -> String {
 /// those are faithfully threaded. `agent_id` is populated for observability.
 /// All other fields are `None`/default — space/session identity is
 /// carried separately via `ToolCtx`, not through the gateway hop.
-fn floki_auth_to_shipd(fa: &FlokiAuth) -> ShipdAuth {
+fn floki_auth_to_shipd(fa: &YokeAuth) -> ShipdAuth {
     ShipdAuth {
         caller_kind: CallerKind::Mcp,
         agent_id: Some(fa.agent_id.clone()),
@@ -119,7 +119,7 @@ impl Gateway for ShipdGateway {
         &self,
         op: &str,
         args: Value,
-        auth: &FlokiAuth,
+        auth: &YokeAuth,
         kind: GatewayCallKind,
     ) -> Result<Value, GatewayError> {
         // ── Step 1: op-name resolution ────────────────────────────────────────
@@ -228,13 +228,13 @@ impl Gateway for ShipdGateway {
 mod tests {
     use super::*;
     use yoke::{
-        auth::AuthContext as FlokiAuth,
+        auth::AuthContext as YokeAuth,
         gateway::{GatewayCallKind, GatewayError},
     };
     use serde_json::Value;
 
-    fn agent(grants: &[&str]) -> FlokiAuth {
-        FlokiAuth::in_process("test-agent", grants.iter().map(|s| s.to_string()).collect())
+    fn agent(grants: &[&str]) -> YokeAuth {
+        YokeAuth::in_process("test-agent", grants.iter().map(|s| s.to_string()).collect())
     }
 
     /// Wiring compiles + ask-stance op with grant → `Ask` (not `Denied`).

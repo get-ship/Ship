@@ -1,11 +1,9 @@
-//! Yoke harness session Connect client (product path).
+//! Optional Yoke session Connect client — **fleet sidecar**, not the shipd default.
 //!
-//! Native harness sessions (`harness == "floki"` | `"yoke"`) always run
-//! out-of-process via Bridge's `ship.yoke.v1.YokeSessionService` over UDS
-//! (h2c). Socket resolution: `BRIDGE_YOKE_SOCKET` → `SHIP_YOKE_SOCKET` →
+//! Product native sessions embed Yoke in-process ([`super::embed`]). Use this
+//! path when `YOKE_RPC=1` (or an explicit socket env) to drive a fleet/bridge
+//! process instead. Socket: `BRIDGE_YOKE_SOCKET` → `SHIP_YOKE_SOCKET` →
 //! default (`$XDG_RUNTIME_DIR/bridge-yoke.sock` or `/tmp/bridge-yoke.sock`).
-//! Gateway ops arrive as `op_call` on the Start stream; this client answers
-//! with unary `OpResult` via [`ShipdGateway`].
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -13,7 +11,7 @@ use std::sync::Arc;
 use agent_def::dispatch_intent::DispatchRequestedPayload;
 use connectrpc::client::{ClientConfig, Http2Connection};
 use yoke::{
-    AuthContext as FlokiAuth, SessionCancelled, SessionCompleted, SessionEventSink, SessionFailed,
+    AuthContext as YokeAuth, SessionCancelled, SessionCompleted, SessionEventSink, SessionFailed,
     SessionStarted,
     gateway::{Gateway, GatewayCallKind, GatewayError},
 };
@@ -21,7 +19,7 @@ use ship_ops_rpc::yoke::v1::{
     OpResultRequest, StartSessionRequest, YokeSessionServiceClient,
     __buffa::view::oneof::session_event as view_event,
 };
-use super::floki_dispatch::ShipdKernelSink;
+use super::embed::ShipdKernelSink;
 use super::gateway::ShipdGateway;
 use crate::ship_runtime::SharedKernel;
 
@@ -67,14 +65,10 @@ pub enum SessionOutcome {
 
 // ── Dispatch entry ───────────────────────────────────────────────────────────
 
-/// Run one harness session over Bridge's Connect yoke service.
+/// Run one harness session over fleet Connect (optional; not shipd default).
 ///
-/// Socket defaults via [`resolve_socket_path`]. Missing socket / transport
-/// errors become `session.failed` at the process edge (no in-process fallback).
-///
-/// Maps lifecycle events onto the shipd kernel and answers `op_call` via
-/// [`ShipdGateway`].
-pub async fn dispatch_yoke_session(
+/// Missing socket / transport → `session.failed` (no auto-fallback to embed).
+pub async fn dispatch_yoke_session_rpc(
     payload: DispatchRequestedPayload,
     gateway: Arc<ShipdGateway>,
     kernel: SharedKernel,
@@ -184,7 +178,7 @@ pub async fn run_session(
         .await
         .map_err(|e| anyhow::anyhow!("YokeSessionService.Start: {e}"))?;
 
-    let auth = FlokiAuth::in_process(&payload.agent_id, vec![]);
+    let auth = YokeAuth::in_process(&payload.agent_id, vec![]);
 
     loop {
         let Some(ev) = stream
@@ -301,7 +295,7 @@ pub async fn run_session(
 
 async fn answer_op_call(
     gateway: &ShipdGateway,
-    auth: &FlokiAuth,
+    auth: &YokeAuth,
     id: &str,
     session_id: &str,
     op: &str,
