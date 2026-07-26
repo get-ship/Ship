@@ -22,17 +22,17 @@ Nothing else depends on the `ship` repo. Shared crates **leave ship** toward eng
 - [ ] Yoke smoke / multi-provider hardened (engines workstream)
 - [ ] `agent-def` fat split → thin types for yoke + fleet
 - [x] **harness-config-compiler → bridge** (path-deps Ship `stack-model`; schemas still Ship)
-- [ ] **ship-code (executors) → bridge** — Bridge *is* ship-code; do not co-move stack-model / substrate- [ ] ship-agents loses ship-code feature graph on default shipd
+- [x] **ship-code → bridge** (executors/lifecycle; path-deps Ship isolation/auth/substrate)
+- [ ] Thin agent-def / reduce ship-code’s fat Ship edges over time
 - [ ] helmd retire (pending, separate)
 - [ ] Rename bridge product → fleet when cheap
 
 ## Order (no open wounds)
 
-1. Yoke embed solid in shipd (this doc’s “done” for product path)
-2. agent-def-types (unblock clean ship-code move)
-3. Move **ship-code** (executors / process assembly) into bridge — Bridge *is* that product. Do **not** co-move stack-model, substrate, isolation, auth.
-4. ship-agents: native = yoke port only; 3P via fleet process/RPC if needed later
-5. Shared stack/agent types leave Ship only into an engines/substrate home — never “because bridge needed a path”
+1. Yoke embed solid in shipd — done
+2. harness-config-compiler + ship-code in bridge — done (path-deps Ship infra)
+3. agent-def-types / engines extract (cut path deps over time)
+4. helmd retire; optional rename bridge → fleet
 
 ## Repo gravity (direction)
 
@@ -61,5 +61,5 @@ Polyrepo motivation: **merge blast radius** (workers changing the wrong surface)
 ## Functionality bar
 
 - shipd default build: native `yoke`/`floki` harness sessions run without `bridge serve`
-- ship-code feature still builds (until move completes); no new harness work lands in ship
-- Tests that assumed “Bridge only” must target embed
+- ship-code feature path-deps Bridge; no new harness product code lands in Ship tree
+- Tests that assumed “Bridge only” for native must target yoke embed
