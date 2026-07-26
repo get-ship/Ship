@@ -34,6 +34,7 @@ use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use ship_substrate::events::process::event_types as process_event_types;
 use ship_substrate::events::process::ProcessKilledPayload;
 use ship_substrate::events::EventEnvelope;
+use ship_code::NoopLifecycleSink;
 use ship_code::dispatch_ports::{
     AgentPlatform, Authority, ExecutorHandle, IsolationStrategy, ProcessRegistryPort,
     ProjectionReader, SessionContext, SessionExecutor, SpawnPolicy,
@@ -265,6 +266,7 @@ fn ports_with(
         floki_run_fn: None,
         isolation,
         executor,
+        lifecycle: Arc::new(NoopLifecycleSink),
         platform,
         registry,
         spawn_policy: Arc::new(TokenSpawnPolicy),
@@ -284,6 +286,7 @@ fn ports_with_projection(
         floki_run_fn: None,
         isolation,
         executor,
+        lifecycle: Arc::new(NoopLifecycleSink),
         platform,
         registry,
         spawn_policy: Arc::new(TokenSpawnPolicy),
@@ -654,6 +657,7 @@ async fn floki_harness_routes_to_floki_run_fn_and_skips_executor() {
             captured: Arc::new(StdMutex::new(None)),
             spawn_calls: spawn_calls.clone(),
         }),
+        lifecycle: Arc::new(NoopLifecycleSink),
         platform: Arc::new(TestPlatform {
             worktrees: tmp.path().join("worktrees"),
             cleanup_calls: Arc::new(AtomicUsize::new(0)),
@@ -714,6 +718,7 @@ async fn floki_harness_without_closure_emits_session_failed() {
             captured: Arc::new(StdMutex::new(None)),
             spawn_calls: spawn_calls.clone(),
         }),
+        lifecycle: Arc::new(NoopLifecycleSink),
         platform: Arc::new(TestPlatform {
             worktrees: tmp.path().join("worktrees"),
             cleanup_calls: Arc::new(AtomicUsize::new(0)),
@@ -1045,7 +1050,7 @@ async fn exit_handler_session_completed_routes_to_runtime_db_not_a_space_dir() {
     let kernel = kernel_with_actor();
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
     ship_code::lifecycle::exit_handler::start(
-        kernel.clone(),
+        Arc::new(crate::KernelLifecycleSink::new(kernel.clone())),
         Arc::new(NoopRegistry),
         ship_code::lifecycle::ExitVocabulary::AgentSession {
             session_id: SESSION_ID.to_string(),

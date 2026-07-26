@@ -26,8 +26,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use ship_substrate::events::process::{event_types as proc_events, ProcessKilledPayload};
-use ship_substrate::events::{EventEnvelope, KernelRouter};
+
 use crate::dispatch_ports::{
     ExecutorHandle, ExitCause, ExitSignal, SessionContext, SessionExecutor, LaunchCommand, LaunchProfile,
 };
@@ -47,7 +46,7 @@ pub(crate) fn merge_session_env_into_launch(
         launch.env.entry(k.clone()).or_insert_with(|| v.clone());
     }
 }
-use ship_substrate::events::emit::persist_and_route;
+use crate::lifecycle::sink::LifecycleSink;
 use ship_harnesses::agent_driver::{adapter_for_or_default, AgentDriver};
 use process_supervisor::{spawn_process, ProcessHandle, ProcessKind, ProcessProfile, TransportKind};
 /// Kept in ProcessExecutor (the headless spawn path) because only
@@ -79,19 +78,17 @@ fn build_headless_with_default_prompt(
     }
     Ok(adapter.build_headless(slug, &p))
 }
-use tokio::sync::Mutex as TokioMutex;
-
 /// Job executor that spawns agents as direct child processes under a PTY.
 ///
-/// `kernel` is optional so unit tests that don't wire a runtime kernel
-/// can construct the executor bare. Emission is skipped when `None`.
+/// Lifecycle observation goes through [`LifecycleSink`] — never
+/// `KernelRouter`. Hosts that don't care pass [`NoopLifecycleSink`](crate::lifecycle::NoopLifecycleSink).
 pub(crate) struct ProcessExecutor {
-    kernel: Option<Arc<TokioMutex<KernelRouter>>>,
+    sink: Arc<dyn LifecycleSink>,
 }
 
 impl ProcessExecutor {
-    pub(crate) fn new(kernel: Option<Arc<TokioMutex<KernelRouter>>>) -> Self {
-        Self { kernel }
+    pub(crate) fn new(sink: Arc<dyn LifecycleSink>) -> Self {
+        Self { sink }
     }
 }
 
@@ -1007,6 +1004,7 @@ impl SessionExecutor for ProcessExecutor {
         let synth_hooks_from_stream = harness_for_session == "opencode";
         let synth_actor_id = ctx.slug.clone();
         let minted_token = minted_token.take();
+        let sink_for_stream = Arc::clone(&self.sink);
         tokio::spawn(async move {
             // Bounded line buffer: a real PTY keeps claude/codex in
             // structured-output mode, but an interactive harness instead
@@ -1063,7 +1061,7 @@ impl SessionExecutor for ProcessExecutor {
                                         } else {
                                             Some(input_preview.as_str())
                                         };
-                                        let _ = super::synth_emit::emit_op_tool_use_started_synth(
+                                        sink_for_stream.op_tool_use_started(
                                             &synth_actor_id,
                                             &tool,
                                             preview,
@@ -1084,7 +1082,7 @@ impl SessionExecutor for ProcessExecutor {
                                         stop_reason,
                                         harness_reported_cost_usd,
                                     } => {
-                                        let _ = super::synth_emit::emit_turn_ended_synth(
+                                        sink_for_stream.turn_ended(
                                             &synth_actor_id,
                                             model.as_deref(),
                                             input_tokens,
@@ -1192,14 +1190,9 @@ impl SessionExecutor for ProcessExecutor {
         }
         tracing::debug!(pid, "process-executor: sent SIGTERM (process group), waiting up to 30s");
 
-        emit_process_killed(
-            self.kernel.as_ref(),
-            &state.slug,
-            pid,
-            "SIGTERM",
-            "graceful_shutdown",
-        )
-        .await;
+        self.sink
+            .process_killed(&state.slug, pid, "SIGTERM", "graceful_shutdown", "supervisor")
+            .await;
 
         for _ in 0..30 {
             tokio::time::sleep(std::time::Duration::from_secs(1)).await;
@@ -1211,14 +1204,15 @@ impl SessionExecutor for ProcessExecutor {
 
         tracing::warn!(pid, "process-executor: process did not exit after 30s, sending SIGKILL");
 
-        emit_process_killed(
-            self.kernel.as_ref(),
-            &state.slug,
-            pid,
-            "SIGKILL",
-            "force_after_grace_period",
-        )
-        .await;
+        self.sink
+            .process_killed(
+                &state.slug,
+                pid,
+                "SIGKILL",
+                "force_after_grace_period",
+                "supervisor",
+            )
+            .await;
         Ok(())
     }
 
@@ -1226,40 +1220,6 @@ impl SessionExecutor for ProcessExecutor {
         // Non-interactive process — messages not supported.
         // Use mesh events for agent communication instead.
         Err(anyhow::anyhow!("ProcessExecutor does not support interactive messages"))
-    }
-}
-
-/// Build a `process.killed` envelope and persist+route it via the kernel.
-/// Mirrors the inline pattern used in the runner's cancel path so both call
-/// sites project into the same event stream.
-///
-/// Emits through the L0 `ship_substrate::events::emit::persist_and_route` helper — an
-/// L0-to-L0 reach. This resolves the historic layer-direction violation: the
-/// supervisor no longer reaches UP into `ship_platform::…::orchestrator::emit`
-/// to touch the kernel; the kernel-emit plumbing is now L0 runner mechanism.
-async fn emit_process_killed(
-    kernel: Option<&Arc<TokioMutex<KernelRouter>>>,
-    slug: &str,
-    pid: Option<u32>,
-    signal: &str,
-    reason: &str,
-) {
-    let Some(kernel) = kernel else { return };
-    let payload = ProcessKilledPayload {
-        slug: slug.to_string(),
-        pid,
-        signal: signal.to_string(),
-        reason: reason.to_string(),
-        actor: "supervisor".to_string(),
-    };
-    match EventEnvelope::new(proc_events::PROCESS_KILLED, slug, &payload) {
-        Ok(env) => {
-            let env = env.with_actor_id("service.process-executor");
-            persist_and_route(kernel, env, slug).await;
-        }
-        Err(e) => {
-            tracing::warn!(slug, "process-executor: failed to build process.killed envelope: {e}");
-        }
     }
 }
 
@@ -1339,16 +1299,33 @@ mod tests {
 
     // ── emission tests ─────────────────────────────────────────────────────
     //
-    // These tests drive `stop()` end-to-end by constructing a real PTY child
-    // + ProcessState and invoking the SessionExecutor trait. They assert the
-    // event store actually contains a `process.killed` envelope afterward,
-    // not just that the call site fires — matches the spec's acceptance
-    // criterion for event-store reads.
+    // Drive `stop()` with a recording sink — harness code reports outcomes;
+    // it does not touch the event store.
 
-    use ship_substrate::events::kernel_router::KernelRouter;
-    use ship_substrate::events::process::event_types as proc_events;
-    use ship_substrate::db::events::query_events_by_entity_and_type_at;
-    use std::sync::Arc;
+    use async_trait::async_trait;
+    use std::sync::{Arc, Mutex as StdMutex};
+
+    #[derive(Default)]
+    struct RecordingSink {
+        killed: StdMutex<Vec<(String, String, String)>>, // slug, signal, reason
+    }
+
+    #[async_trait]
+    impl LifecycleSink for RecordingSink {
+        async fn process_killed(
+            &self,
+            slug: &str,
+            _pid: Option<u32>,
+            signal: &str,
+            reason: &str,
+            _actor: &str,
+        ) {
+            self.killed
+                .lock()
+                .unwrap()
+                .push((slug.to_string(), signal.to_string(), reason.to_string()));
+        }
+    }
 
     /// Spawn a `sleep 60` child via the supervisor primitive and wrap
     /// it in a ProcessState ready for `stop()`. Returns the state plus
@@ -1384,26 +1361,12 @@ mod tests {
         (tmp, state)
     }
 
-    fn setup_kernel() -> (tempfile::TempDir, Arc<TokioMutex<KernelRouter>>, std::path::PathBuf) {
-        let dir = tempfile::tempdir().unwrap();
-        let base = dir.path().join(".ship"); // test HOME dir (global-home shape, not discovery)
-        std::fs::create_dir_all(&base).unwrap();
-        let router = KernelRouter::new(base.clone()).unwrap();
-        // process.* is Runtime-scoped → the kernel sink routes it to runtime.db.
-        let db = ship_substrate::db::runtime_db_path(&base);
-        (dir, Arc::new(TokioMutex::new(router)), db)
-    }
-
-    /// `stop()` must project a `process.killed` envelope with signal=SIGTERM
-    /// and reason=graceful_shutdown — the audit record that the graceful
-    /// path fired.
+    /// `stop()` must report process_killed(SIGTERM, graceful_shutdown) on the sink.
     #[tokio::test(flavor = "multi_thread")]
     #[cfg_attr(not(unix), ignore)]
-    async fn process_executor_emits_process_killed_on_sigterm_path() {
+    async fn process_executor_reports_process_killed_on_sigterm_path() {
         // Real-PTY integration test: forks an actual child under a PTY and
-        // SIGTERMs it. The PTY/fork races sibling spawns suite-wide, so it's
-        // flaky in the default parallel run. Opt in with SHIP_TMUX_TESTS=1
-        // (the real-spawn integration switch).
+        // SIGTERMs it. Opt in with SHIP_TMUX_TESTS=1.
         if ship_substrate::env::read_raw(ship_substrate::env::Var::TmuxTests)
             .ok()
             .as_deref()
@@ -1413,26 +1376,23 @@ mod tests {
             return;
         }
         let _spawn_guard = crate::executors::real_spawn_guard();
-        let (_dir, kernel, db) = setup_kernel();
+        let sink = Arc::new(RecordingSink::default());
         let (_tmp, state) = spawn_sleep_state("proc-sigterm");
 
-        let executor = ProcessExecutor::new(Some(Arc::clone(&kernel)));
-        let handle = ExecutorHandle { pid: state.pid, inner: Box::new(state) };
+        let executor = ProcessExecutor::new(sink.clone());
+        let handle = ExecutorHandle {
+            pid: state.pid,
+            inner: Box::new(state),
+        };
 
         executor.stop(&handle).await.expect("stop should succeed");
 
-        let events =
-            query_events_by_entity_and_type_at(&db, "proc-sigterm", proc_events::PROCESS_KILLED)
-                .expect("query must succeed");
-        let payload: ProcessKilledPayload = events
+        let killed = sink.killed.lock().unwrap().clone();
+        let hit = killed
             .iter()
-            .find_map(|e| {
-                let p: ProcessKilledPayload = serde_json::from_str(&e.payload_json).ok()?;
-                (p.signal == "SIGTERM").then_some(p)
-            })
-            .expect("process.killed SIGTERM event must be persisted");
-        assert_eq!(payload.reason, "graceful_shutdown");
-        assert_eq!(payload.actor, "supervisor");
-        assert_eq!(payload.slug, "proc-sigterm");
+            .find(|(_, signal, _)| signal == "SIGTERM")
+            .expect("process_killed SIGTERM must be reported on the sink");
+        assert_eq!(hit.0, "proc-sigterm");
+        assert_eq!(hit.2, "graceful_shutdown");
     }
 }

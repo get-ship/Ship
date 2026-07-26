@@ -18,11 +18,16 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::dispatch_ports::{ExecutorHandle, SessionContext, SessionExecutor, LaunchProfile};
+use crate::lifecycle::NoopLifecycleSink;
 use ship_harnesses::agent_driver::capabilities;
 use agent_driver::server_session::StubSession;
 
 use super::routing::{RouteKind, RoutingExecutor, ServerSessionRegistry};
 use super::server::ServerExecutor;
+
+fn noop_sink() -> Arc<dyn crate::lifecycle::LifecycleSink> {
+    Arc::new(NoopLifecycleSink)
+}
 
 fn fresh_ctx(harness: Option<&str>) -> SessionContext {
     let tmp = tempfile::tempdir().expect("tempdir");
@@ -57,7 +62,7 @@ fn fresh_ctx(harness: Option<&str>) -> SessionContext {
 #[tokio::test]
 async fn server_executor_spawn_with_stub_session_errors_clearly() {
     let session = Arc::new(StubSession::new("codex"));
-    let executor = ServerExecutor::new(None, session);
+    let executor = ServerExecutor::new(session);
     let ctx = fresh_ctx(Some("codex"));
 
     let result = <ServerExecutor as SessionExecutor>::spawn(&executor, &ctx).await;
@@ -76,7 +81,7 @@ async fn routing_picks_server_executor_when_harness_supports_and_session_bound()
     // RoutingExecutor should route through ServerExecutor.
     let registry = ServerSessionRegistry::new();
     registry.bind("codex", Arc::new(StubSession::new("codex")));
-    let routing = RoutingExecutor::with_registry(None, registry);
+    let routing = RoutingExecutor::with_registry(noop_sink(), registry);
 
     let ctx = fresh_ctx(Some("codex"));
     assert_eq!(routing.route_kind(&ctx), RouteKind::Server);
@@ -96,7 +101,7 @@ fn routing_falls_back_when_no_session_bound_for_server_mode_harness() {
     // Codex declares server_mode=true but the registry is empty, so
     // routing must NOT pick ServerExecutor — it falls through to
     // Process (headless) or TmuxWindow (interactive).
-    let routing = RoutingExecutor::with_registry(None, ServerSessionRegistry::new());
+    let routing = RoutingExecutor::with_registry(noop_sink(), ServerSessionRegistry::new());
     let ctx = fresh_ctx(Some("codex"));
     assert_ne!(routing.route_kind(&ctx), RouteKind::Server);
 }
@@ -108,7 +113,7 @@ fn routing_falls_back_for_non_server_mode_harness_even_if_registry_has_entry() {
     // must NOT be picked.
     let registry = ServerSessionRegistry::new();
     registry.bind("claude", Arc::new(StubSession::new("claude")));
-    let routing = RoutingExecutor::with_registry(None, registry);
+    let routing = RoutingExecutor::with_registry(noop_sink(), registry);
 
     let ctx = fresh_ctx(Some("claude"));
     assert_ne!(routing.route_kind(&ctx), RouteKind::Server);
@@ -152,7 +157,7 @@ async fn server_executor_stop_delegates_to_session_cancel() {
     // StubSession. Instead, exercise the degenerate path: stop on a
     // handle whose state doesn't match ServerState is a no-op Ok.
     let session = Arc::new(StubSession::new("codex"));
-    let executor = ServerExecutor::new(None, session);
+    let executor = ServerExecutor::new(session);
     let handle = ExecutorHandle { pid: None, inner: Box::new(42u32) };
     <ServerExecutor as SessionExecutor>::stop(&executor, &handle)
         .await
@@ -175,7 +180,7 @@ async fn routing_pre_flight_fails_cleanly_when_binary_missing() {
     // process-global; this test mustn't run in parallel with anything
     // else that depends on PATH. Bun integration tests use a separate
     // process so we're safe here.
-    let routing = RoutingExecutor::with_registry(None, ServerSessionRegistry::new());
+    let routing = RoutingExecutor::with_registry(noop_sink(), ServerSessionRegistry::new());
     let ctx = fresh_ctx(Some("claude"));
 
     let empty = tempfile::tempdir().expect("tempdir");

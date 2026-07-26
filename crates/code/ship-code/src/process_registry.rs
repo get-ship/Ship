@@ -3,7 +3,6 @@
 
 use async_trait::async_trait;
 use futures_util::future::join_all;
-use ship_substrate::events::{EmitContext, EventEnvelope, KernelRouter};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -11,7 +10,8 @@ use tokio::sync::Mutex;
 
 const CANCEL_TOMBSTONE_TTL: Duration = Duration::from_secs(120);
 
-use crate::dispatch_ports::{ExecutorHandle, SessionExecutor, ProcessRegistryPort};
+use crate::dispatch_ports::{ExecutorHandle, ProcessRegistryPort, SessionExecutor};
+use crate::lifecycle::sink::LifecycleSink;
 
 /// Tracks spawned agent processes by slug → handle mapping.
 pub struct ProcessRegistry {
@@ -156,31 +156,16 @@ impl ProcessRegistryPort for SharedRegistry {
     }
 }
 
-/// Graceful shutdown: emit `supervisor.shutting_down`, then stop all agents.
+/// Graceful shutdown: notify host, then stop all agents.
+///
+/// Emission of `supervisor.shutting_down` is the host's job via
+/// [`LifecycleSink::supervisor_shutting_down`].
 pub async fn graceful_shutdown(
-    kernel: &Arc<Mutex<KernelRouter>>,
+    sink: &Arc<dyn LifecycleSink>,
     registry: &mut ProcessRegistry,
     executor: Arc<dyn SessionExecutor>,
 ) {
-    let envelope = match EventEnvelope::new(
-        ship_substrate::events::types::event_types::SUPERVISOR_SHUTTING_DOWN,
-        "supervisor",
-        &serde_json::json!({
-            "agent_count": registry.len(),
-        }),
-    ) {
-        Ok(e) => e.with_actor_id("supervisor"),
-        Err(e) => {
-            tracing::error!("graceful_shutdown: failed to build event: {e}");
-            registry.shutdown_all(executor).await;
-            return;
-        }
-    };
-
-    let ctx = EmitContext::daemon_internal(None);
-    if let Err(e) = kernel.lock().await.emit(envelope, &ctx).await {
-        tracing::warn!("graceful_shutdown: failed to emit shutting_down event: {e}");
-    }
+    sink.supervisor_shutting_down(registry.len()).await;
 
     let stopped = registry.shutdown_all(executor).await;
     tracing::info!(

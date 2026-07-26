@@ -27,11 +27,10 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use ship_substrate::events::KernelRouter;
 use crate::dispatch_ports::{ExecutorHandle, InvocationMode, SessionContext, SessionExecutor};
+use crate::lifecycle::sink::LifecycleSink;
 use ship_harnesses::agent_driver::adapter_for_or_default;
 use agent_driver::server_session::ServerSession;
-use tokio::sync::Mutex;
 
 use super::{ProcessExecutor, ServerExecutor, TmuxWindowExecutor};
 
@@ -71,22 +70,23 @@ impl ServerSessionRegistry {
 /// Routes each `spawn` to Server, TmuxWindow, or Process per the rules
 /// in the module docs.
 pub struct RoutingExecutor {
-    kernel: Option<Arc<Mutex<KernelRouter>>>,
+    #[allow(dead_code)] // retained for future server-session event mapping
+    sink: Arc<dyn LifecycleSink>,
     tmux_window: Option<TmuxWindowExecutor>,
     process: ProcessExecutor,
     sessions: ServerSessionRegistry,
 }
 
 impl RoutingExecutor {
-    pub fn new(kernel: Option<Arc<Mutex<KernelRouter>>>) -> Self {
-        Self::with_registry(kernel, ServerSessionRegistry::new())
+    pub fn new(sink: Arc<dyn LifecycleSink>) -> Self {
+        Self::with_registry(sink, ServerSessionRegistry::new())
     }
 
     /// Construct with a pre-built session registry — used by tests to
     /// inject stub sessions and by future daemon wiring once real
     /// sessions are bound during supervisor startup.
     pub(crate) fn with_registry(
-        kernel: Option<Arc<Mutex<KernelRouter>>>,
+        sink: Arc<dyn LifecycleSink>,
         sessions: ServerSessionRegistry,
     ) -> Self {
         let tmux_window = match TmuxWindowExecutor::new() {
@@ -100,9 +100,9 @@ impl RoutingExecutor {
             }
         };
         Self {
-            kernel: kernel.clone(),
+            process: ProcessExecutor::new(Arc::clone(&sink)),
+            sink,
             tmux_window,
-            process: ProcessExecutor::new(kernel),
             sessions,
         }
     }
@@ -116,7 +116,7 @@ impl RoutingExecutor {
             return None;
         }
         let session = self.sessions.get(adapter.id())?;
-        Some(ServerExecutor::new(self.kernel.clone(), session))
+        Some(ServerExecutor::new(session))
     }
 
     /// Lazy-spawn a server-mode session on first dispatch for any harness
@@ -358,14 +358,11 @@ fn binary_on_path(name: &str) -> bool {
 /// instances around because each `ServerExecutor` holds one session
 /// `Arc`, and we may have multiple bound harnesses.
 fn server_for_handle(
-    routing: &RoutingExecutor,
+    _routing: &RoutingExecutor,
     handle: &ExecutorHandle,
 ) -> Option<ServerExecutor> {
     // Use the session stored on the handle itself — it carries its
     // session Arc. Borrow via the same type the executor uses.
     let state = handle.inner.downcast_ref::<super::server::ServerState>()?;
-    Some(ServerExecutor::new(
-        routing.kernel.clone(),
-        state.session_arc(),
-    ))
+    Some(ServerExecutor::new(state.session_arc()))
 }

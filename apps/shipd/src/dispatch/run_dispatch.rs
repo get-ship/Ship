@@ -63,8 +63,15 @@ pub async fn subscribe_job_events(
     // RoutingExecutor transparently falls back to ProcessExecutor for every
     // job with a single warning line.
     tracing::info!("job-dispatch: using RoutingExecutor (tmux-window default, headless on flag)");
+    // bridge: future call site — wrap `executor` in
+    // `ship_code::SessionExecutor` (`bridge monorepo HarnessDriver (RPC/external)`) so
+    // shipd's composition root can expose spawn via the Bridge library
+    // API. Phase 0 keeps AgentPorts on SessionExecutor; adapter is ready
+    // in ship-code for incremental adopt.
+    let lifecycle: Arc<dyn ship_code::LifecycleSink> =
+        Arc::new(ship_agents::KernelLifecycleSink::new(kernel.clone()));
     let executor: Arc<dyn SessionExecutor> =
-        Arc::new(RoutingExecutor::new(Some(kernel.clone())));
+        Arc::new(RoutingExecutor::new(Arc::clone(&lifecycle)));
 
     let registry = Arc::new(Mutex::new(ProcessRegistry::new()));
 
@@ -93,6 +100,7 @@ pub async fn subscribe_job_events(
         floki_run_fn,
         isolation,
         executor: executor.clone(),
+        lifecycle,
         platform,
         registry: registry_port,
         spawn_policy,

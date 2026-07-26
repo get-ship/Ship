@@ -22,6 +22,8 @@ pub use agent_def as agent_domain;
 pub mod cancel;
 pub mod dispatch;
 pub mod hooks;
+#[cfg(feature = "ship-code")]
+pub mod lifecycle_sink;
 pub mod ports;
 // Agent-run assembly (executors, helpers, agent_lifecycle) moved to the `ship-code`
 // crate (Floki carve D3) — the third-party-harness driver box. Re-exported as
@@ -37,6 +39,8 @@ pub use actor::{handle_agents_event, start_agents};
 #[cfg(feature = "ship-code")]
 pub use cancel::handle_agent_cancelled;
 pub use dispatch::handle_dispatch_requested;
+#[cfg(feature = "ship-code")]
+pub use lifecycle_sink::KernelLifecycleSink;
 pub use ports::AgentPorts;
 
 // Back-compat re-exports so existing callers via ship_agents::agents::* still work.

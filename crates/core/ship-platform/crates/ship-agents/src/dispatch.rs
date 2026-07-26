@@ -286,7 +286,7 @@ async fn dispatch_agent_session_internal(
     // Start the exit handler under the canonical session vocabulary — emits
     // session.{completed,failed} keyed on session_id.
     exit_handler::start(
-        kernel.clone(),
+        ports.lifecycle.clone(),
         ports.registry.clone(),
         ExitVocabulary::AgentSession {
             session_id: payload.session_id.clone(),

@@ -26,6 +26,8 @@ use ship_code::dispatch_ports::{
     AgentPlatform, IsolationStrategy, ProcessRegistryPort, ProjectionReader, SessionExecutor,
     SpawnPolicy,
 };
+#[cfg(feature = "ship-code")]
+use ship_code::LifecycleSink;
 
 /// Async callback type for floki-harness dispatch.
 ///
@@ -58,6 +60,9 @@ pub struct AgentPorts {
     /// Spawns / stops the harness process.
     #[cfg(feature = "ship-code")]
     pub executor: Arc<dyn SessionExecutor>,
+    /// Host observation port — kernel emission lives here, not in harness code.
+    #[cfg(feature = "ship-code")]
+    pub lifecycle: Arc<dyn LifecycleSink>,
     /// Host platform ops (worktrees dir, cleanup, token mint).
     #[cfg(feature = "ship-code")]
     pub platform: Arc<dyn AgentPlatform>,

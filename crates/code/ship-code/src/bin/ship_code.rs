@@ -15,12 +15,6 @@ use std::path::PathBuf;
 
 use cli::{Cli, Commands};
 
-fn try_init_kernel_router() {
-    if let Ok(dir) = ship_substrate::project::get_global_dir() {
-        let _ = ship_substrate::events::init_kernel_router(dir);
-    }
-}
-
 fn main() {
     if let Err(e) = run() {
         eprintln!("Error: {:#}", e);
@@ -31,7 +25,8 @@ fn main() {
 }
 
 fn run() -> Result<()> {
-    try_init_kernel_router();
+    // Kernel is host-owned (shipd). This CLI talks to the daemon over RPC /
+    // UDS for ops; it does not initialize KernelRouter.
     let _log_guard = logging::init();
     let cli = Cli::parse();
     dispatch(cli.command)
@@ -96,7 +91,6 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
 }
 
 fn run_use(agent_id: Option<&str>, path: Option<PathBuf>, extra_skills: Vec<String>) -> Result<()> {
-    try_init_kernel_router();
     let ship_dir = match path {
         Some(ref p) => {
             let sd = std::fs::canonicalize(p)?;

@@ -92,9 +92,17 @@ pub fn start_dispatch_runtime(
     kernel: Arc<Mutex<KernelRouter>>,
     daemon_origin: String,
 ) -> DispatchHandle {
+    // bridge: future call site — wrap `executor` in
+    // `ship_code::SessionExecutor` (implements `bridge monorepo HarnessDriver (RPC/external)`)
+    // so helm/admiral spawn goes through the Bridge control-plane trait
+    // instead of only SessionExecutor. Phase 0 leaves the actor path on
+    // SessionExecutor; the adapter lives in ship-code for incremental adopt.
     // RoutingExecutor picks tmux-window (interactive) or process (headless) per
     // job; falls back to ProcessExecutor when tmux is unavailable.
-    let executor: Arc<dyn SessionExecutor> = Arc::new(RoutingExecutor::new(Some(kernel.clone())));
+    let lifecycle: Arc<dyn ship_code::LifecycleSink> =
+        Arc::new(ship_agents::KernelLifecycleSink::new(kernel.clone()));
+    let executor: Arc<dyn SessionExecutor> =
+        Arc::new(RoutingExecutor::new(Arc::clone(&lifecycle)));
 
     let registry = Arc::new(Mutex::new(ProcessRegistry::new()));
 
@@ -119,6 +127,7 @@ pub fn start_dispatch_runtime(
         floki_run_fn: None,
         isolation,
         executor: executor.clone(),
+        lifecycle,
         platform,
         registry: registry_port,
         spawn_policy,

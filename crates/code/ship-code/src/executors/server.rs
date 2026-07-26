@@ -22,12 +22,10 @@ use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
-use ship_substrate::events::KernelRouter;
 use crate::dispatch_ports::{
     ExecutorHandle, ExitCause, ExitSignal, SessionContext, SessionExecutor,
 };
 use agent_driver::server_session::{ServerSession, SessionEvent};
-use tokio::sync::Mutex as TokioMutex;
 
 /// Default prompt used when `.artifacts/job-spec.md` is missing — mirrors
 /// the non-interactive autostart fallback in `ProcessExecutor`.
@@ -38,16 +36,12 @@ const FALLBACK_PROMPT: &str = "Read .artifacts/job-spec.md and execute it autono
 /// Selected by `RoutingExecutor` when the harness advertises
 /// `caps().server_mode` AND a real session is bound in the registry.
 pub(crate) struct ServerExecutor {
-    _kernel: Option<Arc<TokioMutex<KernelRouter>>>,
     session: Arc<dyn ServerSession>,
 }
 
 impl ServerExecutor {
-    pub(crate) fn new(
-        kernel: Option<Arc<TokioMutex<KernelRouter>>>,
-        session: Arc<dyn ServerSession>,
-    ) -> Self {
-        Self { _kernel: kernel, session }
+    pub(crate) fn new(session: Arc<dyn ServerSession>) -> Self {
+        Self { session }
     }
 }
 

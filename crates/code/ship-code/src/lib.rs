@@ -28,3 +28,4 @@ pub mod lifecycle;
 
 pub use executors::{pty_actor_handle, pty_executor_handle_for_test};
 pub use helpers::worktrees_dir;
+pub use lifecycle::{LifecycleSink, NoopLifecycleSink};

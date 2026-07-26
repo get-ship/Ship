@@ -38,12 +38,23 @@ pub(super) async fn start_agent_stack(rt: &Arc<ShipRuntime>, global_dir: &std::p
     let ops_router = crate::rpc::ops::router(rt.clone());
     let floki_gateway = std::sync::Arc::new(crate::floki::gateway::ShipdGateway::new(ops_router));
     let floki_kernel = rt.kernel().clone();
+    // Dual path (H3 spike): if BRIDGE_YOKE_SOCKET / SHIP_YOKE_SOCKET is set,
+    // dispatch native sessions over UDS NDJSON to bridge serve; otherwise
+    // keep the in-process floki composition root. Floki stays until RPC is
+    // proven — do not remove the else branch.
     let floki_run_fn: ship_agents::ports::FlokiRunFn = {
         let gateway = floki_gateway.clone();
         std::sync::Arc::new(move |payload| {
             let gateway = gateway.clone();
             let kernel = floki_kernel.clone();
-            Box::pin(crate::floki::floki_dispatch::dispatch_floki_session(payload, gateway, kernel))
+            Box::pin(async move {
+                if let Some(socket) = crate::floki::yoke_rpc_client::socket_path_from_env() {
+                    crate::floki::yoke_rpc_client::dispatch_yoke_session(payload, &socket).await;
+                } else {
+                    crate::floki::floki_dispatch::dispatch_floki_session(payload, gateway, kernel)
+                        .await;
+                }
+            })
         })
     };
 
@@ -410,7 +421,13 @@ pub(super) async fn drain_and_shutdown(rt: &Arc<ShipRuntime>) {
         const SHUTDOWN_DRAIN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(8);
         let mut registry = dh.registry.lock().await;
         let count = registry.len();
-        let drain = ship_code::process_registry::graceful_shutdown(rt.kernel(), &mut registry, Arc::clone(&dh.executor));
+        let sink: Arc<dyn ship_code::LifecycleSink> =
+            Arc::new(ship_agents::KernelLifecycleSink::new(rt.kernel().clone()));
+        let drain = ship_code::process_registry::graceful_shutdown(
+            &sink,
+            &mut registry,
+            Arc::clone(&dh.executor),
+        );
         if tokio::time::timeout(SHUTDOWN_DRAIN_TIMEOUT, drain).await.is_err() {
             tracing::warn!(
                 timeout_secs = SHUTDOWN_DRAIN_TIMEOUT.as_secs(),

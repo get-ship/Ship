@@ -19,10 +19,12 @@
 
 pub mod exit_handler;
 pub mod invocation;
+pub mod sink;
 pub mod spawn_env;
 pub mod teardown;
 
 pub use exit_handler::ExitVocabulary;
 pub use invocation::resolve_step_invocation;
-pub use teardown::{stop_by_slug, stop_handle};
+pub use sink::{LifecycleSink, NoopLifecycleSink};
 pub use spawn_env::build_spawn_env;
+pub use teardown::{stop_by_slug, stop_handle};
