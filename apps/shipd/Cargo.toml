@@ -23,7 +23,7 @@ ship-resolver = { path = "../../crates/core/ship-resolver" }
 ship-substrate = { path = "../../crates/core/ship-substrate" }
 journal-sqlite = { path = "../../crates/core/ship-substrate/crates/journal-sqlite" }
 ship-platform = { path = "../../crates/core/ship-platform" }
-ship-code = { path = "../../crates/code/ship-code", features = ["ship-code"], optional = true }
+ship-code = { path = "../../../bridge/crates/ship-code", features = ["ship-code"], optional = true }
 ship-agents = { path = "../../crates/core/ship-platform/crates/ship-agents" }
 ship-auth = { path = "../../crates/core/ship-platform/crates/ship-auth" }
 

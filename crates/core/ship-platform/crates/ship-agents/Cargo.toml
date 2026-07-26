@@ -22,7 +22,7 @@ ship-types = { path = "../../../ship-substrate/crates/ship-types" }
 ship-kernel = { path = "../../../ship-substrate/crates/ship-kernel" }
 # L1 crates (carved siblings, no cycle)
 agent-def = { path = "../agent-def" }
-ship-code = { path = "../../../../code/ship-code", features = ["ship-code"], optional = true }
+ship-code = { path = "../../../../../../bridge/crates/ship-code", features = ["ship-code"], optional = true }
 ship-config = { path = "../ship-config" }
 ship-harnesses = { path = "../ship-harnesses" }
 ship-files = { path = "../ship-files" }

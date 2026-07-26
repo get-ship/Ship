@@ -99,7 +99,7 @@ ship-config = { path = "../../crates/core/ship-platform/crates/ship-config" }
 # helpers, agent_lifecycle, the `EventDedup` gate. helmd's dispatch runtime is
 # Spine 1 (always on): floki dispatch closure + the L1 executor lib the
 # dispatch composition root calls into (see dispatch.rs).
-ship-code = { path = "../../crates/code/ship-code", features = ["ship-code"], optional = true }
+ship-code = { path = "../../../bridge/crates/ship-code", features = ["ship-code"], optional = true }
 # Spine 2b dispatch deps — pulled in only when `ship-code` is on.
 ship-auth = { path = "../../crates/core/ship-platform/crates/ship-auth", optional = true }
 ship-auth-types = { path = "../../crates/core/ship-substrate/crates/ship-auth-types", optional = true }
