@@ -322,7 +322,7 @@ impl AgentPlatform for HelmdPlatform {
     }
 
     fn git_merge(&self, branch: &str) -> Result<bool> {
-        let merge_result = ship_substrate::spawn_bounded::Cmd::new("git")
+        let merge_result = bounded_spawn::Cmd::new("git")
             .args(["merge", branch, "--no-edit"])
             .current_dir(helpers::repo_dir())
             .timeout_secs(60)

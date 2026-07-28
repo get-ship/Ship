@@ -39,7 +39,7 @@ pub fn spawn_shell(
         subscribe_namespaces: vec![],
     };
 
-    let handle = spawn_process(profile)?;
+    let handle = spawn_process(profile, ship_substrate::supervisor_sink::supervisor_context()?)?;
     let now = Utc::now();
     let meta = SessionRecord {
         id: handle.actor_id.clone(),

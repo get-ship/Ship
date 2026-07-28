@@ -17,7 +17,7 @@ pub async fn graceful_agent_exit(slug: &str, harness: Option<&str>) {
     // `.output()` (not `.status()`): a missing session makes tmux print
     // "can't find session: <name>" on stderr, which `.status()` would
     // inherit into the daemon log as phantom-failure noise.
-    let has_session = ship_substrate::spawn_bounded::Cmd::new("tmux")
+    let has_session = bounded_spawn::Cmd::new("tmux")
         .args(["has-session", "-t", &tmux_session])
         .output()
         .map(|o| o.status.success())
@@ -29,13 +29,13 @@ pub async fn graceful_agent_exit(slug: &str, harness: Option<&str>) {
     }
 
     tracing::info!(slug, session = %tmux_session, "pipeline: sending exit command to current agent");
-    let _ = ship_substrate::spawn_bounded::Cmd::new("tmux")
+    let _ = bounded_spawn::Cmd::new("tmux")
         .args(["send-keys", "-t", &tmux_session, &exit_cmd, "Enter"])
         .status();
 
     for _ in 0..30 {
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-        let output = ship_substrate::spawn_bounded::Cmd::new("tmux")
+        let output = bounded_spawn::Cmd::new("tmux")
             .args(["capture-pane", "-t", &tmux_session, "-p"])
             .output();
         if let Ok(out) = output {

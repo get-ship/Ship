@@ -31,8 +31,9 @@ home = { workspace = true }
 agent-def = { path = "../core/ship-platform/crates/agent-def", features = ["ship-code"] }
 ship-resolver = { path = "../core/ship-resolver" }
 ship-substrate = { path = "../core/ship-substrate" }
-process-supervisor = { path = "../core/ship-substrate/crates/process-supervisor" }
-isolation-port = { path = "../core/ship-substrate/crates/isolation-port" }
+bounded-spawn = { git = "https://github.com/get-ship/ship-exec.git", rev = "d7cddebe61e58e9928dff65fb598d10f89c5e3f1" }
+process-supervisor = { git = "https://github.com/get-ship/ship-exec.git", rev = "d7cddebe61e58e9928dff65fb598d10f89c5e3f1" }
+isolation-port = { git = "https://github.com/get-ship/ship-exec.git", rev = "d7cddebe61e58e9928dff65fb598d10f89c5e3f1" }
 agent-driver = { git = "https://github.com/get-ship/fleet.git", rev = "de7599e1163559aaa1da7dbae6be1768c4ad5d09" }
 harness-drivers = { git = "https://github.com/get-ship/fleet.git", rev = "de7599e1163559aaa1da7dbae6be1768c4ad5d09" }
 ship-auth = { path = "../core/ship-platform/crates/ship-auth" }

@@ -156,10 +156,10 @@ pub(crate) fn tmux_available() -> bool {
 /// helper so a helmd boot with `HELMD_TMUX_SOCKET` (or
 /// `SHIP_TMUX_SOCKET`) targets a separate server. The helper
 /// preserves the same return type as `Cmd::new("tmux")` so the
-pub(crate) fn tmux_cmd() -> ship_substrate::spawn_bounded::Cmd {
+pub(crate) fn tmux_cmd() -> bounded_spawn::Cmd {
     helpers::tmux_args()
         .into_iter()
-        .fold(ship_substrate::spawn_bounded::Cmd::new("tmux"), |cmd, arg| {
+        .fold(bounded_spawn::Cmd::new("tmux"), |cmd, arg| {
             cmd.arg(arg)
         })
 }
@@ -439,7 +439,7 @@ fn find_unique_window_by_name(session: &str, name: &str) -> Option<String> {
 /// process-side `merge_session_env_into_launch` on `launch.env`. The
 /// `runner` indirection lets tests assert the exact argv without driving a
 /// real tmux server — production code passes a closure that shells out
-/// to `tmux` via `ship_substrate::spawn_bounded::Cmd`.
+/// to `tmux` via `bounded_spawn::Cmd`.
 ///
 /// The function is best-effort: the first failed call short-circuits the
 /// rest and surfaces an error string for the caller to log. `SHIP_MISSION_SCRATCH`

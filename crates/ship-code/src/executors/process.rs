@@ -920,7 +920,7 @@ impl SessionExecutor for ProcessExecutor {
         let handle = if let Some(runtime) = remote_runtime.take() {
             runtime.spawn(profile).await?
         } else {
-            spawn_process(profile)?
+            spawn_process(profile, ship_substrate::supervisor_sink::supervisor_context()?)?
         };
         // Attach the sandbox owner if we prepared one (Tier 1 wrap
         // path). For Tier 2+ the owner lives on the dispatcher's
@@ -1351,7 +1351,7 @@ mod tests {
             log_dir: Some(log_dir),
             subscribe_namespaces: vec![],
         };
-        let handle = spawn_process(profile).expect("supervisor spawn");
+        let handle = spawn_process(profile, ship_substrate::supervisor_sink::supervisor_context().expect("supervisor ctx")).expect("supervisor spawn");
         let pid = handle.pid();
         let state = ProcessState {
             slug: slug.to_string(),

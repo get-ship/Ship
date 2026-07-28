@@ -16,7 +16,8 @@ ship-types = { path = "crates/ship-types" }
 ship-paths = { path = "crates/ship-paths" }
 fs-util = { path = "crates/fs-util" }
 config-doc = { path = "crates/config-doc" }
-bounded-spawn = { path = "crates/bounded-spawn" }
+bounded-spawn = { git = "https://github.com/get-ship/ship-exec.git", rev = "d7cddebe61e58e9928dff65fb598d10f89c5e3f1" }
+process-supervisor = { git = "https://github.com/get-ship/ship-exec.git", rev = "d7cddebe61e58e9928dff65fb598d10f89c5e3f1" }
 path-layout = { path = "crates/path-layout" }
 task-health = { path = "crates/task-health" }
 blobstore = { path = "crates/blobstore" }

@@ -32,7 +32,7 @@ ship-store = { path = "../../crates/core/ship-platform/crates/ship-store" }
 ship-triggers = { path = "../../crates/core/ship-platform/crates/ship-triggers" }
 ship-ui = { path = "../../crates/core/ship-platform/crates/ship-ui" }
 ship-isolation = { path = "../../crates/core/ship-platform/crates/ship-isolation", default-features = false }
-ship-substrate-host = { path = "../../crates/core/ship-substrate/crates/ship-substrate-host" }
+host-adapter = { git = "https://github.com/get-ship/ship-exec.git", rev = "d7cddebe61e58e9928dff65fb598d10f89c5e3f1" }
 ship-pipeline-runtime = { path = "../../crates/ship-pipeline-runtime" }
 # Dispatch composition root (supervisor split — `shipd::dispatch`):
 #   ship-substrate    — process/executor lifecycle emit helpers

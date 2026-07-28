@@ -41,7 +41,7 @@ pub struct PeerCredInfo {
 impl Connected<IncomingStream<'_, UnixListener>> for PeerCredInfo {
     fn connect_info(stream: IncomingStream<'_, UnixListener>) -> Self {
         use std::os::unix::io::AsRawFd;
-        match ship_substrate_host::peer_cred(stream.io().as_raw_fd()) {
+        match host_adapter::peer_cred(stream.io().as_raw_fd()) {
             Some(c) => PeerCredInfo { pid: Some(c.pid), uid: Some(c.uid) },
             None => PeerCredInfo { pid: None, uid: None },
         }

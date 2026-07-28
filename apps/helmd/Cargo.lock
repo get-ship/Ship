@@ -477,9 +477,10 @@ checksum = "dc0b364ead1874514c8c2855ab558056ebfeb775653e7ae45ff72f28f8f3166c"
 [[package]]
 name = "bounded-spawn"
 version = "0.1.0"
+source = "git+https://github.com/get-ship/ship-exec.git?rev=d7cddebe61e58e9928dff65fb598d10f89c5e3f1#d7cddebe61e58e9928dff65fb598d10f89c5e3f1"
 dependencies = [
  "libc",
- "thiserror 2.0.19",
+ "thiserror 1.0.69",
  "tokio",
 ]
 
@@ -1785,6 +1786,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "axum",
+ "bounded-spawn",
  "buffa",
  "connectrpc",
  "connectrpc-build",
@@ -1855,6 +1857,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cc627f471c528ff0c4a49e1d5e60450c8f6461dd6d10ba9dcd3a61d3dff7728d"
 dependencies = [
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "host-adapter"
+version = "0.1.0"
+source = "git+https://github.com/get-ship/ship-exec.git?rev=d7cddebe61e58e9928dff65fb598d10f89c5e3f1#d7cddebe61e58e9928dff65fb598d10f89c5e3f1"
+dependencies = [
+ "libc",
 ]
 
 [[package]]
@@ -2235,12 +2245,13 @@ checksum = "a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695"
 [[package]]
 name = "isolation-port"
 version = "0.1.0"
+source = "git+https://github.com/get-ship/ship-exec.git?rev=d7cddebe61e58e9928dff65fb598d10f89c5e3f1#d7cddebe61e58e9928dff65fb598d10f89c5e3f1"
 dependencies = [
  "anyhow",
  "async-trait",
  "nanoid",
  "serde",
- "thiserror 2.0.19",
+ "thiserror 1.0.69",
  "tokio",
  "tracing",
 ]
@@ -3662,17 +3673,18 @@ dependencies = [
 [[package]]
 name = "process-supervisor"
 version = "0.1.0"
+source = "git+https://github.com/get-ship/ship-exec.git?rev=d7cddebe61e58e9928dff65fb598d10f89c5e3f1#d7cddebe61e58e9928dff65fb598d10f89c5e3f1"
 dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
+ "host-adapter",
  "isolation-port",
  "libc",
  "portable-pty",
- "ship-substrate",
- "ship-substrate-host",
  "tokio",
  "tracing",
+ "ulid",
 ]
 
 [[package]]
@@ -4557,9 +4569,9 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "getrandom 0.2.17",
+ "host-adapter",
  "serde",
  "serde_json",
- "ship-substrate-host",
  "ship-types",
  "thiserror 2.0.19",
  "tokio",
@@ -4590,6 +4602,7 @@ dependencies = [
  "agent-schema",
  "anyhow",
  "async-trait",
+ "bounded-spawn",
  "chrono",
  "futures-util",
  "harness-drivers",
@@ -5038,6 +5051,7 @@ dependencies = [
  "inventory",
  "libc",
  "path-layout",
+ "process-supervisor",
  "serde",
  "serde_json",
  "sha2",
@@ -5055,13 +5069,6 @@ dependencies = [
  "tracing",
  "ulid",
  "walkdir",
-]
-
-[[package]]
-name = "ship-substrate-host"
-version = "0.1.0"
-dependencies = [
- "libc",
 ]
 
 [[package]]

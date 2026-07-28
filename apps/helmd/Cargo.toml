@@ -42,6 +42,7 @@ name = "helmd"
 path = "src/main.rs"
 
 [dependencies]
+bounded-spawn = { git = "https://github.com/get-ship/ship-exec.git", rev = "d7cddebe61e58e9928dff65fb598d10f89c5e3f1" }
 # The leaf domain crate — git2 + ship-paths + ship-types, no compiler/substrate.
 ship-git = { path = "../../crates/core/ship-git" }
 # Env vars (SHIP_REPO_DIR, SHIP_WORKTREE_DIR, etc.) read by the canonical

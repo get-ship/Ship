@@ -768,9 +768,10 @@ checksum = "dc0b364ead1874514c8c2855ab558056ebfeb775653e7ae45ff72f28f8f3166c"
 [[package]]
 name = "bounded-spawn"
 version = "0.1.0"
+source = "git+https://github.com/get-ship/ship-exec.git?rev=d7cddebe61e58e9928dff65fb598d10f89c5e3f1#d7cddebe61e58e9928dff65fb598d10f89c5e3f1"
 dependencies = [
  "libc",
- "thiserror 2.0.18",
+ "thiserror 1.0.69",
  "tokio",
 ]
 
@@ -3240,6 +3241,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "host-adapter"
+version = "0.1.0"
+source = "git+https://github.com/get-ship/ship-exec.git?rev=d7cddebe61e58e9928dff65fb598d10f89c5e3f1#d7cddebe61e58e9928dff65fb598d10f89c5e3f1"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "html5ever"
 version = "0.38.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3706,13 +3715,13 @@ checksum = "a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695"
 [[package]]
 name = "isolation-port"
 version = "0.1.0"
+source = "git+https://github.com/get-ship/ship-exec.git?rev=d7cddebe61e58e9928dff65fb598d10f89c5e3f1#d7cddebe61e58e9928dff65fb598d10f89c5e3f1"
 dependencies = [
  "anyhow",
  "async-trait",
  "nanoid",
  "serde",
- "serde_json",
- "thiserror 2.0.18",
+ "thiserror 1.0.69",
  "tokio",
  "tracing",
 ]
@@ -6176,18 +6185,18 @@ dependencies = [
 [[package]]
 name = "process-supervisor"
 version = "0.1.0"
+source = "git+https://github.com/get-ship/ship-exec.git?rev=d7cddebe61e58e9928dff65fb598d10f89c5e3f1#d7cddebe61e58e9928dff65fb598d10f89c5e3f1"
 dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
+ "host-adapter",
  "isolation-port",
  "libc",
  "portable-pty",
- "ship-substrate",
- "ship-substrate-host",
- "tempfile",
  "tokio",
  "tracing",
+ "ulid",
 ]
 
 [[package]]
@@ -7954,9 +7963,9 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "getrandom 0.2.17",
+ "host-adapter",
  "serde",
  "serde_json",
- "ship-substrate-host",
  "ship-types",
  "thiserror 2.0.18",
  "tokio",
@@ -7990,6 +7999,7 @@ dependencies = [
  "anyhow",
  "assert_cmd",
  "async-trait",
+ "bounded-spawn",
  "build-info",
  "chrono",
  "clap",
@@ -8558,6 +8568,7 @@ dependencies = [
  "inventory",
  "libc",
  "path-layout",
+ "process-supervisor",
  "proptest",
  "serde",
  "serde_json",
@@ -8577,13 +8588,6 @@ dependencies = [
  "tracing",
  "ulid",
  "walkdir",
-]
-
-[[package]]
-name = "ship-substrate-host"
-version = "0.1.0"
-dependencies = [
- "libc",
 ]
 
 [[package]]
@@ -8705,6 +8709,7 @@ dependencies = [
  "futures",
  "getrandom 0.2.17",
  "git2",
+ "host-adapter",
  "http",
  "http-body-util",
  "journal-sqlite",
@@ -8738,7 +8743,6 @@ dependencies = [
  "ship-space",
  "ship-store",
  "ship-substrate",
- "ship-substrate-host",
  "ship-triggers",
  "ship-types",
  "ship-ui",

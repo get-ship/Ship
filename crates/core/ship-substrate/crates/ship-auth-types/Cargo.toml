@@ -7,7 +7,7 @@ description = "L0 auth primitives — session/registry types, role→scope table
 
 [dependencies]
 ship-types = { path = "../ship-types" }
-ship-substrate-host = { path = "../ship-substrate-host" }
+host-adapter = { git = "https://github.com/get-ship/ship-exec.git", rev = "d7cddebe61e58e9928dff65fb598d10f89c5e3f1" }
 
 serde = { workspace = true }
 serde_json = { workspace = true }

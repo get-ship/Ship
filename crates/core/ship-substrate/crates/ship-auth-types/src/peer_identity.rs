@@ -40,12 +40,12 @@ pub enum PeerIdentity {
 /// from the connection's peer credentials). Reads the OS process container via
 /// `ship-substrate-host` and decides per [`decide`].
 pub fn resolve(peer_pid: u32, peer_uid: u32) -> PeerIdentity {
-    let host = ship_substrate_host::host();
+    let host = host_adapter::host();
     decide(
         host.process_container(peer_pid).as_deref(),
         host.containers_supported(),
         peer_uid,
-        ship_substrate_host::current_uid(),
+        host_adapter::current_uid(),
     )
 }
 

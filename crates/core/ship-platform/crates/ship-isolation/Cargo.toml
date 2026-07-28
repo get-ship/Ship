@@ -15,8 +15,8 @@ sidecar-mode = ["dep:reqwest"]
 
 [dependencies]
 ship-substrate = { path = "../../../ship-substrate" }
-process-supervisor = { path = "../../../ship-substrate/crates/process-supervisor" }
-isolation-port = { path = "../../../ship-substrate/crates/isolation-port" }
+process-supervisor = { git = "https://github.com/get-ship/ship-exec.git", rev = "d7cddebe61e58e9928dff65fb598d10f89c5e3f1" }
+isolation-port = { git = "https://github.com/get-ship/ship-exec.git", rev = "d7cddebe61e58e9928dff65fb598d10f89c5e3f1" }
 ship-sidecar-proto = { path = "../../../ship-sidecar-proto" }
 ship-ops-rpc = { path = "../../../ship-ops-rpc" }
 anyhow = { workspace = true }

@@ -1,5 +1,6 @@
-//! Substrate Agent pre-register — `spawn_process` must register every
-//! kind, including Agent, with the kernel before the child starts.
+//! Kernel Agent pre-register — `spawn_process` with the
+//! [`KernelSupervisorSink`] must register every kind, including Agent,
+//! with the kernel before the child starts.
 //!
 //! This file is a single integration-test binary so the
 //! `init_kernel_router` OnceLock isn't contended with other tests.
@@ -8,6 +9,7 @@ use std::collections::HashMap;
 
 use ship_substrate::events::{init_kernel_router, kernel_router};
 use process_supervisor::{ProcessKind, ProcessProfile, TransportKind, spawn_process};
+use ship_substrate::supervisor_sink::supervisor_context;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn agent_pre_register_visible_in_kernel_before_mcp() {
@@ -34,7 +36,7 @@ async fn agent_pre_register_visible_in_kernel_before_mcp() {
         subscribe_namespaces: vec![],
     };
 
-    let handle = spawn_process(profile).expect("spawn_process must not error on Agent pre-register");
+    let handle = spawn_process(profile, supervisor_context().expect("ctx")).expect("spawn_process must not error on Agent pre-register");
 
     let kr = kernel_router().expect("kernel router initialized");
     let kernel = kr.lock().await;

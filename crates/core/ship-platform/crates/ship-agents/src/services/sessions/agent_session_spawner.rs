@@ -87,7 +87,7 @@ pub fn spawn_or_attach(
         subscribe_namespaces: vec![],
     };
 
-    let handle = spawn_process(profile)?;
+    let handle = spawn_process(profile, ship_substrate::supervisor_sink::supervisor_context()?)?;
     let (event_tx, _) = broadcast::channel::<HarnessEvent>(EVENT_CAP);
 
     let now = Utc::now();
