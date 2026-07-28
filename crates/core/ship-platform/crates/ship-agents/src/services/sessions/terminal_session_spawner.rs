@@ -1,7 +1,7 @@
 //! Terminal sessions (plain `$SHELL`) on the supervisor primitive.
 //!
 //! Builds a [`ProcessProfile`] for the shell kind, calls
-//! [`process_supervisor::spawn_process`], and registers the resulting
+//! [`bridge::spawn_process`], and registers the resulting
 //! [`Entry`] in the unified [`Registry`]. The supervisor primitive
 //! owns the kernel registration, PTY hold, log file, and `actor.created`
 //! emission; this module owns only the shell-specific shape (`$SHELL` binary,
@@ -11,7 +11,7 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use chrono::Utc;
-use process_supervisor::{spawn_process, ProcessKind, ProcessProfile, TransportKind};
+use bridge::{spawn_process, ProcessKind, ProcessProfile, TransportKind};
 
 use super::registry::{Entry, Registry, SessionRecord};
 use super::types::SessionStatus;

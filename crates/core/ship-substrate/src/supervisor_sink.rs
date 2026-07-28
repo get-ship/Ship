@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
 use process_supervisor::{
-    ActorCreatedNotice, ActorRegistration, SupervisorContext, SupervisorEventSink,
+    ActorCreated, ActorRegistration, SupervisorContext, SupervisorEventSink,
 };
 
 use crate::{db, events, project};
@@ -42,25 +42,12 @@ impl SupervisorEventSink for KernelSupervisorSink {
         })
     }
 
-    fn actor_created(&self, actor_id: &str, notice: ActorCreatedNotice) -> Result<()> {
-        let payload = events::types::ActorCreated {
-            kind: notice.kind,
-            environment_type: notice.environment_type,
-            parent_actor_id: notice.parent_actor_id.clone(),
-            agent_id: notice.agent_id,
-            harness: notice.harness,
-            transport: notice.transport,
-            persistence: notice.persistence,
-            pid: notice.pid,
-            space_id: notice.space_id.clone(),
-            cwd: notice.cwd,
-            ..Default::default()
-        };
+    fn actor_created(&self, actor_id: &str, payload: ActorCreated) -> Result<()> {
         db::actor_events::emit_actor_created(
             actor_id,
             &payload,
-            notice.space_id.as_deref(),
-            notice.parent_actor_id.as_deref(),
+            payload.space_id.as_deref(),
+            payload.parent_actor_id.as_deref(),
         )
     }
 }

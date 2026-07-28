@@ -13,11 +13,11 @@ pub mod supervisor;
 // `ship_collection::events::ALL_COLLECTION`). Full-linkage vocabulary guards
 // live in shipd (`tests/event_vocabulary.rs`): a pinned registry count plus a
 // live-validator sweep, with NO exception lists.
-pub const ACTOR_CREATED: &str = "actor.created";
-pub const ACTOR_WOKE: &str = "actor.woke";
-pub const ACTOR_SLEPT: &str = "actor.slept";
-pub const ACTOR_STOPPED: &str = "actor.stopped";
-pub const ACTOR_CRASHED: &str = "actor.crashed";
+pub const ACTOR_CREATED: &str = event_core::event_types::ACTOR_CREATED;
+pub const ACTOR_WOKE: &str = event_core::event_types::ACTOR_WOKE;
+pub const ACTOR_SLEPT: &str = event_core::event_types::ACTOR_SLEPT;
+pub const ACTOR_STOPPED: &str = event_core::event_types::ACTOR_STOPPED;
+pub const ACTOR_CRASHED: &str = event_core::event_types::ACTOR_CRASHED;
 pub const CONFIG_CHANGED: &str = "config.changed";
 /// Fine-grained per-file config change (path + content_hash) — see
 /// `ConfigFileChanged`. Emitted by the watcher alongside the coarse `*.changed`.

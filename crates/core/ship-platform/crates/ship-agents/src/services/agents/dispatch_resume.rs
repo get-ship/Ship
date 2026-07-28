@@ -8,7 +8,7 @@ pub struct ResumeOutcome {
     /// Session id (ULID). Used as slug in the canonical schema (no slug field).
     pub slug: String,
     pub branch: String,
-    pub session: harness_drivers::harnesses::session_file::SessionFile,
+    pub session: bridge::session_file::SessionFile,
 }
 
 #[derive(Debug)]
@@ -104,7 +104,7 @@ fn find_worktree_for_session(
             continue;
         }
         // Try to read .ship-session.json; skip any dir that lacks it.
-        let sf = harness_drivers::harnesses::session_file::read_session_file(&path)
+        let sf = bridge::session_file::read_session_file(&path)
             .unwrap_or(None);
         if let Some(sf) = sf {
             if sf.session_id == session_id {
@@ -158,8 +158,8 @@ pub fn load_and_validate_session_file(
     work_dir: &std::path::Path,
     slug: &str,
     requested_harness: Option<&str>,
-) -> Result<harness_drivers::harnesses::session_file::SessionFile, ResumeResolveError> {
-    let session_file = harness_drivers::harnesses::session_file::read_session_file(work_dir)
+) -> Result<bridge::session_file::SessionFile, ResumeResolveError> {
+    let session_file = bridge::session_file::read_session_file(work_dir)
         .map_err(|e| ResumeResolveError::Status {
             status: 400,
             message: format!("resume: failed to read session file: {e}"),
@@ -187,12 +187,12 @@ pub fn load_and_validate_session_file(
     // Verify the adapter actually supports resume before promising the
     // caller it'll work. Cursor will fail here; the dispatch path
     // then never hands off to the executor.
-    let adapter = harness_drivers::agent_driver::adapter_for(&session_file.harness)
+    let adapter = bridge::adapter_for(&session_file.harness)
         .map_err(|e| ResumeResolveError::Status {
             status: 400,
             message: format!("resume: {e}"),
         })?;
-    let profile = agent_driver::dispatch_ports::LaunchProfile {
+    let profile = bridge::LaunchProfile {
         harness: Some(session_file.harness.clone()),
         persist_session: true,
         ..Default::default()

@@ -12,8 +12,8 @@ use anyhow::Result;
 use async_trait::async_trait;
 use bridge::dispatch_ports::{LaunchCommand, SessionContext};
 use bridge::sandbox_port::{PreparedSandbox, SandboxPort};
-use isolation_port::SandboxOwner;
-use process_supervisor::ProcessRuntime;
+use bridge::SandboxOwner;
+use bridge::ProcessRuntime;
 use ship_isolation::tier::IsolationProfile;
 
 /// Ship implementation of [`SandboxPort`].
@@ -315,7 +315,7 @@ fn write_srt_settings(
     path: &std::path::Path,
     work_dir: &std::path::Path,
 ) -> anyhow::Result<()> {
-    use isolation_port::{FsMount, MountMode, NetworkPolicy, SandboxPolicy};
+    use bridge::{FsMount, MountMode, NetworkPolicy, SandboxPolicy};
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
@@ -334,8 +334,8 @@ fn write_srt_settings(
 }
 
 struct BackendPrepared {
-    isolator: Arc<dyn isolation_port::Isolator>,
-    sandbox: isolation_port::SandboxHandle,
+    isolator: Arc<dyn bridge::Isolator>,
+    sandbox: bridge::SandboxHandle,
     endpoint: Option<String>,
 }
 
@@ -358,12 +358,12 @@ fn resolve_sidecar_bin() -> std::path::PathBuf {
 
 async fn prepare_docker_sandbox(
     ctx: &SessionContext,
-) -> Result<BackendPrepared, isolation_port::IsolatorError> {
+) -> Result<BackendPrepared, bridge::IsolatorError> {
     use ship_isolation::backends::{Docker, DockerConfig};
-    use isolation_port::{FsMount, MountMode, NetworkPolicy, ResourceLimits, SandboxPolicy};
+    use bridge::{FsMount, MountMode, NetworkPolicy, ResourceLimits, SandboxPolicy};
 
     let settings = ship_isolation::decision::strategies_settings()
-        .map_err(isolation_port::IsolatorError::Other)?;
+        .map_err(bridge::IsolatorError::Other)?;
     let cfg = DockerConfig {
         engine_bin: settings.docker.engine_bin.clone(),
         image: settings.docker.image.clone(),
@@ -374,7 +374,7 @@ async fn prepare_docker_sandbox(
         ),
         sidecar_bin: resolve_sidecar_bin(),
     };
-    let isolator: Arc<dyn isolation_port::Isolator> = Arc::new(Docker::new(cfg));
+    let isolator: Arc<dyn bridge::Isolator> = Arc::new(Docker::new(cfg));
     isolator.available().await?;
 
     let mut policy = SandboxPolicy {
@@ -412,12 +412,12 @@ async fn prepare_docker_sandbox(
 #[cfg(target_os = "linux")]
 async fn prepare_firecracker_sandbox(
     ctx: &SessionContext,
-) -> Result<BackendPrepared, isolation_port::IsolatorError> {
+) -> Result<BackendPrepared, bridge::IsolatorError> {
     use ship_isolation::backends::{Firecracker, FirecrackerConfig};
-    use isolation_port::{FsMount, MountMode, NetworkPolicy, ResourceLimits, SandboxPolicy};
+    use bridge::{FsMount, MountMode, NetworkPolicy, ResourceLimits, SandboxPolicy};
 
     let settings = ship_isolation::decision::strategies_settings()
-        .map_err(isolation_port::IsolatorError::Other)?;
+        .map_err(bridge::IsolatorError::Other)?;
     let fc = &settings.firecracker;
     let firecracker_bin = if !fc.bin.is_empty() {
         std::path::PathBuf::from(&fc.bin)
@@ -439,7 +439,7 @@ async fn prepare_firecracker_sandbox(
         rootfs: std::path::PathBuf::from(&fc.rootfs),
         app_plane_daemon,
     };
-    let isolator: Arc<dyn isolation_port::Isolator> = Arc::new(Firecracker::new(cfg));
+    let isolator: Arc<dyn bridge::Isolator> = Arc::new(Firecracker::new(cfg));
     isolator.available().await?;
 
     let mut policy = SandboxPolicy {
@@ -465,19 +465,19 @@ async fn prepare_firecracker_sandbox(
 
 async fn prepare_lima_sandbox(
     ctx: &SessionContext,
-) -> Result<BackendPrepared, isolation_port::IsolatorError> {
+) -> Result<BackendPrepared, bridge::IsolatorError> {
     use ship_isolation::backends::{Lima, LimaConfig};
-    use isolation_port::SandboxPolicy;
+    use bridge::SandboxPolicy;
 
     let settings = ship_isolation::decision::strategies_settings()
-        .map_err(isolation_port::IsolatorError::Other)?;
+        .map_err(bridge::IsolatorError::Other)?;
     let lima = &settings.lima;
     let cfg = LimaConfig {
         limactl_bin: std::path::PathBuf::from(&lima.bin),
         instance: lima.instance.clone(),
         sidecar_path: lima.sidecar_path.clone(),
     };
-    let isolator: Arc<dyn isolation_port::Isolator> = Arc::new(Lima::new(cfg));
+    let isolator: Arc<dyn bridge::Isolator> = Arc::new(Lima::new(cfg));
     isolator.available().await?;
 
     let policy = SandboxPolicy {
@@ -491,19 +491,19 @@ async fn prepare_lima_sandbox(
 
 async fn prepare_wsl_sandbox(
     ctx: &SessionContext,
-) -> Result<BackendPrepared, isolation_port::IsolatorError> {
+) -> Result<BackendPrepared, bridge::IsolatorError> {
     use ship_isolation::backends::{Wsl, WslConfig};
-    use isolation_port::SandboxPolicy;
+    use bridge::SandboxPolicy;
 
     let settings = ship_isolation::decision::strategies_settings()
-        .map_err(isolation_port::IsolatorError::Other)?;
+        .map_err(bridge::IsolatorError::Other)?;
     let wsl = &settings.wsl;
     let cfg = WslConfig {
         wsl_bin: std::path::PathBuf::from(&wsl.bin),
         distro: wsl.distro.clone(),
         sidecar_path: wsl.sidecar_path.clone(),
     };
-    let isolator: Arc<dyn isolation_port::Isolator> = Arc::new(Wsl::new(cfg));
+    let isolator: Arc<dyn bridge::Isolator> = Arc::new(Wsl::new(cfg));
     isolator.available().await?;
 
     let policy = SandboxPolicy {
@@ -560,7 +560,7 @@ async fn wire_sidecar_sandbox<F, Fut>(
 where
     F: FnOnce() -> Fut,
     Fut: Future<
-        Output = Result<BackendPrepared, isolation_port::IsolatorError>,
+        Output = Result<BackendPrepared, bridge::IsolatorError>,
     >,
 {
     let project_key = ctx.work_dir.to_string_lossy().to_string();
@@ -600,7 +600,7 @@ where
                 "{strategy} prepared without a sidecar endpoint"
             ));
         };
-        let owner = Arc::new(isolation_port::SandboxOwner::new(
+        let owner = Arc::new(bridge::SandboxOwner::new(
             prepared.isolator.clone(),
             prepared.sandbox.clone(),
         ));

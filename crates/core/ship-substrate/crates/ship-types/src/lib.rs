@@ -18,8 +18,9 @@ pub mod payload;
 
 // Re-export inventory so the `register_event!` macro can reference it as
 // `::ship_types::inventory::submit!` without downstream crates needing to
-// depend on inventory directly (the macro is `#[macro_export]` from ship-types).
-pub use inventory;
+// depend on inventory directly (the macro is `#[macro_export]` from event-core).
+pub use event_core::inventory;
+pub use event_core::register_event;
 
 pub use binding::ScopeBinding;
 pub use caller::{ActorConfig, CallerKind, EmitContext};

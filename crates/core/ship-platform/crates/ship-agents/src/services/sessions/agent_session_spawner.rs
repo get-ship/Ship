@@ -2,7 +2,7 @@
 //!
 //! Channels-capable harnesses (Claude) build an [`ProcessProfile`] from the
 //! harness adapter's `build_interactive`, call
-//! [`process_supervisor::spawn_process`], and attach a reader-middleware
+//! [`bridge::spawn_process`], and attach a reader-middleware
 //! thread that:
 //!
 //! 1. Auto-dismisses Claude's `--dangerously-load-development-channels`
@@ -18,10 +18,10 @@ use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
 use chrono::Utc;
-use agent_driver::dispatch_ports::LaunchProfile;
-use harness_drivers::agent_driver::{adapter_for, HarnessEvent};
+use bridge::LaunchProfile;
+use bridge::{adapter_for, HarnessEvent};
 use parking_lot::Mutex;
-use process_supervisor::{spawn_process, ProcessKind, ProcessProfile, TransportKind};
+use bridge::{spawn_process, ProcessKind, ProcessProfile, TransportKind};
 use tokio::sync::broadcast;
 
 use super::registry::{Entry, Registry, SessionRecord};
@@ -163,7 +163,7 @@ fn spawn_reader_middleware(
                         for line in acc.push(&String::from_utf8_lossy(&chunk)) {
                             if let Some(ev) = adapter.parse_output(&line) {
                                 if let HarnessEvent::SessionStarted { session_id } = &ev {
-                                    if let Err(e) = harness_drivers::harnesses::session_file::write_session_file(
+                                    if let Err(e) = bridge::session_file::write_session_file(
                                         &work_dir,
                                         &harness,
                                         session_id,
@@ -223,7 +223,7 @@ struct MenuState {
 }
 
 fn try_dismiss_menu(
-    handle: &process_supervisor::ProcessHandle,
+    handle: &bridge::ProcessHandle,
     state: &Arc<Mutex<MenuState>>,
     chunk: &[u8],
 ) -> bool {

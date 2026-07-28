@@ -19,18 +19,9 @@ use tokio::sync::Mutex;
 
 // ── Kernel-emit port ───────────────────────────────────────────────────────
 
-/// Port: emit an event envelope. The runner mechanism takes a `&dyn EventSink`
-/// so it never names [`KernelRouter`] directly; the concrete kernel-backed impl
-/// is injected at construction.
-///
-/// Domain-free: the only types crossing the seam are [`EventEnvelope`] and the
-/// substrate primitives it carries.
-#[async_trait]
-pub trait EventSink: Send + Sync {
-    /// Persist + route a single envelope. Implementations log their own
-    /// failures; the unit return matches the fire-and-forget call sites.
-    async fn emit(&self, envelope: EventEnvelope);
-}
+/// Port: emit an event envelope. Re-exported from [`event_core::EventSink`] so
+/// fleet and ship share the same sink trait.
+pub use event_core::EventSink;
 
 /// The L0 concrete [`EventSink`]: wraps the substrate [`KernelRouter`] and
 /// drives it through [`persist_and_route`]. Built by the host (daemon) and

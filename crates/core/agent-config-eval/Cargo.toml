@@ -14,7 +14,7 @@ stack-model = { path = "../stack-model" }
 # The standalone JS engine (shared ship-exec repo, rev-pinned with fleet's
 # yoke so there is one ship-js source for everyone). `deno` pulls the V8
 # runtime; the closed-world eval lives behind it.
-ship-js = { git = "https://github.com/get-ship/ship-exec.git", rev = "40e694384108ce298eccd3e0da22e9f5e9855beb", features = ["deno"] }
+ship-js = { git = "file:///home/madvib/dev/Ship/ship-exec", rev = "ee39e5273ce8829d90043626a01f564e660dd477", features = ["deno"] }
 # oxc — the one-shot TypeScript type-strip (real `.ts` → JS before eval). Already
 # vendored at 0.133.0 in the workspace lock (transitive via rolldown), so these
 # direct deps reuse the locked copies and pull no new tree. The strip is a pure

@@ -1,4 +1,4 @@
-//! Live-session registry. Holds a [`process_supervisor::ProcessHandle`]
+//! Live-session registry. Holds a [`bridge::ProcessHandle`]
 //! (the unified spawn primitive) plus a session-flavored [`SessionRecord`]
 //! sidecar per entry. Insert is keyed by `ProcessHandle::actor_id`; the
 //! record's `id` field must match.
@@ -25,8 +25,8 @@ use std::sync::Arc;
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use parking_lot::Mutex;
-use process_supervisor::ProcessHandle;
-use harness_drivers::agent_driver::HarnessEvent;
+use bridge::ProcessHandle;
+use bridge::HarnessEvent;
 use tokio::sync::broadcast;
 
 use super::types::{AgentSessionMeta, SessionId, SessionStatus, TerminalSessionMeta};

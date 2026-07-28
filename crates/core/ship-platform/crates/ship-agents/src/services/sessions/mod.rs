@@ -1,6 +1,6 @@
 //! Session domain — the unified live-session registry + spawn glue.
 //!
-//! Wraps the L0 `process_supervisor::spawn_process` primitive with
+//! Wraps the L0 `bridge::spawn_process` primitive with
 //! session-flavored sidecar metadata (workspace, agent, harness, status)
 //! and agent-driver wiring (stream-json parsing, channels delivery).
 //! Per the charter: actor lifecycle + supervision are L0; agent profiles

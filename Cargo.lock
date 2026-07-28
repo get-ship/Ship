@@ -29,7 +29,7 @@ dependencies = [
  "oxc_transformer",
  "serde",
  "serde_json",
- "ship-js",
+ "ship-js 0.1.0 (git+file:///home/madvib/dev/Ship/ship-exec?rev=ee39e5273ce8829d90043626a01f564e660dd477)",
  "stack-model",
  "tokio",
 ]
@@ -71,7 +71,6 @@ dependencies = [
 [[package]]
 name = "agent-driver"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/fleet.git?rev=6967f155ca795c19c44a145701c138b2d079c89c#6967f155ca795c19c44a145701c138b2d079c89c"
 dependencies = [
  "agent-schema",
  "anyhow",
@@ -85,7 +84,6 @@ dependencies = [
 [[package]]
 name = "agent-schema"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/fleet.git?rev=6967f155ca795c19c44a145701c138b2d079c89c#6967f155ca795c19c44a145701c138b2d079c89c"
 dependencies = [
  "anyhow",
  "minijinja",
@@ -768,7 +766,7 @@ checksum = "dc0b364ead1874514c8c2855ab558056ebfeb775653e7ae45ff72f28f8f3166c"
 [[package]]
 name = "bounded-spawn"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/ship-exec.git?rev=d7cddebe61e58e9928dff65fb598d10f89c5e3f1#d7cddebe61e58e9928dff65fb598d10f89c5e3f1"
+source = "git+file:///home/madvib/dev/Ship/ship-exec?rev=ee39e5273ce8829d90043626a01f564e660dd477#ee39e5273ce8829d90043626a01f564e660dd477"
 dependencies = [
  "libc",
  "thiserror 1.0.69",
@@ -788,7 +786,6 @@ dependencies = [
 [[package]]
 name = "bridge"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/fleet.git?rev=6967f155ca795c19c44a145701c138b2d079c89c#6967f155ca795c19c44a145701c138b2d079c89c"
 dependencies = [
  "agent-driver",
  "agent-schema",
@@ -800,6 +797,7 @@ dependencies = [
  "chrono",
  "connectrpc",
  "futures-util",
+ "harness-config-compiler",
  "harness-drivers",
  "http",
  "isolation-port",
@@ -1815,7 +1813,7 @@ dependencies = [
  "rolldown_common",
  "serde",
  "serde_json",
- "ship-js",
+ "ship-js 0.1.0",
  "sui-compiler",
  "tokio",
 ]
@@ -2234,13 +2232,13 @@ checksum = "92773504d58c093f6de2459af4af33faa518c13451eb8f2b5698ed3d36e7c813"
 [[package]]
 name = "durable-execution"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/ship-exec.git?rev=40e694384108ce298eccd3e0da22e9f5e9855beb#40e694384108ce298eccd3e0da22e9f5e9855beb"
+source = "git+file:///home/madvib/dev/Ship/ship-exec?rev=ee39e5273ce8829d90043626a01f564e660dd477#ee39e5273ce8829d90043626a01f564e660dd477"
 dependencies = [
  "async-trait",
  "futures-util",
  "serde",
  "serde_json",
- "ship-js",
+ "ship-js 0.1.0 (git+file:///home/madvib/dev/Ship/ship-exec?rev=ee39e5273ce8829d90043626a01f564e660dd477)",
  "thiserror 1.0.69",
 ]
 
@@ -2378,6 +2376,21 @@ dependencies = [
  "cfg-if",
  "home",
  "windows-sys 0.48.0",
+]
+
+[[package]]
+name = "event-core"
+version = "0.1.0"
+source = "git+file:///home/madvib/dev/Ship/ship-exec?rev=ee39e5273ce8829d90043626a01f564e660dd477#ee39e5273ce8829d90043626a01f564e660dd477"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "inventory",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 1.0.69",
+ "ulid",
 ]
 
 [[package]]
@@ -3138,7 +3151,6 @@ dependencies = [
 [[package]]
 name = "harness-config-compiler"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/fleet.git?rev=6967f155ca795c19c44a145701c138b2d079c89c#6967f155ca795c19c44a145701c138b2d079c89c"
 dependencies = [
  "agent-schema",
  "anyhow",
@@ -3155,7 +3167,6 @@ dependencies = [
 [[package]]
 name = "harness-drivers"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/fleet.git?rev=6967f155ca795c19c44a145701c138b2d079c89c#6967f155ca795c19c44a145701c138b2d079c89c"
 dependencies = [
  "agent-driver",
  "anyhow",
@@ -3275,7 +3286,7 @@ dependencies = [
 [[package]]
 name = "host-adapter"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/ship-exec.git?rev=d7cddebe61e58e9928dff65fb598d10f89c5e3f1#d7cddebe61e58e9928dff65fb598d10f89c5e3f1"
+source = "git+file:///home/madvib/dev/Ship/ship-exec?rev=ee39e5273ce8829d90043626a01f564e660dd477#ee39e5273ce8829d90043626a01f564e660dd477"
 dependencies = [
  "libc",
 ]
@@ -3426,7 +3437,7 @@ dependencies = [
  "js-sys",
  "log",
  "wasm-bindgen",
- "windows-core 0.61.2",
+ "windows-core 0.62.2",
 ]
 
 [[package]]
@@ -3747,7 +3758,7 @@ checksum = "a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695"
 [[package]]
 name = "isolation-port"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/ship-exec.git?rev=d7cddebe61e58e9928dff65fb598d10f89c5e3f1#d7cddebe61e58e9928dff65fb598d10f89c5e3f1"
+source = "git+file:///home/madvib/dev/Ship/ship-exec?rev=ee39e5273ce8829d90043626a01f564e660dd477#ee39e5273ce8829d90043626a01f564e660dd477"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6217,11 +6228,12 @@ dependencies = [
 [[package]]
 name = "process-supervisor"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/ship-exec.git?rev=d7cddebe61e58e9928dff65fb598d10f89c5e3f1#d7cddebe61e58e9928dff65fb598d10f89c5e3f1"
+source = "git+file:///home/madvib/dev/Ship/ship-exec?rev=ee39e5273ce8829d90043626a01f564e660dd477#ee39e5273ce8829d90043626a01f564e660dd477"
 dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
+ "event-core",
  "host-adapter",
  "isolation-port",
  "libc",
@@ -7883,7 +7895,6 @@ name = "ship-agents"
 version = "0.1.0"
 dependencies = [
  "agent-def",
- "agent-driver",
  "agent-schema",
  "anyhow",
  "async-stream",
@@ -7893,14 +7904,10 @@ dependencies = [
  "buffa",
  "chrono",
  "connectrpc",
- "harness-config-compiler",
- "harness-drivers",
  "home",
- "isolation-port",
  "json-patch 4.2.0",
  "libc",
  "parking_lot",
- "process-supervisor",
  "semver",
  "serde",
  "serde_json",
@@ -8223,6 +8230,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "ship-js"
+version = "0.1.0"
+source = "git+file:///home/madvib/dev/Ship/ship-exec?rev=ee39e5273ce8829d90043626a01f564e660dd477#ee39e5273ce8829d90043626a01f564e660dd477"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "deno_core",
+ "deno_error",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio",
+]
+
+[[package]]
 name = "ship-kernel"
 version = "0.1.0"
 dependencies = [
@@ -8306,7 +8327,6 @@ name = "ship-platform"
 version = "0.1.0"
 dependencies = [
  "agent-def",
- "agent-driver",
  "agent-schema",
  "anyhow",
  "async-trait",
@@ -8328,7 +8348,6 @@ dependencies = [
  "libc",
  "minijinja",
  "portable-pty",
- "process-supervisor",
  "reqwest 0.12.28",
  "semver",
  "serde",
@@ -8410,7 +8429,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
- "ship-js",
+ "ship-js 0.1.0 (git+file:///home/madvib/dev/Ship/ship-exec?rev=ee39e5273ce8829d90043626a01f564e660dd477)",
  "ship-store",
  "ship-substrate",
  "ship-types",
@@ -8544,6 +8563,7 @@ dependencies = [
  "bytes",
  "chrono",
  "config-doc",
+ "event-core",
  "fs-cap",
  "fs-util",
  "futures-util",
@@ -8605,7 +8625,7 @@ version = "0.1.0"
 dependencies = [
  "agent-schema",
  "chrono",
- "inventory",
+ "event-core",
  "serde",
  "serde_json",
  "sha2",
@@ -12138,7 +12158,6 @@ checksum = "cfe53a6657fd280eaa890a3bc59152892ffa3e30101319d168b781ed6529b049"
 [[package]]
 name = "yoke"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/fleet.git?rev=6967f155ca795c19c44a145701c138b2d079c89c#6967f155ca795c19c44a145701c138b2d079c89c"
 dependencies = [
  "agent-schema",
  "anyhow",
@@ -12147,7 +12166,7 @@ dependencies = [
  "rig-core",
  "serde",
  "serde_json",
- "ship-js",
+ "ship-js 0.1.0 (git+file:///home/madvib/dev/Ship/ship-exec?rev=ee39e5273ce8829d90043626a01f564e660dd477)",
  "thiserror 2.0.18",
  "tokio",
  "tracing",

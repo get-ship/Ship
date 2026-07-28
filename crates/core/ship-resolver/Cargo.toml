@@ -41,7 +41,7 @@ ship-substrate = { path = "../ship-substrate" }
 # Closed-world TS strip + SDK stub — re-exported through `agent-config-eval`,
 # but `agent-config-eval` re-exports ship-js and we keep the dep explicit
 # so the resolver's `ts_resolver` module can name the engine in its docs.
-ship-js = { git = "https://github.com/get-ship/ship-exec.git", rev = "40e694384108ce298eccd3e0da22e9f5e9855beb", features = ["deno"] }
+ship-js = { git = "file:///home/madvib/dev/Ship/ship-exec", rev = "ee39e5273ce8829d90043626a01f564e660dd477", features = ["deno"] }
 # `EventEnvelope` + `event_types` — the descriptor cache subscribes to the
 # `ship_substrate::ports::KernelLog` broadcast and filters on
 # `event_types::CONFIG_FILE_CHANGED`, the same pattern ship-config's

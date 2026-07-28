@@ -31,7 +31,7 @@ use ship_substrate::events::EventEnvelope;
 #[cfg(feature = "bridge")]
 use bridge::dispatch_ports::SessionContext;
 #[cfg(feature = "bridge")]
-use agent_driver::dispatch_ports::LaunchProfile;
+use bridge::LaunchProfile;
 use tokio::sync::Mutex;
 
 use crate::ports::AgentPorts;
