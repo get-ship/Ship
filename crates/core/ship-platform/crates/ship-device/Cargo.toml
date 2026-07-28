@@ -7,7 +7,7 @@ description = "DeviceService — window management + device/isolation surface ov
 
 [dependencies]
 ship-substrate = { path = "../../../ship-substrate" }
-isolation-port = { git = "file:///home/madvib/dev/Ship/ship-exec", rev = "ee39e5273ce8829d90043626a01f564e660dd477" }
+isolation-port = { git = "https://github.com/get-ship/ship-exec.git", rev = "ee39e5273ce8829d90043626a01f564e660dd477" }
 ship-types = { path = "../../../ship-substrate/crates/ship-types" }
 # Isolation types + recommender. The sandbox module (sandbox/dispatcher.rs)
 # consumes `ship_isolation::tier::{IsolationProfile, IsolationTier}` to

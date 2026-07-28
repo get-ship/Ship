@@ -7,7 +7,7 @@ description = "sqlx/SQLite-backed durable-execution JournalStore. The heavy (sql
 
 [dependencies]
 ship-substrate = { path = "../.." }
-durable-execution = { git = "file:///home/madvib/dev/Ship/ship-exec", rev = "ee39e5273ce8829d90043626a01f564e660dd477" }
+durable-execution = { git = "https://github.com/get-ship/ship-exec.git", rev = "ee39e5273ce8829d90043626a01f564e660dd477" }
 async-trait = { workspace = true }
 sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio-rustls", "macros"] }
 serde_json = { workspace = true }

@@ -29,7 +29,7 @@ dependencies = [
  "oxc_transformer",
  "serde",
  "serde_json",
- "ship-js 0.1.0 (git+file:///home/madvib/dev/Ship/ship-exec?rev=ee39e5273ce8829d90043626a01f564e660dd477)",
+ "ship-js",
  "stack-model",
  "tokio",
 ]
@@ -766,7 +766,7 @@ checksum = "dc0b364ead1874514c8c2855ab558056ebfeb775653e7ae45ff72f28f8f3166c"
 [[package]]
 name = "bounded-spawn"
 version = "0.1.0"
-source = "git+file:///home/madvib/dev/Ship/ship-exec?rev=ee39e5273ce8829d90043626a01f564e660dd477#ee39e5273ce8829d90043626a01f564e660dd477"
+source = "git+https://github.com/get-ship/ship-exec.git?rev=ee39e5273ce8829d90043626a01f564e660dd477#ee39e5273ce8829d90043626a01f564e660dd477"
 dependencies = [
  "libc",
  "thiserror 1.0.69",
@@ -1813,7 +1813,7 @@ dependencies = [
  "rolldown_common",
  "serde",
  "serde_json",
- "ship-js 0.1.0",
+ "ship-js",
  "sui-compiler",
  "tokio",
 ]
@@ -2232,13 +2232,13 @@ checksum = "92773504d58c093f6de2459af4af33faa518c13451eb8f2b5698ed3d36e7c813"
 [[package]]
 name = "durable-execution"
 version = "0.1.0"
-source = "git+file:///home/madvib/dev/Ship/ship-exec?rev=ee39e5273ce8829d90043626a01f564e660dd477#ee39e5273ce8829d90043626a01f564e660dd477"
+source = "git+https://github.com/get-ship/ship-exec.git?rev=ee39e5273ce8829d90043626a01f564e660dd477#ee39e5273ce8829d90043626a01f564e660dd477"
 dependencies = [
  "async-trait",
  "futures-util",
  "serde",
  "serde_json",
- "ship-js 0.1.0 (git+file:///home/madvib/dev/Ship/ship-exec?rev=ee39e5273ce8829d90043626a01f564e660dd477)",
+ "ship-js",
  "thiserror 1.0.69",
 ]
 
@@ -2381,7 +2381,7 @@ dependencies = [
 [[package]]
 name = "event-core"
 version = "0.1.0"
-source = "git+file:///home/madvib/dev/Ship/ship-exec?rev=ee39e5273ce8829d90043626a01f564e660dd477#ee39e5273ce8829d90043626a01f564e660dd477"
+source = "git+https://github.com/get-ship/ship-exec.git?rev=ee39e5273ce8829d90043626a01f564e660dd477#ee39e5273ce8829d90043626a01f564e660dd477"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3286,7 +3286,7 @@ dependencies = [
 [[package]]
 name = "host-adapter"
 version = "0.1.0"
-source = "git+file:///home/madvib/dev/Ship/ship-exec?rev=ee39e5273ce8829d90043626a01f564e660dd477#ee39e5273ce8829d90043626a01f564e660dd477"
+source = "git+https://github.com/get-ship/ship-exec.git?rev=ee39e5273ce8829d90043626a01f564e660dd477#ee39e5273ce8829d90043626a01f564e660dd477"
 dependencies = [
  "libc",
 ]
@@ -3758,7 +3758,7 @@ checksum = "a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695"
 [[package]]
 name = "isolation-port"
 version = "0.1.0"
-source = "git+file:///home/madvib/dev/Ship/ship-exec?rev=ee39e5273ce8829d90043626a01f564e660dd477#ee39e5273ce8829d90043626a01f564e660dd477"
+source = "git+https://github.com/get-ship/ship-exec.git?rev=ee39e5273ce8829d90043626a01f564e660dd477#ee39e5273ce8829d90043626a01f564e660dd477"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6228,7 +6228,7 @@ dependencies = [
 [[package]]
 name = "process-supervisor"
 version = "0.1.0"
-source = "git+file:///home/madvib/dev/Ship/ship-exec?rev=ee39e5273ce8829d90043626a01f564e660dd477#ee39e5273ce8829d90043626a01f564e660dd477"
+source = "git+https://github.com/get-ship/ship-exec.git?rev=ee39e5273ce8829d90043626a01f564e660dd477#ee39e5273ce8829d90043626a01f564e660dd477"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8230,20 +8230,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ship-js"
-version = "0.1.0"
-source = "git+file:///home/madvib/dev/Ship/ship-exec?rev=ee39e5273ce8829d90043626a01f564e660dd477#ee39e5273ce8829d90043626a01f564e660dd477"
-dependencies = [
- "anyhow",
- "async-trait",
- "deno_core",
- "deno_error",
- "serde_json",
- "thiserror 1.0.69",
- "tokio",
-]
-
-[[package]]
 name = "ship-kernel"
 version = "0.1.0"
 dependencies = [
@@ -8429,7 +8415,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
- "ship-js 0.1.0 (git+file:///home/madvib/dev/Ship/ship-exec?rev=ee39e5273ce8829d90043626a01f564e660dd477)",
+ "ship-js",
  "ship-store",
  "ship-substrate",
  "ship-types",
@@ -12166,7 +12152,7 @@ dependencies = [
  "rig-core",
  "serde",
  "serde_json",
- "ship-js 0.1.0 (git+file:///home/madvib/dev/Ship/ship-exec?rev=ee39e5273ce8829d90043626a01f564e660dd477)",
+ "ship-js",
  "thiserror 2.0.18",
  "tokio",
  "tracing",

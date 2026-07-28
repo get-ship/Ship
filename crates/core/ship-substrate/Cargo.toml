@@ -10,15 +10,15 @@ description = "The L0 substrate engine: truth-and-storage (db/persistence/projec
 unstable = []
 
 [dependencies]
-event-core = { git = "file:///home/madvib/dev/Ship/ship-exec", rev = "ee39e5273ce8829d90043626a01f564e660dd477" }
+event-core = { git = "https://github.com/get-ship/ship-exec.git", rev = "ee39e5273ce8829d90043626a01f564e660dd477" }
 agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "6967f155ca795c19c44a145701c138b2d079c89c" }
 ship-kernel = { path = "crates/ship-kernel" }
 ship-types = { path = "crates/ship-types" }
 ship-paths = { path = "crates/ship-paths" }
 fs-util = { path = "crates/fs-util" }
 config-doc = { path = "crates/config-doc" }
-bounded-spawn = { git = "file:///home/madvib/dev/Ship/ship-exec", rev = "ee39e5273ce8829d90043626a01f564e660dd477" }
-process-supervisor = { git = "file:///home/madvib/dev/Ship/ship-exec", rev = "ee39e5273ce8829d90043626a01f564e660dd477" }
+bounded-spawn = { git = "https://github.com/get-ship/ship-exec.git", rev = "ee39e5273ce8829d90043626a01f564e660dd477" }
+process-supervisor = { git = "https://github.com/get-ship/ship-exec.git", rev = "ee39e5273ce8829d90043626a01f564e660dd477" }
 path-layout = { path = "crates/path-layout" }
 task-health = { path = "crates/task-health" }
 blobstore = { path = "crates/blobstore" }

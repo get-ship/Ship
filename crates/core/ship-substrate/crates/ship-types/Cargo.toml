@@ -7,7 +7,7 @@ description = "Shared domain types across the Ship workspace — EventEnvelope, 
 
 [dependencies]
 agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "6967f155ca795c19c44a145701c138b2d079c89c" }
-event-core = { git = "file:///home/madvib/dev/Ship/ship-exec", rev = "ee39e5273ce8829d90043626a01f564e660dd477" }
+event-core = { git = "https://github.com/get-ship/ship-exec.git", rev = "ee39e5273ce8829d90043626a01f564e660dd477" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 chrono = { workspace = true }

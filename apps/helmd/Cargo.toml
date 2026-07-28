@@ -42,7 +42,7 @@ name = "helmd"
 path = "src/main.rs"
 
 [dependencies]
-bounded-spawn = { git = "file:///home/madvib/dev/Ship/ship-exec", rev = "ee39e5273ce8829d90043626a01f564e660dd477" }
+bounded-spawn = { git = "https://github.com/get-ship/ship-exec.git", rev = "ee39e5273ce8829d90043626a01f564e660dd477" }
 # The leaf domain crate — git2 + ship-paths + ship-types, no compiler/substrate.
 ship-git = { path = "../../crates/core/ship-git" }
 # Env vars (SHIP_REPO_DIR, SHIP_WORKTREE_DIR, etc.) read by the canonical
@@ -102,7 +102,7 @@ ship-config = { path = "../../crates/core/ship-platform/crates/ship-config" }
 # Spine 1 (always on): floki dispatch closure + the L1 executor lib the
 # dispatch composition root calls into (see dispatch.rs).
 bridge = { git = "https://github.com/get-ship/fleet.git", rev = "6967f155ca795c19c44a145701c138b2d079c89c", default-features = false, features = ["runtime"], optional = true }
-process-supervisor = { git = "file:///home/madvib/dev/Ship/ship-exec", rev = "ee39e5273ce8829d90043626a01f564e660dd477" }
+process-supervisor = { git = "https://github.com/get-ship/ship-exec.git", rev = "ee39e5273ce8829d90043626a01f564e660dd477" }
 # Spine 2b dispatch deps — pulled in only when `bridge` is on.
 ship-auth = { path = "../../crates/core/ship-platform/crates/ship-auth", optional = true }
 ship-auth-types = { path = "../../crates/core/ship-substrate/crates/ship-auth-types", optional = true }

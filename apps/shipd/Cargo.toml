@@ -24,8 +24,8 @@ ship-substrate = { path = "../../crates/core/ship-substrate" }
 journal-sqlite = { path = "../../crates/core/ship-substrate/crates/journal-sqlite" }
 ship-platform = { path = "../../crates/core/ship-platform" }
 bridge = { git = "https://github.com/get-ship/fleet.git", rev = "6967f155ca795c19c44a145701c138b2d079c89c", default-features = false, features = ["runtime"], optional = true }
-process-supervisor = { git = "file:///home/madvib/dev/Ship/ship-exec", rev = "ee39e5273ce8829d90043626a01f564e660dd477" }
-bounded-spawn = { git = "file:///home/madvib/dev/Ship/ship-exec", rev = "ee39e5273ce8829d90043626a01f564e660dd477" }
+process-supervisor = { git = "https://github.com/get-ship/ship-exec.git", rev = "ee39e5273ce8829d90043626a01f564e660dd477" }
+bounded-spawn = { git = "https://github.com/get-ship/ship-exec.git", rev = "ee39e5273ce8829d90043626a01f564e660dd477" }
 ship-agents = { path = "../../crates/core/ship-platform/crates/ship-agents" }
 ship-auth = { path = "../../crates/core/ship-platform/crates/ship-auth" }
 
@@ -34,7 +34,7 @@ ship-store = { path = "../../crates/core/ship-platform/crates/ship-store" }
 ship-triggers = { path = "../../crates/core/ship-platform/crates/ship-triggers" }
 ship-ui = { path = "../../crates/core/ship-platform/crates/ship-ui" }
 ship-isolation = { path = "../../crates/core/ship-platform/crates/ship-isolation", default-features = false }
-host-adapter = { git = "file:///home/madvib/dev/Ship/ship-exec", rev = "ee39e5273ce8829d90043626a01f564e660dd477" }
+host-adapter = { git = "https://github.com/get-ship/ship-exec.git", rev = "ee39e5273ce8829d90043626a01f564e660dd477" }
 ship-pipeline-runtime = { path = "../../crates/ship-pipeline-runtime" }
 # Dispatch composition root (supervisor split — `shipd::dispatch`):
 #   ship-substrate    — process/executor lifecycle emit helpers
@@ -112,7 +112,7 @@ tower = { version = "0.5", features = ["timeout", "util"] }
 # Native harness (embeddable). Path dep until engines monorepo publish.
 yoke = { git = "https://github.com/get-ship/fleet.git", rev = "6967f155ca795c19c44a145701c138b2d079c89c" }
 # Durable journal used by in-process yoke embed (apps/shipd/src/yoke/embed).
-durable-execution = { git = "file:///home/madvib/dev/Ship/ship-exec", rev = "ee39e5273ce8829d90043626a01f564e660dd477" }
+durable-execution = { git = "https://github.com/get-ship/ship-exec.git", rev = "ee39e5273ce8829d90043626a01f564e660dd477" }
 tower-http = { version = "0.6", features = ["catch-panic", "limit", "timeout"] }
 reqwest = { workspace = true, features = ["rustls-tls", "json"] }
 git2 = { version = "0.19" }
