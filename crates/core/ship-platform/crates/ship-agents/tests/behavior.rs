@@ -1092,7 +1092,7 @@ async fn exit_handler_session_completed_routes_to_runtime_db_not_a_space_dir() {
     let kernel = kernel_with_actor();
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
     ship_code::lifecycle::exit_handler::start(
-        Arc::new(crate::KernelLifecycleSink::new(kernel.clone())),
+        Arc::new(ship_agents::KernelLifecycleSink::new(kernel.clone())),
         Arc::new(NoopRegistry),
         ship_code::lifecycle::ExitVocabulary::AgentSession {
             session_id: SESSION_ID.to_string(),
