@@ -68,7 +68,7 @@ impl ShipRuntime {
             kernel,
             ship_dir,
             daemon_dir,
-            #[cfg(feature = "ship-code")]
+            #[cfg(feature = "bridge")]
             dispatch_handle: std::sync::OnceLock::new(),
             session_registry: Arc::new(Mutex::new(HashMap::new())),
             health_registry: HealthRegistry::new(),

@@ -150,7 +150,7 @@ fn spawn_reader_middleware(
         // Bounded accumulator — a claude PTY in interactive (TUI) mode emits
         // a newline-less alternate-screen render stream; an unbounded buffer
         // would grow at the full PTY rate (shipd-leak-193).
-        let mut acc = ship_files::line_accumulator::LineAccumulator::new();
+        let mut acc = bridge::line_accumulator::LineAccumulator::new();
 
         loop {
             match rx.recv().await {

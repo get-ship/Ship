@@ -11,7 +11,7 @@
 //! there is no harness to test against, and `cargo test -p ship-agents` in isolation
 //! must compile without ship_code. The floki routing path itself is ungated code;
 //! the workspace `--all-targets` build (feature unified on via shipd) runs these.
-#![cfg(feature = "ship-code")]
+#![cfg(feature = "bridge")]
 
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -34,8 +34,8 @@ use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use ship_substrate::events::process::event_types as process_event_types;
 use ship_substrate::events::process::ProcessKilledPayload;
 use ship_substrate::events::EventEnvelope;
-use ship_code::NoopLifecycleSink;
-use ship_code::dispatch_ports::{
+use bridge::lifecycle::NoopLifecycleSink;
+use bridge::dispatch_ports::{
     AgentPlatform, Authority, ExecutorHandle, IsolationStrategy, ProcessRegistryPort,
     ProjectionReader, SessionContext, SessionExecutor, SpawnPolicy,
 };
@@ -1041,7 +1041,7 @@ async fn failed_dispatch_emits_session_failed_into_runtime_db() {
 // ── I1: session-scope-routing job — exit_handler routes through the REAL
 // kernel router into runtime.db, never spaces/<session-id>/ ─────────────────
 //
-// Drives `ship_code::lifecycle::exit_handler::start` (the emission site named
+// Drives `bridge::lifecycle::exit_handler::start` (the emission site named
 // in the job spec) end to end: a real `KernelRouter` rooted at the test-global
 // ship_dir, a synthetic zero-exit `ExitSignal`. Proves:
 //   1. `session.completed` persists into `runtime.db`, Runtime-scoped.
@@ -1091,19 +1091,19 @@ async fn exit_handler_session_completed_routes_to_runtime_db_not_a_space_dir() {
     // successful-completion path.
     let kernel = kernel_with_actor();
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-    ship_code::lifecycle::exit_handler::start(
+    bridge::lifecycle::exit_handler::start(
         Arc::new(ship_agents::KernelLifecycleSink::new(kernel.clone())),
         Arc::new(NoopRegistry),
-        ship_code::lifecycle::ExitVocabulary::AgentSession {
+        bridge::lifecycle::ExitVocabulary::AgentSession {
             session_id: SESSION_ID.to_string(),
         },
         rx,
     );
-    tx.send(ship_code::dispatch_ports::ExitSignal {
+    tx.send(bridge::dispatch_ports::ExitSignal {
         slug: SLUG.to_string(),
         session_id: SESSION_ID.to_string(),
         exit_code: Some(0),
-        cause: ship_code::dispatch_ports::ExitCause::AgentExited,
+        cause: bridge::dispatch_ports::ExitCause::AgentExited,
     })
     .unwrap();
 

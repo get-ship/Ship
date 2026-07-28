@@ -21,7 +21,6 @@ members = [
     "crates/core/ship-git",
     "crates/core/ship-cloud",
     "crates/ship-pipeline-runtime",
-    "crates/ship-code",
     "crates/core/ship-platform/crates/ship-analytics",
     "crates/core/ship-platform/crates/ship-search",
     "crates/core/ship-gateway-client",

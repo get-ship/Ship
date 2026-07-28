@@ -128,7 +128,7 @@ fn install_defaults_inner() {
         // Compile-state projection rides the ship-code feature: the compile
         // driver (agent-def/compile) is third-party-harness territory and the
         // standard build never carries it.
-        #[cfg(feature = "ship-code")]
+        #[cfg(feature = "bridge")]
         projections.push(Box::new(agent_def::compile::CompileStateProjection));
         projections
     }));

@@ -340,12 +340,12 @@ build: _sui-compiler-lib _deck-cli
     # surface (`--bundle-framework`).
     echo "[2/4] app scaffolds (from apps/shipd/apps.jsonc)"
     just _build-apps
-    echo "[3/4] cargo build --release (ship-code + shipctl + shipd --features ship-code)"
-    cargo build --release --features ship-code -p ship-code --features cli -p shipctl -p shipd
+    echo "[3/4] cargo build --release (shipctl + shipd --features bridge)"
+    cargo build --release -p shipctl -p shipd --features bridge
     echo "[4/4] verify outputs"
     target_dir=$(cargo metadata --format-version 1 --no-deps --offline | grep -o '"target_directory":"[^"]*"' | cut -d'"' -f4)
     missing=0
-    for bin in ship-code shipctl shipd; do
+    for bin in shipctl shipd; do
         if [ ! -x "$target_dir/release/$bin" ]; then
             echo "  ✗ $target_dir/release/$bin missing" >&2
             missing=1
@@ -367,27 +367,26 @@ build: _sui-compiler-lib _deck-cli
     [ "$missing" = "0" ] || { echo "build: outputs incomplete" >&2; exit 1; }
     echo "build complete — release binaries at $target_dir/release/"
 # Build CLI + shipd (unstable dev build). shipd defaults to ship-standard
-# (no harness-driver stack); opt in with `--features ship-code` for
+# (no harness-driver stack); opt in with `--features bridge` for
 # coding-agent dispatch — see apps/shipd/Cargo.toml.
 [group('occasional')]
 build-dev:
-    cargo build --features unstable,ship-code -p ship-code --features cli -p shipctl -p shipd && cargo build --manifest-path {{sui_path}}/Cargo.toml -p sui-lsp
+    cargo build --features unstable,bridge -p shipctl -p shipd && cargo build --manifest-path {{sui_path}}/Cargo.toml -p sui-lsp
 # Cargo-only release build (no front-end). Use `just build` for the full
 # production artifact set; this recipe is the cargo subset.
 build-release:
-    cargo build --release --features ship-code -p ship-code --features cli -p shipctl -p shipd
+    cargo build --release -p shipctl -p shipd --features bridge
 
-# Install dev binaries to ~/.local/bin (ship-code + shipctl + shipd).
+# Install dev binaries to ~/.local/bin (shipctl + shipd).
 [group('occasional')]
 install-dev: build-dev
     #!/usr/bin/env bash
     set -euo pipefail
     target=$(cargo metadata --format-version 1 --no-deps --offline | grep -o '"target_directory":"[^"]*"' | cut -d'"' -f4)
-    cp -f "$target/debug/ship-code" ~/.local/bin/ship-code.new && mv ~/.local/bin/ship-code.new ~/.local/bin/ship-code
     cp -f "$target/debug/shipctl"  ~/.local/bin/shipctl.new  && mv ~/.local/bin/shipctl.new  ~/.local/bin/shipctl
     cp -f "$target/debug/shipd"    ~/.local/bin/shipd
     cp -f "{{sui_path}}/target/debug/sui-lsp" ~/.local/bin/sui-lsp
-    echo "Installed: ship-code + shipctl + shipd + sui-lsp → ~/.local/bin"
+    echo "Installed: shipctl + shipd + sui-lsp → ~/.local/bin"
 
 # Install stable binary to ~/.cargo/bin.
 [group('occasional')]
@@ -396,7 +395,6 @@ install: build-release
     set -euo pipefail
     target=$(cargo metadata --format-version 1 --no-deps --offline | grep -o '"target_directory":"[^"]*"' | cut -d'"' -f4)
     cargo install --path apps/shipctl
-    cargo install --path crates/code/ship-code --features cli
     cp -f "$target/release/shipd" ~/.local/bin/shipd
 
 # Rebuild the in-browser SUI template compiler. The sui-compiler crate
@@ -474,12 +472,12 @@ logs:
     tail -f "$log"
 
 # Verify both stable and unstable compile (CI gate). shipd defaults to
-# ship-standard (no harness-driver stack); opt in with `--features ship-code`
+# ship-standard (no harness-driver stack); opt in with `--features bridge`
 # for the full dispatch path.
 check-gates:
-    cargo build -p shipctl -p ship-code --features cli
-    cargo build --features ship-code -p shipctl -p ship-code --features cli -p shipd
-    cargo build --features unstable,ship-code -p shipctl -p ship-code --features cli -p shipd
+    cargo build -p shipctl
+    cargo build --features bridge -p shipctl -p shipd
+    cargo build --features unstable,bridge -p shipctl -p shipd
     just check-no-set-var-global-dir
     @echo "Both gates compile ✓"
 # Home-layout grep guards. Hard-fail per devx-06 Tier 6: any raw

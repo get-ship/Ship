@@ -11,23 +11,26 @@
 
 use std::sync::Arc;
 
-#[cfg(feature = "ship-code")]
-use ship_code::lifecycle::build_spawn_env;
+#[cfg(feature = "bridge")]
+use bridge::lifecycle::build_spawn_env;
 use ship_substrate::events::emit::persist_and_route;
-#[cfg(feature = "ship-code")]
+#[cfg(feature = "bridge")]
 use ship_substrate::events::emit::emit_process_spawned;
-#[cfg(feature = "ship-code")]
-use ship_code::lifecycle::exit_handler::{self, ExitVocabulary};
-#[cfg(feature = "ship-code")]
+#[cfg(feature = "bridge")]
+#[cfg(feature = "bridge")]
+use bridge::lifecycle::exit_handler;
+#[cfg(feature = "bridge")]
+use bridge::lifecycle::ExitVocabulary;
+#[cfg(feature = "bridge")]
 use ship_substrate::dispatch_gate::DISPATCH_GATE;
 use agent_schema::canonical_session::{SessionFailed, event_types as canonical_session_event_types};
 use agent_schema::dispatch_intent::DispatchRequestedPayload;
-#[cfg(feature = "ship-code")]
+#[cfg(feature = "bridge")]
 use agent_schema::InvocationMode;
 use ship_substrate::events::EventEnvelope;
-#[cfg(feature = "ship-code")]
-use ship_code::dispatch_ports::SessionContext;
-#[cfg(feature = "ship-code")]
+#[cfg(feature = "bridge")]
+use bridge::dispatch_ports::SessionContext;
+#[cfg(feature = "bridge")]
 use agent_driver::dispatch_ports::LaunchProfile;
 use tokio::sync::Mutex;
 
@@ -99,9 +102,9 @@ pub async fn handle_dispatch_requested(
     // install provides; absence is structural, not an error). The
     // `ship-code` cfg stays as the single conditional at the
     // router assembly (mount split, 2026-07-10): shipd only builds
-    // this arm with `--features ship-code`, and a coding agent
+    // this arm with `--features bridge`, and a coding agent
     // naming an unprovided harness is not on the resolvable set.
-    #[cfg(feature = "ship-code")]
+    #[cfg(feature = "bridge")]
     {
         // (Engine cut 2026-07-10: the `parent_pipeline_run_id` skip is
         // gone — composed sessions (a multi-step pipeline-run concept)
@@ -133,7 +136,7 @@ pub async fn handle_dispatch_requested(
         });
     }
 }
-#[cfg(feature = "ship-code")]
+#[cfg(feature = "bridge")]
 async fn dispatch_agent_session_internal(
     kernel: &Kernel,
     payload: &DispatchRequestedPayload,

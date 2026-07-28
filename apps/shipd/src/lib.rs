@@ -42,7 +42,7 @@ pub mod ports;
 pub mod yoke;
 // dispatch: job+session dispatch composition root — gated because it
 // directly uses ship-code types (process_registry, dispatch_ports).
-#[cfg(feature = "ship-code")]
+#[cfg(feature = "bridge")]
 pub mod dispatch;
 // (former `window_subscriptions` + `window_subscription_rpc` modules
 // deleted in the multiplex transport move to deck-axum (#276); the per-window

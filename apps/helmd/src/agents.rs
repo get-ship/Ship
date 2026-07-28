@@ -23,7 +23,7 @@ use tokio::sync::Mutex;
 
 use ship_agents::services::agents::dispatch_core::AgentDispatchPort;
 use ship_agents::services::agents::host::{AgentsHost, mount as mount_agents_wire};
-#[cfg(feature = "ship-code")]
+#[cfg(feature = "bridge")]
 use ship_agents::services::agents::host::DispatchHandlePort;
 use ship_agents::services::agents::service::{AgentsService, AgentsServiceImpl};
 use ship_agents::services::rules::wire::GateFn;
@@ -31,7 +31,7 @@ use ship_substrate::ShipHome;
 use ship_substrate::events::{KernelRouter, init_kernel_router};
 // Only the OFF-path `NoopDispatch` names `EventEnvelope`; the real adapter lives
 // in `dispatch.rs`.
-#[cfg(not(feature = "ship-code"))]
+#[cfg(not(feature = "bridge"))]
 use ship_substrate::events::EventEnvelope;
 use ship_substrate::ports::KernelLog;
 
@@ -45,11 +45,11 @@ pub struct HelmAgentsHost {
     kernel:        Arc<Mutex<KernelRouter>>,
     /// Origin (scheme+host+port) helmd is reachable at — feeds the dispatch
     /// `studio_url` + the spawned agent's `$SHIP_DAEMON_URL`.
-    #[cfg(feature = "ship-code")]
+    #[cfg(feature = "bridge")]
     daemon_origin: String,
     /// Live dispatch runtime (process registry + executor). `start_agents` is
     /// already running over `kernel` when this is set; stop/steer act on it.
-    #[cfg(feature = "ship-code")]
+    #[cfg(feature = "bridge")]
     dispatch:      Arc<super::dispatch::DispatchHandle>,
 }
 
@@ -66,7 +66,7 @@ impl HelmAgentsHost {
     /// With `ship-code` ON this also boots the dispatch runtime (the
     /// `service.agents` actor over `kernel`); with it OFF the arg is unused and
     /// the dispatch path stays the no-op stubs.
-    #[cfg_attr(not(feature = "ship-code"), allow(unused_variables))]
+    #[cfg_attr(not(feature = "bridge"), allow(unused_variables))]
     pub fn new(daemon_origin: String) -> anyhow::Result<Self> {
         // User scope: resolve the XDG data root (or SHIP_HOME's
         // `data/` subdir in dev) via the substrate home helper — never
@@ -97,7 +97,7 @@ impl HelmAgentsHost {
         // spine 2b: helmd actually spawns agents now. Must run inside the Tokio
         // runtime (the actor is `tokio::spawn`ed) — `mount()` is called from
         // helmd's `#[tokio::main]`.
-        #[cfg(feature = "ship-code")]
+        #[cfg(feature = "bridge")]
         let dispatch =
             Arc::new(super::dispatch::start_dispatch_runtime(kernel.clone(), daemon_origin.clone()));
 
@@ -106,9 +106,9 @@ impl HelmAgentsHost {
             ship_dir,
             workspace_dir,
             kernel,
-            #[cfg(feature = "ship-code")]
+            #[cfg(feature = "bridge")]
             daemon_origin,
-            #[cfg(feature = "ship-code")]
+            #[cfg(feature = "bridge")]
             dispatch,
         })
     }
@@ -141,7 +141,7 @@ impl AgentsHost for HelmAgentsHost {
     fn dispatch_port(&self) -> Arc<dyn AgentDispatchPort> {
         // ship-code ON: the real adapter — emits `dispatch.requested` into the
         // kernel the `service.agents` actor subscribes to (= a real spawn).
-        #[cfg(feature = "ship-code")]
+        #[cfg(feature = "bridge")]
         {
             Arc::new(super::dispatch::HelmDispatchAdapter::new(
                 self.kernel.clone(),
@@ -149,7 +149,7 @@ impl AgentsHost for HelmAgentsHost {
             ))
         }
         // ship-code OFF: no dispatch — misrouted calls fail loudly.
-        #[cfg(not(feature = "ship-code"))]
+        #[cfg(not(feature = "bridge"))]
         {
             Arc::new(NoopDispatch)
         }
@@ -163,7 +163,7 @@ impl AgentsHost for HelmAgentsHost {
     // ship-code ON: the real dispatch handle — Stop/Steer act on the live
     // process registry + executor. ship-code OFF: the trait default `None`
     // (the wire's stop/steer return "dispatch not available").
-    #[cfg(feature = "ship-code")]
+    #[cfg(feature = "bridge")]
     fn dispatch_handle(&self) -> Option<Arc<dyn DispatchHandlePort>> {
         Some(Arc::new(super::dispatch::HelmDispatchHandle::new(&self.dispatch))
             as Arc<dyn DispatchHandlePort>)
@@ -199,10 +199,10 @@ pub fn mount(
 /// Agent dispatch port — helmd serves no dispatch when `ship-code` is OFF.
 /// With the feature ON the real [`super::dispatch::HelmDispatchAdapter`] is
 /// used instead and this stub is compiled out.
-#[cfg(not(feature = "ship-code"))]
+#[cfg(not(feature = "bridge"))]
 struct NoopDispatch;
 
-#[cfg(not(feature = "ship-code"))]
+#[cfg(not(feature = "bridge"))]
 #[async_trait]
 impl AgentDispatchPort for NoopDispatch {
     async fn persist_and_route(&self, _envelope: &EventEnvelope) -> anyhow::Result<()> {
@@ -213,7 +213,7 @@ impl AgentDispatchPort for NoopDispatch {
         String::new()
     }
 
-    #[cfg(feature = "ship-code")]
+    #[cfg(feature = "bridge")]
     fn worktrees_dir(&self) -> Option<PathBuf> {
         None
     }

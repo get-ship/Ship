@@ -71,7 +71,7 @@ dependencies = [
 [[package]]
 name = "agent-driver"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/fleet.git?rev=de7599e1163559aaa1da7dbae6be1768c4ad5d09#de7599e1163559aaa1da7dbae6be1768c4ad5d09"
+source = "git+https://github.com/get-ship/fleet.git?rev=6967f155ca795c19c44a145701c138b2d079c89c#6967f155ca795c19c44a145701c138b2d079c89c"
 dependencies = [
  "agent-schema",
  "anyhow",
@@ -85,7 +85,7 @@ dependencies = [
 [[package]]
 name = "agent-schema"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/fleet.git?rev=de7599e1163559aaa1da7dbae6be1768c4ad5d09#de7599e1163559aaa1da7dbae6be1768c4ad5d09"
+source = "git+https://github.com/get-ship/fleet.git?rev=6967f155ca795c19c44a145701c138b2d079c89c#6967f155ca795c19c44a145701c138b2d079c89c"
 dependencies = [
  "anyhow",
  "minijinja",
@@ -783,6 +783,38 @@ checksum = "17d4f95e880cfd28c4ca5a006cf7f6af52b4bcb7b5866f573b2faa126fb7affb"
 dependencies = [
  "quote",
  "syn 2.0.117",
+]
+
+[[package]]
+name = "bridge"
+version = "0.1.0"
+source = "git+https://github.com/get-ship/fleet.git?rev=6967f155ca795c19c44a145701c138b2d079c89c#6967f155ca795c19c44a145701c138b2d079c89c"
+dependencies = [
+ "agent-driver",
+ "agent-schema",
+ "anyhow",
+ "async-stream",
+ "async-trait",
+ "axum",
+ "bounded-spawn",
+ "chrono",
+ "connectrpc",
+ "futures-util",
+ "harness-drivers",
+ "http",
+ "isolation-port",
+ "libc",
+ "process-supervisor",
+ "serde",
+ "serde_json",
+ "ship-proto",
+ "sysinfo 0.37.2",
+ "thiserror 2.0.18",
+ "tokio",
+ "tower",
+ "tracing",
+ "tracing-subscriber",
+ "ulid",
 ]
 
 [[package]]
@@ -3106,7 +3138,7 @@ dependencies = [
 [[package]]
 name = "harness-config-compiler"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/fleet.git?rev=de7599e1163559aaa1da7dbae6be1768c4ad5d09#de7599e1163559aaa1da7dbae6be1768c4ad5d09"
+source = "git+https://github.com/get-ship/fleet.git?rev=6967f155ca795c19c44a145701c138b2d079c89c#6967f155ca795c19c44a145701c138b2d079c89c"
 dependencies = [
  "agent-schema",
  "anyhow",
@@ -3123,7 +3155,7 @@ dependencies = [
 [[package]]
 name = "harness-drivers"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/fleet.git?rev=de7599e1163559aaa1da7dbae6be1768c4ad5d09#de7599e1163559aaa1da7dbae6be1768c4ad5d09"
+source = "git+https://github.com/get-ship/fleet.git?rev=6967f155ca795c19c44a145701c138b2d079c89c#6967f155ca795c19c44a145701c138b2d079c89c"
 dependencies = [
  "agent-driver",
  "anyhow",
@@ -3394,7 +3426,7 @@ dependencies = [
  "js-sys",
  "log",
  "wasm-bindgen",
- "windows-core 0.62.2",
+ "windows-core 0.61.2",
 ]
 
 [[package]]
@@ -4639,7 +4671,7 @@ version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "680998035259dcfcafe653688bf2aa6d3e2dc05e98be6ab46afb089dc84f1df8"
 dependencies = [
- "proc-macro-crate 3.5.0",
+ "proc-macro-crate 2.0.2",
  "proc-macro2",
  "quote",
  "syn 2.0.117",
@@ -7857,12 +7889,14 @@ dependencies = [
  "async-stream",
  "async-trait",
  "base64 0.22.1",
+ "bridge",
  "buffa",
  "chrono",
  "connectrpc",
  "harness-config-compiler",
  "harness-drivers",
  "home",
+ "isolation-port",
  "json-patch 4.2.0",
  "libc",
  "parking_lot",
@@ -7872,10 +7906,11 @@ dependencies = [
  "serde_json",
  "shell-words",
  "ship-auth",
- "ship-code",
  "ship-config",
+ "ship-device",
  "ship-files",
  "ship-git",
+ "ship-isolation",
  "ship-kernel",
  "ship-ops-rpc",
  "ship-platform",
@@ -7987,57 +8022,6 @@ dependencies = [
  "tempfile",
  "tokio",
  "tracing",
-]
-
-[[package]]
-name = "ship-code"
-version = "0.1.0"
-dependencies = [
- "agent-def",
- "agent-driver",
- "agent-schema",
- "anyhow",
- "assert_cmd",
- "async-trait",
- "bounded-spawn",
- "build-info",
- "chrono",
- "clap",
- "connectrpc",
- "futures-util",
- "harness-config-compiler",
- "harness-drivers",
- "home",
- "http",
- "http-body-util",
- "hyper",
- "hyper-util",
- "isolation-port",
- "libc",
- "parking_lot",
- "predicates",
- "process-supervisor",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "ship-auth",
- "ship-config",
- "ship-device",
- "ship-files",
- "ship-isolation",
- "ship-ops-rpc",
- "ship-resolver",
- "ship-substrate",
- "ship-types",
- "stack-model",
- "sysinfo",
- "tempfile",
- "thiserror 2.0.18",
- "tokio",
- "tower",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
 ]
 
 [[package]]
@@ -8376,7 +8360,7 @@ dependencies = [
  "specta",
  "sqlx",
  "stack-model",
- "sysinfo",
+ "sysinfo 0.38.4",
  "tar",
  "tempfile",
  "thiserror 2.0.18",
@@ -8697,6 +8681,8 @@ dependencies = [
  "async-trait",
  "axum",
  "base64 0.22.1",
+ "bounded-spawn",
+ "bridge",
  "build-info",
  "chrono",
  "connectrpc",
@@ -8715,6 +8701,7 @@ dependencies = [
  "journal-sqlite",
  "json-patch 4.2.0",
  "libc",
+ "process-supervisor",
  "reqwest 0.12.28",
  "rig-core",
  "serde",
@@ -8726,7 +8713,6 @@ dependencies = [
  "ship-auth",
  "ship-auth-types",
  "ship-cloud",
- "ship-code",
  "ship-collection",
  "ship-config",
  "ship-device",
@@ -9454,6 +9440,20 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.117",
+]
+
+[[package]]
+name = "sysinfo"
+version = "0.37.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "16607d5caffd1c07ce073528f9ed972d88db15dd44023fa57142963be3feb11f"
+dependencies = [
+ "libc",
+ "memchr",
+ "ntapi",
+ "objc2-core-foundation",
+ "objc2-io-kit",
+ "windows 0.61.3",
 ]
 
 [[package]]
@@ -11321,7 +11321,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
@@ -12138,7 +12138,7 @@ checksum = "cfe53a6657fd280eaa890a3bc59152892ffa3e30101319d168b781ed6529b049"
 [[package]]
 name = "yoke"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/fleet.git?rev=de7599e1163559aaa1da7dbae6be1768c4ad5d09#de7599e1163559aaa1da7dbae6be1768c4ad5d09"
+source = "git+https://github.com/get-ship/fleet.git?rev=6967f155ca795c19c44a145701c138b2d079c89c#6967f155ca795c19c44a145701c138b2d079c89c"
 dependencies = [
  "agent-schema",
  "anyhow",

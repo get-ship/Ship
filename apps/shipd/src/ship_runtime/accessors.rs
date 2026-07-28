@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use ship_substrate::task_health::HealthRegistry;
-#[cfg(feature = "ship-code")]
+#[cfg(feature = "bridge")]
 use crate::dispatch::run_dispatch::DispatchHandle;
 
 use super::{
@@ -174,11 +174,11 @@ impl ShipRuntime {
         &self.global_blob_dir
     }
     /// Store the dispatch handle (set once after job manager init).
-    #[cfg(feature = "ship-code")]
+    #[cfg(feature = "bridge")]
     pub fn set_dispatch_handle(&self, handle: DispatchHandle) {
         let _ = self.dispatch_handle.set(handle);
     }
-    #[cfg(feature = "ship-code")]
+    #[cfg(feature = "bridge")]
     pub fn dispatch_handle(&self) -> Option<&DispatchHandle> {
         self.dispatch_handle.get()
     }

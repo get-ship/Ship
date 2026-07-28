@@ -21,9 +21,11 @@
 
 
 pub mod registry;
+#[cfg(feature = "bridge")]
 pub mod agent_session_spawner;
 pub mod canonical_projection;
 pub mod lifecycle;
+#[cfg(feature = "bridge")]
 pub mod terminal_session_spawner;
 pub mod types;
 

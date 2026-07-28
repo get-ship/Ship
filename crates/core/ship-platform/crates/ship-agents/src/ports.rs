@@ -19,15 +19,15 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use agent_schema::dispatch_intent::DispatchRequestedPayload;
-#[cfg(feature = "ship-code")]
+#[cfg(feature = "bridge")]
 use ship_substrate::dispatch_gate::EventDedup;
-#[cfg(feature = "ship-code")]
-use ship_code::dispatch_ports::{
+#[cfg(feature = "bridge")]
+use bridge::dispatch_ports::{
     AgentPlatform, IsolationStrategy, ProcessRegistryPort, ProjectionReader, SessionExecutor,
     SpawnPolicy,
 };
-#[cfg(feature = "ship-code")]
-use ship_code::LifecycleSink;
+#[cfg(feature = "bridge")]
+use bridge::lifecycle::LifecycleSink;
 
 /// Async callback for native Yoke harness dispatch.
 ///
@@ -46,50 +46,50 @@ pub type YokeRunFn = Arc<
 /// With `ship-code` OFF, only `yoke_run_fn` is present — the entire
 /// harness-driver stack (executor/isolation/registry/etc.) is absent. Callers
 /// that construct `AgentPorts` must wrap every harness field in
-/// `#[cfg(feature = "ship-code")]` blocks.
+/// `#[cfg(feature = "bridge")]` blocks.
 #[derive(Clone)]
 pub struct AgentPorts {
     /// Native Yoke dispatch. When `Some` and harness is `"yoke"` or `"floki"`,
     /// routes here and skips the ship-code harness-driver stack.
     pub yoke_run_fn: Option<YokeRunFn>,
     /// Prepares + tears down the per-session isolated worktree.
-    #[cfg(feature = "ship-code")]
+    #[cfg(feature = "bridge")]
     pub isolation: Arc<dyn IsolationStrategy>,
     /// Spawns / stops the harness process.
-    #[cfg(feature = "ship-code")]
+    #[cfg(feature = "bridge")]
     pub executor: Arc<dyn SessionExecutor>,
     /// Host observation port — kernel emission lives here, not in harness code.
-    #[cfg(feature = "ship-code")]
+    #[cfg(feature = "bridge")]
     pub lifecycle: Arc<dyn LifecycleSink>,
     /// Host platform ops (worktrees dir, cleanup, token mint).
-    #[cfg(feature = "ship-code")]
+    #[cfg(feature = "bridge")]
     pub platform: Arc<dyn AgentPlatform>,
     /// Live process-handle registry (register / take / tombstone).
-    #[cfg(feature = "ship-code")]
+    #[cfg(feature = "bridge")]
     pub registry: Arc<dyn ProcessRegistryPort>,
     /// Spawn/op-invocation policy. The agent dispatch hands a domain-free
     /// [`agent_schema::Authority::Agent`] principal; the impl resolves the
     /// scoped spawn env (role + token mint). The concrete impl
     /// (`ConfigSpawnPolicy`) stays in L1 because it reads project config; this
     /// crate sees only the port.
-    #[cfg(feature = "ship-code")]
+    #[cfg(feature = "bridge")]
     pub spawn_policy: Arc<dyn SpawnPolicy>,
     /// Primitive projection reads for the L0 router gate's terminal-state
     /// guard + slug_for_session_id lookup for the cancel handler. Agents never
     /// reads `crate::projections` directly.
-    #[cfg(feature = "ship-code")]
+    #[cfg(feature = "bridge")]
     pub projections: Arc<dyn ProjectionReader>,
     /// Event-id dedup at the actor entry. Prevents a replayed envelope
     /// (mailbox redelivery, startup replay race, test replay) from
     /// double-admitting a spawn.
-    #[cfg(feature = "ship-code")]
+    #[cfg(feature = "bridge")]
     pub event_dedup: Arc<EventDedup>,
 }
 impl AgentPorts {
     /// Construct a flag-off `AgentPorts` carrying ONLY the yoke-harness
     /// dispatch closure. The harness-driver fields (isolation / executor /
     /// platform / registry / spawn_policy / projections / event_dedup) are
-    /// absent in this build (`#[cfg(feature = "ship-code")]`-gated);
+    /// absent in this build (`#[cfg(feature = "bridge")]`-gated);
     /// callers that need them must use the harness-on construction site
     /// (e.g. shipd's `dispatch::run_dispatch::subscribe_job_events`).
     ///
@@ -99,13 +99,13 @@ impl AgentPorts {
     /// the struct literal needs every harness field set, and the canonical
     /// composition root (`dispatch::run_dispatch::subscribe_job_events`)
     /// owns that wiring.
-    #[cfg(not(feature = "ship-code"))]
+    #[cfg(not(feature = "bridge"))]
     pub fn yoke_only(yoke_run_fn: Option<YokeRunFn>) -> Self {
         Self { yoke_run_fn }
     }
 }
 
-#[cfg(all(test, not(feature = "ship-code")))]
+#[cfg(all(test, not(feature = "bridge")))]
 mod tests {
     //! Tests for the flag-off `AgentPorts` shape. With `ship-code` off,
     //! only the yoke path is reachable; these guard the constructor and the

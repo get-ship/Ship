@@ -11,7 +11,7 @@
 // The stack->harness compile driver — third-party-harness territory
 // (emits via harness-config-compiler). Explicitly gated: floki and the standard
 // build never carry it.
-#[cfg(feature = "ship-code")]
+#[cfg(feature = "bridge")]
 pub mod compile;
 pub mod emit;
 pub mod file_changed_consumer;

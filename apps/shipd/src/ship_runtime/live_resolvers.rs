@@ -93,7 +93,7 @@ pub fn build() -> LiveResolverRegistry {
     // (no harness-driver stack), and the git overview composes against
     // `state.workspace_dir()` which the ship-standard build doesn't expose.
     // With `ship-code` off, this resolver would always return `null`.
-    #[cfg(feature = "ship-code")]
+    #[cfg(feature = "bridge")]
     reg.register(
         "git",
         "overview",
@@ -211,9 +211,9 @@ mod tests {
         // feature). The default ship-standard build is intentionally git-less —
         // the resolver composes against state.workspace_dir() which ship-standard
         // doesn't expose. The test gates the assertion the same way.
-        #[cfg(feature = "ship-code")]
+        #[cfg(feature = "bridge")]
         assert!(reg.has("git", "overview"), "git.overview registered in ship-code build");
-        #[cfg(not(feature = "ship-code"))]
+        #[cfg(not(feature = "bridge"))]
         assert!(!reg.has("git", "overview"), "git.overview not registered in ship-standard build");
         assert!(reg.has("agents", "summaries"), "agents.summaries registered (job/livedata-coverage)");
         assert!(reg.has("collections", "list"), "collections.list registered (job/livedata-coverage)");

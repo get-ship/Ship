@@ -81,9 +81,6 @@ pub fn classify(rel_dir: &str) -> Option<Layer> {
         // ship-platform).
         return Some(Layer::L0);
     }
-    if rel_dir == "crates/code/ship-code" || rel_dir.starts_with("crates/code/ship-code/") {
-        return Some(Layer::L1);
-    }
     // L0 — ship-substrate tree (root + every nested crate).
     if rel_dir == "crates/core/ship-substrate" || rel_dir.starts_with("crates/core/ship-substrate/")
     {

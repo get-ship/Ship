@@ -96,14 +96,14 @@ pub fn build_router(
         // Bind the runtime state here so the resulting `Router<()>` merges
         // cleanly with the root assembly below.
         .with_state(rt.clone());
-    #[cfg(feature = "ship-code")]
+    #[cfg(feature = "bridge")]
     let auth_registry = session_registry;
     // Hook ingress lives at flat `/hooks/*` (authed, but OFF `/api/v1`):
     // consumed by generated git-hook shell scripts that POST via curl and
     // can't speak Connect, so it's a permanent ingress holdout. Kept out of
     // `/api/v1` so that namespace can shrink to just the auth-bootstrap.
     let authenticated_routes = Router::new();
-    #[cfg(feature = "ship-code")]
+    #[cfg(feature = "bridge")]
     let authenticated_routes = authenticated_routes
         // applied here, so auth wraps it): it reads the populated AuthContext and
         // stamps the resolved `agent_schema::Authority` into the request, so

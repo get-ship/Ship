@@ -2,7 +2,7 @@ name: CI
 
 # Post-multi-repo split (chore/umbrella-resolution phase 1, 2026-06-28).
 # This CI is scoped to the **ship** repo's owned surfaces only:
-#   - The Rust daemon (shipd, shipctl, ship-code, ship-host, helmd) and the L0/L1
+#   - The Rust daemon (shipd, shipctl, ship-host, helmd) and the L0/L1
 #     platform (crates/*).
 #   - The xtask codegen that operates on this repo's source (gen-fixtures,
 #     gen-events, the lints).
@@ -81,9 +81,9 @@ jobs:
       # ship-host excluded: needs webkit2gtk/libsoup (release.yml
       # tauri-action provisions it).
       - name: Clippy
-        run: cargo clippy --workspace --exclude ship-host --features unstable,ship-code -- -D warnings
+        run: cargo clippy --workspace --exclude ship-host --features unstable,bridge -- -D warnings
       - name: Check shipd boundary (--no-default-features)
-        # Guards the invariant the `ship-code` feature gate exists for:
+        # Guards the invariant the `bridge` feature gate exists for:
         # shipd must compile with zero harness-driver / git surface when
         # the feature is off. Explicit even though default = [] already
         # matches, so a future default flip can't silently break this.
@@ -91,11 +91,11 @@ jobs:
       - name: Build shipd (stable, ship-standard)
         # shipd defaults to ship-standard — no harness-driver stack.
         # The harness-on dispatch path is exercised by the `Build (unstable)`
-        run: cargo build -p shipctl -p ship-code --features cli -p shipd
+        run: cargo build -p shipctl -p shipd
       - name: Build shipd (unstable, harness-on)
-        run: cargo build --features unstable,ship-code -p shipctl -p ship-code --features cli -p shipd
+        run: cargo build --features unstable,bridge -p shipctl -p shipd
       - name: Build shipd (stable, harness-on)
-        run: cargo build --features ship-code -p shipctl -p ship-code --features cli -p shipd
+        run: cargo build --features bridge -p shipctl -p shipd
       # gen-skills is native in ship-contracts (xtask-contracts): it reads
       # ship-proto's descriptor + proto/fixtures and writes skills/sdk/
       # there. The ship repo no longer tracks `skills/sdk/`.

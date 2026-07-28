@@ -5,14 +5,14 @@ use anyhow::Result;
 use async_trait::async_trait;
 use ship_substrate::events::executor::DestructionCause;
 use ship_substrate::events::KernelRouter;
-use ship_code::dispatch_ports::{AgentPlatform, SessionExecutor};
+use bridge::dispatch_ports::{AgentPlatform, SessionExecutor};
 use ship_substrate::events::emit::emit_executor_session_destroyed;
-use ship_code::process_registry::ProcessRegistry;
+use bridge::process_registry::ProcessRegistry;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use ship_agents::runtime::helpers;
+use bridge::helpers;
 
 /// Shipd's concrete implementation of `AgentPlatform`.
 ///
@@ -37,11 +37,11 @@ impl AgentPlatform for ShipdPlatform {
     }
 
     fn compile_agent_config(&self, worktree_path: &Path, agent_id: &str) -> Result<()> {
-        helpers::compile_agent_config(worktree_path, agent_id)
+        ship_agents::services::agents::compile_dispatch::compile_agent_config(worktree_path, agent_id)
     }
 
     async fn graceful_agent_exit(&self, slug: &str, harness: Option<&str>) {
-        ship_agents::runtime::agent_lifecycle::graceful_agent_exit(slug, harness).await;
+        bridge::agent_lifecycle::graceful_agent_exit(slug, harness).await;
     }
 
     async fn cleanup_job(&self, slug: &str, branch: &str) {
@@ -78,7 +78,7 @@ impl AgentPlatform for ShipdPlatform {
     }
 
     fn git_merge(&self, branch: &str) -> Result<bool> {
-        let merge_result = ship_substrate::spawn_bounded::Cmd::new("git")
+        let merge_result = bounded_spawn::Cmd::new("git")
             .args(["merge", branch, "--no-edit"])
             .current_dir(helpers::repo_dir())
             .timeout_secs(60)

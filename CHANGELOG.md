@@ -94,7 +94,7 @@ collection returned a raw storage error instead of a typed
 Ship becomes honestly git/agent-free by default. The eight seam
 leaks identified by the seam + workspace censuses are closed: three
 harness-driver methods that shell-out to `git` in ungated code,
-two L0 mechanism primitives that squared away in `ship-code`, two
+two L0 mechanism primitives that squared away in `bridge`, two
 `dispatch_resume` / `baseline_sha` callers that survived without a
 harness-driver path, and the silent-skip dispatch failure mode that
 edits into a typed `session.failed`.
@@ -116,7 +116,7 @@ edits into a typed `session.failed`.
   home; the R13 keystone work breaks that cycle. Documented in the
   ship-agents / ship-pipeline-runtime README and the runner module
   docs.
-- **Domain-free ANSI / git-evidence utilities leave `ship-code`.**
+- **Domain-free ANSI / git-evidence utilities leave `bridge`.**
   `runner::observe::strip_ansi` → `ship_substrate::text::strip_ansi`
   (new L0 leaf; `strip_ansi_bytes` for byte-buffer callers; the
   `runner/mod.rs::compute_step_invocation` and `log_stream::strip_ansi`
@@ -126,21 +126,21 @@ edits into a typed `session.failed`.
   ship-git leaf replaces the raw `git rev-list --count` shell-out.
 - **ship-code has zero direct `git` calls.** `helpers::remove_worktree`
   and `helpers::delete_branch` (the last two `Command::new("git")`
-  shell-outs in `ship-code`) now delegate to `ship_git::write
+  shell-outs in `bridge`) now delegate to `ship_git::write
   ::{remove_worktree, delete_branch}` (already on the L1 leaf, with
   the job-branch prefix guard preserving the dispatch-path contract).
   `ship-code` gains a direct `ship-git` dep.
 - **`AgentDispatchPort::worktrees_dir() -> Option<PathBuf>`.** Harness
   impls return `Some(...)`; the dispatch-only paths (resume-only)
   consume it. The dispatch-only branch + `resolve_resume` + the
-  whole `dispatch_resume` module are gated behind `ship-code`;
+  `dispatch_resume` gated behind `bridge`;
   shipd's NoopDispatch / flag-off impls return `None`. shipd's
   `apps/shipd/src/ports/local_paths.rs::worktrees_dir` is the single
   surviving definition (helmd's parallel `helpers::worktrees_dir`
   reads through `ship_config::worktrees::worktrees_dir` — same answer,
   same env).
 - **`resolve_project_head_sha` gates + floki = `baseline_sha: None`.
-  The function is `#[cfg(feature = "ship-code")]`-gated; the
+  The function is `#[cfg(feature = "bridge")]`-gated; the
   `DispatchRequestedPayload.baseline_sha` field reads `None` when
   the flag is off — the intended design (ship-standard is git-free
   by ruling, decisions-2026-07-09 §"Git surface"), NOT a regression.
@@ -149,7 +149,7 @@ edits into a typed `session.failed`.
   `session.failed` event in two previously-silent cases: (a) a
   floki `dispatch.requested` arrives with `floki_run_fn == None`,
   (b) a coding-agent `dispatch.requested` arrives with
-  `ship-code` off. Both paths feed the canonical_sessions
+  `bridge` OFF. Both paths feed the canonical_sessions
   projection (Failed status), produce an audit row, and return
   without touching the executor. The boot-time posture announcement
   in `daemon::lifecycle::start_agent_stack` logs an `info` line at
@@ -157,12 +157,12 @@ edits into a typed `session.failed`.
 - **shipd default = ship-standard (`default = []`).** shipd's
   default build no longer drags in the harness driver stack —
   `cargo build -p shipd` produces the floki-only ship-standard
-  build. Coding-agent dispatch requires `--features ship-code`.
+  build. Coding-agent dispatch requires `--features bridge`.
   The Justfile recipes (`build`, `build-dev`, `build-release`,
   `install-dev`, `install`, `check-gates`) and `.github/workflows
-  /ci.yml` (the `Build shipd` arms) now pass `--features ship-code`
+  /ci.yml` (the `Build shipd` arms) now pass `--features bridge`
   explicitly. `helmd`'s `Cargo.toml` is unchanged (default still
-  includes `ship-code` per the helix testbed role).
+  includes `bridge` per the helix testbed role).
 
 ### STOPs carried into the next slice
 
@@ -235,7 +235,7 @@ The `ship` binary includes the MCP server. Run `ship mcp serve` to start it.
 
 ## Unreleased — R17 flag-off quarantine (#24)
 
-Two related changes land in this slice. Together they make the `ship-code`
+Two related changes land in this slice. Together they make the `bridge`
 feature gate drop the entire third-party-harness driver stack from the
 daemon build AND keep the floki-harness path routable. The floki path is
 now a feature-independent daemon concern — it lives or dies based on
@@ -244,7 +244,7 @@ its own runtime, not the harness-driver feature flag.
 ### (b) — floki is feature-independent (LANDED)
 
 `shipd` previously built the floki-harness dispatch closure inside a
-`#[cfg(feature = "ship-code")]` block, so `--no-default-features` left
+`#[cfg(feature = "bridge")]` block, so `--no-default-features` left
 floki with no run_fn wired (the agent-session actor started but every
 floki payload was silently no-op'd). The block sat inside
 `run_dispatch::subscribe_job_events`, whose struct literal also swept
@@ -253,12 +253,12 @@ the harness-port fields into the same cfg arm.
 Fix:
 - `crates/core/ship-platform/crates/ship-agents/src/ports.rs`: added
   `AgentPorts::floki_only(run_fn)` constructor, gated to
-  `#[cfg(not(feature = "ship-code"))]`. The struct's `floki_run_fn`
+  `#[cfg(not(feature = "bridge"))]`. The struct's `floki_run_fn`
   field is already ungated; this constructor is the flag-off entry point
   that fills ONLY the floki field and leaves the harness-side fields
   omitted (the literal doesn't name them).
 - `apps/shipd/src/lib.rs`: the floki-harness dispatch closure build is
-  moved OUTSIDE the `#[cfg(feature = "ship-code")]` block. The closure
+  moved OUTSIDE the `#[cfg(feature = "bridge")]` block. The closure
   captures `Arc<ShipdGateway>` and the kernel, both floki-/L1-clean.
   In the flag-on build, the closure hands to the existing
   `RunManager::init → subscribe_job_events → start_agents` path (the
@@ -268,11 +268,11 @@ Fix:
   branch in `handle_agent_session_started` routable. Non-floki
   sessions in flag-off become no-ops (the harness-driver stack is
   cfg-omitted from `handle_agent_session_started`, by design).
-- New unit tests under `cfg(not(feature = "ship-code"))` guard
+- New unit tests under `cfg(not(feature = "bridge"))` guard
   the constructor: `floki_only_round_trips_closure`,
   `floki_only_none_is_noop`. The existing floki-routing behavior tests
   in `crates/core/ship-platform/crates/ship-agents/tests/behavior.rs`
-  (gated to `ship-code`) still pass — they assert the harness
+  (gated to `bridge`) still pass — they assert the harness
   executor is skipped when `floki_run_fn` is wired, which the floki
   branch in `handle_agent_session_started` does regardless of feature
   state.
@@ -280,7 +280,7 @@ Fix:
 ### (a) — ship-pipeline-runtime gate (DEFERRED to R13 dissolution)
 
 `crates/ship-pipeline-runtime/Cargo.toml:25` unconditionally pulls
-`ship-code` (no `optional`, no feature gate). The runtime is the L1
+`bridge` (no `optional`, no feature gate). The runtime is the L1
 orchestrator that USES `ship_code` as its port surface — `ship_code::dispatch_ports::*`
 (SessionContext, LaunchProfile, StepInfo, AgentPlatform, IsolationStrategy,
 ProcessRegistryPort, ProjectionReader, SessionExecutor, SpawnPolicy,
@@ -297,7 +297,7 @@ already chartered to do. We do not duplicate the R13-shaped work in
 this slice.
 
 Net result: `cargo tree -p shipd --no-default-features` still shows
-`ship-code`, but only via `ship-pipeline-runtime`. Once R13 dissolves
+`bridge`, but only via `ship-pipeline-runtime`. Once R13 dissolves
 the orchestrator, the same cfg-gate pattern used here for the agent
 domain will clean this up.
 

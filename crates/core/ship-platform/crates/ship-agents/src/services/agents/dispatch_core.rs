@@ -52,7 +52,7 @@ pub trait AgentDispatchPort: Send + Sync {
     /// `None` when the daemon has no harness-driver backend wired.
     /// The in-process core never reads it; the coding core reads it
     /// under the `ship-code` cfg to resolve `resume: true`.
-    #[cfg(feature = "ship-code")]
+    #[cfg(feature = "bridge")]
     fn worktrees_dir(&self) -> Option<std::path::PathBuf>;
 }
 
@@ -246,7 +246,7 @@ mod tests {
         fn daemon_origin(&self) -> String {
             "http://127.0.0.1:0".to_string()
         }
-        #[cfg(feature = "ship-code")]
+        #[cfg(feature = "bridge")]
         fn worktrees_dir(&self) -> Option<std::path::PathBuf> {
             Some(std::path::PathBuf::from("/tmp"))
         }

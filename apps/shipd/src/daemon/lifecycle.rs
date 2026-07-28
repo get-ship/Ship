@@ -55,7 +55,7 @@ pub(super) async fn start_agent_stack(rt: &Arc<ShipRuntime>, global_dir: &std::p
         })
     };
 
-    #[cfg(feature = "ship-code")]
+    #[cfg(feature = "bridge")]
     {
         // Harness-on: hand the yoke closure to the full composition root
         // (RunManager → subscribe_job_events). That path builds the full
@@ -73,7 +73,7 @@ pub(super) async fn start_agent_stack(rt: &Arc<ShipRuntime>, global_dir: &std::p
         )
         .await;
     }
-    #[cfg(not(feature = "ship-code"))]
+    #[cfg(not(feature = "bridge"))]
     {
         // Flag-off: skip the orchestrator (harness ports are ship-code-typed),
         // but still start agent-sessions with yoke-only AgentPorts so native
@@ -411,14 +411,14 @@ pub(super) async fn drain_and_shutdown(rt: &Arc<ShipRuntime>) {
     // Bound the agent drain so a stuck child can't hang shutdown forever (#256).
     // axum already drained connections; this cap protects the registry drain
     // (the SIGTERM→SIGKILL hang was an unbounded wait here + un-cancelled SSE).
-    #[cfg(feature = "ship-code")]
+    #[cfg(feature = "bridge")]
     let agents_drained = if let Some(dh) = rt.dispatch_handle() {
         const SHUTDOWN_DRAIN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(8);
         let mut registry = dh.registry.lock().await;
         let count = registry.len();
-        let sink: Arc<dyn ship_code::LifecycleSink> =
+        let sink: Arc<dyn bridge::lifecycle::LifecycleSink> =
             Arc::new(ship_agents::KernelLifecycleSink::new(rt.kernel().clone()));
-        let drain = ship_code::process_registry::graceful_shutdown(
+        let drain = bridge::process_registry::graceful_shutdown(
             &sink,
             &mut registry,
             Arc::clone(&dh.executor),
@@ -433,7 +433,7 @@ pub(super) async fn drain_and_shutdown(rt: &Arc<ShipRuntime>) {
     } else {
         0
     };
-    #[cfg(not(feature = "ship-code"))]
+    #[cfg(not(feature = "bridge"))]
     let agents_drained: usize = 0;
 
     // Reap all sandboxes so a clean restart doesn't orphan backend

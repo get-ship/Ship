@@ -5,7 +5,7 @@
 //! the dogfooding payoff: the same `ship.ops.v1.AgentsService/Dispatch` wire
 //! shipd serves now runs in helmd.
 //!
-//! The whole module is gated `#[cfg(feature = "ship-code")]` (the lean read
+//! The whole module is gated `#[cfg(feature = "bridge")]` (the lean read
 //! path in `agents.rs` still works with the feature OFF — `NoopDispatch` +
 //! `dispatch_handle() == None`).
 //!
@@ -48,16 +48,16 @@ use ship_agents::services::agents::dispatch_core::AgentDispatchPort;
 use ship_agents::services::agents::host::DispatchHandlePort;
 use ship_agents::{AgentPorts, start_agents};
 
-use ship_code::agent_lifecycle;
-use ship_code::dispatch_ports::{
+use bridge::agent_lifecycle;
+use bridge::dispatch_ports::{
     AgentPlatform, IsolationStrategy, ProcessRegistryPort, ProjectionReader, SessionContext,
     SessionExecutor, SpawnPolicy,
 };
-use ship_code::executors::RoutingExecutor;
+use bridge::executors::RoutingExecutor;
 use ship_git::write::{self as git_write, WorktreeOutcome};
-use ship_code::helpers;
+use bridge::helpers;
 
-use ship_code::process_registry::{ProcessRegistry, SharedRegistry};
+use bridge::process_registry::{ProcessRegistry, SharedRegistry};
 use ship_substrate::dispatch_gate::EventDedup;
 
 use ship_pipeline_runtime::ports::projection_reader::ProjectionsReader;
@@ -93,16 +93,21 @@ pub fn start_dispatch_runtime(
     daemon_origin: String,
 ) -> DispatchHandle {
     // bridge: future call site — wrap `executor` in
-    // `ship_code::SessionExecutor` (implements `bridge monorepo HarnessDriver (RPC/external)`)
+    // `bridge::SessionExecutor` (implements `bridge monorepo HarnessDriver (RPC/external)`)
     // so helm/admiral spawn goes through the Bridge control-plane trait
     // instead of only SessionExecutor. Phase 0 leaves the actor path on
     // SessionExecutor; the adapter lives in ship-code for incremental adopt.
     // RoutingExecutor picks tmux-window (interactive) or process (headless) per
     // job; falls back to ProcessExecutor when tmux is unavailable.
-    let lifecycle: Arc<dyn ship_code::LifecycleSink> =
+    let lifecycle: Arc<dyn bridge::lifecycle::LifecycleSink> =
         Arc::new(ship_agents::KernelLifecycleSink::new(kernel.clone()));
-    let executor: Arc<dyn SessionExecutor> =
-        Arc::new(RoutingExecutor::new(Arc::clone(&lifecycle)));
+    let sandbox: Arc<dyn bridge::sandbox_port::SandboxPort> =
+        Arc::new(ship_agents::sandbox_port::ShipSandboxPort);
+    let executor: Arc<dyn SessionExecutor> = Arc::new(RoutingExecutor::new(
+        Arc::clone(&lifecycle),
+        sandbox,
+        process_supervisor::SupervisorContext::standalone(),
+    ));
 
     let registry = Arc::new(Mutex::new(ProcessRegistry::new()));
 
@@ -283,7 +288,7 @@ impl AgentPlatform for HelmdPlatform {
     }
 
     fn compile_agent_config(&self, worktree_path: &Path, agent_id: &str) -> Result<()> {
-        helpers::compile_agent_config(worktree_path, agent_id)
+        ship_agents::services::agents::compile_dispatch::compile_agent_config(worktree_path, agent_id)
     }
 
     async fn graceful_agent_exit(&self, slug: &str, harness: Option<&str>) {
@@ -449,7 +454,7 @@ impl IsolationStrategy for GitWorktreeIsolation {
         // Run steps (pure shell) carry no agent — nothing to compile. Only
         // compile when a real agent is named (every bare dispatch sets one).
         if !job.agent.is_empty() {
-            helpers::compile_agent_config(&worktree_path, &job.agent)?;
+            ship_agents::services::agents::compile_dispatch::compile_agent_config(&worktree_path, &job.agent)?;
         }
         Ok(worktree_path)
     }

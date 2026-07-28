@@ -32,9 +32,9 @@ impl AgentDispatchPort for AgentDispatchAdapter {
     fn daemon_origin(&self) -> String {
         self.state.daemon_origin()
     }
-    #[cfg(feature = "ship-code")]
+    #[cfg(feature = "bridge")]
     fn worktrees_dir(&self) -> Option<std::path::PathBuf> {
-        ship_code::helpers::worktrees_dir().ok()
+        bridge::helpers::worktrees_dir().ok()
     }
 }
 

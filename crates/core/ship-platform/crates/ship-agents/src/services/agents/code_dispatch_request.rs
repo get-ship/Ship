@@ -2,7 +2,7 @@
 //!
 //! Mirrors `ship.code.v1.CodeDispatchRequest` (the coding-agent capability
 //! surface — `proto/ship/code/v1/code.proto:22`). Lives on `CodeService`
-//! which is mounted behind `#[cfg(feature = "ship-code")]` at the router
+//! which is mounted behind `#[cfg(feature = "bridge")]` at the router
 //! assembly (or unconditionally on the helmd testbed). All the fields the
 //! standard `DispatchRequest` reserved are here:
 //! `spec / source_spec_path / resume / harness / invocation / keepalive

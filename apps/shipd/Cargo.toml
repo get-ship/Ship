@@ -23,7 +23,9 @@ ship-resolver = { path = "../../crates/core/ship-resolver" }
 ship-substrate = { path = "../../crates/core/ship-substrate" }
 journal-sqlite = { path = "../../crates/core/ship-substrate/crates/journal-sqlite" }
 ship-platform = { path = "../../crates/core/ship-platform" }
-ship-code = { path = "../../crates/ship-code", features = ["ship-code"], optional = true }
+bridge = { git = "https://github.com/get-ship/fleet.git", rev = "6967f155ca795c19c44a145701c138b2d079c89c", default-features = false, features = ["runtime"], optional = true }
+process-supervisor = { git = "https://github.com/get-ship/ship-exec.git", rev = "d7cddebe61e58e9928dff65fb598d10f89c5e3f1" }
+bounded-spawn = { git = "https://github.com/get-ship/ship-exec.git", rev = "d7cddebe61e58e9928dff65fb598d10f89c5e3f1" }
 ship-agents = { path = "../../crates/core/ship-platform/crates/ship-agents" }
 ship-auth = { path = "../../crates/core/ship-platform/crates/ship-auth" }
 
@@ -52,7 +54,7 @@ ship-space = { path = "../../crates/core/ship-platform/crates/ship-space" }
 ship-device = { path = "../../crates/core/ship-platform/crates/ship-device" }
 ship-config = { path = "../../crates/core/ship-platform/crates/ship-config" }
 ship-account = { path = "../../crates/core/ship-platform/crates/ship-account" }
-agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "de7599e1163559aaa1da7dbae6be1768c4ad5d09" }
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "6967f155ca795c19c44a145701c138b2d079c89c" }
 stack-model = { path = "../../crates/core/stack-model" }
 # `.ts` agent-config eval — evaluates `.ship/agents/<id>.ts` (defineAgent) in a
 # locked-down ship-js isolate. Pulls V8 (deno_core), which is WHY the eval is
@@ -108,7 +110,7 @@ async-stream = "0.3"
 futures = "0.3"
 tower = { version = "0.5", features = ["timeout", "util"] }
 # Native harness (embeddable). Path dep until engines monorepo publish.
-yoke = { git = "https://github.com/get-ship/fleet.git", rev = "de7599e1163559aaa1da7dbae6be1768c4ad5d09" }
+yoke = { git = "https://github.com/get-ship/fleet.git", rev = "6967f155ca795c19c44a145701c138b2d079c89c" }
 # Durable journal used by in-process yoke embed (apps/shipd/src/yoke/embed).
 durable-execution = { git = "https://github.com/get-ship/ship-exec.git", rev = "40e694384108ce298eccd3e0da22e9f5e9855beb" }
 tower-http = { version = "0.6", features = ["catch-panic", "limit", "timeout"] }
@@ -123,15 +125,15 @@ specta = { workspace = true, features = ["chrono", "serde_json"], optional = tru
 # Default feature set — ship-standard shipd. Builds without the harness-driver
 # stack: dispatch goes through the floki closure only. To run shipd with the
 # coding-agent dispatch stack — worktree management, hooks, job routes — opt in
-# with `--features ship-code`.
+# with `--features bridge`.
 default = []
-# ship-code: coding-agent dispatch stack (sessions, hooks, job routes).
+# bridge: bridge runtime integration (sessions, hooks, job routes).
 # Turn off with --no-default-features to get a harness-free shipd build.
-ship-code = [
-    "dep:ship-code",
+bridge = [
+    "dep:bridge",
     "dep:ship-git",
-    "ship-agents/ship-code",
-    "ship-platform/ship-code",
+    "ship-agents/bridge",
+    "ship-platform/bridge",
 ]
 unstable = ["ship-platform/unstable"]
 # ship-js-ssr: compile in deck-ssr (deno_core/V8) so the daemon can serve the

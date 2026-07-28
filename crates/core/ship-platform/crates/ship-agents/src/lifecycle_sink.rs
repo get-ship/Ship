@@ -1,4 +1,4 @@
-//! Host-side [`ship_code::LifecycleSink`] that owns kernel emission.
+//! Host-side [`bridge::lifecycle::LifecycleSink`] that owns kernel emission.
 //!
 //! Harness code never sees `KernelRouter`. This adapter is the composition
 //! root's bridge: outcomes from process/tmux executors become
@@ -11,7 +11,7 @@ use agent_schema::canonical_session::{
 };
 use agent_schema::op::OpToolUseStarted;
 use async_trait::async_trait;
-use ship_code::LifecycleSink;
+use bridge::lifecycle::LifecycleSink;
 use ship_substrate::db::block_on_anyhow;
 use ship_substrate::events::emit::{emit_process_signal_sent, persist_and_route};
 use ship_substrate::events::process::{event_types as process_event_types, ProcessKilledPayload};
@@ -193,6 +193,34 @@ impl LifecycleSink for KernelLifecycleSink {
         let _ = block_on_anyhow(async move {
             let ctx = EmitContext::daemon_internal(None);
             kernel.lock().await.emit(envelope, &ctx).await
+        });
+    }
+
+    fn actor_created_row(
+        &self,
+        actor_id: &str,
+        kind: &str,
+        agent_id: Option<&str>,
+        harness: Option<&str>,
+        transport: Option<&str>,
+    ) {
+        let kernel = Arc::clone(&self.kernel);
+        let actor_id = actor_id.to_string();
+        let kind = kind.to_string();
+        let agent_id = agent_id.map(str::to_string);
+        let harness = harness.map(str::to_string);
+        let transport = transport.map(str::to_string);
+        let _ = block_on_anyhow(async move {
+            ship_substrate::db::actor_events::persist_actor_created_simple(
+                &actor_id,
+                &kind,
+                agent_id.as_deref(),
+                harness.as_deref(),
+                transport.as_deref(),
+                None,
+            )
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
+            Ok(())
         });
     }
 }

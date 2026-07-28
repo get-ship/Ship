@@ -44,7 +44,7 @@ use ship_substrate::events::emit::emit_executor_session_destroyed;
 use ship_substrate::events::KernelRouter;
 use tokio::sync::Mutex;
 
-use ship_agents::runtime::helpers::{repo_dir, worktrees_dir};
+use bridge::helpers::{repo_dir, worktrees_dir};
 
 /// Scan for orphaned worktrees from previous daemon runs.
 ///
@@ -100,7 +100,7 @@ pub(crate) async fn cleanup_orphaned_worktrees(kernel: &Arc<Mutex<KernelRouter>>
 
 /// Clean up a single orphaned session's resources.
 async fn cleanup_orphan(slug: &str, kernel: &Arc<Mutex<KernelRouter>>) {
-    use ship_agents::runtime::helpers::kill_tmux_session;
+    use bridge::helpers::kill_tmux_session;
 
     let tmux_session = format!("job-{slug}");
     let worktree_path = match worktrees_dir() {

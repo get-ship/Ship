@@ -7,8 +7,8 @@
 //! stop the running work.
 //!
 //! The teardown MECHANISM is the slug-keyed primitive at
-//! [`ship_code::lifecycle::teardown::stop_by_slug`] /
-//! [`ship_code::lifecycle::teardown::stop_handle`]. The slug
+//! [`bridge::lifecycle::stop_by_slug`] /
+//! [`bridge::lifecycle::stop_handle`]. The slug
 //! is resolved from the session_id via `ProjectionReader::slug_for_session_id`
 //! — keeps this decision off `crate::projections` directly.
 //!
@@ -63,7 +63,7 @@ pub async fn handle_agent_cancelled(kernel: &Kernel, envelope: &EventEnvelope, p
     // Registry first (fast path), via the L0 slug-keyed teardown primitive. On a
     // registry miss, try the executor's resume path — best effort — and stop the
     // recovered handle through the same L0 teardown core.
-    let pid = if let Some(pid) = ship_code::lifecycle::stop_by_slug(
+    let pid = if let Some(pid) = bridge::lifecycle::stop_by_slug(
         &ports.lifecycle,
         &ports.registry,
         &ports.executor,
@@ -75,7 +75,7 @@ pub async fn handle_agent_cancelled(kernel: &Kernel, envelope: &EventEnvelope, p
     {
         pid
     } else if let Some(handle) = ports.executor.resume_handle(&slug, None, None).await {
-        ship_code::lifecycle::stop_handle(
+        bridge::lifecycle::stop_handle(
             &ports.lifecycle,
             &ports.executor,
             &slug,

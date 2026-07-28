@@ -10,7 +10,7 @@ description = "L1 platform primitives — agents, collections, artifacts, trigge
 agent-def = { path = "crates/agent-def", optional = true }
 ship-substrate = { path = "../ship-substrate" }
 process-supervisor = { git = "https://github.com/get-ship/ship-exec.git", rev = "d7cddebe61e58e9928dff65fb598d10f89c5e3f1" }
-agent-driver = { git = "https://github.com/get-ship/fleet.git", rev = "de7599e1163559aaa1da7dbae6be1768c4ad5d09" }
+agent-driver = { git = "https://github.com/get-ship/fleet.git", rev = "6967f155ca795c19c44a145701c138b2d079c89c" }
 # Device domain — the isolation-execution sandbox (moved from this crate
 # as part of the supervisor→platform cycle break, c2-sandbox-device) plus
 # the window-management service. Re-exported below for back-compat with
@@ -42,13 +42,13 @@ ship-types = { path = "../ship-substrate/crates/ship-types" }
 # `ship_substrate::events::emit` + `ship_substrate::dispatch_gate`;
 # ship-platform keeps only the policy and drives the mechanism through those
 # ports. Harness-driver concerns (`build_spawn_env`, `resolve_step_invocation`,
-# `stop_by_slug`/`stop_handle`, `exit_handler`) live L1 in `ship-code`'s
-# `lifecycle` module. No cycle: the substrate + ship-code leaves sit below
+# `stop_by_slug`/`stop_handle`, `exit_handler`) live L1 in `bridge`'s
+# `lifecycle` module. No cycle: the substrate + bridge leaves sit below
 # ship-platform, and ship-agents depends only on those leaves, not on
 # ship-platform.
 # Agent-session orchestration (agents-arc S3b). The bare agent.session dispatch
 # primitive + the `service.agents` actor live here, depending on L0 alone. The
-# SpawnPolicy-port call (`build_spawn_env`) is L1 ship-code mechanism
+# SpawnPolicy-port call (`build_spawn_env`) is L1 bridge mechanism
 # (`ship_code::lifecycle::spawn_env`); the pipeline-dispatch path calls it from
 # L1 directly, never through this agents crate (no laundered
 # pipelines→agents coupling). No cycle: ship-agents depends on ship-substrate/
@@ -70,7 +70,7 @@ ship-cloud = { path = "../ship-cloud" }
 # Isolation types + recommender. Default-features off — youki and
 # sidecar backends stay opt-in (the daemon's feature flags layer them in).
 ship-isolation = { path = "crates/ship-isolation", default-features = false }
-agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "de7599e1163559aaa1da7dbae6be1768c4ad5d09", features = ["specta"] }
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "6967f155ca795c19c44a145701c138b2d079c89c", features = ["specta"] }
 stack-model = { path = "../stack-model", features = ["specta"] }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
@@ -128,16 +128,16 @@ specta = ["ship-ui/specta", "ship-agents/specta"]
 # generator (and the sandboxed designer's committed JSON) can be produced
 # from the real structs. Off by default; on under `cfg(test)` automatically.
 fixtures = ["ship-agents/fixtures"]
-# ship-code: enable ship-agents' harness-driver stack (ship-code).
-# Enabled by shipd when ship-code is ON; absent in flag-off builds.
-ship-code = ["ship-agents/ship-code", "dep:agent-def", "agent-def/ship-code"]
+# bridge: enable ship-agents bridge runtime.
+# Enabled by shipd when bridge is ON; absent in flag-off builds.
+bridge = ["ship-agents/bridge", "dep:agent-def", "agent-def/bridge"]
 
 [dev-dependencies]
-harness-drivers = { git = "https://github.com/get-ship/fleet.git", rev = "de7599e1163559aaa1da7dbae6be1768c4ad5d09" }
+harness-drivers = { git = "https://github.com/get-ship/fleet.git", rev = "6967f155ca795c19c44a145701c138b2d079c89c" }
 # The compile-spine integration test (tests/spine_smoke.rs) exercises
 # emission end-to-end; dev-deps of a dependency never enter a consumer's
 # graph, so the standard/code seam holds.
-harness-config-compiler = { git = "https://github.com/get-ship/fleet.git", rev = "de7599e1163559aaa1da7dbae6be1768c4ad5d09" }
+harness-config-compiler = { git = "https://github.com/get-ship/fleet.git", rev = "6967f155ca795c19c44a145701c138b2d079c89c" }
 tokio = { workspace = true, features = ["test-util"] }
 # Self-dep so integration tests (tests/) see the `testutil` module. cfg(test)
 # does not apply to the lib when building integration-test targets, so without

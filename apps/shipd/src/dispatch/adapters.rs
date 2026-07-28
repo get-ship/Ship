@@ -2,7 +2,7 @@
 //!
 //! `GitWorktreeIsolation` — creates git worktrees, writes phase specs, compiles agent config.
 //! The git/tmux/worktree subprocess helpers it calls live in
-//! `ship_agents::runtime::helpers`; the executors in `ship_agents::runtime::executors`.
+//! `bridge::helpers`; the executors in `bridge::executors`.
 //!
 //! `prepare` delegates the worktree-create step to `ship_git::write::create_worktree`
 //! (the libgit2-direct leaf also backing the `ship.internal.v1.GitService/CreateWorktree`
@@ -10,11 +10,12 @@
 //! of `git worktree add` shell logic is subsumed by the leaf.
 use anyhow::Result;
 use async_trait::async_trait;
-use ship_code::dispatch_ports::{IsolationStrategy, SessionContext};
+use bridge::dispatch_ports::{IsolationStrategy, SessionContext};
 use ship_git::write::{self, WorktreeOutcome};
 use std::path::PathBuf;
 
-use ship_agents::runtime::helpers::{compile_agent_config, repo_dir, worktrees_dir};
+use bridge::helpers::{repo_dir, worktrees_dir};
+use ship_agents::services::agents::compile_dispatch::compile_agent_config;
 
 /// Serializes `git worktree add` across concurrent dispatches. git takes a
 /// lock on the main repo's index/worktrees during `worktree add`, so two

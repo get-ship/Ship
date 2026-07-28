@@ -19,7 +19,7 @@ use std::sync::Arc;
 
 use connectrpc::{ConnectError, RequestContext, Router as ConnectRouter};
 use ship_agents::services::agents::dispatch_core::AgentDispatchPort;
-#[cfg(feature = "ship-code")]
+#[cfg(feature = "bridge")]
 use ship_agents::services::agents::host::DispatchHandlePort;
 use ship_agents::services::agents::host::{AgentsGrantHost, AgentsHost, AgentsWatchHost};
 use ship_agents::services::agents::service::AgentsService;
@@ -92,7 +92,7 @@ impl AgentsHost for StateHost {
         Ok(auth.agent_id)
     }
 
-    #[cfg(feature = "ship-code")]
+    #[cfg(feature = "bridge")]
     fn dispatch_handle(&self) -> Option<Arc<dyn DispatchHandlePort>> {
         ShipCodeDispatchHandle::from_runtime(&self.0)
             .map(|h| Arc::new(h) as Arc<dyn DispatchHandlePort>)
@@ -117,13 +117,13 @@ impl AgentsWatchHost for StateHost {
 /// lives behind a `OnceLock` (we can't move it), and we need a stable
 /// owned handle to clone into `Arc<dyn DispatchHandlePort>`. All fields are
 /// `Arc`s so we clone them one by one.
-#[cfg(feature = "ship-code")]
+#[cfg(feature = "bridge")]
 struct ShipCodeDispatchHandle {
-    registry: Arc<Mutex<ship_code::process_registry::ProcessRegistry>>,
-    executor: Arc<dyn ship_code::dispatch_ports::SessionExecutor>,
+    registry: Arc<Mutex<bridge::process_registry::ProcessRegistry>>,
+    executor: Arc<dyn bridge::dispatch_ports::SessionExecutor>,
 }
 
-#[cfg(feature = "ship-code")]
+#[cfg(feature = "bridge")]
 impl ShipCodeDispatchHandle {
     fn from_runtime(rt: &ApiState) -> Option<Self> {
         let dh = rt.dispatch_handle()?;
@@ -134,7 +134,7 @@ impl ShipCodeDispatchHandle {
     }
 }
 
-#[cfg(feature = "ship-code")]
+#[cfg(feature = "bridge")]
 impl DispatchHandlePort for ShipCodeDispatchHandle {
     fn stop(
         &self,

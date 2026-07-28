@@ -55,7 +55,7 @@ use ship_substrate::ports::KernelLog;
 type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
 /// Shipd-derived handle to the dispatch process registry. The shipd impl
-/// (under `#[cfg(feature = "ship-code")]`) wraps the daemon's live
+/// (under `#[cfg(feature = "bridge")]`) wraps the daemon's live
 /// `DispatchHandle`; the trait object lets the stop / steer closures in this
 /// crate act on the registry without importing shipd types.
 pub trait DispatchHandlePort: Send + Sync {
@@ -217,7 +217,7 @@ fn build_core<H: AgentsHost>(host: &H, gate: GateFn) -> AgentsWireCoreConfig {
 
     // stop_fn: kill a running agent via the dispatch process registry.
     // Gated: `host.dispatch_handle()` only exists when ship-code is on (the
-    // shipd impl wires it under its own `#[cfg(feature = "ship-code")]`).
+    // shipd impl wires it under its own `#[cfg(feature = "bridge")]`).
     // When absent, the closure returns the same `"dispatch not available"`
     // error as the original.
     let stop_host = host.clone();

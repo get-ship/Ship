@@ -220,27 +220,6 @@ pub fn run(repo_root: &Path) -> Result<(), String> {
         }
     }
 
-    // ════════════════════════════════════════════════════════════════════════
-    // R3 — Runtime seam: floki ↔ ship-code must never cross-depend.
-    //   Resolved direct-dep check; vacuous if either crate is absent.
-    // ════════════════════════════════════════════════════════════════════════
-    if ws.member("floki").is_some() && ws.direct_dep_names("floki", true).iter().any(|d| d == "ship-code") {
-        errors.push(
-            "[R3] runtime seam violated — `floki` depends on `ship-code`; the two runtimes must \
-             never depend on each other (both depend on agent-def)"
-                .to_string(),
-        );
-    }
-    if ws.member("ship-code").is_some()
-        && ws.direct_dep_names("ship-code", true).iter().any(|d| d == "floki")
-    {
-        errors.push(
-            "[R3] runtime seam violated — `ship-code` depends on `floki`; the two runtimes must \
-             never depend on each other (both depend on agent-def)"
-                .to_string(),
-        );
-    }
-
     // ── Report ──────────────────────────────────────────────────────────────
     for w in &warnings {
         eprintln!("WARN {w}");

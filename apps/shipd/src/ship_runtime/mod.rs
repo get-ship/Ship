@@ -32,7 +32,7 @@ use std::sync::Arc;
 
 use crate::auth::SessionRegistry;
 use ship_substrate::task_health::HealthRegistry;
-#[cfg(feature = "ship-code")]
+#[cfg(feature = "bridge")]
 use crate::dispatch::run_dispatch::DispatchHandle;
 
 /// Central runtime for shipd. Owns the kernel, registry, and config.
@@ -42,7 +42,7 @@ pub struct ShipRuntime {
     pub(super) ship_dir: PathBuf,
     /// `<root>/machine/daemons/<hash>/` per devx-04.
     pub(super) daemon_dir: PathBuf,
-    #[cfg(feature = "ship-code")]
+    #[cfg(feature = "bridge")]
     pub(super) dispatch_handle: std::sync::OnceLock<DispatchHandle>,
     /// Scoped session registry — maps session tokens to DaemonSession.
     pub(super) session_registry: SessionRegistry,

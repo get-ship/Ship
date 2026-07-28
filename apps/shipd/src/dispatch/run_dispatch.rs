@@ -13,20 +13,20 @@
 //! already persisted, but no run fires).
 //!
 //! This composition root lives in `shipd::dispatch` (not in `ship-agents` or
-//! `ship-supervisor`): it wires `ship_agents::runtime::executors` (the L1
+//! `ship-supervisor`): it wires `bridge::executors` (the L1
 //! agent-run assembly) into the shared dispatch ports. The bare-agent
 //! path is the only dispatch surface post-cut.
 
 use ship_agents::ports::YokeRunFn;
 use ship_agents::{start_agents, AgentPorts};
 
-use ship_code::process_registry::SharedRegistry;
+use bridge::process_registry::SharedRegistry;
 
-use ship_agents::runtime::executors::RoutingExecutor;
-use ship_code::dispatch_ports::ProcessRegistryPort;
-use ship_code::dispatch_ports::SessionExecutor;
-use ship_code::dispatch_ports::SpawnPolicy;
-use ship_code::process_registry::ProcessRegistry;
+use bridge::executors::RoutingExecutor;
+use bridge::dispatch_ports::ProcessRegistryPort;
+use bridge::dispatch_ports::SessionExecutor;
+use bridge::dispatch_ports::SpawnPolicy;
+use bridge::process_registry::ProcessRegistry;
 use ship_substrate::events::KernelRouter;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -64,14 +64,19 @@ pub async fn subscribe_job_events(
     // job with a single warning line.
     tracing::info!("job-dispatch: using RoutingExecutor (tmux-window default, headless on flag)");
     // bridge: future call site — wrap `executor` in
-    // `ship_code::SessionExecutor` (`bridge monorepo HarnessDriver (RPC/external)`) so
+    // `bridge::SessionExecutor` (`bridge monorepo HarnessDriver (RPC/external)`) so
     // shipd's composition root can expose spawn via the Bridge library
     // API. Phase 0 keeps AgentPorts on SessionExecutor; adapter is ready
     // in ship-code for incremental adopt.
-    let lifecycle: Arc<dyn ship_code::LifecycleSink> =
+    let lifecycle: Arc<dyn bridge::lifecycle::LifecycleSink> =
         Arc::new(ship_agents::KernelLifecycleSink::new(kernel.clone()));
-    let executor: Arc<dyn SessionExecutor> =
-        Arc::new(RoutingExecutor::new(Arc::clone(&lifecycle)));
+    let sandbox: Arc<dyn bridge::sandbox_port::SandboxPort> =
+        Arc::new(ship_agents::sandbox_port::ShipSandboxPort);
+    let executor: Arc<dyn SessionExecutor> = Arc::new(RoutingExecutor::new(
+        Arc::clone(&lifecycle),
+        sandbox,
+        process_supervisor::SupervisorContext::standalone(),
+    ));
 
     let registry = Arc::new(Mutex::new(ProcessRegistry::new()));
 
@@ -86,14 +91,14 @@ pub async fn subscribe_job_events(
     // The shared dispatch ports — one instance each, shared with helmd so
     // role/token resolution and the canonical-sessions projection reads are
     // identical on every dispatch path.
-    let isolation: Arc<dyn ship_code::dispatch_ports::IsolationStrategy> =
+    let isolation: Arc<dyn bridge::dispatch_ports::IsolationStrategy> =
         Arc::new(crate::dispatch::adapters::GitWorktreeIsolation);
     let registry_port: Arc<dyn ProcessRegistryPort> =
         Arc::new(SharedRegistry(registry.clone()));
     let spawn_policy: Arc<dyn SpawnPolicy> = Arc::new(
         ship_pipeline_runtime::ports::spawn_policy::ConfigSpawnPolicy::new(platform.clone()),
     );
-    let projections: Arc<dyn ship_code::dispatch_ports::ProjectionReader> =
+    let projections: Arc<dyn bridge::dispatch_ports::ProjectionReader> =
         Arc::new(ship_pipeline_runtime::ports::projection_reader::ProjectionsReader);
 
     let agent_ports = Arc::new(AgentPorts {

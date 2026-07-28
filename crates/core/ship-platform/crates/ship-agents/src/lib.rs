@@ -14,27 +14,26 @@ pub mod actor;
 
 // cancel module is 100% ship_code-dependent (uses runner::stop_by_slug / stop_handle
 // + the harness-driver port fields). Gate it entirely so flag-off compiles cleanly.
-#[cfg(feature = "ship-code")]
+#[cfg(feature = "bridge")]
 pub mod cancel;
 pub mod dispatch;
 pub mod hooks;
-#[cfg(feature = "ship-code")]
+#[cfg(feature = "bridge")]
 pub mod lifecycle_sink;
 pub mod ports;
-// Agent-run assembly (executors, helpers, agent_lifecycle) moved to the `ship-code`
-// crate (Floki carve D3) — the third-party-harness driver box. Re-exported as
-// `runtime` so every `ship_agents::runtime::*` caller (shipd,
-// ship-pipeline-runtime) keeps resolving with zero churn — back-compat shim.
-// Gated: ship-code is optional; callers that use ::runtime must enable ship-code.
-#[cfg(feature = "ship-code")]
-pub use ship_code as runtime;
+// Agent-run assembly (executors, helpers, agent_lifecycle) lives in the fleet
+// `bridge` crate. ship-agents wires the bridge runtime to the Ship kernel via
+// `KernelLifecycleSink` and `ShipSandboxPort`.
+#[cfg(feature = "bridge")]
+pub mod sandbox_port;
+
 pub mod services;
 
 
 pub use actor::{handle_agents_event, start_agents};
-#[cfg(feature = "ship-code")]
+#[cfg(feature = "bridge")]
 pub use cancel::handle_agent_cancelled;
 pub use dispatch::handle_dispatch_requested;
-#[cfg(feature = "ship-code")]
+#[cfg(feature = "bridge")]
 pub use lifecycle_sink::KernelLifecycleSink;
 pub use ports::AgentPorts;

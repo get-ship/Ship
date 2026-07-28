@@ -30,7 +30,6 @@ const EMIT_ROOTS: &[&str] = &[
     "crates/core/ship-platform/crates/ship-analytics/src",
     "apps/shipd/src",
     "apps/shipctl/src",
-    "crates/code/ship-code/src/bin",
 ];
 
 // ── Emit-site patterns ────────────────────────────────────────────────────────

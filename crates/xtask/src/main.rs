@@ -1,6 +1,5 @@
 //! Dev-time task runner.
 
-mod check_topology;
 mod cli;
 mod coverage;
 mod gen_audit_readme;

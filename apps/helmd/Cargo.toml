@@ -16,7 +16,7 @@
 # DELIBERATE substrate consumption: it is owned by `ship-agents` (L1), so
 # mounting it pulls the substrate into helmd's graph. helmd implements only the
 # *core* `AgentsHost` trait and calls the LEAN `mount` (no ship-auth/grant, no
-# ship-reactive/watch, no ship-code/dispatch). The lean trait keeps helmd's
+# ship-reactive/watch, no bridge/dispatch). The lean trait keeps helmd's
 # DIRECT substrate dep at `ship-substrate-core` (not the heavy `ship-substrate`
 # facade) — see below.
 #
@@ -60,9 +60,9 @@ ship-types = { path = "../../crates/core/ship-substrate/crates/ship-types" }
 # Without this dep, the compiled `.mcp.json` and `CLAUDE.md` outputs
 # are empty.
 ship-resolver = { path = "../../crates/core/ship-resolver" }
-agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "de7599e1163559aaa1da7dbae6be1768c4ad5d09" }
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "6967f155ca795c19c44a145701c138b2d079c89c" }
 stack-model = { path = "../../crates/core/stack-model" }
-harness-config-compiler = { git = "https://github.com/get-ship/fleet.git", rev = "de7599e1163559aaa1da7dbae6be1768c4ad5d09" }
+harness-config-compiler = { git = "https://github.com/get-ship/fleet.git", rev = "6967f155ca795c19c44a145701c138b2d079c89c" }
 # Direct dep on ship-proto so build.rs can read DEP_SHIP_PROTO_PROTO_DIR
 # (the canonical proto root, propagated via `links = "ship-proto"` from
 # ship-proto's own build.rs). Without this, helmd's build.rs would need a
@@ -91,8 +91,8 @@ ship-ops-rpc = { path = "../../crates/core/ship-ops-rpc" }
 # teardown path reads from the same explicit root the dispatcher writes to.
 ship-config = { path = "../../crates/core/ship-platform/crates/ship-config" }
 
-# ── spine 2b: REAL agent dispatch (the ship-code consumer construction) ──────
-# All gated behind the `ship-code` feature (default ON). With the feature OFF
+# ── spine 2b: REAL agent dispatch (the bridge consumer construction) ──────
+# All gated behind the `bridge` feature (default ON). With the feature OFF
 # every one of these is absent and helmd is back to the lean 2a.1 read path.
 # These mirror shipd's dispatch deps (apps/shipd/Cargo.toml) — keep the set to
 # exactly what `apps/helmd/src/dispatch.rs` names.
@@ -101,8 +101,9 @@ ship-config = { path = "../../crates/core/ship-platform/crates/ship-config" }
 # helpers, agent_lifecycle, the `EventDedup` gate. helmd's dispatch runtime is
 # Spine 1 (always on): floki dispatch closure + the L1 executor lib the
 # dispatch composition root calls into (see dispatch.rs).
-ship-code = { path = "../../crates/ship-code", features = ["ship-code"], optional = true }
-# Spine 2b dispatch deps — pulled in only when `ship-code` is on.
+bridge = { git = "https://github.com/get-ship/fleet.git", rev = "6967f155ca795c19c44a145701c138b2d079c89c", default-features = false, features = ["runtime"], optional = true }
+process-supervisor = { git = "https://github.com/get-ship/ship-exec.git", rev = "d7cddebe61e58e9928dff65fb598d10f89c5e3f1" }
+# Spine 2b dispatch deps — pulled in only when `bridge` is on.
 ship-auth = { path = "../../crates/core/ship-platform/crates/ship-auth", optional = true }
 ship-auth-types = { path = "../../crates/core/ship-substrate/crates/ship-auth-types", optional = true }
 ship-pipeline-runtime = { path = "../../crates/ship-pipeline-runtime", optional = true }
@@ -153,16 +154,16 @@ protoc-bin-vendored = "3"
 
 [features]
 # Default ON: helmd serves the REAL agent dispatch path (spine 2b). Mirrors
-# shipd's `default = ["ship-code"]`. Build `--no-default-features` to get the
+# shipd.s `default = []`. Build `--no-default-features` to get the
 # lean 2a.1 read-only posture (NoopDispatch + dispatch_handle == None; none of
 # the dispatch deps above are pulled).
-default = ["ship-code"]
-# ship-code: the harness-driver dispatch stack. Pulls the optional dispatch deps
-# and forwards `ship-code` into ship-agents so its cfg gates align with
+default = ["bridge"]
+# bridge: the harness-driver dispatch stack. Pulls the optional dispatch deps
+# and forwards `bridge` into ship-agents so its cfg gates align with
 # helmd's (the `ship_agents::runtime` re-export + cancel module light up).
-ship-code = [
-    "dep:ship-code",
-    "ship-agents/ship-code",
+bridge = [
+    "dep:bridge",
+    "ship-agents/bridge",
     "dep:ship-pipeline-runtime",
     "dep:ship-auth",
     "dep:ship-auth-types",

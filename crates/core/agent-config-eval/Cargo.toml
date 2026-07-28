@@ -9,7 +9,7 @@ description = "Evaluate a ship.ts agent config (authored with defineAgent) in a 
 # The AgentProfile type + its schema. This crate produces AgentProfiles; it does
 # NOT re-implement them (the deleted spike's mistake was vendoring these into the
 # engine — here ship supplies them and the engine stays type-free).
-agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "de7599e1163559aaa1da7dbae6be1768c4ad5d09" }
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "6967f155ca795c19c44a145701c138b2d079c89c" }
 stack-model = { path = "../stack-model" }
 # The standalone JS engine (shared ship-exec repo, rev-pinned with fleet's
 # yoke so there is one ship-js source for everyone). `deno` pulls the V8

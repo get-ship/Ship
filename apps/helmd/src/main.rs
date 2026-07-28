@@ -96,7 +96,7 @@ mod collections;
 mod space;
 mod settings;
 // Real agent-dispatch runtime (spine 2b) — the ship-code consumer construction
-#[cfg(feature = "ship-code")]
+#[cfg(feature = "bridge")]
 mod dispatch;
 // Git hook guards (pre-push + pre-commit). No feature gate — these are
 // helmd's contract with the operator regardless of which features are on.

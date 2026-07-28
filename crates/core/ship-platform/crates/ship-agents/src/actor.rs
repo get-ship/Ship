@@ -17,18 +17,18 @@
 //! write namespaces. `session.*` is in `write_namespaces` because the dispatch
 //! path emits `session.failed` on prep errors.
 
-#[cfg(feature = "ship-code")]
+#[cfg(feature = "bridge")]
 use std::future::Future;
-#[cfg(feature = "ship-code")]
+#[cfg(feature = "bridge")]
 use std::pin::Pin;
 use std::sync::Arc;
 
-#[cfg(feature = "ship-code")]
+#[cfg(feature = "bridge")]
 use ship_substrate::dispatch_gate::{terminal_guard, Admit};
 use ship_substrate::events::EventEnvelope;
 use tokio::sync::Mutex;
 
-#[cfg(feature = "ship-code")]
+#[cfg(feature = "bridge")]
 use crate::cancel::handle_agent_cancelled;
 use crate::dispatch::handle_dispatch_requested;
 use crate::ports::AgentPorts;
@@ -86,9 +86,9 @@ pub async fn handle_agents_event(kernel: &Kernel, envelope: &EventEnvelope, port
     //
     // Gate: terminal_guard + EventDedup are ship_code-backed; with
     // ship-code OFF these are absent.
-    #[cfg(feature = "ship-code")]
+    #[cfg(feature = "bridge")]
     {
-        let projections: Arc<dyn ship_code::dispatch_ports::ProjectionReader> =
+        let projections: Arc<dyn bridge::dispatch_ports::ProjectionReader> =
             Arc::clone(&ports.projections);
         let is_terminal = move |entity_id: &str| -> Pin<Box<dyn Future<Output = bool> + Send>> {
             let p = Arc::clone(&projections);
@@ -110,7 +110,7 @@ pub async fn handle_agents_event(kernel: &Kernel, envelope: &EventEnvelope, port
         }
         // With ship-code OFF: no process to stop, no process.killed to
         // emit — the cancelled arm is a no-op.
-        #[cfg(feature = "ship-code")]
+        #[cfg(feature = "bridge")]
         "session.cancelled" => {
             handle_agent_cancelled(kernel, envelope, ports).await;
         }

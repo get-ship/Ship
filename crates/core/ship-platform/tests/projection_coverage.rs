@@ -98,7 +98,7 @@ const SUPERVISOR_AUDIT: &[&str] = &["supervisor.shutting_down"];
 
 /// **Compile state** — `compile.completed` HAS a projection
 /// (`agent_def::compile::CompileStateProjection`) but the entire `compile`
-/// module is gated behind `feature = "ship-code"`. Under the default build
+/// module is gated behind `feature = "bridge"`. Under the default build
 /// (floki / no harness driver) the projection is not linked, so the event is
 /// audit-trail only. When ship-code is ON, the same factory closure inside
 /// `install_defaults()` adds the projection back; this test only runs against

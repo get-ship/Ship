@@ -11,23 +11,23 @@
 mod agents_wire;
 // ship.code.v1.CodeService — the coding-agent capability surface
 // (mount split 2026-07-10). Mounted at router assembly under
-// `--features ship-code` (the single conditional). With the feature
+// `--features bridge` (the single conditional). With the feature
 // off, no route is registered — the path is absent (Connect discovers
 // the service by path presence; absence is structural, not a refused
 // call). The mount reuses the same `AgentDispatchAdapter` the in-process
 // `AgentsService.Dispatch` wire uses (one kernel subscription serves
 // both wires).
-#[cfg(feature = "ship-code")]
+#[cfg(feature = "bridge")]
 mod code_wire;
 mod pipelines_wire;
 pub mod policy;
 // ship.ops.v1.TerminalService — the PTY/harness Connect adapter, part of
 // the ship-code surface. Compiled and mounted only under
-// `--features ship-code`, mirroring `code_wire`: with the feature off no
+// `--features bridge`, mirroring `code_wire`: with the feature off no
 // route is registered — the path is absent (structural, not a refused
 // call). The underlying sessions Registry is NOT gated — it serves agent
 // sessions too; only this adapter is.
-#[cfg(feature = "ship-code")]
+#[cfg(feature = "bridge")]
 mod terminal_wire;
 mod ui_wire;
 pub use policy::{OP_POLICY, OpPolicy, policy_for};
@@ -205,9 +205,9 @@ pub fn router(state: ApiState) -> axum::Router {
     let router = ship_ops_rpc::DeviceServiceExt::register(device_wire, router);
     let router = agents_wire::mount(router, &state, gate.clone());
     // ship.code.v1.CodeService — coding-class dispatch surface; gated
-    // behind `--features ship-code` (mount split 2026-07-10). With the
+    // behind `--features bridge` (mount split 2026-07-10). With the
     // feature off, this compiles to nothing and the route is absent.
-    #[cfg(feature = "ship-code")]
+    #[cfg(feature = "bridge")]
     let router = code_wire::mount(router, &state);
     // account.* — typed AccountService (account.proto), served by the
     // `ship-account` crate (`AccountWire`). Process-global identity: token at
@@ -237,7 +237,7 @@ pub fn router(state: ApiState) -> axum::Router {
     // registry (ship_agents::services::sessions::Registry). All eight
     // methods: Spawn/Stop/List/Get/SendInput/Resize/SessionBytes/SessionEvents.
     // ship-code surface: gated like code_wire — feature off ⇒ route absent.
-    #[cfg(feature = "ship-code")]
+    #[cfg(feature = "bridge")]
     let router = terminal_wire::mount(router, &state);
     // search — ShipdSearchWire (rpc::search) branches on the request scope:
     // THIS_SPACE runs the active-space ShipdSearchContext (the historical

@@ -214,7 +214,7 @@ impl CodeServiceTrait for CodeWire {
 
 
 /// Mount `CodeService` onto `router`. The single mount point per
-/// install: shipd gates it behind `#[cfg(feature = "ship-code")]` at
+/// install: shipd gates it behind `#[cfg(feature = "bridge")]` at
 /// the router assembly, helmd calls it unconditionally. With the
 /// feature off, the mount is absent — Connect discovers the service by
 /// path presence (a `CodeService/Dispatch` POST returns 404, not a

@@ -27,7 +27,7 @@ use ship_substrate::events::EventEnvelope;
 use super::code_dispatch_request::{
     CodeDispatchRequest, billing_warning_for_axes, validate_code_dispatch_request,
 };
-#[cfg(feature = "ship-code")]
+#[cfg(feature = "bridge")]
 use super::dispatch_resume::{ResumeResolveError, resolve_resume};
 
 // ── Port trait (re-export of the agent port) ─────────────────────────────────
@@ -86,12 +86,12 @@ pub async fn dispatch_code_session_core(
         resume_harness: Option<String>,
         resume_session_id: Option<String>,
     }
-    #[cfg(feature = "ship-code")]
+    #[cfg(feature = "bridge")]
     let resume: Option<ResumeFields> = if req.resume {
         let worktrees_root = port.worktrees_dir().ok_or_else(|| {
             DispatchCoreError::Internal(
                 "resume: no worktree root available — dispatch backend has no \
-                 harness-driver support (build shipd with --features ship-code)"
+                 harness-driver support (build shipd with --features bridge)"
                     .to_string(),
             )
         })?;
@@ -122,7 +122,7 @@ pub async fn dispatch_code_session_core(
     } else {
         None
     };
-    #[cfg(not(feature = "ship-code"))]
+    #[cfg(not(feature = "bridge"))]
     let resume: Option<ResumeFields> = None;
 
     let slug = req
@@ -175,9 +175,9 @@ pub async fn dispatch_code_session_core(
         // `resolve_project_head_sha` only when the harness-driver stack is
         // wired. With `ship-code` off, `baseline_sha = None` is the
         // intended design — NOT a regression.
-        #[cfg(feature = "ship-code")]
+        #[cfg(feature = "bridge")]
         baseline_sha: resolve_project_head_sha(),
-        #[cfg(not(feature = "ship-code"))]
+        #[cfg(not(feature = "bridge"))]
         baseline_sha: None,
         // Coding-class dispatch never opens a studio tab via the wire
         // (the `CodeDispatchRequest` proto has no `open_tab` field —
@@ -265,7 +265,7 @@ pub async fn dispatch_code_session_core(
 /// harness-driver stack reaches the SHIP-git leaf here; absent the
 /// feature, the call site has `baseline_sha = None` and this function
 /// is not compiled.
-#[cfg(feature = "ship-code")]
+#[cfg(feature = "bridge")]
 fn resolve_project_head_sha() -> Option<String> {
     let stack_root = ship_substrate::project::get_stack_root(None).ok()?;
     ship_git::read::resolve_head_sha(&stack_root)

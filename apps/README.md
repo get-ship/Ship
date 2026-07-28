@@ -19,6 +19,6 @@ and both coexist over this same directory.
 
 - **A new daemon HTTP route** → `apps/shipd/src/routes/`.
 - **A new `shipctl` subcommand** → `apps/shipctl/src/<cmd>.rs` + wire in `main.rs`.
-- **A new `ship-code` agent command** → `crates/code/ship-code/src/bin/<cmd>.rs` + wire in `ship_code.rs`.
+- **A new agent-facing command** → built from the `bridge` crate in the `fleet` repo; the standalone binary ships there, not in `ship`.
 - **A new web app** → new `apps/<name>/` with a `package.json`, then add it to `pnpm-workspace.yaml`.
 - **Shared library code** → not here — see `crates/` (Rust) or `packages/` (TS).
