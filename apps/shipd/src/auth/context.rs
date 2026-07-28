@@ -2,7 +2,8 @@
 //! extensions by the auth middleware, and the SOLE session→binding minter.
 
 use ship_substrate::events::CallerKind;
-use ship_types::{Authority, ScopeBinding, SpaceId, local_device_id};
+use agent_schema::Authority;
+use ship_types::{ScopeBinding, SpaceId, local_device_id};
 
 /// Authenticated caller context injected into request extensions by the
 /// auth middleware. Handlers extract this to build `EmitContext`.
@@ -54,7 +55,7 @@ impl AuthContext {
         } else if self.caller_kind == CallerKind::Sdk {
             // Capped: the on-disk SDK token is never operator-class.
             Authority::Sdk
-        } else if let Some(sid) = space.clone() {
+        } else if let Some(sid) = self.space_id.clone() {
             Authority::Space { space_id: sid }
         } else if let Some(id) = self.agent_id.clone() {
             Authority::Agent { id }
@@ -89,7 +90,7 @@ impl AuthContext {
 
     /// The caller's resolved [`Authority`]. shipd projects this into Connect
     /// request extensions so crate-owned wires (e.g. `ship-account`) can gate on
-    /// the shared `ship_types::Authority` without coupling to shipd's
+    /// the shared `agent_schema::Authority` without coupling to shipd's
     /// `AuthContext`. The SOLE authority derivation is [`binding`](Self::binding).
     pub fn authority(&self) -> Authority {
         self.binding().authority().clone()

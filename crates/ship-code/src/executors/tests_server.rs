@@ -19,7 +19,7 @@ use std::sync::Arc;
 
 use crate::dispatch_ports::{ExecutorHandle, SessionContext, SessionExecutor, LaunchProfile};
 use crate::lifecycle::NoopLifecycleSink;
-use ship_harnesses::agent_driver::capabilities;
+use harness_drivers::agent_driver::capabilities;
 use agent_driver::server_session::StubSession;
 
 use super::routing::{RouteKind, RoutingExecutor, ServerSessionRegistry};

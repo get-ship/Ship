@@ -17,7 +17,7 @@ description = "Phase-2 space-shape resolver — composes the stack-model leaf (c
 # the on-disk `rules/<id>.md` convention; rules flow through
 # `declarations.rules` (the resolver's TS eval harvests each agent's
 # `rules: { inline }` body into the merged library).
-agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "ed7c6a74b9a2702bdcbb22b267601ab663b6857b" }
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "de7599e1163559aaa1da7dbae6be1768c4ad5d09" }
 stack-model = { path = "../stack-model" }
 # The V8 isolate glue — `resolve_agents_with_globals` is the only call site
 # for ship.ts eval. V8 is feature-gated on the `deno` feature; the resolver

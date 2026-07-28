@@ -15,7 +15,7 @@ buffa = "0.5"
 # L0 substrate
 ship-substrate = { path = "../../../ship-substrate" }
 process-supervisor = { path = "../../../ship-substrate/crates/process-supervisor" }
-agent-driver = { path = "../agent-driver" }
+agent-driver = { git = "https://github.com/get-ship/fleet.git", rev = "de7599e1163559aaa1da7dbae6be1768c4ad5d09" }
 # L0 git capability — git2-backed; baseline SHA capture on the ship-code path.
 ship-git = { path = "../../../ship-git", optional = true }
 ship-types = { path = "../../../ship-substrate/crates/ship-types" }
@@ -24,7 +24,7 @@ ship-kernel = { path = "../../../ship-substrate/crates/ship-kernel" }
 agent-def = { path = "../agent-def" }
 ship-code = { path = "../../../../ship-code", features = ["ship-code"], optional = true }
 ship-config = { path = "../ship-config" }
-ship-harnesses = { path = "../ship-harnesses" }
+harness-drivers = { git = "https://github.com/get-ship/fleet.git", rev = "de7599e1163559aaa1da7dbae6be1768c4ad5d09" }
 ship-files = { path = "../ship-files" }
 ship-store = { path = "../ship-store" }
 # Agent-run assembly deps (supervisor split — `runtime::executors`):
@@ -32,9 +32,9 @@ ship-store = { path = "../ship-store" }
 #   ship-auth — per-process scoped token mint/drop on the spawn path.
 ship-auth = { path = "../ship-auth" }
 # compiler crate (the engine; services/compile is only the wrapper)
-agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "ed7c6a74b9a2702bdcbb22b267601ab663b6857b", features = ["specta"] }
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "de7599e1163559aaa1da7dbae6be1768c4ad5d09", features = ["specta"] }
 stack-model = { path = "../../../stack-model", features = ["specta"] }
-harness-config-compiler = { git = "https://github.com/get-ship/fleet.git", rev = "ed7c6a74b9a2702bdcbb22b267601ab663b6857b", features = ["specta"], optional = true }
+harness-config-compiler = { git = "https://github.com/get-ship/fleet.git", rev = "de7599e1163559aaa1da7dbae6be1768c4ad5d09", features = ["specta"], optional = true }
 # Phase-3 space roll-up — the no-index agent read composes through the SAME
 # world `compile_project`/dispatch-compile do (format-migration W5 follow-up).
 ship-resolver = { path = "../../../ship-resolver" }

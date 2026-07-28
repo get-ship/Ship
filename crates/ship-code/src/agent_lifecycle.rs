@@ -1,6 +1,6 @@
 //! Agent lifecycle helpers — graceful agent exit for pipeline step transitions.
 
-use ship_harnesses::agent_driver::adapter_for_or_default;
+use harness_drivers::agent_driver::adapter_for_or_default;
 
 /// Send the harness's exit command to the agent in a tmux session and wait for clean exit.
 /// Best-effort — skips if tmux isn't available (tests).

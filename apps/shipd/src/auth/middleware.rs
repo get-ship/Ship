@@ -205,7 +205,7 @@ fn header_string(req: &Request<Body>, name: &str) -> Option<String> {
 
 /// Project the authenticated caller's resolved [`Authority`] into the request
 /// extensions, so crate-owned Connect wires (e.g. `ship-account`) can gate on
-/// the shared `ship_types::Authority` without depending on shipd's
+/// the shared `agent_schema::Authority` without depending on shipd's
 /// `AuthContext`. Mirrors how `rpc::settings` passes `is_operator` into
 /// `ship-config`: the authority is resolved in shipd (the SOLE minter) and
 /// handed across the crate boundary as the shared type. Runs INSIDE

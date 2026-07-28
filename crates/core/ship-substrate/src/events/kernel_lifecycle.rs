@@ -36,7 +36,7 @@ impl KernelRouter {
         // field; `restart_count` defaults to 0 because the kernel
         // doesn't track it (the supervisor does, and emits a separate
         // crash event with the real count).
-        let binding = ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk);
+        let binding = ship_types::ScopeBinding::daemon_internal(None, agent_schema::Authority::Sdk);
         let mut event = EventEnvelope::new(
             "actor.crashed",
             actor_id,

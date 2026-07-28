@@ -304,7 +304,9 @@ fn emit_compile_completed(
         skill_id: None,
         binding: ship_types::ScopeBinding::daemon_internal(
             Some(space.clone()),
-            ship_types::Authority::Space { space_id: space },
+            agent_schema::Authority::Space {
+                space_id: space_id.as_str().to_string(),
+            },
         ),
         session_id: None,
     };

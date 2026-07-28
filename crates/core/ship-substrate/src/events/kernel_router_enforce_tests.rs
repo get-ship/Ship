@@ -10,7 +10,8 @@ use crate::events::validator::{CallerKind, EmitContext};
 use crate::persistence::event_store::{EventStore, SqliteEventStore};
 use ship_types::event_registry::EventScope;
 use ship_types::identity::{AccountId, DeviceId, SpaceId};
-use ship_types::{Authority, ScopeBinding, ScopeViolation};
+use agent_schema::Authority;
+use ship_types::{ScopeBinding, ScopeViolation};
 
 use super::kernel_router_tests::{ev, setup, neutral_config};
 
@@ -21,7 +22,7 @@ fn space_binding(space: &str) -> ScopeBinding {
         Some(AccountId::new("acct-1")),
         Some(SpaceId::new(space)),
         Authority::Space {
-            space_id: SpaceId::new(space),
+            space_id: space.to_string(),
         },
     )
 }

@@ -28,6 +28,7 @@ tokio = { workspace = true, features = ["sync", "rt"] }
 chrono = { workspace = true }
 
 [dev-dependencies]
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "de7599e1163559aaa1da7dbae6be1768c4ad5d09" }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "time"] }
 tempfile = { workspace = true }
 ship-substrate = { path = "../../../ship-substrate" }

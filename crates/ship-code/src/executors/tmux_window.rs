@@ -21,7 +21,7 @@ use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 #[cfg(unix)]
 use libc;
-use ship_harnesses::agent_driver::{SubmitMode, adapter_for_or_default};
+use harness_drivers::agent_driver::{SubmitMode, adapter_for_or_default};
 
 /// Job executor that runs each pipeline step inside a tmux window.
 pub(crate) struct TmuxWindowExecutor;

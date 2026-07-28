@@ -4,7 +4,7 @@
 use std::collections::HashMap;
 
 use crate::dispatch_ports::SpawnPolicy;
-use ship_types::Authority;
+use agent_schema::Authority;
 
 pub async fn build_spawn_env(
     slug: &str,

@@ -47,7 +47,7 @@ pub(crate) fn merge_session_env_into_launch(
     }
 }
 use crate::lifecycle::sink::LifecycleSink;
-use ship_harnesses::agent_driver::{adapter_for_or_default, AgentDriver};
+use harness_drivers::agent_driver::{adapter_for_or_default, AgentDriver};
 use process_supervisor::{spawn_process, ProcessHandle, ProcessKind, ProcessProfile, TransportKind};
 /// Kept in ProcessExecutor (the headless spawn path) because only
 /// non-interactive runs need an autostart; interactive tmux sessions are
@@ -1022,11 +1022,11 @@ impl SessionExecutor for ProcessExecutor {
                                 let Some(ev) = adapter.parse_output(&line) else {
                                     continue;
                                 };
-                                use ship_harnesses::agent_driver::HarnessEvent;
+                                use harness_drivers::agent_driver::HarnessEvent;
                                 match ev {
                                     HarnessEvent::SessionStarted { session_id } => {
                                         if !session_written {
-                                            if let Err(e) = ship_harnesses::harnesses::session_file::write_session_file(
+                                            if let Err(e) = harness_drivers::harnesses::session_file::write_session_file(
                                                 &work_dir_for_session,
                                                 &harness_for_session,
                                                 &session_id,

@@ -26,7 +26,7 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 use parking_lot::Mutex;
 use process_supervisor::ProcessHandle;
-use ship_harnesses::agent_driver::HarnessEvent;
+use harness_drivers::agent_driver::HarnessEvent;
 use tokio::sync::broadcast;
 
 use super::types::{AgentSessionMeta, SessionId, SessionStatus, TerminalSessionMeta};

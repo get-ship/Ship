@@ -25,7 +25,7 @@ ship-collection = { path = "../ship-collection" }
 # CDN URL the FetchBundle response returns).
 ship-gateway-client = { path = "../../../ship-gateway-client" }
 bundle-limits = { path = "../bundle-limits" }
-agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "ed7c6a74b9a2702bdcbb22b267601ab663b6857b" }
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "de7599e1163559aaa1da7dbae6be1768c4ad5d09" }
 stack-model = { path = "../../../stack-model" }
 anyhow = { workspace = true }
 serde = { workspace = true }

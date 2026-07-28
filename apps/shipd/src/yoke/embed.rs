@@ -20,7 +20,8 @@ use yoke::{
 use journal_sqlite::SqliteJournalStore;
 use ship_substrate::events::{CallerKind, EmitContext, EventEnvelope};
 use agent_schema::canonical_session::event_types as session_events;
-use ship_types::{Authority, ScopeBinding};
+use agent_schema::Authority;
+use ship_types::ScopeBinding;
 
 use crate::yoke::gateway::ShipdGateway;
 use crate::ship_runtime::SharedKernel;

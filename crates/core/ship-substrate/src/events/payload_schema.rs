@@ -125,7 +125,7 @@ mod tests {
         EmitContext {
             caller_kind: kind,
             skill_id: None,
-            binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
+            binding: ship_types::ScopeBinding::daemon_internal(None, agent_schema::Authority::Sdk),
             session_id: None,
         }
     }
@@ -185,7 +185,7 @@ mod tests {
             &serde_json::json!({ "garbage": true }),
         )
         .unwrap();
-        let binding = ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk);
+        let binding = ship_types::ScopeBinding::daemon_internal(None, agent_schema::Authority::Sdk);
         let ctx = off_kernel_ctx(binding.clone());
         let err = apply_stamp_chokepoint(&mut event, &binding, &ctx).unwrap_err();
         assert!(matches!(err, StampError::Schema(_)));
@@ -203,7 +203,7 @@ mod tests {
         )
         .unwrap();
         assert!(event.author_device_id.is_none());
-        let binding = ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk);
+        let binding = ship_types::ScopeBinding::daemon_internal(None, agent_schema::Authority::Sdk);
         let ctx = off_kernel_ctx(binding.clone());
         apply_stamp_chokepoint(&mut event, &binding, &ctx).unwrap();
         assert!(event.author_device_id.is_some());

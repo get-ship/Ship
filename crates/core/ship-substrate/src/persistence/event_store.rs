@@ -386,7 +386,7 @@ mod event_sink_tests {
             &serde_json::json!({ "garbage": true }),
         )
         .unwrap();
-        let binding = ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk);
+        let binding = ship_types::ScopeBinding::daemon_internal(None, agent_schema::Authority::Sdk);
         let err = store.append_enforced(&event, &binding).unwrap_err();
         assert!(
             err.to_string().contains("schema")

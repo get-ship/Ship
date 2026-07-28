@@ -68,7 +68,7 @@ pub struct AgentPorts {
     #[cfg(feature = "ship-code")]
     pub registry: Arc<dyn ProcessRegistryPort>,
     /// Spawn/op-invocation policy. The agent dispatch hands a domain-free
-    /// [`ship_types::Authority::Agent`] principal; the impl resolves the
+    /// [`agent_schema::Authority::Agent`] principal; the impl resolves the
     /// scoped spawn env (role + token mint). The concrete impl
     /// (`ConfigSpawnPolicy`) stays in L1 because it reads project config; this
     /// crate sees only the port.

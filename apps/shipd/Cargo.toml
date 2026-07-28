@@ -52,7 +52,7 @@ ship-space = { path = "../../crates/core/ship-platform/crates/ship-space" }
 ship-device = { path = "../../crates/core/ship-platform/crates/ship-device" }
 ship-config = { path = "../../crates/core/ship-platform/crates/ship-config" }
 ship-account = { path = "../../crates/core/ship-platform/crates/ship-account" }
-agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "ed7c6a74b9a2702bdcbb22b267601ab663b6857b" }
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "de7599e1163559aaa1da7dbae6be1768c4ad5d09" }
 stack-model = { path = "../../crates/core/stack-model" }
 # `.ts` agent-config eval — evaluates `.ship/agents/<id>.ts` (defineAgent) in a
 # locked-down ship-js isolate. Pulls V8 (deno_core), which is WHY the eval is
@@ -108,7 +108,7 @@ async-stream = "0.3"
 futures = "0.3"
 tower = { version = "0.5", features = ["timeout", "util"] }
 # Native harness (embeddable). Path dep until engines monorepo publish.
-yoke = { git = "https://github.com/get-ship/fleet.git", rev = "ed7c6a74b9a2702bdcbb22b267601ab663b6857b" }
+yoke = { git = "https://github.com/get-ship/fleet.git", rev = "de7599e1163559aaa1da7dbae6be1768c4ad5d09" }
 # Durable journal used by in-process yoke embed (apps/shipd/src/yoke/embed).
 durable-execution = { git = "https://github.com/get-ship/ship-exec.git", rev = "40e694384108ce298eccd3e0da22e9f5e9855beb" }
 tower-http = { version = "0.6", features = ["catch-panic", "limit", "timeout"] }

@@ -413,7 +413,7 @@ impl ShipRuntime {
             skill_id: None,
             binding: ship_types::ScopeBinding::daemon_internal(
                 envelope.space_id().map(ship_types::SpaceId::new),
-                ship_types::Authority::Sdk,
+                agent_schema::Authority::Sdk,
             ),
             session_id: envelope.session_id.clone(),
         };

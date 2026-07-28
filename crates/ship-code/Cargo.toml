@@ -33,8 +33,8 @@ ship-resolver = { path = "../core/ship-resolver" }
 ship-substrate = { path = "../core/ship-substrate" }
 process-supervisor = { path = "../core/ship-substrate/crates/process-supervisor" }
 isolation-port = { path = "../core/ship-substrate/crates/isolation-port" }
-agent-driver = { path = "../core/ship-platform/crates/agent-driver" }
-ship-harnesses = { path = "../core/ship-platform/crates/ship-harnesses" }
+agent-driver = { git = "https://github.com/get-ship/fleet.git", rev = "de7599e1163559aaa1da7dbae6be1768c4ad5d09" }
+harness-drivers = { git = "https://github.com/get-ship/fleet.git", rev = "de7599e1163559aaa1da7dbae6be1768c4ad5d09" }
 ship-auth = { path = "../core/ship-platform/crates/ship-auth" }
 ship-isolation = { path = "../core/ship-platform/crates/ship-isolation", default-features = false }
 ship-device = { path = "../core/ship-platform/crates/ship-device" }
@@ -50,8 +50,8 @@ hyper = { version = "1", features = ["client", "http1"], optional = true }
 hyper-util = { version = "0.1", features = ["tokio", "client", "client-legacy", "http1"], optional = true }
 tower = { version = "0.5", features = ["util"], optional = true }
 reqwest = { workspace = true, features = ["rustls-tls", "blocking", "json"], optional = true }
-harness-config-compiler = { git = "https://github.com/get-ship/fleet.git", rev = "ed7c6a74b9a2702bdcbb22b267601ab663b6857b", optional = true }
-agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "ed7c6a74b9a2702bdcbb22b267601ab663b6857b" }
+harness-config-compiler = { git = "https://github.com/get-ship/fleet.git", rev = "de7599e1163559aaa1da7dbae6be1768c4ad5d09", optional = true }
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "de7599e1163559aaa1da7dbae6be1768c4ad5d09" }
 stack-model = { path = "../core/stack-model", optional = true }
 ship-ops-rpc = { path = "../core/ship-ops-rpc", optional = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"], optional = true }

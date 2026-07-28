@@ -264,3 +264,43 @@ fn isolation_enums_match_ship_isolation() {
         diff_report(&schema_strategies, &rust_strategies)
     );
 }
+
+/// The agent schema's `harness_settings` key set must match the harness
+/// REGISTRY (via `capabilities()`) — the single source of truth. Ship owns the
+/// schema artifact; the registry lives in fleet's harness-drivers, pinned by
+/// the manifest, so drift between the two fails here.
+#[test]
+fn harness_settings_seam_matches_registry() {
+    use std::collections::BTreeSet;
+
+    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../../schemas/agent.schema.json");
+    let raw = std::fs::read_to_string(path)
+        .unwrap_or_else(|e| panic!("read agent schema at {path}: {e}"));
+    let schema: serde_json::Value = serde_json::from_str(&raw).expect("agent schema is valid JSON");
+    let harness_node = schema
+        .get("properties")
+        .and_then(|p| p.get("harness_settings"))
+        .expect("schema has harness_settings property");
+
+    let registry_ids: BTreeSet<String> = harness_drivers::agent_driver::capabilities()
+        .into_iter()
+        .map(|(id, _)| id.to_string())
+        .collect();
+    let schema_harness_keys: BTreeSet<String> = harness_node
+        .get("properties")
+        .and_then(serde_json::Value::as_object)
+        .map(|m| m.keys().cloned().collect())
+        .unwrap_or_default();
+
+    assert_eq!(
+        schema_harness_keys, registry_ids,
+        "harness_settings key drift vs REGISTRY: schema={schema_harness_keys:?} registry={registry_ids:?}"
+    );
+    // `additionalProperties: false` keeps the set closed — pin it so an
+    // open seam can't silently re-admit a dropped harness.
+    assert_eq!(
+        harness_node.get("additionalProperties"),
+        Some(&serde_json::Value::Bool(false)),
+        "harness_settings must stay a closed set"
+    );
+}

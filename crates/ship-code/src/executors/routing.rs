@@ -29,7 +29,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use crate::dispatch_ports::{ExecutorHandle, InvocationMode, SessionContext, SessionExecutor};
 use crate::lifecycle::sink::LifecycleSink;
-use ship_harnesses::agent_driver::adapter_for_or_default;
+use harness_drivers::agent_driver::adapter_for_or_default;
 use agent_driver::server_session::ServerSession;
 
 use super::{ProcessExecutor, ServerExecutor, TmuxWindowExecutor};

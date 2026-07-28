@@ -393,7 +393,7 @@ fn wait_for_ready_sticks_when_pattern_already_in_pane() {
 /// (matching on `› `) would have refused and timed out.
 #[test]
 fn wait_for_ready_matches_omp_pi_glyph_ready_pattern() {
-    use ship_harnesses::harnesses::omp::OmpAdapter;
+    use harness_drivers::harnesses::omp::OmpAdapter;
     use agent_driver::AgentDriver;
 
     let mut reader = FakePaneReader {
@@ -423,7 +423,7 @@ fn wait_for_ready_matches_omp_pi_glyph_ready_pattern() {
 /// claude's `bypass permissions on` marker still drives the poll.
 #[test]
 fn wait_for_ready_matches_claude_bypass_permissions_marker() {
-    use ship_harnesses::harnesses::claude::ClaudeAdapter;
+    use harness_drivers::harnesses::claude::ClaudeAdapter;
     use agent_driver::AgentDriver;
 
     let mut reader = FakePaneReader {

@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-use crate::binding::{Authority, ScopeBinding};
+use agent_schema::Authority;
+
+use crate::binding::ScopeBinding;
 use crate::identity::SpaceId;
 
 /// Who is emitting the event.

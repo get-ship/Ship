@@ -25,7 +25,7 @@ ship-agents = { path = "../core/ship-platform/crates/ship-agents" }
 # Shared dispatch port traits used by the L1 `ConfigSpawnPolicy` +
 # `ProjectionsReader` impls. Kept below ship-code so this crate no longer pulls
 # the harness-driver stack in shipd's no-default-features posture.
-agent-driver = { path = "../core/ship-platform/crates/agent-driver" }
+agent-driver = { git = "https://github.com/get-ship/fleet.git", rev = "de7599e1163559aaa1da7dbae6be1768c4ad5d09" }
 # Config — SpaceManifest read by `ConfigSpawnPolicy` to resolve the agent's
 # declared role at spawn time.
 ship-platform = { path = "../core/ship-platform" }

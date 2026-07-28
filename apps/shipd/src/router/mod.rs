@@ -106,7 +106,7 @@ pub fn build_router(
     #[cfg(feature = "ship-code")]
     let authenticated_routes = authenticated_routes
         // applied here, so auth wraps it): it reads the populated AuthContext and
-        // stamps the resolved `ship_types::Authority` into the request, so
+        // stamps the resolved `agent_schema::Authority` into the request, so
         // crate-owned Connect wires (ship-account) gate on the shared authority
         // without coupling to shipd's AuthContext (S6 operator-cred gate).
         .merge(

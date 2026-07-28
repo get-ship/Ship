@@ -6,7 +6,7 @@
 //! the wire gates on **operator authority** — granted SOLELY by a verified
 //! operator cred (S6, #124). The Connect router runs no per-route auth
 //! middleware; instead `auth::project_authority_middleware` (layered on the ops
-//! router) projects the resolved `ship_types::Authority` into the request, and
+//! router) projects the resolved `agent_schema::Authority` into the request, and
 //! the wire checks `Authority::Operator` — no coupling to shipd's `AuthContext`.
 
 use std::path::PathBuf;

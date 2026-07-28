@@ -43,8 +43,6 @@ members = [
     "crates/core/ship-platform/crates/ship-account",
     "crates/core/ship-platform/crates/agent-def",
     "crates/core/ship-platform/crates/ship-agents",
-    "crates/core/ship-platform/crates/ship-harnesses",
-    "crates/core/ship-platform/crates/agent-driver",
     "crates/core/ship-platform/crates/ship-files",
     "crates/core/ship-platform/crates/ship-store",
     "crates/core/ship-platform/crates/bundle-limits",
@@ -96,8 +94,6 @@ default-members = [
     "crates/core/ship-platform/crates/ship-triggers",
     "crates/core/ship-platform/crates/ship-account",
     "crates/core/ship-platform/crates/agent-def",
-    "crates/core/ship-platform/crates/agent-driver",
-    "crates/core/ship-platform/crates/ship-harnesses",
     "crates/core/ship-platform/crates/ship-files",
     "crates/core/ship-platform/crates/bundle-limits",
     "crates/core/ship-platform/crates/ship-store",
@@ -241,3 +237,4 @@ debug = "line-tables-only"
 lto = "thin"
 codegen-units = 1
 strip = "debuginfo"
+

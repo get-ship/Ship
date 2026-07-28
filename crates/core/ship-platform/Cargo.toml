@@ -10,7 +10,7 @@ description = "L1 platform primitives — agents, collections, artifacts, trigge
 agent-def = { path = "crates/agent-def", optional = true }
 ship-substrate = { path = "../ship-substrate" }
 process-supervisor = { path = "../ship-substrate/crates/process-supervisor" }
-agent-driver = { path = "crates/agent-driver" }
+agent-driver = { git = "https://github.com/get-ship/fleet.git", rev = "de7599e1163559aaa1da7dbae6be1768c4ad5d09" }
 # Device domain — the isolation-execution sandbox (moved from this crate
 # as part of the supervisor→platform cycle break, c2-sandbox-device) plus
 # the window-management service. Re-exported below for back-compat with
@@ -70,7 +70,7 @@ ship-cloud = { path = "../ship-cloud" }
 # Isolation types + recommender. Default-features off — youki and
 # sidecar backends stay opt-in (the daemon's feature flags layer them in).
 ship-isolation = { path = "crates/ship-isolation", default-features = false }
-agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "ed7c6a74b9a2702bdcbb22b267601ab663b6857b", features = ["specta"] }
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "de7599e1163559aaa1da7dbae6be1768c4ad5d09", features = ["specta"] }
 stack-model = { path = "../stack-model", features = ["specta"] }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
@@ -133,10 +133,11 @@ fixtures = ["ship-agents/fixtures"]
 ship-code = ["ship-agents/ship-code", "dep:agent-def", "agent-def/ship-code"]
 
 [dev-dependencies]
+harness-drivers = { git = "https://github.com/get-ship/fleet.git", rev = "de7599e1163559aaa1da7dbae6be1768c4ad5d09" }
 # The compile-spine integration test (tests/spine_smoke.rs) exercises
 # emission end-to-end; dev-deps of a dependency never enter a consumer's
 # graph, so the standard/code seam holds.
-harness-config-compiler = { git = "https://github.com/get-ship/fleet.git", rev = "ed7c6a74b9a2702bdcbb22b267601ab663b6857b" }
+harness-config-compiler = { git = "https://github.com/get-ship/fleet.git", rev = "de7599e1163559aaa1da7dbae6be1768c4ad5d09" }
 tokio = { workspace = true, features = ["test-util"] }
 # Self-dep so integration tests (tests/) see the `testutil` module. cfg(test)
 # does not apply to the lib when building integration-test targets, so without

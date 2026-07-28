@@ -11,7 +11,7 @@ default = []
 specta = ["dep:specta", "agent-schema/specta"]
 
 [dependencies]
-agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "ed7c6a74b9a2702bdcbb22b267601ab663b6857b" }
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "de7599e1163559aaa1da7dbae6be1768c4ad5d09" }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
 toml = { workspace = true, features = ["preserve_order"] }
@@ -23,7 +23,7 @@ semver = { workspace = true }
 specta = { workspace = true, features = ["serde_json"], optional = true }
 
 [dev-dependencies]
-agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "ed7c6a74b9a2702bdcbb22b267601ab663b6857b" }
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "de7599e1163559aaa1da7dbae6be1768c4ad5d09" }
 serde_json = { workspace = true, features = ["preserve_order"] }
 tempfile = { workspace = true }
 

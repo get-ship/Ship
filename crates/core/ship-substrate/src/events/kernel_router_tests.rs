@@ -11,7 +11,7 @@ fn runtime_ctx() -> EmitContext {
     EmitContext {
         caller_kind: CallerKind::Runtime,
         skill_id: None,
-        binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
+        binding: ship_types::ScopeBinding::daemon_internal(None, agent_schema::Authority::Sdk),
         session_id: None,
     }
 }
@@ -44,7 +44,7 @@ async fn kernel_emits_rejects_write_outside_namespace() {
     let mcp_ctx = EmitContext {
         caller_kind: CallerKind::Mcp,
         skill_id: None,
-        binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
+        binding: ship_types::ScopeBinding::daemon_internal(None, agent_schema::Authority::Sdk),
         session_id: None,
     };
     router.spawn_actor("neutral", neutral_config()).unwrap();
@@ -66,7 +66,7 @@ async fn kernel_emits_allows_write_inside_namespace() {
     let mcp_ctx = EmitContext {
         caller_kind: CallerKind::Mcp,
         skill_id: None,
-        binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
+        binding: ship_types::ScopeBinding::daemon_internal(None, agent_schema::Authority::Sdk),
         session_id: None,
     };
     router.spawn_actor("neutral", neutral_config()).unwrap();
@@ -115,7 +115,7 @@ async fn kernel_query_allows_read_in_permitted_namespace() {
     let mcp_ctx = EmitContext {
         caller_kind: CallerKind::Mcp,
         skill_id: None,
-        binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
+        binding: ship_types::ScopeBinding::daemon_internal(None, agent_schema::Authority::Sdk),
         session_id: None,
     };
     router.spawn_actor("neutral", neutral_config()).unwrap();
@@ -146,7 +146,7 @@ async fn kernel_query_unfiltered_scopes_to_actor() {
     let mcp_ctx = EmitContext {
         caller_kind: CallerKind::Mcp,
         skill_id: None,
-        binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
+        binding: ship_types::ScopeBinding::daemon_internal(None, agent_schema::Authority::Sdk),
         session_id: None,
     };
     router.spawn_actor("neutral", neutral_config()).unwrap();
@@ -168,7 +168,7 @@ async fn actors_cannot_read_each_others_stores() {
     let mcp_ctx = EmitContext {
         caller_kind: CallerKind::Mcp,
         skill_id: None,
-        binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
+        binding: ship_types::ScopeBinding::daemon_internal(None, agent_schema::Authority::Sdk),
         session_id: None,
     };
 

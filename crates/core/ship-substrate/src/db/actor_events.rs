@@ -46,7 +46,7 @@ fn emit_actor_event<P: serde::Serialize>(
     // reads); the `space_id` here is payload/context, not the event scope, so
     // the binding carries no space.
     let store = runtime_store()?;
-    let binding = ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk);
+    let binding = ship_types::ScopeBinding::daemon_internal(None, agent_schema::Authority::Sdk);
     let stamped = store.append_enforced(&envelope, &binding)?;
 
     // Deliver to mailboxes if a kernel router is running. Persistence
@@ -236,7 +236,7 @@ pub fn persist_actor_created_simple(
 
     // Durable enforced write — the part that must not be raced by a short-lived
     // child. Stamp + enforce against the daemon-internal (Runtime) binding.
-    let binding = ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk);
+    let binding = ship_types::ScopeBinding::daemon_internal(None, agent_schema::Authority::Sdk);
     let stamped = runtime_store()?.append_enforced(&envelope, &binding)?;
 
     // Best-effort live notification. `blocking_lock` (no runtime) keeps this

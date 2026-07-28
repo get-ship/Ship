@@ -82,7 +82,7 @@ pub fn stamp_author(env: &mut EventEnvelope, binding: &ScopeBinding) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::binding::Authority;
+    use agent_schema::Authority;
     use crate::identity::{AccountId, DeviceId, SpaceId};
 
     // T9 — stamp_author sources from the binding.
@@ -93,7 +93,7 @@ mod tests {
             Some(AccountId::new("acct-1")),
             Some(SpaceId::new("space-A")),
             Authority::Space {
-                space_id: SpaceId::new("space-A"),
+                space_id: "space-A".to_string(),
             },
         );
         let mut env =

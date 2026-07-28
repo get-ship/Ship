@@ -15,28 +15,11 @@
 //! the daemon mints on their behalf through the auth seam. This removes the
 //! in-process arbitrary-construction path.
 
+use agent_schema::Authority;
+
 use crate::event_registry::EventScope;
 use crate::identity::local_device_id;
 use crate::{AccountId, DeviceId, SpaceId};
-
-/// Operator-class and caller-class of a principal — replaces the
-/// `is_operator: bool` / `Scope::Full` conflation with one named state.
-///
-/// The on-disk daemon/SDK token resolves to a *capped* authority (`Sdk`),
-/// never `Operator`.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Authority {
-    /// Operator-class: the human at the console / fully-trusted local control.
-    Operator,
-    /// Acting within a specific space.
-    Space { space_id: SpaceId },
-    /// An agent actor, identified by its instance id.
-    Agent { id: String },
-    /// The on-disk daemon/SDK token — capped, never operator-class.
-    Sdk,
-    /// The cloud-sync ingest path.
-    CloudSync,
-}
 
 /// Authoritative binding of a principal to its scope keys.
 ///

@@ -23,7 +23,7 @@ mod common;
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
 fn runtime_ctx() -> EmitContext {
-    EmitContext { caller_kind: CallerKind::Runtime, skill_id: None, binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk), session_id: None }
+    EmitContext { caller_kind: CallerKind::Runtime, skill_id: None, binding: ship_types::ScopeBinding::daemon_internal(None, agent_schema::Authority::Sdk), session_id: None }
 }
 
 fn make_kernel(tmp: &tempfile::TempDir) -> Arc<KernelLog> {

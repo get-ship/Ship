@@ -21,7 +21,7 @@ pub mod payload;
 // depend on inventory directly (the macro is `#[macro_export]` from ship-types).
 pub use inventory;
 
-pub use binding::{Authority, ScopeBinding};
+pub use binding::ScopeBinding;
 pub use caller::{ActorConfig, CallerKind, EmitContext};
 pub use decision::{AskReason, Decision, ScopeViolation};
 pub use enforce::{enforce_scope, stamp_author};

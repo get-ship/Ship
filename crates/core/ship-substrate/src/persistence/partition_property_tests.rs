@@ -17,9 +17,8 @@ use proptest::prelude::*;
 use ship_kernel::EventSink;
 use ship_types::envelope::EventEnvelope;
 use ship_types::event_registry::EventScope;
-use ship_types::{
-    AccountId, Authority, CallerKind, DeviceId, EmitContext, ScopeBinding, SpaceId,
-};
+use agent_schema::Authority;
+use ship_types::{AccountId, CallerKind, DeviceId, EmitContext, ScopeBinding, SpaceId};
 use tempfile::tempdir;
 
 use super::event_store::{EventStore, SqliteEventStore};
@@ -160,7 +159,7 @@ fn space_ctx(id: &str) -> EmitContext {
             DeviceId::new("dev-e2e"),
             Some(AccountId::new("acct-e2e")),
             Some(SpaceId::new(id)),
-            Authority::Space { space_id: SpaceId::new(id) },
+            Authority::Space { space_id: id.to_string() },
         ),
         session_id: None,
     }
