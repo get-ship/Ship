@@ -36,7 +36,7 @@ impl AgentDefIndex {
     async fn upsert_shadow(
         &self,
         scope: &str,
-        profile: &stack_model::AgentProfile,
+        profile: &agent_schema::AgentProfile,
         provenance: &DefProvenance,
     ) -> Result<(), ConfigError> {
         let src = crate::agents_ts::source_from_profile(profile);
@@ -46,7 +46,7 @@ impl AgentDefIndex {
 
     /// Ingest a Phase-3 composed roll-up (`stack_model::compose_space`'s
     /// output, Phase-2 J2's `ship_resolver::roll_up`): upsert every winning
-    /// [`stack_model::AgentProfile`] as the ACTIVE row, plus one row per
+    /// [`agent_schema::AgentProfile`] as the ACTIVE row, plus one row per
     /// `AgentProfile`-noun `stack_model::ShadowRecord` the law recorded as a
     /// SHADOW row.
     ///
@@ -141,7 +141,7 @@ fn agent_profile_owners(
 fn find_shadowed_profile<'a>(
     rollup: Option<&'a stack_model::RollupInputs>,
     shadow: &stack_model::ShadowRecord,
-) -> Option<&'a stack_model::AgentProfile> {
+) -> Option<&'a agent_schema::AgentProfile> {
     let rollup = rollup?;
     rollup
         .extensions

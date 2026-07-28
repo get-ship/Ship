@@ -32,8 +32,9 @@ ship-store = { path = "../ship-store" }
 #   ship-auth — per-process scoped token mint/drop on the spawn path.
 ship-auth = { path = "../ship-auth" }
 # compiler crate (the engine; services/compile is only the wrapper)
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "ed7c6a74b9a2702bdcbb22b267601ab663b6857b", features = ["specta"] }
 stack-model = { path = "../../../stack-model", features = ["specta"] }
-harness-config-compiler = { path = "../../../../../../bridge/crates/harness-config-compiler", features = ["specta"], optional = true }
+harness-config-compiler = { git = "https://github.com/get-ship/fleet.git", rev = "ed7c6a74b9a2702bdcbb22b267601ab663b6857b", features = ["specta"], optional = true }
 # Phase-3 space roll-up — the no-index agent read composes through the SAME
 # world `compile_project`/dispatch-compile do (format-migration W5 follow-up).
 ship-resolver = { path = "../../../ship-resolver" }

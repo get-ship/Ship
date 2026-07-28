@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 // Re-export the canonical agent-definition type + Capability so callers depend
 // on `ship_config` without pulling in the compiler crate directly.
-pub use stack_model::{AgentProfile, Capability};
+pub use agent_schema::{AgentProfile, Capability};
 
 /// Project-level overrides for the two identity-shaped launch keys.
 ///

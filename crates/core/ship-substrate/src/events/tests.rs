@@ -64,7 +64,7 @@ fn session_started(session_id: &str) -> TestSession {
 fn test_round_trip() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
     let mut ev = EventEnvelope::new(
-        event_types::canonical_session::SESSION_STARTED,
+        agent_schema::canonical_session::event_types::SESSION_STARTED,
         "entity-a",
         &session_started("entity-a"),
     )?
@@ -92,7 +92,7 @@ fn test_ordering() -> anyhow::Result<()> {
     let entity = "ordering-entity";
     for i in 0..100 {
         let ev = EventEnvelope::new(
-            event_types::canonical_session::TURN_STARTED,
+            agent_schema::canonical_session::event_types::TURN_STARTED,
             entity,
             &TestTurn { session_id: entity.into(), idx: i },
         )?;
@@ -110,8 +110,8 @@ fn test_ordering() -> anyhow::Result<()> {
 #[test]
 fn test_filter_by_entity_id() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
-    let ev_a = EventEnvelope::new(event_types::canonical_session::SESSION_STARTED, "entity-a", &session_started("entity-a"))?;
-    let ev_b = EventEnvelope::new(event_types::canonical_session::SESSION_STARTED, "entity-b", &session_started("entity-b"))?;
+    let ev_a = EventEnvelope::new(agent_schema::canonical_session::event_types::SESSION_STARTED, "entity-a", &session_started("entity-a"))?;
+    let ev_b = EventEnvelope::new(agent_schema::canonical_session::event_types::SESSION_STARTED, "entity-b", &session_started("entity-b"))?;
     store.append(&ev_a)?;
     store.append(&ev_b)?;
 
@@ -125,12 +125,12 @@ fn test_filter_by_entity_id() -> anyhow::Result<()> {
 fn test_filter_by_event_type() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
     let entity = "filter-type-entity";
-    store.append(&EventEnvelope::new(event_types::canonical_session::SESSION_STARTED, entity, &session_started(entity))?)?;
-    store.append(&EventEnvelope::new(event_types::canonical_session::SESSION_COMPLETED, entity, &TestCompleted { session_id: entity.into() })?)?;
+    store.append(&EventEnvelope::new(agent_schema::canonical_session::event_types::SESSION_STARTED, entity, &session_started(entity))?)?;
+    store.append(&EventEnvelope::new(agent_schema::canonical_session::event_types::SESSION_COMPLETED, entity, &TestCompleted { session_id: entity.into() })?)?;
 
-    let sess = store.query(&EventFilter { entity_id: Some(entity.into()), event_type: Some(event_types::canonical_session::SESSION_STARTED.into()), ..Default::default() })?;
+    let sess = store.query(&EventFilter { entity_id: Some(entity.into()), event_type: Some(agent_schema::canonical_session::event_types::SESSION_STARTED.into()), ..Default::default() })?;
     assert_eq!(sess.len(), 1);
-    assert_eq!(sess[0].event_type, event_types::canonical_session::SESSION_STARTED);
+    assert_eq!(sess[0].event_type, agent_schema::canonical_session::event_types::SESSION_STARTED);
     Ok(())
 }
 
@@ -138,9 +138,9 @@ fn test_filter_by_event_type() -> anyhow::Result<()> {
 #[test]
 fn test_causation_chain() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
-    let ev_a = EventEnvelope::new(event_types::canonical_session::SESSION_STARTED, "cause-entity", &session_started("cause-entity"))?;
+    let ev_a = EventEnvelope::new(agent_schema::canonical_session::event_types::SESSION_STARTED, "cause-entity", &session_started("cause-entity"))?;
     store.append(&ev_a)?;
-    let ev_b = EventEnvelope::new(event_types::canonical_session::SESSION_COMPLETED, "cause-entity", &TestCompleted { session_id: "cause-entity".into() })?
+    let ev_b = EventEnvelope::new(agent_schema::canonical_session::event_types::SESSION_COMPLETED, "cause-entity", &TestCompleted { session_id: "cause-entity".into() })?
         .with_causation(&ev_a.id);
     store.append(&ev_b)?;
 
@@ -152,7 +152,7 @@ fn test_causation_chain() -> anyhow::Result<()> {
 #[test]
 fn test_immutability() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
-    let ev = EventEnvelope::new(event_types::canonical_session::SESSION_STARTED, "immut-entity", &session_started("immut-entity"))?;
+    let ev = EventEnvelope::new(agent_schema::canonical_session::event_types::SESSION_STARTED, "immut-entity", &session_started("immut-entity"))?;
     store.append(&ev)?;
 
     let db_p = store.db_path().to_path_buf();
@@ -180,9 +180,9 @@ fn test_payload_round_trip() -> anyhow::Result<()> {
         }};
     }
 
-    rt!(event_types::canonical_session::SESSION_STARTED, session_started("rt-entity"));
-    rt!(event_types::canonical_session::SESSION_COMPLETED, TestCompleted { session_id: "rt-entity".into() });
-    rt!(event_types::canonical_session::SESSION_FAILED, TestFailed { session_id: "rt-entity".into(), reason: "err".into() });
+    rt!(agent_schema::canonical_session::event_types::SESSION_STARTED, session_started("rt-entity"));
+    rt!(agent_schema::canonical_session::event_types::SESSION_COMPLETED, TestCompleted { session_id: "rt-entity".into() });
+    rt!(agent_schema::canonical_session::event_types::SESSION_FAILED, TestFailed { session_id: "rt-entity".into(), reason: "err".into() });
     rt!(event_types::ACTOR_CREATED,         ActorCreated { kind: "worker".into(), environment_type: "cli".into(), parent_actor_id: None, restart_count: 0, ..Default::default() });
     rt!(event_types::ACTOR_WOKE,            ActorWoke {});
     rt!(event_types::ACTOR_SLEPT,           ActorSlept { idle_secs: 45 });
@@ -206,7 +206,7 @@ fn test_concurrent_appends() -> anyhow::Result<()> {
         let entity = entity.to_string();
         handles.push(std::thread::spawn(move || {
             let ev = EventEnvelope::new(
-                event_types::canonical_session::TURN_STARTED,
+                agent_schema::canonical_session::event_types::TURN_STARTED,
                 &entity,
                 &TestTurn { session_id: entity.clone(), idx: i },
             )
@@ -241,13 +241,13 @@ fn test_empty_queries() -> anyhow::Result<()> {
 fn test_version_field() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
 
-    let ev = EventEnvelope::new(event_types::canonical_session::SESSION_STARTED, "ver-entity", &session_started("ver-entity"))?;
+    let ev = EventEnvelope::new(agent_schema::canonical_session::event_types::SESSION_STARTED, "ver-entity", &session_started("ver-entity"))?;
     assert_eq!(ev.version, 1);
     store.append(&ev)?;
     let got = store.get(&ev.id)?.unwrap();
     assert_eq!(got.version, 1);
 
-    let mut ev2 = EventEnvelope::new(event_types::canonical_session::SESSION_COMPLETED, "ver-entity", &TestCompleted { session_id: "ver-entity".into() })?;
+    let mut ev2 = EventEnvelope::new(agent_schema::canonical_session::event_types::SESSION_COMPLETED, "ver-entity", &TestCompleted { session_id: "ver-entity".into() })?;
     ev2.version = 2;
     store.append(&ev2)?;
     let got2 = store.get(&ev2.id)?.unwrap();

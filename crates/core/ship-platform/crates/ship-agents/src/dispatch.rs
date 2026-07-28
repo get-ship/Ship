@@ -20,10 +20,10 @@ use ship_substrate::events::emit::emit_process_spawned;
 use ship_code::lifecycle::exit_handler::{self, ExitVocabulary};
 #[cfg(feature = "ship-code")]
 use ship_substrate::dispatch_gate::DISPATCH_GATE;
-use agent_def::canonical_session::{SessionFailed, event_types as canonical_session_event_types};
-use agent_def::dispatch_intent::DispatchRequestedPayload;
+use agent_schema::canonical_session::{SessionFailed, event_types as canonical_session_event_types};
+use agent_schema::dispatch_intent::DispatchRequestedPayload;
 #[cfg(feature = "ship-code")]
-use agent_def::InvocationMode;
+use agent_schema::InvocationMode;
 use ship_substrate::events::EventEnvelope;
 #[cfg(feature = "ship-code")]
 use ship_code::dispatch_ports::SessionContext;

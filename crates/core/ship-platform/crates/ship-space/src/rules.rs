@@ -18,7 +18,7 @@
 //!
 //! Compile-time composition (the consumer side) lives in
 //! `apps/helmd/src/main.rs`'s `HarnessService::Compile` handler, which
-//! appends each `SpaceRule` to the resolved `stack_model::Rule` set before the
+//! appends each `SpaceRule` to the resolved `agent_schema::Rule` set before the
 //! harness adaptors emit context content — so the `space:` provenanced bodies
 //! ride along with project rules in the same compile flow.
 //!
@@ -62,15 +62,15 @@ pub struct SpaceRule {
 }
 
 impl SpaceRule {
-    /// Project this rule into the `stack_model::Rule` shape the harness
+    /// Project this rule into the `agent_schema::Rule` shape the harness
     /// adaptors consume during compile. The body travels as-is (no provenance
     /// line in `content`); the `space:<name>` prefix lives in `file_name` so
     /// any surface that surfaces `file_name` (Codex per-rule files, future
     /// rule indexers) can show the provenance, and the harness adaptor's
     /// context materializer emits the body verbatim into CLAUDE.md alongside
     /// any project rule bodies.
-    pub fn into_stack_rule(self) -> stack_model::Rule {
-        stack_model::Rule {
+    pub fn into_stack_rule(self) -> agent_schema::Rule {
+        agent_schema::Rule {
             file_name: format!("space:{}", self.name),
             content: self.body,
             always_apply: true,

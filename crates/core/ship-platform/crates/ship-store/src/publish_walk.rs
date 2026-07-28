@@ -146,7 +146,7 @@ fn validate_content(root: &Path, rel: &Path) -> anyhow::Result<()> {
 fn validate_json_events(root: &Path, rel: &Path) -> anyhow::Result<()> {
     let source = fs::read_to_string(root.join(rel))
         .with_context(|| format!("reading publish config {}", rel.display()))?;
-    let cleaned = stack_model::jsonc::strip_jsonc_comments(&source);
+    let cleaned = agent_schema::jsonc::strip_jsonc_comments(&source);
     let value: Value = serde_json::from_str(&cleaned)
         .with_context(|| format!("parsing publish config {}", rel.display()))?;
     let mut events = Vec::new();

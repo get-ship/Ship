@@ -30,7 +30,7 @@
 //! slice — see the spec's SPEC CHANGE rule 4 for the deferral note).
 
 use anyhow::Result;
-use stack_model::Skill;
+use agent_schema::Skill;
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -146,7 +146,7 @@ fn load_skill_vars(
 #[cfg(test)]
 mod sdk_skill_tests {
     use super::*;
-    use stack_model::SkillSource;
+    use agent_schema::skill::SkillSource;
 
     #[test]
     #[ignore = "embedded SDK skills disabled until ship-contracts publishes a ship-sdk-skills crate; see embedded_capability_skills() and the commented include_dir!"]

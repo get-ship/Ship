@@ -131,9 +131,9 @@ impl AgentsServiceImpl {
 /// Called in `create` and `put` (not `patch` or `duplicate` — patch operates on
 /// an already-valid doc; duplicate copies a previously validated source).
 fn validate_agent_structure(doc: &serde_json::Value) -> Result<(), state::Error> {
-    let profile: stack_model::AgentProfile = serde_json::from_value(doc.clone())
+    let profile: agent_schema::AgentProfile = serde_json::from_value(doc.clone())
         .map_err(|e| state::Error::Parse(format!("invalid agent schema: {e}")))?;
-    agent_def::Agent::from_profile(&profile, "")
+    agent_schema::Agent::from_profile(&profile, "")
         .validate_capabilities()
         .map_err(|e| state::Error::Parse(format!("invalid capability: {e}")))?;
     Ok(())

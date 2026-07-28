@@ -59,7 +59,7 @@ pub(crate) fn read_raw_manifest(dir: &std::path::Path) -> Option<ManifestFile> {
             Ok(s) => s,
             Err(e) => { warn_parse(&path, e); return None; }
         };
-        let json = stack_model::jsonc::strip_jsonc_comments(&raw);
+        let json = agent_schema::jsonc::strip_jsonc_comments(&raw);
         match serde_json::from_str(&json) {
             Ok(m) => Some(m),
             Err(e) => { warn_parse(&path, e); None }

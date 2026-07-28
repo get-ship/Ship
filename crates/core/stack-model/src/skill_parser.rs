@@ -17,7 +17,7 @@
 //! forms. Block continuations are tracked via `in_*` section flags so the
 //! first indented `- …` line gets attached to the previous key.
 
-use crate::types::{Skill, SkillSource, is_valid_skill_name};
+use agent_schema::skill::{Skill, SkillSource, is_valid_skill_name};
 use std::collections::HashMap;
 
 /// Which list-key section we're inside, if any. Tracks block-form

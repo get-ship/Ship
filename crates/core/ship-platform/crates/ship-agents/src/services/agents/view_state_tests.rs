@@ -311,9 +311,9 @@ fn source_from_provenance_falls_back_when_no_provenance() {
 // `ship-config`'s `agents_index_provenance.rs` uses (ship-resolver is out of
 // this job's file fence).
 
+use agent_schema::{AgentProfile, ProfileMeta};
 use stack_model::{
-    compose_space, AgentProfile, ExtSource, ExtensionDescriptor, ExtensionLibrary, ProfileMeta,
-    RollupInputs,
+    ExtSource, ExtensionDescriptor, ExtensionLibrary, RollupInputs, compose_space,
 };
 
 fn agent_profile(id: &str, name: &str) -> AgentProfile {

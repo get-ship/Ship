@@ -1,4 +1,3 @@
-pub mod canonical_session;
 pub mod daemon;
 pub mod pipeline;
 pub mod skill;
@@ -171,21 +170,6 @@ pub const SUPERVISOR_SWEEP_STARTED: &str = supervisor::SWEEP_STARTED;
 pub const SUPERVISOR_SWEEP_COMPLETED: &str = supervisor::SWEEP_COMPLETED;
 pub const SUPERVISOR_DRIFT_DETECTED: &str = supervisor::DRIFT_DETECTED;
 pub const SUPERVISOR_COHERENCE_RESTORED: &str = supervisor::COHERENCE_RESTORED;
-
-// Canonical ship-shaped agent-session family (jobs: canonical-session-events,
-// workbench-teardown). 5 coarse-grain lifecycle events (started + 4
-// terminals) + 2 medium-grain turn events. The workbench family is retired.
-// The family also has a fine-grained `op.*` tier (see
-// `canonical_session::ALL_CANONICAL_OP`), registered in the event registry
-// but not aliased here and not in `ALL`. See `canonical_session` for docs.
-pub const SESSION_STARTED: &str = canonical_session::SESSION_STARTED;
-pub const SESSION_COMPLETED: &str = canonical_session::SESSION_COMPLETED;
-pub const SESSION_FAILED: &str = canonical_session::SESSION_FAILED;
-pub const SESSION_CANCELLED: &str = canonical_session::SESSION_CANCELLED;
-pub const SESSION_SUSPENDED: &str = canonical_session::SESSION_SUSPENDED;
-pub const TURN_STARTED: &str = canonical_session::TURN_STARTED;
-pub const TURN_ENDED: &str = canonical_session::TURN_ENDED;
-
 
 
 #[cfg(test)]

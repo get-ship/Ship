@@ -13,7 +13,7 @@
 //! `dispatch.requested` event payload projection. See
 //! `dispatch_core.rs::dispatch_code_session_core`.
 
-use agent_def::InvocationMode;
+use agent_schema::InvocationMode;
 use serde::Deserialize;
 
 /// Coding-class dispatch request — wired by `CodeService.Dispatch`.
@@ -226,7 +226,7 @@ mod tests {
         CodeDispatchRequest, billing_warning_for_axes, is_valid_slug,
         validate_code_dispatch_request,
     };
-    use agent_def::InvocationMode;
+    use agent_schema::InvocationMode;
 
     fn req_with(
         agent: &str,

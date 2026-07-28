@@ -14,7 +14,8 @@
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use stack_model::{ExtensionLibrary, McpServerConfig, McpServerType};
+use agent_schema::{McpServerConfig, McpServerType};
+use stack_model::ExtensionLibrary;
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -80,7 +81,7 @@ impl McpFile {
         }
         let text = std::fs::read_to_string(path)?;
 
-        if let Ok(raw) = stack_model::jsonc::from_jsonc_str::<RawMcpFile>(&text)
+        if let Ok(raw) = agent_schema::jsonc::from_jsonc_str::<RawMcpFile>(&text)
             && !raw.mcp.servers.is_empty()
         {
             let servers = raw
@@ -96,7 +97,7 @@ impl McpFile {
                 .collect();
             return Ok(Self { servers });
         }
-        if let Ok(legacy) = stack_model::jsonc::from_jsonc_str::<LegacyMcpFile>(&text) {
+        if let Ok(legacy) = agent_schema::jsonc::from_jsonc_str::<LegacyMcpFile>(&text) {
             return Ok(Self {
                 servers: legacy.servers,
             });
@@ -144,7 +145,7 @@ pub fn load_library(ship_dir: &Path) -> Result<ExtensionLibrary> {
         // resolver's `merge_ts_declarations` populates them with
         // values harvested from the `defineConfig` block + the
         // on-disk hooks-dir walk.
-        permissions: stack_model::Permissions::default(),
+        permissions: agent_schema::Permissions::default(),
         hooks: Vec::new(),
         permissions_presets: std::collections::BTreeMap::new(),
         rules: Vec::new(),

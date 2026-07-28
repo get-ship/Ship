@@ -20,8 +20,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex as StdMutex};
 use tokio::sync::Mutex;
 
-use agent_def::canonical_session::{SessionCancelled, event_types as canonical_session_event_types};
-use agent_def::dispatch_intent::{DispatchRequestedPayload, event_types as dispatch_event_types};
+use agent_schema::canonical_session::{SessionCancelled, event_types as canonical_session_event_types};
+use agent_schema::dispatch_intent::{DispatchRequestedPayload, event_types as dispatch_event_types};
 use ship_agents::services::sessions::{
     CanonicalSessionProjection, CanonicalSessionStatus, load_canonical_session_by_id,
 };
@@ -29,7 +29,7 @@ use ship_substrate::projections::Projection;
 use ship_substrate::db::block_on;
 use ship_agents::ports::AgentPorts;
 use ship_substrate::dispatch_gate::EventDedup;
-use agent_def::InvocationMode;
+use agent_schema::InvocationMode;
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use ship_substrate::events::process::event_types as process_event_types;
 use ship_substrate::events::process::ProcessKilledPayload;

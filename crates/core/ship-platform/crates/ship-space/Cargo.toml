@@ -24,6 +24,7 @@ ship-config = { path = "../ship-config" }
 # shape the harness compile flow consumes (the same struct
 # `ExtensionLibrary::rules` carries). stack-model stays leaf (no ship-*
 # back-edge), so this is a one-way dep.
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "ed7c6a74b9a2702bdcbb22b267601ab663b6857b" }
 stack-model = { path = "../../../stack-model" }
 
 async-trait = { workspace = true }

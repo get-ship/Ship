@@ -206,14 +206,14 @@ mod tests {
         // The Compile handler's cache key is a triple hash — each element
         // changing alone must produce a distinct key.
         let lib = ExtensionLibrary::default();
-        let rules: Vec<stack_model::Rule> = Vec::new();
+        let rules: Vec<agent_schema::Rule> = Vec::new();
         let base = canonical_content_hash(&(&lib, &None::<String>, &rules)).unwrap();
 
         let with_agent =
             canonical_content_hash(&(&lib, &Some("commander".to_string()), &rules)).unwrap();
         assert_ne!(base, with_agent, "active-agent override must change the key");
 
-        let space_rules = vec![stack_model::Rule {
+        let space_rules = vec![agent_schema::Rule {
             file_name: "space:tone".to_string(),
             content: "be blunt".to_string(),
             always_apply: true,

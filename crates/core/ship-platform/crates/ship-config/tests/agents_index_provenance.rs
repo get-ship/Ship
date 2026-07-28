@@ -17,9 +17,9 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use agent_schema::{AgentProfile, ProfileMeta};
 use stack_model::{
-    compose_space, AgentProfile, ExtSource, ExtensionDescriptor, ExtensionLibrary, ProfileMeta,
-    RollupInputs,
+    ExtSource, ExtensionDescriptor, ExtensionLibrary, RollupInputs, compose_space,
 };
 use ship_config::agents_index::{AgentDefIndex, AgentDefQuery};
 use ship_substrate::data::DataService;

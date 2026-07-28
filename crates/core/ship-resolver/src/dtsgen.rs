@@ -51,7 +51,8 @@
 //! `.d.ts`. The descriptor cache key is a content hash, but the in-memory
 //! emit is sorted so diff tests stay stable and so the LSP can rely on
 //! stable positioning across re-emits.
-use stack_model::{ComposedLibrary, types::AgentProfile};
+use agent_schema::AgentProfile;
+use stack_model::ComposedLibrary;
 /// Emit the space-scoped authoring `.d.ts` for a composed library.
 ///
 /// Pure over the composed library: no filesystem access, no clock, no
@@ -167,9 +168,10 @@ fn push_union(out: &mut String, name: &str, ids: &[String]) {
 mod tests {
     use super::*;
     use stack_model::compose::compose_space;
+    use agent_schema::{McpServerConfig, McpServerType, ProfileMeta, Skill};
     use stack_model::types::{
-        CollectionDef, CollectionFieldDef, CollectionFieldType, McpServerConfig, McpServerType,
-        PipelineDef, ProfileMeta, Skill, TriggerDef, TriggerEventMatch,
+        CollectionDef, CollectionFieldDef, CollectionFieldType, PipelineDef, TriggerDef,
+        TriggerEventMatch,
     };
     use stack_model::{ComposedLibrary, ExtSource, ExtensionDescriptor, RouteTree, RollupInputs};
 

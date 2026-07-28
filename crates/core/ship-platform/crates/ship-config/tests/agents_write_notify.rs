@@ -19,7 +19,7 @@ use std::sync::Arc;
 
 use ship_config::agents_write::{notify_agent_def_saved, save_agents_config};
 use ship_config::types::AgentProfile;
-use stack_model::ProfileMeta;
+use agent_schema::ProfileMeta;
 
 /// A minimal profile with just an id + name.
 fn profile(id: &str, name: &str) -> AgentProfile {
@@ -45,7 +45,7 @@ use ship_types::event_types;
 // block in tests/watcher.rs.
 #[allow(dead_code)]
 const _AGENT_DEF_LINK: fn() -> Option<std::any::TypeId> = || {
-    Some(std::any::TypeId::of::<agent_def::Agent>())
+    Some(std::any::TypeId::of::<agent_schema::Agent>())
 };
 /// Canonical project `.ship` dir under a fresh tempdir. `/tmp` is symlinked on
 /// WSL/macOS; the FsBroker's symlink-escape guard canonicalizes the deepest

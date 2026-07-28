@@ -6,14 +6,14 @@
 //! crate's read path (grep-gate invariant).
 //!
 //! ONE byte-read serves every granularity (S2 — agents arc, cutover):
-//! - **FULL `stack_model::AgentProfile`** (nested) — what the compiler's
+//! - **FULL `agent_schema::AgentProfile`** (nested) — what the compiler's
 //!   `load_agent_profiles` consumes; NO field loss.
 //! - **raw `serde_json::Value`** — what the daemon view-state projects its
 //!   summaries/detail from (it needs fields the nested type drops, e.g.
 //!   `rules.refs`, `permissions.tier`).
 //! - **SUMMARY [`AgentDefSource`]** — what the read-only index keys on
 //!   (id/name/role/tags/harness/path/content_hash); `harness` is read off the
-//!   raw value because the nested `stack_model::AgentProfile` view drops it.
+//!   raw value because the nested `agent_schema::AgentProfile` view drops it.
 //!
 //! Files are authored against the canonical schema (top-level `agent` block).
 //! The WRITE path (gated, S5) lives in the sibling [`crate::agents_write`].
@@ -207,10 +207,10 @@ fn read_doc(
 
 // ── Full nested profile (compiler input) ───────────────────────────────────────
 
-/// Parse a [`DefDoc`]'s value into the FULL nested `stack_model::AgentProfile`.
+/// Parse a [`DefDoc`]'s value into the FULL nested `agent_schema::AgentProfile`.
 /// `None` when the doc lacks the canonical top-level `agent` block (the
 /// loader's lenient "skip malformed" contract).
-fn to_profile(doc: &DefDoc) -> Option<stack_model::AgentProfile> {
+fn to_profile(doc: &DefDoc) -> Option<agent_schema::AgentProfile> {
     doc.value.get("agent")?;
     serde_json::from_value(doc.value.clone()).ok()
 }
@@ -221,7 +221,7 @@ fn to_profile(doc: &DefDoc) -> Option<stack_model::AgentProfile> {
 pub fn read_agent_profiles(
     fs: &dyn FsBroker,
     ship_dir: &Path,
-) -> Result<Vec<stack_model::AgentProfile>, ConfigError> {
+) -> Result<Vec<agent_schema::AgentProfile>, ConfigError> {
     let (cap, agents_dir) = agents_cap(ship_dir, FsMode::ReadOnly);
     profiles_from(read_docs(fs, &cap, &agents_dir, &["jsonc"])?)
 }
@@ -231,12 +231,12 @@ pub fn read_agent_profiles(
 pub fn read_agent_profiles_in(
     fs: &dyn FsBroker,
     agents_dir: &Path,
-) -> Result<Vec<stack_model::AgentProfile>, ConfigError> {
+) -> Result<Vec<agent_schema::AgentProfile>, ConfigError> {
     let (cap, rel) = dir_agents_cap(agents_dir, FsMode::ReadOnly);
     profiles_from(read_docs(fs, &cap, &rel, &["jsonc"])?)
 }
 
-fn profiles_from(docs: Vec<DefDoc>) -> Result<Vec<stack_model::AgentProfile>, ConfigError> {
+fn profiles_from(docs: Vec<DefDoc>) -> Result<Vec<agent_schema::AgentProfile>, ConfigError> {
     let mut profiles: Vec<_> = docs.iter().filter_map(to_profile).collect();
     profiles.sort_by(|a, b| a.agent.id.cmp(&b.agent.id));
     Ok(profiles)
@@ -247,7 +247,7 @@ pub fn read_agent_profile(
     fs: &dyn FsBroker,
     ship_dir: &Path,
     stem: &str,
-) -> Result<Option<stack_model::AgentProfile>, ConfigError> {
+) -> Result<Option<agent_schema::AgentProfile>, ConfigError> {
     let (cap, agents_dir) = agents_cap(ship_dir, FsMode::ReadOnly);
     Ok(read_doc(fs, &cap, &agents_dir, stem, &["jsonc"])?.as_ref().and_then(to_profile))
 }
@@ -257,7 +257,7 @@ pub fn read_agent_profile(
 pub fn read_agent_profile_at(
     fs: &dyn FsBroker,
     path: &Path,
-) -> Result<Option<stack_model::AgentProfile>, ConfigError> {
+) -> Result<Option<agent_schema::AgentProfile>, ConfigError> {
     let Some(parent) = path.parent() else {
         return Ok(None);
     };
@@ -300,7 +300,7 @@ pub fn read_agent_doc_in(
 
 /// One agent def parsed from its file, for the index. The summary granularity:
 /// id/name/role/tags + `harness` (canonical `agent.harnesses`, which the nested
-/// `stack_model::AgentProfile` view drops) + the file-identity fields the index
+/// `agent_schema::AgentProfile` view drops) + the file-identity fields the index
 /// keys on. `content_hash` is the SHA-256 of the raw bytes — the SAME value the
 /// `agent.def.updated` notification carries.
 #[derive(Debug, Clone, PartialEq)]

@@ -151,7 +151,7 @@ pub(crate) fn merge_ts_declarations(
     // `ExtensionLibrary`, so non-deterministic order = non-deterministic
     // output = parity-capture failures. Sort by `id` (the canonical
     // key, sorted ascending) before the `merge_by_key` first-wins pass.
-    let mut mcp_from_config: Vec<stack_model::McpServerConfig> = Vec::new();
+    let mut mcp_from_config: Vec<agent_schema::McpServerConfig> = Vec::new();
     for cfg in &declarations.config {
         if let Some(agents) = &cfg.agents {
             for declared in agents.mcp.values() {
@@ -230,7 +230,7 @@ pub(crate) fn merge_ts_declarations(
             Ok(found) => {
                 for mut skill in found {
                     if seen.insert(skill.id.clone()) {
-                        skill.source = stack_model::SkillSource::Custom;
+                        skill.source = agent_schema::skill::SkillSource::Custom;
                         added_skills.push(skill.id.clone());
                         library.skills.push(skill);
                     }
@@ -345,7 +345,7 @@ pub(crate) fn merge_ts_declarations(
             library
                 .permissions_presets
                 .entry(name.clone())
-                .or_insert_with(|| stack_model::PermissionPreset {
+                .or_insert_with(|| agent_schema::PermissionPreset {
                     default_mode: declared.default_mode.clone(),
                     tools_allow: declared.tools_allow.clone(),
                     tools_deny: declared.tools_deny.clone(),

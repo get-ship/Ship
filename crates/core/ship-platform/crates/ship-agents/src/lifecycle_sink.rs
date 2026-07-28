@@ -6,17 +6,18 @@
 
 use std::sync::Arc;
 
-use agent_def::canonical_session::{
+use agent_schema::canonical_session::{
     SessionCompleted, SessionFailed, TurnEnded, event_types as canonical_session_event_types,
 };
-use agent_def::op::OpToolUseStarted;
+use agent_schema::op::OpToolUseStarted;
 use async_trait::async_trait;
 use ship_code::LifecycleSink;
 use ship_substrate::db::block_on_anyhow;
 use ship_substrate::events::emit::{emit_process_signal_sent, persist_and_route};
 use ship_substrate::events::process::{event_types as process_event_types, ProcessKilledPayload};
 use ship_substrate::events::{EmitContext, EventEnvelope, KernelRouter};
-use ship_types::event_types::{self as substrate_event_types, canonical_session as stream_event_types};
+use agent_schema::canonical_session::event_types as stream_event_types;
+use ship_types::event_types as substrate_event_types;
 use tokio::sync::Mutex;
 
 type Kernel = Arc<Mutex<KernelRouter>>;

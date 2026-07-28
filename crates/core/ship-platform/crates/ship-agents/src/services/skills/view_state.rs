@@ -125,12 +125,12 @@ pub(crate) fn scopes_from(
     // still derives parent-of-home — the shape this scanner always had and
     // its tests encode. The catalog work replaces this scanner wholesale.
     let space_root = ship_dir.parent().unwrap_or(ship_dir);
-    let global_dirs = crate::agent_domain::skill_paths::read_skill_paths(space_root);
+    let global_dirs = agent_def::skill_paths::read_skill_paths(space_root);
 
     let project_dirs = match project_ship_dir {
         Some(project_root) if project_root != ship_dir => {
             // Marker cutover: the resolved value IS the stack root.
-            crate::agent_domain::skill_paths::read_skill_paths(project_root)
+            agent_def::skill_paths::read_skill_paths(project_root)
         }
         _ => Vec::new(),
     };

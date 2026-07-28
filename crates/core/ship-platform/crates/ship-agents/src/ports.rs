@@ -18,7 +18,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
-use agent_def::dispatch_intent::DispatchRequestedPayload;
+use agent_schema::dispatch_intent::DispatchRequestedPayload;
 #[cfg(feature = "ship-code")]
 use ship_substrate::dispatch_gate::EventDedup;
 #[cfg(feature = "ship-code")]

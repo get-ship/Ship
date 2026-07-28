@@ -17,6 +17,7 @@ description = "Phase-2 space-shape resolver — composes the stack-model leaf (c
 # the on-disk `rules/<id>.md` convention; rules flow through
 # `declarations.rules` (the resolver's TS eval harvests each agent's
 # `rules: { inline }` body into the merged library).
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "ed7c6a74b9a2702bdcbb22b267601ab663b6857b" }
 stack-model = { path = "../stack-model" }
 # The V8 isolate glue — `resolve_agents_with_globals` is the only call site
 # for ship.ts eval. V8 is feature-gated on the `deno` feature; the resolver
@@ -40,7 +41,7 @@ ship-substrate = { path = "../ship-substrate" }
 # Closed-world TS strip + SDK stub — re-exported through `agent-config-eval`,
 # but `agent-config-eval` re-exports ship-js and we keep the dep explicit
 # so the resolver's `ts_resolver` module can name the engine in its docs.
-ship-js = { git = "https://github.com/get-ship/ship-exec.git", branch = "feat/next", features = ["deno"] }
+ship-js = { git = "https://github.com/get-ship/ship-exec.git", rev = "40e694384108ce298eccd3e0da22e9f5e9855beb", features = ["deno"] }
 # `EventEnvelope` + `event_types` — the descriptor cache subscribes to the
 # `ship_substrate::ports::KernelLog` broadcast and filters on
 # `event_types::CONFIG_FILE_CHANGED`, the same pattern ship-config's

@@ -292,7 +292,7 @@ fn any_event_for_table(seen_types: &std::collections::HashSet<&str>, table: &str
             ev::ACTOR_CRASHED,
             crate::events::process::event_types::PROCESS_SPAWNED,
         ],
-        "canonical_sessions" => ship_types::event_types::canonical_session::ALL_CANONICAL_SESSION,
+        "canonical_sessions" => agent_schema::canonical_session::event_types::ALL_CANONICAL_SESSION,
         "project_compile_state" => &[ev::COMPILE_COMPLETED],
         "auth_sessions" => &[
             "auth.session.created",

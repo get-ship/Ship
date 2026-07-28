@@ -6,8 +6,7 @@ publish = false
 autobins = false
 description = """
 Third-party harness run-assembly (process/tmux/server/routing executors).
-Moved back from the bridge repo 2026-07-27 (consumers are ship-side);
-dissolve pending — SpawnSpec + executors return to fleet once ship-free.
+Dissolve pending — SpawnSpec + executors return to fleet once ship-free.
 """
 
 [lib]
@@ -51,7 +50,8 @@ hyper = { version = "1", features = ["client", "http1"], optional = true }
 hyper-util = { version = "0.1", features = ["tokio", "client", "client-legacy", "http1"], optional = true }
 tower = { version = "0.5", features = ["util"], optional = true }
 reqwest = { workspace = true, features = ["rustls-tls", "blocking", "json"], optional = true }
-harness-config-compiler = { path = "../../../bridge/crates/harness-config-compiler", optional = true }
+harness-config-compiler = { git = "https://github.com/get-ship/fleet.git", rev = "ed7c6a74b9a2702bdcbb22b267601ab663b6857b", optional = true }
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "ed7c6a74b9a2702bdcbb22b267601ab663b6857b" }
 stack-model = { path = "../core/stack-model", optional = true }
 ship-ops-rpc = { path = "../core/ship-ops-rpc", optional = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"], optional = true }

@@ -1,81 +1,6 @@
-use std::collections::HashMap;
-
 use serde::{Deserialize, Serialize};
 
-// ─── Hooks ────────────────────────────────────────────────────────────────────
-
-#[cfg_attr(feature = "specta", derive(specta::Type))]
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
-#[serde(rename_all = "PascalCase")]
-pub enum HookTrigger {
-    PreToolUse,
-    PostToolUse,
-    Notification,
-    Stop,
-    SubagentStop,
-    PreCompact,
-}
-
-#[cfg_attr(feature = "specta", derive(specta::Type))]
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct HookConfig {
-    pub id: String,
-    pub trigger: HookTrigger,
-    #[serde(default)]
-    pub matcher: Option<String>,
-    pub command: String,
-    /// Raw Cursor event name; when set, bypasses trigger mapping and emits directly.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub cursor_event: Option<String>,
-}
-
-// ─── MCP servers ──────────────────────────────────────────────────────────────
-
-#[cfg_attr(feature = "specta", derive(specta::Type))]
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
-#[serde(rename_all = "lowercase")]
-pub enum McpServerType {
-    #[default]
-    Stdio,
-    Sse,
-    Http,
-}
-
-#[cfg_attr(feature = "specta", derive(specta::Type))]
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct McpServerConfig {
-    #[serde(default)]
-    pub id: String,
-    pub name: String,
-    pub command: String,
-    #[serde(default)]
-    pub args: Vec<String>,
-    #[serde(default)]
-    pub env: HashMap<String, String>,
-    #[serde(default = "default_scope")]
-    pub scope: String,
-    #[serde(default)]
-    pub server_type: McpServerType,
-    pub url: Option<String>,
-    #[serde(default)]
-    pub disabled: bool,
-    pub timeout_secs: Option<u32>,
-    // ── Codex per-server fields ────────────────────────────────────────────────
-    /// Codex: tool names to enable for this server.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub codex_enabled_tools: Vec<String>,
-    /// Codex: tool names to disable for this server.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub codex_disabled_tools: Vec<String>,
-    // ── Cursor per-server fields ───────────────────────────────────────────────
-    /// Cursor: path to an env file to load for this stdio server.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub cursor_env_file: Option<String>,
-}
-
-fn default_scope() -> String {
-    "global".to_string()
-}
+use agent_schema::{AgentProfile, HookConfig, McpServerConfig};
 
 // ─── Agent layer ──────────────────────────────────────────────────────────────
 
@@ -114,7 +39,7 @@ pub struct SpaceManifest {
     #[serde(default)]
     pub harnesses: Vec<String>,
     #[serde(default)]
-    pub agents: Vec<super::agent_profile::AgentProfile>,
+    pub agents: Vec<AgentProfile>,
     #[serde(default)]
     pub mcp_servers: Vec<McpServerConfig>,
     #[serde(default)]

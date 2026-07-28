@@ -53,7 +53,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::Context;
-use stack_model::AgentProfile;
+use agent_schema::AgentProfile;
 use oxc_allocator::Allocator;
 use oxc_codegen::Codegen;
 use oxc_parser::Parser;

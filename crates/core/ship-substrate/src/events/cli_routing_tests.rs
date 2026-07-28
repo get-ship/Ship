@@ -48,7 +48,7 @@ fn ev(event_type: &str) -> EventEnvelope {
 }
 
 fn session_ev() -> EventEnvelope {
-    EventEnvelope::new(event_types::canonical_session::TURN_STARTED, "entity-cli", &serde_json::json!({
+    EventEnvelope::new(agent_schema::canonical_session::event_types::TURN_STARTED, "entity-cli", &serde_json::json!({
         "session_id": "entity-cli",
         "idx": 0,
     })).unwrap()
@@ -95,7 +95,7 @@ async fn session_event_delivered_to_subscribed_mailbox() {
 
     let received = mailbox.try_recv().expect("session event must reach subscribed actor mailbox");
     assert_eq!(received.id, event.id);
-    assert_eq!(received.event_type, event_types::canonical_session::TURN_STARTED);
+    assert_eq!(received.event_type, agent_schema::canonical_session::event_types::TURN_STARTED);
 }
 
 // ── CLI-context event reaches kernel store ───────────────────

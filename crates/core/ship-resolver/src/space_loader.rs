@@ -65,7 +65,9 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use stack_model::{ExtensionLibrary, HookConfig, HookTrigger, Skill, SkillSource};
+use agent_schema::{HookConfig, HookTrigger, Skill};
+use agent_schema::skill::SkillSource;
+use stack_model::ExtensionLibrary;
 use ship_substrate::ports::{FsBroker, FsCap, FsError, FsMode, FsRoot, SpaceId};
 
 /// The canonical `.ship` dir name, mirrored from

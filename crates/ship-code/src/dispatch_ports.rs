@@ -16,7 +16,7 @@ use tokio::sync::Mutex;
 use std::sync::Arc;
 
 // Re-export the harness value and shared port types from the agent-driver leaf.
-pub use agent_def::InvocationMode;
+pub use agent_schema::InvocationMode;
 pub use agent_driver::dispatch_ports::{
     AgentPlatform, Authority, LaunchCommand, LaunchProfile, ProjectionReader, SpawnPolicy,
 };

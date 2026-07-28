@@ -1,7 +1,7 @@
 //! Harness invocation-mode resolution.
 
 
-use agent_def::InvocationMode;
+use agent_schema::InvocationMode;
 
 pub fn resolve_step_invocation(
     step_invocation: Option<&str>,
@@ -19,7 +19,7 @@ pub fn resolve_step_invocation(
 #[cfg(test)]
 mod invocation_tests {
     use super::resolve_step_invocation;
-    use agent_def::InvocationMode;
+    use agent_schema::InvocationMode;
 
     #[test]
     fn orchestrator_dispatch_invocation_explicit_print() {

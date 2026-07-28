@@ -4,7 +4,7 @@
 
 use super::*;
 use crate::agents::read_agent_profiles;
-use stack_model::{ProfileMeta, ProfileRules, SkillRefs};
+use agent_schema::{ProfileMeta, ProfileRules, SkillRefs};
 use ship_substrate::ports::LocalFsBroker;
 use std::path::PathBuf;
 use tempfile::tempdir;

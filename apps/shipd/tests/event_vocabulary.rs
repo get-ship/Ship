@@ -14,7 +14,7 @@ use std::collections::BTreeSet;
 use shipd as _;
 
 use ship_types::event_registry::{self, EventScope, Retention};
-use ship_types::event_types::canonical_session::{ALL_CANONICAL_OP, ALL_CANONICAL_SESSION};
+use agent_schema::canonical_session::event_types::{ALL_CANONICAL_OP, ALL_CANONICAL_SESSION};
 
 /// Pinned count of the COMPLETE registry. The conscious-update forcing
 /// function the old `ALL.len()` test provided, now counting registrations

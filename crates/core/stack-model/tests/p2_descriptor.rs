@@ -124,7 +124,7 @@ fn per_agent_skills_round_trips() {
     let mut per_agent = BTreeMap::new();
     per_agent.insert(
         "shipwright".to_string(),
-        vec![stack_model::Skill {
+        vec![agent_schema::Skill {
             id: "shipwright-defaults".to_string(),
             name: "Shipwright defaults".to_string(),
             stable_id: None,

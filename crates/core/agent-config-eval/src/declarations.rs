@@ -54,11 +54,9 @@
 use std::collections::HashMap;
 
 use anyhow::{Context, Result, bail};
+use agent_schema::{AgentProfile, McpServerConfig, McpServerType};
 use stack_model::types::ViewDescriptor;
-use stack_model::{
-    AgentProfile, CollectionDef, McpServerConfig, McpServerType, PipelineDef, TriggerDef,
-    manifest::ManifestDepValue,
-};
+use stack_model::{CollectionDef, PipelineDef, TriggerDef, manifest::ManifestDepValue};
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -83,8 +81,8 @@ use serde_json::Value;
 pub struct Declarations {
     pub agents: Vec<AgentProfile>,
     pub mcp_servers: Vec<McpServerConfig>,
-    pub skills: Vec<stack_model::Skill>,
-    pub rules: Vec<stack_model::Rule>,
+    pub skills: Vec<agent_schema::Skill>,
+    pub rules: Vec<agent_schema::Rule>,
     pub pipelines: Vec<PipelineDef>,
     pub triggers: Vec<TriggerDef>,
     pub collections: Vec<CollectionDef>,
@@ -152,7 +150,7 @@ pub fn harvest(out: &mut Declarations, index: usize, raw: Value) -> Result<()> {
             if let Some(inline) = profile.rules.inline.as_deref() {
                 let trimmed = inline.trim();
                 if !trimmed.is_empty() {
-                    out.rules.push(stack_model::Rule {
+                    out.rules.push(agent_schema::Rule {
                         file_name: format!("{}.md", profile.agent.id),
                         content: trimmed.to_string(),
                         always_apply: true,

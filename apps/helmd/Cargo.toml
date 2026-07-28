@@ -59,8 +59,9 @@ ship-types = { path = "../../crates/core/ship-substrate/crates/ship-types" }
 # Without this dep, the compiled `.mcp.json` and `CLAUDE.md` outputs
 # are empty.
 ship-resolver = { path = "../../crates/core/ship-resolver" }
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "ed7c6a74b9a2702bdcbb22b267601ab663b6857b" }
 stack-model = { path = "../../crates/core/stack-model" }
-harness-config-compiler = { path = "../../../bridge/crates/harness-config-compiler" }
+harness-config-compiler = { git = "https://github.com/get-ship/fleet.git", rev = "ed7c6a74b9a2702bdcbb22b267601ab663b6857b" }
 # Direct dep on ship-proto so build.rs can read DEP_SHIP_PROTO_PROTO_DIR
 # (the canonical proto root, propagated via `links = "ship-proto"` from
 # ship-proto's own build.rs). Without this, helmd's build.rs would need a
@@ -168,3 +169,4 @@ ship-code = [
 
 # Detach from the ship root workspace — helmd is its own compositional root.
 [workspace]
+

@@ -24,8 +24,8 @@
 
 use async_trait::async_trait;
 
-use agent_def::canonical_session::{SessionStarted, event_types as canonical_session_event_types};
-use agent_def::dispatch_intent::{DispatchRequestedPayload, event_types as dispatch_event_types};
+use agent_schema::canonical_session::{SessionStarted, event_types as canonical_session_event_types};
+use agent_schema::dispatch_intent::{DispatchRequestedPayload, event_types as dispatch_event_types};
 use ship_substrate::events::EventEnvelope;
 
 use super::dispatch_request::{DispatchRequest, validate_dispatch_request};
@@ -149,7 +149,7 @@ pub async fn dispatch_agent_session_core(
         // Default invocation mode for the dispatch payload projection;
         // the floki runtime doesn't read this field. `Pty` matches
         // the historical pre-cutover default.
-        invocation: agent_def::InvocationMode::Pty,
+        invocation: agent_schema::InvocationMode::Pty,
         keepalive: false,
         prompt: req.prompt.clone(),
         // In-process never carries a spec body — the prompt is the

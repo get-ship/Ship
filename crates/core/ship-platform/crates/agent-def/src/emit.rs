@@ -32,12 +32,12 @@ use std::sync::Arc;
 // Re-export canonical payload types so downstream crates (e.g. floki) can
 // build session event payloads through agent-def without adding ship-substrate
 // as a direct runtime dependency.
-pub use crate::canonical_session::{
+pub use agent_schema::canonical_session::{
     SessionCancelled, SessionCompleted, SessionFailed, SessionStarted, SessionSuspended, TurnEnded,
     TurnStarted,
 };
 use ship_types::envelope::EventEnvelope;
-use ship_types::event_types::canonical_session as event_types;
+use agent_schema::canonical_session::event_types;
 
 /// Kernel-emit port for the canonical session family (7 events — see
 /// module docs for the slice scope).
@@ -493,7 +493,7 @@ mod tests {
             ),
         ];
         for (name, v) in cases {
-            for forbidden in crate::guards::DRIVER_EDGE_FIELDS {
+            for forbidden in agent_schema::guards::DRIVER_EDGE_FIELDS {
                 assert!(
                     !v.to_string().contains(forbidden),
                     "{name} payload must not carry {forbidden}: {v}"

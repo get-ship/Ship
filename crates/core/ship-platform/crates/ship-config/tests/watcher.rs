@@ -26,7 +26,7 @@ use ship_types::event_types;
 // — pure compile-time / link-time concern.
 #[allow(dead_code)]
 const _AGENT_DEF_LINK: fn() -> Option<std::any::TypeId> = || {
-    Some(std::any::TypeId::of::<agent_def::Agent>())
+    Some(std::any::TypeId::of::<agent_schema::Agent>())
 };
 async fn setup() -> (tempfile::TempDir, std::path::PathBuf, Arc<KernelLog>) {
     let tmp = tempfile::tempdir().unwrap();

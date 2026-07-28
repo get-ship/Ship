@@ -197,14 +197,14 @@ impl AgentDefIndex {
     }
 
     /// Upsert one agent def resolved from a `.ts` config (a compiler
-    /// [`stack_model::AgentProfile`]), through the SAME row projection the
+    /// [`agent_schema::AgentProfile`]), through the SAME row projection the
     /// `.jsonc` reader uses. `provenance` is `Some` only for a Phase-3
     /// roll-up winner ([`Self::upsert_composed`]); plain ingest passes `None`
     /// (no behavior change there).
     pub async fn upsert_profile(
         &self,
         scope: &str,
-        profile: &stack_model::AgentProfile,
+        profile: &agent_schema::AgentProfile,
         provenance: Option<&DefProvenance>,
     ) -> Result<(), ConfigError> {
         let src = crate::agents_ts::source_from_profile(profile);

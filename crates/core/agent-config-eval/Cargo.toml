@@ -9,12 +9,12 @@ description = "Evaluate a ship.ts agent config (authored with defineAgent) in a 
 # The AgentProfile type + its schema. This crate produces AgentProfiles; it does
 # NOT re-implement them (the deleted spike's mistake was vendoring these into the
 # engine — here ship supplies them and the engine stays type-free).
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "ed7c6a74b9a2702bdcbb22b267601ab663b6857b" }
 stack-model = { path = "../stack-model" }
-# The standalone JS engine. Absolute path (ship-exec is a shared repo that is not
-# worktreed, so a relative path breaks at helmd worktree depth — see floki /
-# durable-execution). `deno` pulls the V8 runtime; the closed-world eval lives
-# behind it.
-ship-js = { git = "https://github.com/get-ship/ship-exec.git", branch = "feat/next", features = ["deno"] }
+# The standalone JS engine (shared ship-exec repo, rev-pinned with fleet's
+# yoke so there is one ship-js source for everyone). `deno` pulls the V8
+# runtime; the closed-world eval lives behind it.
+ship-js = { git = "https://github.com/get-ship/ship-exec.git", rev = "40e694384108ce298eccd3e0da22e9f5e9855beb", features = ["deno"] }
 # oxc — the one-shot TypeScript type-strip (real `.ts` → JS before eval). Already
 # vendored at 0.133.0 in the workspace lock (transitive via rolldown), so these
 # direct deps reuse the locked copies and pull no new tree. The strip is a pure

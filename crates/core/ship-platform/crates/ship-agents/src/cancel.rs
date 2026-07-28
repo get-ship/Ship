@@ -19,7 +19,7 @@
 
 use std::sync::Arc;
 
-use agent_def::canonical_session::SessionCancelled;
+use agent_schema::canonical_session::SessionCancelled;
 use ship_substrate::events::emit::persist_and_route;
 use ship_substrate::events::process::{event_types as process_event_types, ProcessKilledPayload};
 use ship_substrate::events::EventEnvelope;

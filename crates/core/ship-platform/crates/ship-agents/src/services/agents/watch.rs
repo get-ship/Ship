@@ -19,6 +19,7 @@
 //!     so another agent's edit does not patch this subscriber.
 
 use ship_types::envelope::EventEnvelope;
+use agent_schema::canonical_session::event_types as canonical_event_types;
 use ship_types::event_types;
 use ship_types::payload::AgentDefUpdated;
 
@@ -119,7 +120,7 @@ mod tests {
 
     #[test]
     fn all_scope_ignores_unrelated_events() {
-        assert!(!all_scope_relevant(&env(event_types::SESSION_STARTED, "s1", json!({}))));
+        assert!(!all_scope_relevant(&env(canonical_event_types::SESSION_STARTED, "s1", json!({}))));
         assert!(!all_scope_relevant(&env(event_types::PROCESS_SPAWNED, "p1", json!({}))));
     }
 

@@ -186,7 +186,7 @@ impl ShipManifest {
 
     /// Parse from a JSONC string and validate required fields and semver.
     pub fn from_jsonc_str(s: &str) -> anyhow::Result<Self> {
-        let raw: RawShipManifest = crate::jsonc::from_jsonc_str(s)
+        let raw: RawShipManifest = agent_schema::jsonc::from_jsonc_str(s)
             .map_err(|e| anyhow::anyhow!("Failed to parse ship.jsonc: {e}"))?;
         Self::from_raw(raw)
     }

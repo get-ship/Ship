@@ -8,7 +8,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use agent_def::dispatch_intent::DispatchRequestedPayload;
+use agent_schema::dispatch_intent::DispatchRequestedPayload;
 use connectrpc::client::{ClientConfig, Http2Connection};
 use yoke::{
     AuthContext as YokeAuth, SessionCancelled, SessionCompleted, SessionEventSink, SessionFailed,

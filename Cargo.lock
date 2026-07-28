@@ -18,6 +18,7 @@ checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 name = "agent-config-eval"
 version = "0.1.0"
 dependencies = [
+ "agent-schema",
  "anyhow",
  "async-trait",
  "oxc_allocator 0.133.0",
@@ -38,6 +39,7 @@ name = "agent-def"
 version = "0.1.0"
 dependencies = [
  "agent-driver",
+ "agent-schema",
  "anyhow",
  "chrono",
  "harness-config-compiler",
@@ -82,10 +84,13 @@ dependencies = [
 [[package]]
 name = "agent-schema"
 version = "0.1.0"
+source = "git+https://github.com/get-ship/fleet.git?rev=ed7c6a74b9a2702bdcbb22b267601ab663b6857b#ed7c6a74b9a2702bdcbb22b267601ab663b6857b"
 dependencies = [
  "anyhow",
+ "minijinja",
  "serde",
  "serde_json",
+ "specta",
 ]
 
 [[package]]
@@ -2195,6 +2200,7 @@ checksum = "92773504d58c093f6de2459af4af33faa518c13451eb8f2b5698ed3d36e7c813"
 [[package]]
 name = "durable-execution"
 version = "0.1.0"
+source = "git+https://github.com/get-ship/ship-exec.git?rev=40e694384108ce298eccd3e0da22e9f5e9855beb#40e694384108ce298eccd3e0da22e9f5e9855beb"
 dependencies = [
  "async-trait",
  "futures-util",
@@ -3098,7 +3104,9 @@ dependencies = [
 [[package]]
 name = "harness-config-compiler"
 version = "0.1.0"
+source = "git+https://github.com/get-ship/fleet.git?rev=ed7c6a74b9a2702bdcbb22b267601ab663b6857b#ed7c6a74b9a2702bdcbb22b267601ab663b6857b"
 dependencies = [
+ "agent-schema",
  "anyhow",
  "indexmap 2.14.0",
  "minijinja",
@@ -3107,7 +3115,6 @@ dependencies = [
  "serde",
  "serde_json",
  "specta",
- "stack-model",
  "toml 0.8.2",
 ]
 
@@ -7818,6 +7825,7 @@ version = "0.1.0"
 dependencies = [
  "agent-def",
  "agent-driver",
+ "agent-schema",
  "anyhow",
  "async-stream",
  "async-trait",
@@ -7864,6 +7872,7 @@ name = "ship-analytics"
 version = "0.1.0"
 dependencies = [
  "agent-def",
+ "agent-schema",
  "anyhow",
  "chrono",
  "connectrpc",
@@ -7959,6 +7968,7 @@ version = "0.1.0"
 dependencies = [
  "agent-def",
  "agent-driver",
+ "agent-schema",
  "anyhow",
  "assert_cmd",
  "async-trait",
@@ -8033,6 +8043,7 @@ version = "0.1.0"
 dependencies = [
  "agent-config-eval",
  "agent-def",
+ "agent-schema",
  "anyhow",
  "async-stream",
  "async-trait",
@@ -8300,6 +8311,7 @@ version = "0.1.0"
 dependencies = [
  "agent-def",
  "agent-driver",
+ "agent-schema",
  "anyhow",
  "async-trait",
  "base64 0.22.1",
@@ -8395,6 +8407,7 @@ name = "ship-resolver"
 version = "0.1.0"
 dependencies = [
  "agent-config-eval",
+ "agent-schema",
  "anyhow",
  "serde",
  "serde_json",
@@ -8461,6 +8474,7 @@ dependencies = [
 name = "ship-space"
 version = "0.1.0"
 dependencies = [
+ "agent-schema",
  "anyhow",
  "async-stream",
  "async-trait",
@@ -8491,6 +8505,7 @@ dependencies = [
 name = "ship-store"
 version = "0.1.0"
 dependencies = [
+ "agent-schema",
  "anyhow",
  "async-trait",
  "base64 0.22.1",
@@ -8523,6 +8538,7 @@ dependencies = [
 name = "ship-substrate"
 version = "0.1.0"
 dependencies = [
+ "agent-schema",
  "anyhow",
  "async-trait",
  "blobstore",
@@ -8665,6 +8681,7 @@ name = "shipd"
 version = "0.2.0"
 dependencies = [
  "agent-def",
+ "agent-schema",
  "anyhow",
  "async-stream",
  "async-trait",
@@ -9171,6 +9188,7 @@ checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
 name = "stack-model"
 version = "0.1.0"
 dependencies = [
+ "agent-schema",
  "anyhow",
  "indexmap 2.14.0",
  "minijinja",
@@ -12110,6 +12128,7 @@ checksum = "cfe53a6657fd280eaa890a3bc59152892ffa3e30101319d168b781ed6529b049"
 [[package]]
 name = "yoke"
 version = "0.1.0"
+source = "git+https://github.com/get-ship/fleet.git?rev=ed7c6a74b9a2702bdcbb22b267601ab663b6857b#ed7c6a74b9a2702bdcbb22b267601ab663b6857b"
 dependencies = [
  "agent-schema",
  "anyhow",

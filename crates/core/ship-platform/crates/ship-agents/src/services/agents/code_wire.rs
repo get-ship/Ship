@@ -50,11 +50,11 @@ fn opt_string(s: &str) -> Option<String> {
 /// strings default to `Pty` (the historical default — keeps
 /// pre-cutover callers that omitted the field working without
 /// re-validation).
-fn parse_invocation(s: &str) -> agent_def::InvocationMode {
+fn parse_invocation(s: &str) -> agent_schema::InvocationMode {
     match s {
-        "print" => agent_def::InvocationMode::Print,
-        "stream" => agent_def::InvocationMode::Stream,
-        _ => agent_def::InvocationMode::Pty,
+        "print" => agent_schema::InvocationMode::Print,
+        "stream" => agent_schema::InvocationMode::Stream,
+        _ => agent_schema::InvocationMode::Pty,
     }
 }
 

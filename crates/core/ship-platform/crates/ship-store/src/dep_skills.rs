@@ -13,7 +13,7 @@
 
 use anyhow::{Context, Result};
 use stack_model::lockfile::{LockPackage, ShipLock};
-use stack_model::{Skill, SkillSource};
+use agent_schema::skill::{Skill, SkillSource};
 use std::path::{Path, PathBuf};
 
 // ── Dep ref detection ─────────────────────────────────────────────────────────
@@ -406,9 +406,9 @@ pub struct CachedExtension {
     /// Agent profiles from the package's `exports.agents`, namespaced by
     /// `pkg_path` so dep agents never collide with the on-disk source or
     /// with other packages.
-    pub agent_profiles: Vec<stack_model::AgentProfile>,
+    pub agent_profiles: Vec<agent_schema::AgentProfile>,
     /// Skills from the package's `exports.skills`, namespaced by `pkg_path`.
-    pub skills: Vec<stack_model::Skill>,
+    pub skills: Vec<agent_schema::Skill>,
     /// Views from the package's `exports.views`, each `prefix` set to
     /// `pkg_path`. The per-view data (`route`, `component_ref`) reads from
     /// `<view_dir>/view.jsonc` (the dep sidecar; absent → silently
@@ -499,7 +499,7 @@ pub fn load_cached_extensions(
                         continue;
                     }
                 };
-                match stack_model::jsonc::from_jsonc_str::<stack_model::AgentProfile>(&content) {
+                match agent_schema::jsonc::from_jsonc_str::<agent_schema::AgentProfile>(&content) {
                     Ok(mut profile) => {
                         profile.agent.id = format!("{}/{}", pkg.path, profile.agent.id);
                         agent_profiles.push(profile);
@@ -561,7 +561,7 @@ pub fn load_cached_extensions(
                         continue;
                     }
                 };
-                match stack_model::jsonc::from_jsonc_str::<ViewSidecar>(&content) {
+                match agent_schema::jsonc::from_jsonc_str::<ViewSidecar>(&content) {
                     Ok(sidecar) => {
                         views.push(stack_model::types::ViewDescriptor {
                             prefix: pkg.path.clone(),

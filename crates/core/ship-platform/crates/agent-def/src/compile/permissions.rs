@@ -13,7 +13,7 @@
 //! `allow` a floor-protected pattern do not override at runtime (deny wins in
 //! every harness we target) and the compiler emits a warning.
 
-use stack_model::{AgentProfile, Permissions, ToolPermissions};
+use agent_schema::{AgentProfile, Permissions, ToolPermissions};
 use std::collections::BTreeMap;
 
 /// A named permission preset section. The struct is a re-export of
@@ -28,7 +28,7 @@ use std::collections::BTreeMap;
 /// remaining callers (the compile path now consumes
 /// `stack_model::PermissionPreset` directly, the re-export is a
 /// forward-compat surface).
-pub use stack_model::PermissionPreset;
+pub use agent_schema::PermissionPreset;
 
 /// Permission rules baked into every Ship agent. Cannot be overridden.
 ///
@@ -218,7 +218,7 @@ pub fn apply_agent_permissions(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use stack_model::Permissions;
+    use agent_schema::Permissions;
 
     fn profile_with_preset(preset: &str) -> AgentProfile {
         let src = format!(

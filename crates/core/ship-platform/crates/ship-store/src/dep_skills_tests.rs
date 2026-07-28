@@ -2,7 +2,7 @@ use std::path::Path;
 
 use super::*;
 use stack_model::lockfile::{LockPackage, Rails, ShipLock};
-use stack_model::{Skill, SkillSource};
+use agent_schema::skill::{Skill, SkillSource};
 use tempfile::TempDir;
 
 // `resolve_dep_agents` retired with format-migration Wave 5. The

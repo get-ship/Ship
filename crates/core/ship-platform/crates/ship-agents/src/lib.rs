@@ -12,10 +12,6 @@
 
 pub mod actor;
 
-// The agent-definition domain moved to the `agent-def` crate (Floki carve D2a).
-// Re-exported here so every `crate::agent_domain::*` and `ship_agents::agent_domain::*`
-// caller keeps resolving with zero churn — a back-compat shim during the carve.
-pub use agent_def as agent_domain;
 // cancel module is 100% ship_code-dependent (uses runner::stop_by_slug / stop_handle
 // + the harness-driver port fields). Gate it entirely so flag-off compiles cleanly.
 #[cfg(feature = "ship-code")]
@@ -42,6 +38,3 @@ pub use dispatch::handle_dispatch_requested;
 #[cfg(feature = "ship-code")]
 pub use lifecycle_sink::KernelLifecycleSink;
 pub use ports::AgentPorts;
-
-// Back-compat re-exports so existing callers via ship_agents::agents::* still work.
-pub use agent_domain as agents;

@@ -15,7 +15,6 @@ pub mod archive_header;
 pub mod compose;
 pub mod domain_dirs;
 pub mod events;
-pub mod jsonc;
 pub mod loader;
 pub mod lockfile;
 pub mod manifest;
@@ -23,32 +22,25 @@ pub mod resolve;
 pub mod route_tree;
 pub mod skill_parser;
 pub mod types;
-pub mod vars;
 
 // ─── Top-level re-exports ─────────────────────────────────────────────────────
 pub use archive_header::ArchiveHeader;
 pub use domain_dirs::{DOMAIN_DIRS, is_domain_dir};
-pub use jsonc::{merge_json, merge_json_file};
 pub use loader::load_library;
-pub use types::compile_output::CompileOutput;
 
 pub use compose::{ComposedLibrary, NounKind, ShadowRecord, compose_space};
 pub use resolve::{
     ExtSource, ExtSourceKind, ExtensionDescriptor, ExtensionLibrary, ModuleDescriptor,
-    PrecedenceRow, ResolvedConfig, RollupInputs, WorkspaceOverrides, resolve, resolve_library,
+    PrecedenceRow, RollupInputs, WorkspaceOverrides, resolve, resolve_library,
 };
 pub use route_tree::{RouteNode, RouteTree, compose_route_tree};
 pub use types::{
-    AgentBundle, AgentLayerConfig, AgentLimits, AgentProfile, ArtifactType, BlastRadius,
-    Capability, CatalogCategory, CatalogEntry, CatalogKind, CollectionDef, CollectionFieldDef,
-    CollectionFieldType, CommandPermissions, FsPermissions, HookConfig, HookTrigger,
-    ListAgentsResponse, McpRefs, McpServerConfig, McpServerType, NamespaceConfig,
-    NetworkPermissions, NetworkPolicy, PermissionPreset, Permissions, PipelineDef, PipelineGate,
-    PipelineStep, PipelineStepSpec, PluginEntry, PluginRefs, PluginsManifest, ProfileMeta,
-    ProfilePermissions, ProfileRules, PullAgent, PullMcpServer, PullProfile, PullResponse,
-    PullRule, PullSkill, Rule, Skill, SkillBundle, SkillRefs, SkillSource, SpaceManifest,
-    ToolPermissions, TransferBundle, TriggerAction, TriggerDef, TriggerEventMatch,
-    TriggerSourceDef, list_catalog, list_catalog_by_kind, search_catalog,
+    AgentBundle, AgentLayerConfig, ArtifactType, CatalogCategory, CatalogEntry, CatalogKind,
+    CollectionDef, CollectionFieldDef, CollectionFieldType, ListAgentsResponse, NamespaceConfig,
+    PipelineDef, PipelineGate, PipelineStep, PipelineStepSpec, PullAgent, PullMcpServer,
+    PullProfile, PullResponse, PullRule, PullSkill, SkillBundle, SpaceManifest, TransferBundle,
+    TriggerAction, TriggerDef, TriggerEventMatch, TriggerSourceDef, list_catalog,
+    list_catalog_by_kind, search_catalog,
 };
 
 /// Generate a nanoid using Ship's 56-character alphabet (no ambiguous chars).

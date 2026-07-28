@@ -8,7 +8,7 @@
 
 use std::sync::Arc;
 
-use agent_def::dispatch_intent::DispatchRequestedPayload;
+use agent_schema::dispatch_intent::DispatchRequestedPayload;
 use durable_execution::{Journal, JournalStore, execute};
 use yoke::dispatch::GatewayDispatch;
 use yoke::provider::{Byok, CredentialSource};
@@ -19,7 +19,7 @@ use yoke::{
 };
 use journal_sqlite::SqliteJournalStore;
 use ship_substrate::events::{CallerKind, EmitContext, EventEnvelope};
-use ship_types::event_types::canonical_session as session_events;
+use agent_schema::canonical_session::event_types as session_events;
 use ship_types::{Authority, ScopeBinding};
 
 use crate::yoke::gateway::ShipdGateway;

@@ -56,7 +56,7 @@ fn session_started(id: &str) -> TestSession {
 #[test]
 fn test_actor_fields_round_trip() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
-    let ev = EventEnvelope::new(event_types::canonical_session::SESSION_STARTED, "ws-1", &session_started("ws-1"))?
+    let ev = EventEnvelope::new(agent_schema::canonical_session::event_types::SESSION_STARTED, "ws-1", &session_started("ws-1"))?
         .with_actor_id("actor-ws-001")
         .with_parent_actor_id("actor-system-000")
         .elevate();
@@ -75,11 +75,11 @@ fn test_filter_by_actor_id() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
 
     for i in 0..2_u32 {
-        let ev = EventEnvelope::new(event_types::canonical_session::TURN_STARTED, "entity-1", &TestTurn { session_id: "entity-1".into(), idx: i })?
+        let ev = EventEnvelope::new(agent_schema::canonical_session::event_types::TURN_STARTED, "entity-1", &TestTurn { session_id: "entity-1".into(), idx: i })?
             .with_actor_id("actor-a");
         store.append(&ev)?;
     }
-    let ev_b = EventEnvelope::new(event_types::canonical_session::TURN_STARTED, "entity-1", &TestTurn { session_id: "entity-1".into(), idx: 2 })?
+    let ev_b = EventEnvelope::new(agent_schema::canonical_session::event_types::TURN_STARTED, "entity-1", &TestTurn { session_id: "entity-1".into(), idx: 2 })?
         .with_actor_id("actor-b");
     store.append(&ev_b)?;
 
@@ -98,10 +98,10 @@ fn test_elevated_filter() -> anyhow::Result<()> {
     let entity = "elevation-entity";
 
     for i in 0..3_u32 {
-        let ev = EventEnvelope::new(event_types::canonical_session::TURN_STARTED, entity, &TestTurn { session_id: entity.into(), idx: i })?;
+        let ev = EventEnvelope::new(agent_schema::canonical_session::event_types::TURN_STARTED, entity, &TestTurn { session_id: entity.into(), idx: i })?;
         store.append(&ev)?;
     }
-    let ev_end = EventEnvelope::new(event_types::canonical_session::SESSION_COMPLETED, entity, &TestCompleted { session_id: entity.into() })?
+    let ev_end = EventEnvelope::new(agent_schema::canonical_session::event_types::SESSION_COMPLETED, entity, &TestCompleted { session_id: entity.into() })?
         .elevate();
     store.append(&ev_end)?;
     let ev_ws = EventEnvelope::new(
@@ -133,19 +133,19 @@ fn supervisor_queries_elevated_child_events_by_parent_actor_id() -> anyhow::Resu
         .elevate();
     store.append(&parent_ev)?;
 
-    let child1 = EventEnvelope::new(event_types::canonical_session::SESSION_STARTED, "child-entity-1", &session_started("child-entity-1"))?
+    let child1 = EventEnvelope::new(agent_schema::canonical_session::event_types::SESSION_STARTED, "child-entity-1", &session_started("child-entity-1"))?
         .with_actor_id("child-actor-1")
         .with_parent_actor_id("supervisor-1")
         .elevate();
     store.append(&child1)?;
 
-    let child2 = EventEnvelope::new(event_types::canonical_session::SESSION_COMPLETED, "child-entity-2", &TestCompleted { session_id: "child-entity-2".into() })?
+    let child2 = EventEnvelope::new(agent_schema::canonical_session::event_types::SESSION_COMPLETED, "child-entity-2", &TestCompleted { session_id: "child-entity-2".into() })?
         .with_actor_id("child-actor-2")
         .with_parent_actor_id("supervisor-1")
         .elevate();
     store.append(&child2)?;
 
-    let child3 = EventEnvelope::new(event_types::canonical_session::TURN_STARTED, "child-entity-3", &TestTurn { session_id: "child-entity-3".into(), idx: 0 })?
+    let child3 = EventEnvelope::new(agent_schema::canonical_session::event_types::TURN_STARTED, "child-entity-3", &TestTurn { session_id: "child-entity-3".into(), idx: 0 })?
         .with_actor_id("child-actor-3")
         .with_parent_actor_id("supervisor-1");
     store.append(&child3)?;
@@ -178,7 +178,7 @@ fn test_hierarchy_traversal_via_parent_actor_id() -> anyhow::Result<()> {
     .with_actor_id("actor-ws-1");
     store.append(&ws_ev)?;
 
-    let sess_ev = EventEnvelope::new(event_types::canonical_session::SESSION_STARTED, "sess-entity", &session_started("sess-entity"))?
+    let sess_ev = EventEnvelope::new(agent_schema::canonical_session::event_types::SESSION_STARTED, "sess-entity", &session_started("sess-entity"))?
         .with_actor_id("actor-sess-1")
         .with_parent_actor_id("actor-ws-1");
     store.append(&sess_ev)?;

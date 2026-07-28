@@ -1,10 +1,12 @@
 use std::collections::{BTreeMap, HashSet};
 use std::path::PathBuf;
 
-use crate::types::{
-    AgentProfile, CollectionDef, HookConfig, McpServerConfig, PermissionPreset, Permissions,
-    PipelineDef, PluginsManifest, Rule, Skill, SpaceManifest, TriggerDef, ViewDescriptor,
+use agent_schema::{
+    AgentProfile, HookConfig, McpServerConfig, PermissionPreset, Permissions, PluginsManifest,
+    Rule, Skill,
 };
+use agent_schema::resolved::ResolvedConfig;
+use crate::types::{CollectionDef, PipelineDef, SpaceManifest, TriggerDef, ViewDescriptor};
 
 // ─── Phase-2 descriptor types ────────────────────────────────────────────────
 // Project-shape extension: a TS source module resolved by the new resolver.
@@ -125,73 +127,6 @@ pub struct WorkspaceOverrides {
     pub skills: Vec<String>,
     /// Override harness list (empty = use project default)
     pub harnesses: Vec<String>,
-}
-
-/// Fully resolved, in-memory agent configuration.
-///
-/// Produced by [`resolve`] from pre-loaded project data.
-/// No filesystem access occurs during resolution.
-#[derive(Debug, Clone)]
-pub struct ResolvedConfig {
-    pub harnesses: Vec<String>,
-    pub model: Option<String>,
-    pub max_cost_per_session: Option<f64>,
-    pub max_turns: Option<u32>,
-    pub mcp_servers: Vec<McpServerConfig>,
-    pub skills: Vec<Skill>,
-    pub rules: Vec<Rule>,
-    pub permissions: Permissions,
-    pub hooks: Vec<HookConfig>,
-    pub active_agent: Option<String>,
-    /// Plugin install intent declared by the active preset.
-    /// Passed through unchanged from `ExtensionLibrary::plugins`.
-    pub plugins: PluginsManifest,
-    /// Agent profiles parsed from `.ship/agents/*.toml`.
-    /// Compiled into harness-native subagent definitions.
-    pub agent_profiles: Vec<AgentProfile>,
-    /// Environment variables to inject into harness settings.
-    /// Source: `agents/env.toml` or `[env]` in preset TOML.
-    /// Claude: `env` field in `.claude/settings.json`.
-    pub env: std::collections::HashMap<String, String>,
-    /// Restrict the model picker to these model IDs.
-    /// Claude: `availableModels` in `.claude/settings.json`.
-    pub available_models: Vec<String>,
-    // ── Per-harness settings (typed deltas from the Ship-agent core) ───────────
-    // Each is owned by its harness module; resolve() maps the flat library
-    // fields into these. Dropping a harness = delete its module + one field.
-    pub claude: crate::types::harness_settings::ClaudeSettings,
-    pub codex: crate::types::harness_settings::CodexSettings,
-    pub opencode: crate::types::harness_settings::OpenCodeSettings,
-    /// The capability grants the resolved skill set REQUESTS (the union of the
-    /// auto-included capability-skills' `grants:`). A **request, not authority** —
-    /// the daemon mints only the operator-approved subset; this is what an
-    /// install/escalation approval is asked to confer. See
-    /// `.artifacts/grant-resolution-arc-plan.md`.
-    pub requested_grants: Vec<String>,
-    /// Capabilities the resolved skills `require:` that no skill in the pool
-    /// grants — an unsatisfiable request. Non-empty is a compile error the
-    /// caller enforces (the compiler stays pure/infallible).
-    pub unmet_capability_requirements: Vec<String>,
-    /// Agent `mcp.servers` refs that name no server in the space catalog —
-    /// an unresolvable reference. Non-empty is a compile error the caller
-    /// enforces (the compiler stays pure/infallible).
-    pub unresolved_mcp_servers: Vec<String>,
-    /// Absolute path to the ship home (e.g. `/home/alice/.ship`). Injected
-    /// by callers (CLI/daemon) that resolve via `ship_substrate::ShipHome`. The
-    /// compiler is a pure transform and does not read environment variables —
-    /// when this is `None`, the compiler emits an MCP entry without the
-    /// `SHIP_HOME` env injection.
-    pub ship_home_dir: Option<String>,
-    // ── Phase-2 project-shape passthrough ─────────────────────────────────────
-    /// Resolved TS modules from the multi-file `stack.config.ts` import graph. The
-    /// Phase-0 leaf never produced this; Phase-2's resolver populates it on
-    /// the TS path. The leaf's `resolve()` returns an empty vec — the
-    /// `.jsonc` path doesn't have TS modules to surface.
-    pub imported_modules: Vec<ModuleDescriptor>,
-    /// Phase-3 composition seam. Phase 2 always carries `None`; Phase 3
-    /// populates this with the per-space extension set when the space
-    /// roll-up fn runs.
-    pub rollup_inputs: Option<RollupInputs>,
 }
 
 /// Resolve the effective agent config from pre-loaded project data.
@@ -384,7 +319,7 @@ pub struct ExtensionLibrary {
 
 /// Merge harness_defaults (base) with *_settings_extra (agent override).
 /// Returns the merged value, or None if both are None. Deep-merge logic is
-/// delegated to [`crate::jsonc::merge_json`] — single canonical impl.
+/// delegated to [`agent_schema::jsonc::merge_json`] — single canonical impl.
 fn merge_harness_extra(
     defaults: Option<&serde_json::Value>,
     agent_extra: Option<&serde_json::Value>,
@@ -392,7 +327,7 @@ fn merge_harness_extra(
     match (defaults, agent_extra) {
         (Some(d), Some(a)) => {
             let mut merged = d.clone();
-            crate::jsonc::merge_json(&mut merged, a);
+            agent_schema::jsonc::merge_json(&mut merged, a);
             Some(merged)
         }
         (Some(d), None) => Some(d.clone()),
@@ -438,7 +373,7 @@ pub fn resolve_library(
     }
     // Per-harness settings: map flat library fields into typed deltas.
     // harness_defaults is the base; agent-level *_settings_extra overrides.
-    resolved.claude = crate::types::harness_settings::ClaudeSettings {
+    resolved.claude = agent_schema::harness_settings::ClaudeSettings {
         settings_extra: merge_harness_extra(
             library.harness_defaults.get("claude"),
             library.claude_settings_extra.as_ref(),
@@ -449,7 +384,7 @@ pub fn resolve_library(
         include_co_authored_by: library.claude_include_co_authored_by,
         effort: library.claude_effort.clone(),
     };
-    resolved.codex = crate::types::harness_settings::CodexSettings {
+    resolved.codex = agent_schema::harness_settings::CodexSettings {
         sandbox: library.codex_sandbox.clone(),
         approval_policy: library.codex_approval_policy.clone(),
         reasoning_effort: library.codex_reasoning_effort.clone(),
@@ -463,17 +398,12 @@ pub fn resolve_library(
             library.codex_settings_extra.as_ref(),
         ),
     };
-    resolved.opencode = crate::types::harness_settings::OpenCodeSettings {
+    resolved.opencode = agent_schema::harness_settings::OpenCodeSettings {
         settings_extra: merge_harness_extra(
             library.harness_defaults.get("opencode"),
             library.opencode_settings_extra.as_ref(),
         ),
     };
-    // Phase-2: thread the project-shape passthroughs from the library into
-    // the resolved view. Today these are sourced from the library verbatim;
-    // future work (J3+) may project/filter before they reach a consumer.
-    resolved.imported_modules = library.imported_modules.clone();
-    resolved.rollup_inputs = library.rollup_inputs.clone();
     resolved
 }
 
@@ -551,8 +481,8 @@ pub fn resolve(
     // the request resolvable. Conferring the grant is the operator's job — the
     // daemon mints only the approved subset of `requested_grants`.
     include_capability_skills(&mut resolved_skills, skills);
-    let requested_grants = crate::types::skill::grants_from_skills(&resolved_skills);
-    let unmet_capability_requirements = crate::types::skill::unmet_requirements(&resolved_skills);
+    let requested_grants = agent_schema::skill::grants_from_skills(&resolved_skills);
+    let unmet_capability_requirements = agent_schema::skill::unmet_requirements(&resolved_skills);
 
     // ── Rules ─────────────────────────────────────────────────────────────────
     let mut resolved_rules = rules.to_vec();
@@ -585,18 +515,13 @@ pub fn resolve(
         available_models: Vec::new(),
         // Per-harness deltas default to empty here; resolve_library() fills
         // them from the flat ExtensionLibrary fields.
-        claude: crate::types::harness_settings::ClaudeSettings::default(),
-        codex: crate::types::harness_settings::CodexSettings::default(),
-        opencode: crate::types::harness_settings::OpenCodeSettings::default(),
+        claude: agent_schema::harness_settings::ClaudeSettings::default(),
+        codex: agent_schema::harness_settings::CodexSettings::default(),
+        opencode: agent_schema::harness_settings::OpenCodeSettings::default(),
         requested_grants,
         unmet_capability_requirements,
         unresolved_mcp_servers,
         ship_home_dir: None,
-        // Phase-2: the leaf `resolve()` has no ExtensionLibrary to source these
-        // from. Defaults match the leaf's serde defaults so the round-trip is
-        // stable; resolve_library() threads the library's values when present.
-        imported_modules: Vec::new(),
-        rollup_inputs: None,
     }
 }
 
@@ -728,7 +653,7 @@ fn apply_workspace_skill_filter(skills: &mut Vec<Skill>, feature: &WorkspaceOver
 mod tests {
     use super::*;
     use crate::types::SpaceManifest;
-    use crate::types::agent_profile::{McpRefs, ProfileMeta, ProfileRules, SkillRefs};
+    use agent_schema::{McpRefs, ProfileMeta, ProfileRules, SkillRefs};
 
     fn make_skill(id: &str) -> Skill {
         Skill {
@@ -1343,8 +1268,8 @@ mod tests {
 
     #[test]
     fn resolve_library_passes_through_all_fields() {
-        use crate::types::agent_profile::*;
-        use crate::types::{PluginEntry, PluginsManifest};
+        use agent_schema::profile::*;
+        use agent_schema::{PluginEntry, PluginsManifest};
 
         let library = super::ExtensionLibrary {
             plugins: PluginsManifest {

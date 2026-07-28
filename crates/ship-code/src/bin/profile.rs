@@ -8,7 +8,7 @@
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 
-use stack_model::AgentProfile;
+use agent_schema::AgentProfile;
 use crate::compile::{CompileOptions, run_compile};
 
 // ── SpaceState ────────────────────────────────────────────────────────────────

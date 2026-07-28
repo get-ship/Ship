@@ -762,7 +762,7 @@ impl HarnessService for HarnessImpl {
         // corrupt rule row can't block a compile — the daemon's invariant is
         // "compiles succeed", with degraded rule coverage as the only
         // observable signal.
-        let space_rules: Vec<stack_model::Rule> = match space_id.as_ref() {
+        let space_rules: Vec<agent_schema::Rule> = match space_id.as_ref() {
             Some(space) => match ship_space::rules::list_space_rules(space.as_str()).await {
                 Ok(rules) => {
                     if !rules.is_empty() {

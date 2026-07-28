@@ -31,7 +31,7 @@ register_event!(
     Retention::Durable,
     Stability::Stable,
     "canonical_session::SessionStarted",
-    crate::canonical_session::SessionStarted
+    agent_schema::canonical_session::SessionStarted
 );
 register_event!(
     "session.completed",
@@ -39,7 +39,7 @@ register_event!(
     Retention::Durable,
     Stability::Stable,
     "canonical_session::SessionCompleted",
-    crate::canonical_session::SessionCompleted
+    agent_schema::canonical_session::SessionCompleted
 );
 register_event!(
     "session.failed",
@@ -47,7 +47,7 @@ register_event!(
     Retention::Durable,
     Stability::Stable,
     "canonical_session::SessionFailed",
-    crate::canonical_session::SessionFailed
+    agent_schema::canonical_session::SessionFailed
 );
 register_event!(
     "session.cancelled",
@@ -55,7 +55,7 @@ register_event!(
     Retention::Durable,
     Stability::Stable,
     "canonical_session::SessionCancelled",
-    crate::canonical_session::SessionCancelled
+    agent_schema::canonical_session::SessionCancelled
 );
 register_event!(
     "session.suspended",
@@ -63,7 +63,7 @@ register_event!(
     Retention::Durable,
     Stability::Stable,
     "canonical_session::SessionSuspended",
-    crate::canonical_session::SessionSuspended
+    agent_schema::canonical_session::SessionSuspended
 );
 register_event!(
     "session.turn.started",
@@ -71,7 +71,7 @@ register_event!(
     Retention::Windowed { ttl_days: 7 },
     Stability::Stable,
     "canonical_session::TurnStarted",
-    crate::canonical_session::TurnStarted
+    agent_schema::canonical_session::TurnStarted
 );
 register_event!(
     "session.turn.ended",
@@ -79,7 +79,7 @@ register_event!(
     Retention::Windowed { ttl_days: 7 },
     Stability::Stable,
     "canonical_session::TurnEnded",
-    crate::canonical_session::TurnEnded
+    agent_schema::canonical_session::TurnEnded
 );
 
 // ── op.* (fine-grained) — Runtime-scoped, Windowed 7d ──────────────────────
@@ -93,7 +93,7 @@ register_event!(
     Retention::Windowed { ttl_days: 7 },
     Stability::Stable,
     "op::OpToolUseStarted",
-    crate::op::OpToolUseStarted
+    agent_schema::op::OpToolUseStarted
 );
 register_event!(
     "op.tool_use_completed",
@@ -101,7 +101,7 @@ register_event!(
     Retention::Windowed { ttl_days: 7 },
     Stability::Stable,
     "op::OpToolUseCompleted",
-    crate::op::OpToolUseCompleted
+    agent_schema::op::OpToolUseCompleted
 );
 register_event!(
     "op.tool_use_denied",
@@ -109,7 +109,7 @@ register_event!(
     Retention::Windowed { ttl_days: 7 },
     Stability::Stable,
     "op::OpToolUseDenied",
-    crate::op::OpToolUseDenied
+    agent_schema::op::OpToolUseDenied
 );
 
 // ── dispatch.* (spawn-intent channel, #26) ─────────────────────────────────
@@ -125,7 +125,7 @@ register_event!(
     Retention::Windowed { ttl_days: 7 },
     Stability::Stable,
     "dispatch_intent::DispatchRequestedPayload",
-    crate::dispatch_intent::DispatchRequestedPayload
+    agent_schema::dispatch_intent::DispatchRequestedPayload
 );
 
 // ── agents-domain facets (keystone-A Phase A, 2026-06-10) ──────────────────

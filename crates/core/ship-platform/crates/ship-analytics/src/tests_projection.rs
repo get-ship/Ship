@@ -9,12 +9,12 @@
 
 #[cfg(test)]
 mod analytics_tests {
-    use agent_def::canonical_session::TurnEnded;
-    use agent_def::op::{OpToolUseCompleted, OpToolUseStarted};
+    use agent_schema::canonical_session::TurnEnded;
+    use agent_schema::op::{OpToolUseCompleted, OpToolUseStarted};
     use ship_substrate::db::{block_on, open_runtime_db};
     use ship_substrate::events::EventEnvelope;
     use ship_substrate::projections::EventBus;
-    use ship_types::event_types::canonical_session as op_event_types;
+    use agent_schema::canonical_session::event_types as op_event_types;
     use crate::AnalyticsProjection;
 
     fn setup() -> (std::path::PathBuf, sqlx::SqliteConnection) {

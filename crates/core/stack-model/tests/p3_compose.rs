@@ -9,7 +9,7 @@
 
 use stack_model::compose::{ComposedLibrary, NounKind, compose_space};
 use stack_model::resolve::{ExtSource, ExtensionDescriptor, ExtensionLibrary, RollupInputs};
-use stack_model::types::{
+use agent_schema::{
     AgentProfile, HookConfig, McpServerConfig, Permissions, ProfileMeta, Rule, Skill,
 };
 use serde_json::json;

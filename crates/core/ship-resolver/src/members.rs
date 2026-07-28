@@ -146,7 +146,7 @@ pub async fn roll_up_members(
         merge_ts_declarations(&mut lib, declarations, &fs, root);
         lib.imported_modules.clear();
 
-        lib.permissions = stack_model::Permissions::default();
+        lib.permissions = agent_schema::Permissions::default();
         lib.hooks = Vec::new();
 
         let content_hash = descriptor::extension_library_content_hash(&lib)
@@ -183,7 +183,7 @@ pub async fn roll_up_members(
             merge_ts_declarations(&mut child_lib, child_declarations, &fs, child_root);
             child_lib.imported_modules.clear();
 
-            child_lib.permissions = stack_model::Permissions::default();
+            child_lib.permissions = agent_schema::Permissions::default();
             child_lib.hooks = Vec::new();
 
             let child_content_hash = descriptor::extension_library_content_hash(&child_lib)

@@ -3,7 +3,7 @@
 
 use super::*;
 use skill_parser::parse_skill;
-use stack_model::{HookTrigger, McpServerConfig, McpServerType};
+use agent_schema::{HookTrigger, McpServerConfig, McpServerType};
 use std::path::Path;
 use tempfile::TempDir;
 
@@ -18,10 +18,10 @@ fn write(dir: &Path, rel: &str, content: &str) {
 /// with Wave 5; project skills now arrive via `defineSkill` declare-forms).
 /// These loader tests assert disk-loading behavior, so they look past the
 /// embedded set.
-fn disk_skills(skills: &[stack_model::Skill]) -> Vec<&stack_model::Skill> {
+fn disk_skills(skills: &[agent_schema::Skill]) -> Vec<&agent_schema::Skill> {
     skills
         .iter()
-        .filter(|s| s.source != stack_model::SkillSource::Builtin)
+        .filter(|s| s.source != agent_schema::skill::SkillSource::Builtin)
         .collect()
 }
 
@@ -245,14 +245,14 @@ fn agent_profiles_empty_when_dir_missing() {
 
 // ── I3: unresolved mcp.servers refs (agent → space catalog join) ────────────
 
-fn agent_profile_with_mcp_refs(id: &str, servers: &[&str]) -> stack_model::AgentProfile {
-    stack_model::AgentProfile {
-        agent: stack_model::ProfileMeta {
+fn agent_profile_with_mcp_refs(id: &str, servers: &[&str]) -> agent_schema::AgentProfile {
+    agent_schema::AgentProfile {
+        agent: agent_schema::ProfileMeta {
             id: id.to_string(),
             name: id.to_string(),
             ..Default::default()
         },
-        mcp: stack_model::McpRefs {
+        mcp: agent_schema::McpRefs {
             servers: servers.iter().map(|s| s.to_string()).collect(),
         },
         ..Default::default()

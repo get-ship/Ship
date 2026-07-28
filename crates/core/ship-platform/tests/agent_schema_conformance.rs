@@ -23,12 +23,12 @@
 
 use std::collections::BTreeSet;
 
-use stack_model::types::agent_profile::{
+use agent_schema::profile::{
     AgentProfile, McpRefs, PluginRefs, ProfileApps, ProfileMeta,
     ProfilePermissions, ProfileRules, SkillRefs,
 };
-use stack_model::types::capability::{BlastRadius, Capability};
-use stack_model::{HookConfig, HookTrigger};
+use agent_schema::capability::{BlastRadius, Capability};
+use agent_schema::{HookConfig, HookTrigger};
 use serde_json::Value;
 use ship_isolation::{IsolationStrategy, IsolationTier};
 

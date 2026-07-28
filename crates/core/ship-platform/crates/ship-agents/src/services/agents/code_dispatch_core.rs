@@ -20,8 +20,8 @@
 //! annotation but the `dispatch_code_session_core` is a plain `async fn`
 //! (Rust 2024 — no attribute needed). The `AgentDispatchPort` trait
 //! itself uses `#[async_trait]`, declared in `dispatch_core::AgentDispatchPort`.
-use agent_def::canonical_session::{SessionStarted, event_types as canonical_session_event_types};
-use agent_def::dispatch_intent::{DispatchRequestedPayload, event_types as dispatch_event_types};
+use agent_schema::canonical_session::{SessionStarted, event_types as canonical_session_event_types};
+use agent_schema::dispatch_intent::{DispatchRequestedPayload, event_types as dispatch_event_types};
 use ship_substrate::events::EventEnvelope;
 
 use super::code_dispatch_request::{

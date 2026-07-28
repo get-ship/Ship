@@ -44,7 +44,7 @@ use ship_substrate::events::EventEnvelope;
 use ship_substrate::projections::registry::Projection;
 use sqlx::{Row, SqliteConnection};
 
-use agent_def::canonical_session::{
+use agent_schema::canonical_session::{
     SessionCancelled, SessionCompleted, SessionFailed, SessionStarted, SessionSuspended, TurnEnded,
     event_types as canonical_event_types,
 };
@@ -256,7 +256,7 @@ impl Projection for CanonicalSessionProjection {
     }
 
     fn event_types(&self) -> &[&str] {
-        ship_types::event_types::canonical_session::ALL_CANONICAL_SESSION
+        agent_schema::canonical_session::event_types::ALL_CANONICAL_SESSION
     }
 
     fn apply(&self, event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<()> {

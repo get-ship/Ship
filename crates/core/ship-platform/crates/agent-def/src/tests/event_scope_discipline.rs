@@ -7,10 +7,10 @@
 
 #[cfg(test)]
 mod tests {
+    use agent_schema::canonical_session::event_types::{ALL_CANONICAL_OP, ALL_CANONICAL_SESSION};
     use ship_types::{
         event_registry,
         event_registry::{EventScope, Retention},
-        event_types::canonical_session::{ALL_CANONICAL_OP, ALL_CANONICAL_SESSION},
     };
 
     /// EVENT-SCOPE DISCIPLINE — invariant test over the live registry.
@@ -205,7 +205,7 @@ mod tests {
         }
 
         // A well-formed canonical payload passes.
-        let started = crate::canonical_session::SessionStarted {
+        let started = agent_schema::canonical_session::SessionStarted {
             session_id: "01HZX".into(),
             agent_id: "claude".into(),
             harness: "floki".into(),

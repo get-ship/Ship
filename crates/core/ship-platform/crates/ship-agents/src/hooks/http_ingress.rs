@@ -17,8 +17,8 @@ use serde::{Deserialize, Serialize};
 use ship_substrate::events::EventEnvelope;
 use ship_substrate::events::validator::EmitContext;
 use ship_substrate::ports::KernelLog;
-use ship_types::event_types::canonical_session as op_event_types;
-use agent_def::op::{OpToolUseCompleted, OpToolUseDenied, OpToolUseStarted};
+use agent_schema::canonical_session::event_types as op_event_types;
+use agent_schema::op::{OpToolUseCompleted, OpToolUseDenied, OpToolUseStarted};
 
 // ── Port trait: pty session broadcast ────────────────────────────────────────
 

@@ -238,7 +238,7 @@ impl SkillsService for SkillsServiceImpl {
         id: &str,
     ) -> Result<Option<std::collections::HashMap<String, serde_json::Value>>, state::Error>
     {
-        crate::agent_domain::skill_vars::get_skill_vars(&self.user_root, id)
+        agent_def::skill_vars::get_skill_vars(&self.user_root, id)
             .map_err(vars_err)
     }
 
@@ -248,12 +248,12 @@ impl SkillsService for SkillsServiceImpl {
         key: &str,
         value: serde_json::Value,
     ) -> Result<(), state::Error> {
-        crate::agent_domain::skill_vars::set_skill_var(&self.user_root, id, key, value)
+        agent_def::skill_vars::set_skill_var(&self.user_root, id, key, value)
             .map_err(vars_err)
     }
 
     fn delete_var(&self, id: &str, key: &str) -> Result<bool, state::Error> {
-        crate::agent_domain::skill_vars::delete_skill_var(&self.user_root, id, key)
+        agent_def::skill_vars::delete_skill_var(&self.user_root, id, key)
             .map_err(vars_err)
     }
 }
