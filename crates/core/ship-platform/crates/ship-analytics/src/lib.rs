@@ -7,7 +7,7 @@
 //!    `actor.created`/`actor.stopped` as a fallback session signal, into
 //!    the `analytics_sessions`, `analytics_tool_uses`, and
 //!    `analytics_turns` tables. Registered with the substrate's
-//!    EventBus at daemon startup via `install_extra_projections_factory`.
+//!    EventBus at daemon startup via the platform projection factory.
 //!
 //! 2. **[queries]** — typed SELECT helpers consumers (dashboard, CLI)
 //!    call instead of writing SQL by hand.

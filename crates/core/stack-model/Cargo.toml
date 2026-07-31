@@ -8,10 +8,22 @@ description = "The stack model — manifest, lockfile, skills, compose law, libr
 [features]
 default = []
 # Derive specta::Type on all public types — used by the Tauri bridge.
-specta = ["dep:specta", "agent-schema/specta"]
+specta = [
+    "dep:specta",
+    "agent-schema/specta",
+    "ship-collection/specta",
+    "ship-pipelines/specta",
+    "ship-triggers/specta",
+    "ship-ui/specta",
+]
 
 [dependencies]
 agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "6967f155ca795c19c44a145701c138b2d079c89c" }
+# Product-owned noun schemas (stack inversion): ExtensionLibrary fields.
+ship-collection = { path = "../ship-platform/crates/ship-collection" }
+ship-pipelines = { path = "../ship-substrate/crates/ship-pipelines" }
+ship-triggers = { path = "../ship-platform/crates/ship-triggers" }
+ship-ui = { path = "../ship-platform/crates/ship-ui" }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
 toml = { workspace = true, features = ["preserve_order"] }

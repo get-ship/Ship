@@ -19,8 +19,7 @@ pub fn port_path(daemon_dir: &Path) -> PathBuf {
 }
 
 pub fn ensure_daemon_dir(daemon_dir: &Path) -> Result<()> {
-    std::fs::create_dir_all(daemon_dir)
-        .map_err(|e| anyhow!("create {}: {e}", daemon_dir.display()))
+    std::fs::create_dir_all(daemon_dir).map_err(|e| anyhow!("create {}: {e}", daemon_dir.display()))
 }
 
 /// Returns the parent PID on Unix, or `None` on non-Unix / when no parent.
@@ -142,7 +141,10 @@ pub fn cleanup_stale_daemon_files(daemon_dir: &Path) -> Result<()> {
     };
 
     // Process is either dead or us — safe to clean up.
-    tracing::info!(old_pid = pid, "shipd: cleaning up stale daemon files from crashed instance");
+    tracing::info!(
+        old_pid = pid,
+        "shipd: cleaning up stale daemon files from crashed instance"
+    );
     if let Err(e) = std::fs::remove_file(pid_path(daemon_dir)) {
         if e.kind() != std::io::ErrorKind::NotFound {
             tracing::warn!(
@@ -181,8 +183,11 @@ pub fn write_pid_file(daemon_dir: &Path) -> Result<()> {
 /// Write the worktree path so `just status` / `ship doctor` can report it.
 pub fn write_workspace_file(daemon_dir: &Path, workspace: &Path) -> Result<()> {
     ensure_daemon_dir(daemon_dir)?;
-    std::fs::write(daemon_dir.join("workspace"), workspace.display().to_string())
-        .map_err(|e| anyhow!("failed to write workspace file: {e}"))
+    std::fs::write(
+        daemon_dir.join("workspace"),
+        workspace.display().to_string(),
+    )
+    .map_err(|e| anyhow!("failed to write workspace file: {e}"))
 }
 
 /// Write the build SHA so `ship doctor` can detect skew between the live

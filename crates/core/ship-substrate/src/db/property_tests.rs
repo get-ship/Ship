@@ -91,6 +91,9 @@ prop_compose! {
             author_account_id,
             author_device_id,
             signature,
+            sig: None,
+            writer: None,
+            causality: None,
         }
     }
 }

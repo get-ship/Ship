@@ -8,8 +8,8 @@
 //! List returns both with a `scope` annotation per entry; project entries
 //! shadow user on id collision.
 
-use ship_files::files::{FilesService, Scope};
 use serde::Serialize;
+use ship_files::files::{FilesService, Scope};
 use std::path::{Path, PathBuf};
 
 use crate::services::errors::{ServiceEntity, ServiceError};
@@ -37,16 +37,25 @@ pub type Error = ServiceError<RuleEntity>;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
-pub enum ScopeTag { Project, User }
+pub enum ScopeTag {
+    Project,
+    User,
+}
 
 impl From<Scope> for ScopeTag {
     fn from(s: Scope) -> Self {
-        match s { Scope::Project => Self::Project, Scope::User => Self::User }
+        match s {
+            Scope::Project => Self::Project,
+            Scope::User => Self::User,
+        }
     }
 }
 impl From<ScopeTag> for Scope {
     fn from(s: ScopeTag) -> Self {
-        match s { ScopeTag::Project => Self::Project, ScopeTag::User => Self::User }
+        match s {
+            ScopeTag::Project => Self::Project,
+            ScopeTag::User => Self::User,
+        }
     }
 }
 
@@ -60,7 +69,9 @@ pub struct IndexEntry {
 
 fn validate_id(id: &str) -> Result<(), Error> {
     if id.is_empty()
-        || !id.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+        || !id
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
         || id.starts_with('-')
         || id.ends_with('-')
     {
@@ -71,7 +82,9 @@ fn validate_id(id: &str) -> Result<(), Error> {
 
 // ── Path resolution ─────────────────────────────────────────────────
 
-fn rel_for(id: &str) -> PathBuf { PathBuf::from(format!("rules/{id}.md")) }
+fn rel_for(id: &str) -> PathBuf {
+    PathBuf::from(format!("rules/{id}.md"))
+}
 
 pub fn find(files: &FilesService, id: &str) -> Option<(Scope, PathBuf)> {
     let rel = rel_for(id);
@@ -85,7 +98,11 @@ pub fn find(files: &FilesService, id: &str) -> Option<(Scope, PathBuf)> {
 
 fn find_in_scope(files: &FilesService, scope: Scope, id: &str) -> Option<PathBuf> {
     let rel = rel_for(id);
-    if files.exists(scope, &rel) { Some(rel) } else { None }
+    if files.exists(scope, &rel) {
+        Some(rel)
+    } else {
+        None
+    }
 }
 
 // ── Read ───────────────────────────────────────────────────────────
@@ -94,14 +111,27 @@ pub fn list(files: &FilesService) -> Vec<IndexEntry> {
     let mut out: Vec<IndexEntry> = Vec::new();
     let mut seen = std::collections::HashSet::<String>::new();
     for scope in [Scope::Project, Scope::User] {
-        let Ok(entries) = files.list_dir(scope, Path::new("rules")) else { continue };
+        let Ok(entries) = files.list_dir(scope, Path::new("rules")) else {
+            continue;
+        };
         for p in entries {
             let ext = p.extension().and_then(|s| s.to_str());
-            if ext != Some("md") { continue }
-            let Some(stem) = p.file_stem().and_then(|s| s.to_str()) else { continue };
-            if stem.eq_ignore_ascii_case("README") { continue }
-            if !seen.insert(stem.to_string()) { continue } // project wins
-            out.push(IndexEntry { id: stem.to_string(), scope: scope.into() });
+            if ext != Some("md") {
+                continue;
+            }
+            let Some(stem) = p.file_stem().and_then(|s| s.to_str()) else {
+                continue;
+            };
+            if stem.eq_ignore_ascii_case("README") {
+                continue;
+            }
+            if !seen.insert(stem.to_string()) {
+                continue;
+            } // project wins
+            out.push(IndexEntry {
+                id: stem.to_string(),
+                scope: scope.into(),
+            });
         }
     }
     out.sort_by(|a, b| a.id.cmp(&b.id));

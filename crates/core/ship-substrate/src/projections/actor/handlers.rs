@@ -14,7 +14,10 @@ use crate::db::block_on;
 /// must still persist, so we skip the row write and return `None`. Genuine
 /// DB-write failures (constraint, I/O) are NOT caught here — they stay hard
 /// errors and correctly roll the transaction back.
-fn parse_or_skip<P: serde::de::DeserializeOwned>(event_type: &str, payload_json: &str) -> Option<P> {
+fn parse_or_skip<P: serde::de::DeserializeOwned>(
+    event_type: &str,
+    payload_json: &str,
+) -> Option<P> {
     match serde_json::from_str::<P>(payload_json) {
         Ok(p) => Some(p),
         Err(e) => {
@@ -131,9 +134,10 @@ pub(super) fn apply_created(
 /// Idempotent: if no actor row exists for the slug yet, the UPDATE is
 /// a no-op. Pre-existing rows get pid filled in even if it was None.
 pub(super) fn apply_process_spawned(payload_json: &str, conn: &mut SqliteConnection) -> Result<()> {
-    let Some(payload) =
-        parse_or_skip::<crate::events::process::ProcessSpawnedPayload>("process.spawned", payload_json)
-    else {
+    let Some(payload) = parse_or_skip::<crate::events::process::ProcessSpawnedPayload>(
+        "process.spawned",
+        payload_json,
+    ) else {
         return Ok(());
     };
     let pid = match payload.pid {
@@ -151,17 +155,21 @@ pub(super) fn apply_process_spawned(payload_json: &str, conn: &mut SqliteConnect
         sqlx::query(
             "INSERT INTO actors (id, kind, pid, status, environment_type, capabilities_json) \
              VALUES (?, 'pipeline-step', ?, 'created', 'local', '[]') \
-             ON CONFLICT(id) DO UPDATE SET pid = excluded.pid, updated_at = datetime('now')"
+             ON CONFLICT(id) DO UPDATE SET pid = excluded.pid, updated_at = datetime('now')",
         )
-            .bind(&payload.slug)
-            .bind(pid)
-            .execute(conn)
-            .await?;
+        .bind(&payload.slug)
+        .bind(pid)
+        .execute(conn)
+        .await?;
         Ok(())
     })
 }
 
-pub(super) fn apply_status(entity_id: &str, status: &str, conn: &mut SqliteConnection) -> Result<()> {
+pub(super) fn apply_status(
+    entity_id: &str,
+    status: &str,
+    conn: &mut SqliteConnection,
+) -> Result<()> {
     block_on(async {
         sqlx::query("UPDATE actors SET status = ?, updated_at = datetime('now') WHERE id = ?")
             .bind(status)

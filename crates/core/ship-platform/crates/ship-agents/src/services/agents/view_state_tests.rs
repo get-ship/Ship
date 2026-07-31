@@ -14,7 +14,7 @@ use tempfile::tempdir;
 // format-migration Wave 5 follow-up (job-spec-fm-w5b-dispatch-index.md):
 // the no-index posture no longer scans either directory — agents arrive
 // exclusively as `defineAgent` declare-forms in `stack.config.ts`, composed
-// via `ship_resolver::roll_up_blocking` (see `write_ts_space` below).
+// via `space_resolver::roll_up_blocking` (see `write_ts_space` below).
 
 /// A minimal Ship space: `.ship/` (required for `ShipHome::project_ship_dir`
 /// discovery) plus a `stack.config.ts` at the space root. `ts_body` is the
@@ -155,7 +155,7 @@ defineAgent({ agent: { id: "lean", name: "Lean" } });
 // the `agent` wrapper is silently skipped by the directory scan. There is
 // no directory scan left to skip anything in — `AgentProfile` deserializes
 // straight off the `defineAgent(...)` call's JSON argument (a malformed
-// shape is a TS-eval-time deserialize error, `ship_resolver`'s concern, not
+// shape is a TS-eval-time deserialize error, `space_resolver`'s concern, not
 // this module's projection layer). `summary_from_value` / `detail_from_value`
 // still guard on the `agent` key for the shared index-backed-read path
 // (`composed_row_source_reflects_provenance_and_shadow_is_queryable` below
@@ -166,7 +166,7 @@ defineAgent({ agent: { id: "lean", name: "Lean" } });
 // two-scope (`<ship>/library/agents/`, `<project>/.ship/agents/`) directory
 // scan-and-merge precedence. That precedence law is now
 // `stack_model::compose_space`'s (Space > Cache, `RollupInputs::
-// default_precedence`) — already covered by `ship-resolver`'s own roll-up
+// default_precedence`) — already covered by `space-resolver`'s own roll-up
 // tests (out of this job's file fence) and by
 // `composed_row_source_reflects_provenance_and_shadow_is_queryable` below,
 // which exercises the identical precedence law through the index-backed
@@ -209,10 +209,10 @@ fn strip_jsonc_preserves_multibyte_utf8() {
 // list, detail, and session-spawn (`rules.inline`) reads must STILL serve —
 // from the `AgentDefIndex` DataStore snapshot, not the (deleted) file.
 
-use std::sync::Arc;
-use ship_config::agents_index::{AgentDefIndex, AgentDefQuery};
+use ship_settings::agents_index::{AgentDefIndex, AgentDefQuery};
 use ship_substrate::data::DataService;
 use ship_substrate::ports::{DataStore, LocalFsBroker, SingleBackendDataStore};
+use std::sync::Arc;
 
 /// Build an index over a fresh per-test space.db and reindex the project dir.
 async fn build_project_index(ship_dir: &Path) -> AgentDefIndex {
@@ -269,13 +269,10 @@ async fn index_backed_reads_serve_after_project_file_removed() {
     assert_eq!(detail.source, SOURCE_PROJECT);
 
     // session-spawn `rules.inline` serves from the index snapshot.
-    let rules = crate::services::sessions::lifecycle::load_agent_rules(
-        Some(&index),
-        &ship_dir,
-        "reviewer",
-    )
-    .await
-    .expect("rules.inline serves from index");
+    let rules =
+        crate::services::sessions::lifecycle::load_agent_rules(Some(&index), &ship_dir, "reviewer")
+            .await
+            .expect("rules.inline serves from index");
     assert!(
         rules.contains("Focus on correctness."),
         "spawn preamble carries the index-served inline rules: {rules}"
@@ -306,19 +303,21 @@ fn source_from_provenance_falls_back_when_no_provenance() {
 // A same-id collision across two roll-up tiers: the composed index row set
 // carries the WINNER as the active row (what list/detail serve) and the
 // LOSER as a separate shadow row (`AgentDefIndex::query`, the audit surface
-// `ship-config` already exposes — no new read path added here). Built
+// `ship-settings` already exposes — no new read path added here). Built
 // directly via `stack_model::compose_space`, the same fixture shape
-// `ship-config`'s `agents_index_provenance.rs` uses (ship-resolver is out of
+// `ship-settings`'s `agents_index_provenance.rs` uses (space-resolver is out of
 // this job's file fence).
 
 use agent_schema::{AgentProfile, ProfileMeta};
-use stack_model::{
-    ExtSource, ExtensionDescriptor, ExtensionLibrary, RollupInputs, compose_space,
-};
+use stack_model::{ExtSource, ExtensionDescriptor, ExtensionLibrary, RollupInputs, compose_space};
 
 fn agent_profile(id: &str, name: &str) -> AgentProfile {
     AgentProfile {
-        agent: ProfileMeta { id: id.to_string(), name: name.to_string(), ..Default::default() },
+        agent: ProfileMeta {
+            id: id.to_string(),
+            name: name.to_string(),
+            ..Default::default()
+        },
         ..Default::default()
     }
 }
@@ -368,16 +367,26 @@ async fn composed_row_source_reflects_provenance_and_shadow_is_queryable() {
 
     let db = ship_substrate::db::space_db_path(&ship_dir, "vs-idx-shadow-test");
     let svc = DataService::open_at(&db).unwrap();
-    let store: Arc<dyn DataStore> = Arc::new(SingleBackendDataStore::new(svc, "vs-idx-shadow-test"));
+    let store: Arc<dyn DataStore> =
+        Arc::new(SingleBackendDataStore::new(svc, "vs-idx-shadow-test"));
     let index = AgentDefIndex::new(store);
     index.ensure_table().await.unwrap();
-    index.upsert_composed("project", &space_beats_cached_package()).await;
+    index
+        .upsert_composed("project", &space_beats_cached_package())
+        .await;
 
     // The rail shows only the winner — its `source` reflects the winning
     // extension's kind, not an invented "project" label.
     let list = list_agents_from_index(&index, &ship_dir).await;
-    assert_eq!(list.len(), 1, "the shadow row never surfaces as a selectable agent");
-    assert_eq!(list[0].name, "Space Reviewer", "the source tier wins on id collision");
+    assert_eq!(
+        list.len(),
+        1,
+        "the shadow row never surfaces as a selectable agent"
+    );
+    assert_eq!(
+        list[0].name, "Space Reviewer",
+        "the source tier wins on id collision"
+    );
     assert_eq!(list[0].source, "space");
 
     let detail = load_agent_from_index(&index, &ship_dir, "reviewer")
@@ -390,7 +399,10 @@ async fn composed_row_source_reflects_provenance_and_shadow_is_queryable() {
     // via the SAME `AgentDefIndex` audit surface this file already imports,
     // not a parallel merge law re-derived here.
     let rows = index
-        .query(AgentDefQuery { scope: Some("project".to_string()), name: None })
+        .query(AgentDefQuery {
+            scope: Some("project".to_string()),
+            name: None,
+        })
         .await
         .unwrap();
     let shadow = rows
@@ -399,7 +411,10 @@ async fn composed_row_source_reflects_provenance_and_shadow_is_queryable() {
         .expect("the losing tier's row is retained, not discarded");
     assert_eq!(shadow.name, "Cached Reviewer");
     assert_eq!(
-        shadow.ext_source.as_deref().and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
+        shadow
+            .ext_source
+            .as_deref()
+            .and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
             .and_then(|v| v.get("kind").and_then(|k| k.as_str()).map(str::to_string)),
         Some("cache".to_string()),
     );

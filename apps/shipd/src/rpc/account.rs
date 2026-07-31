@@ -12,9 +12,9 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use ship_account::AccountWire;
 use ship_account::service::{AccountService, KernelOwnerBinder};
 use ship_account::store::FileTokenStore;
-use ship_account::AccountWire;
 use ship_substrate::ports::KernelLog;
 
 /// Build the typed `AccountWire` over the substrate ports.

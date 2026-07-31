@@ -61,7 +61,6 @@ static OP_TO_WIRE: LazyLock<HashMap<String, String>> = LazyLock::new(|| {
         .collect()
 });
 
-
 /// Stable-ish request-id for a pending `Ask`. Per-process counter; mirrors
 /// the `InProcessGateway` seam.
 fn next_request_id(op: &str) -> String {
@@ -206,9 +205,8 @@ impl Gateway for ShipdGateway {
         // The stub gateway echoed this field; real proto handlers return typed
         // shapes (e.g. `ScopedMutation`, `McpIndexResponse`) without it. We
         // merge it here rather than relaxing the spine check.
-        let body: Value = serde_json::from_slice(&bytes).unwrap_or_else(|_| {
-            json!({ "raw": String::from_utf8_lossy(&bytes).as_ref() })
-        });
+        let body: Value = serde_json::from_slice(&bytes)
+            .unwrap_or_else(|_| json!({ "raw": String::from_utf8_lossy(&bytes).as_ref() }));
 
         let result = match body {
             Value::Object(mut map) => {
@@ -227,11 +225,11 @@ impl Gateway for ShipdGateway {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::Value;
     use yoke::{
         auth::AuthContext as YokeAuth,
         gateway::{GatewayCallKind, GatewayError},
     };
-    use serde_json::Value;
 
     fn agent(grants: &[&str]) -> YokeAuth {
         YokeAuth::in_process("test-agent", grants.iter().map(|s| s.to_string()).collect())
@@ -270,7 +268,7 @@ mod tests {
             .call(
                 "mcp.create",
                 serde_json::json!({"id":"probe","serverJson":"{}","scope":"project"}),
-                &agent(&[]),           // no mcp grant
+                &agent(&[]), // no mcp grant
                 GatewayCallKind::First,
             )
             .await;
@@ -292,7 +290,7 @@ mod tests {
             .call(
                 "mcp.list",
                 serde_json::json!({}),
-                &agent(&[]),           // C0 — no grant required
+                &agent(&[]), // C0 — no grant required
                 GatewayCallKind::First,
             )
             .await;
@@ -311,7 +309,12 @@ mod tests {
         let gw = ShipdGateway::new(crate::rpc::ops::router(harness.state.clone()));
 
         let r = gw
-            .call("nope.nope", serde_json::json!({}), &agent(&[]), GatewayCallKind::First)
+            .call(
+                "nope.nope",
+                serde_json::json!({}),
+                &agent(&[]),
+                GatewayCallKind::First,
+            )
             .await;
 
         assert!(matches!(r, Err(GatewayError::UnknownOp(_))));

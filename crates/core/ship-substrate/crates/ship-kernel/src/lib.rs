@@ -11,7 +11,7 @@ pub mod validator;
 
 pub use mailbox::Mailbox;
 pub use router::{ActorConfig, KernelRouter};
-pub use sink::EventSink;
+pub use sink::EventPersist;
 pub use validator::EventValidator;
 
 /// Public test utilities for downstream crates. The `MockSink` lets tests
@@ -42,15 +42,18 @@ pub enum KernelError {
 mod tests {
     use std::sync::Arc;
 
-    use crate::testing::MockSink;
+    use crate::testing::MockPersist;
     use crate::{
-        ActorConfig, EventSink, KernelError, KernelRouter, Mailbox,
+        ActorConfig, EventPersist, KernelError, KernelRouter, Mailbox,
     };
     use ship_types::envelope::EventEnvelope;
+    use ship_types::Stamped;
 
-    fn ev(event_type: &str) -> EventEnvelope {
-        EventEnvelope::new(event_type, "entity-1", &serde_json::json!({}))
-            .unwrap()
+    fn ev(event_type: &str) -> Stamped {
+        Stamped::unchecked(
+            EventEnvelope::new(event_type, "entity-1", &serde_json::json!({}))
+                .unwrap(),
+        )
     }
 
     fn test_config(ns: &str) -> ActorConfig {
@@ -76,8 +79,8 @@ mod tests {
     // ── Tests ────────────────────────────────────────────────────────────
 
     #[test]
-    fn event_sink_trait_exists() {
-        let sink = MockSink::new();
+    fn event_persist_trait_exists() {
+        let sink = MockPersist::new();
         let event = ev("test.hello");
         sink.persist(&event).unwrap();
         assert_eq!(sink.captured().len(), 1);
@@ -86,13 +89,13 @@ mod tests {
 
     #[test]
     fn kernel_router_new_takes_sink() {
-        let sink = Arc::new(MockSink::new());
+        let sink = Arc::new(MockPersist::new());
         let _router = KernelRouter::new(sink);
     }
 
     #[test]
     fn spawn_actor_returns_mailbox() {
-        let sink = Arc::new(MockSink::new());
+        let sink = Arc::new(MockPersist::new());
         let mut router = KernelRouter::new(sink);
         let result = router.spawn_actor("test-actor", test_config("test"));
         let _mailbox: Mailbox = result.unwrap();
@@ -100,7 +103,7 @@ mod tests {
 
     #[test]
     fn spawn_duplicate_actor_fails() {
-        let sink = Arc::new(MockSink::new());
+        let sink = Arc::new(MockPersist::new());
         let mut router = KernelRouter::new(sink);
         router.spawn_actor("x", test_config("x")).unwrap();
         let err = router.spawn_actor("x", test_config("x")).unwrap_err();
@@ -109,7 +112,7 @@ mod tests {
 
     #[test]
     fn stop_actor_removes_from_router() {
-        let sink = Arc::new(MockSink::new());
+        let sink = Arc::new(MockPersist::new());
         let mut router = KernelRouter::new(sink);
         router.spawn_actor("x", test_config("x")).unwrap();
         assert!(router.has_actor("x"));
@@ -119,7 +122,7 @@ mod tests {
 
     #[tokio::test]
     async fn route_persists_via_sink() {
-        let sink = Arc::new(MockSink::new());
+        let sink = Arc::new(MockPersist::new());
         let mut router = KernelRouter::new(sink.clone());
         router.spawn_actor("a", test_config("test")).unwrap();
         router.route(ev("test.hello")).await.unwrap();
@@ -128,7 +131,7 @@ mod tests {
 
     #[tokio::test]
     async fn route_delivers_to_subscriber() {
-        let sink = Arc::new(MockSink::new());
+        let sink = Arc::new(MockPersist::new());
         let mut router = KernelRouter::new(sink);
         let mut mb = router.spawn_actor("a", test_config("mesh")).unwrap();
         router.route(ev("mesh.hello")).await.unwrap();
@@ -138,14 +141,14 @@ mod tests {
 
     #[tokio::test]
     async fn direct_message_only_reaches_target() {
-        let sink = Arc::new(MockSink::new());
+        let sink = Arc::new(MockPersist::new());
         let mut router = KernelRouter::new(sink);
         let mut mb_a = router.spawn_actor("A", test_config("mesh")).unwrap();
         let mut mb_b = router.spawn_actor("B", test_config("mesh")).unwrap();
 
-        let mut event = ev("mesh.hello");
-        event.target_actor_id = Some("B".into());
-        router.route(event).await.unwrap();
+        let mut env = EventEnvelope::new("mesh.hello", "entity-1", &serde_json::json!({})).unwrap();
+        env.target_actor_id = Some("B".into());
+        router.route(Stamped::unchecked(env)).await.unwrap();
 
         assert!(mb_a.try_recv().is_err(), "A should not receive targeted msg");
         assert!(mb_b.try_recv().is_ok(), "B should receive targeted msg");
@@ -153,7 +156,7 @@ mod tests {
 
     #[tokio::test]
     async fn refine_actor_preserves_mailbox() {
-        let sink = Arc::new(MockSink::new());
+        let sink = Arc::new(MockPersist::new());
         let mut router = KernelRouter::new(sink);
         let mut mb = router.spawn_actor("a", test_config("mesh")).unwrap();
         let new_cfg = ActorConfig {
@@ -165,16 +168,16 @@ mod tests {
         };
         router.refine_actor("a", new_cfg).unwrap();
 
-        let mut event = ev("other.hello");
-        event.target_actor_id = Some("a".into());
-        router.route(event).await.unwrap();
+        let mut env = EventEnvelope::new("other.hello", "entity-1", &serde_json::json!({})).unwrap();
+        env.target_actor_id = Some("a".into());
+        router.route(Stamped::unchecked(env)).await.unwrap();
         let received = mb.try_recv().expect("mailbox should receive directed event");
         assert_eq!(received.event_type, "other.hello");
     }
 
     #[tokio::test]
     async fn refine_actor_rekeys_subscriptions() {
-        let sink = Arc::new(MockSink::new());
+        let sink = Arc::new(MockPersist::new());
         let mut router = KernelRouter::new(sink);
         let cfg_a = ActorConfig {
             namespace: "x".into(),
@@ -210,7 +213,7 @@ mod tests {
 
     #[test]
     fn refine_actor_errors_on_unknown() {
-        let sink = Arc::new(MockSink::new());
+        let sink = Arc::new(MockPersist::new());
         let mut router = KernelRouter::new(sink);
         let err = router.refine_actor("ghost", test_config("g")).unwrap_err();
         assert!(matches!(err, KernelError::ActorNotFound { .. }));
@@ -227,7 +230,7 @@ mod tests {
 
     #[test]
     fn validator_rejects_invalid_events() {
-        let sink = Arc::new(MockSink::new());
+        let sink = Arc::new(MockPersist::new());
         let router = KernelRouter::new(sink)
             .with_validator(Box::new(|event: &EventEnvelope| {
                 if event.event_type.starts_with("bad.") {
@@ -249,16 +252,16 @@ mod tests {
 
     #[tokio::test]
     async fn directed_event_reaches_target_and_audience_subscriber() {
-        let sink = Arc::new(MockSink::new());
+        let sink = Arc::new(MockPersist::new());
         let mut router = KernelRouter::new(sink);
         let mut mb_target = router.spawn_actor("target", test_config("mesh")).unwrap();
         let mut mb_audience = router
             .spawn_actor("audit", audience_config("mesh"))
             .unwrap();
 
-        let mut event = ev("mesh.hello");
-        event.target_actor_id = Some("target".into());
-        router.route(event).await.unwrap();
+        let mut env = EventEnvelope::new("mesh.hello", "entity-1", &serde_json::json!({})).unwrap();
+        env.target_actor_id = Some("target".into());
+        router.route(Stamped::unchecked(env)).await.unwrap();
 
         assert!(
             mb_target.try_recv().is_ok(),
@@ -272,16 +275,16 @@ mod tests {
 
     #[tokio::test]
     async fn directed_event_skips_non_audience_subscriber() {
-        let sink = Arc::new(MockSink::new());
+        let sink = Arc::new(MockPersist::new());
         let mut router = KernelRouter::new(sink);
         let mut mb_target = router.spawn_actor("target", test_config("mesh")).unwrap();
         let mut mb_observer = router
             .spawn_actor("observer", test_config("mesh"))
             .unwrap();
 
-        let mut event = ev("mesh.hello");
-        event.target_actor_id = Some("target".into());
-        router.route(event).await.unwrap();
+        let mut env = EventEnvelope::new("mesh.hello", "entity-1", &serde_json::json!({})).unwrap();
+        env.target_actor_id = Some("target".into());
+        router.route(Stamped::unchecked(env)).await.unwrap();
 
         assert!(mb_target.try_recv().is_ok());
         assert!(
@@ -292,7 +295,7 @@ mod tests {
 
     #[tokio::test]
     async fn audience_subscriber_namespace_filter_still_applies() {
-        let sink = Arc::new(MockSink::new());
+        let sink = Arc::new(MockPersist::new());
         let mut router = KernelRouter::new(sink);
         let mut mb_target = router.spawn_actor("target", test_config("mesh")).unwrap();
         // Audience subscribes to `other.` — directed event on `mesh.`
@@ -301,9 +304,9 @@ mod tests {
             .spawn_actor("audit", audience_config("other"))
             .unwrap();
 
-        let mut event = ev("mesh.hello");
-        event.target_actor_id = Some("target".into());
-        router.route(event).await.unwrap();
+        let mut env = EventEnvelope::new("mesh.hello", "entity-1", &serde_json::json!({})).unwrap();
+        env.target_actor_id = Some("target".into());
+        router.route(Stamped::unchecked(env)).await.unwrap();
 
         assert!(mb_target.try_recv().is_ok());
         assert!(
@@ -315,7 +318,7 @@ mod tests {
     #[tokio::test]
     async fn broadcast_event_reaches_audience_subscriber_same_as_others() {
         // Sanity: see_directed_events doesn't change broadcast semantics.
-        let sink = Arc::new(MockSink::new());
+        let sink = Arc::new(MockPersist::new());
         let mut router = KernelRouter::new(sink);
         let mut mb_a = router.spawn_actor("a", test_config("mesh")).unwrap();
         let mut mb_b = router.spawn_actor("b", audience_config("mesh")).unwrap();

@@ -58,12 +58,16 @@ fn heal_corrupt_table(conn: &mut SqliteConnection, table: &str) -> Result<()> {
             anyhow::bail!("table '{table}' has no schema entry to heal from");
         }
 
-        sqlx::query("PRAGMA writable_schema = ON").execute(&mut *conn).await?;
+        sqlx::query("PRAGMA writable_schema = ON")
+            .execute(&mut *conn)
+            .await?;
         sqlx::query("DELETE FROM sqlite_master WHERE tbl_name = ?")
             .bind(table)
             .execute(&mut *conn)
             .await?;
-        sqlx::query("PRAGMA writable_schema = OFF").execute(&mut *conn).await?;
+        sqlx::query("PRAGMA writable_schema = OFF")
+            .execute(&mut *conn)
+            .await?;
         sqlx::query("VACUUM").execute(&mut *conn).await?;
 
         for stmt in ddl {

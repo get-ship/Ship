@@ -16,12 +16,12 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use anyhow::{anyhow, Result};
-use chrono::Utc;
+use anyhow::{Result, anyhow};
 use bridge::LaunchProfile;
-use bridge::{adapter_for, HarnessEvent};
+use bridge::{HarnessEvent, adapter_for};
+use bridge::{ProcessKind, ProcessProfile, TransportKind, spawn_process};
+use chrono::Utc;
 use parking_lot::Mutex;
-use bridge::{spawn_process, ProcessKind, ProcessProfile, TransportKind};
 use tokio::sync::broadcast;
 
 use super::registry::{Entry, Registry, SessionRecord};
@@ -43,6 +43,7 @@ pub fn spawn_or_attach(
     work_dir: PathBuf,
     log_dir: PathBuf,
     append_system_prompt: Option<String>,
+    kernel: Arc<tokio::sync::Mutex<ship_substrate::events::KernelRouter>>,
 ) -> Result<SpawnOutcome> {
     if let Some(entry) = registry.find_agent_session(agent_id, harness) {
         return Ok(SpawnOutcome {
@@ -87,7 +88,10 @@ pub fn spawn_or_attach(
         subscribe_namespaces: vec![],
     };
 
-    let handle = spawn_process(profile, ship_substrate::supervisor_sink::supervisor_context()?)?;
+    let handle = spawn_process(
+        profile,
+        crate::supervisor_sink::supervisor_context(kernel.clone())?,
+    )?;
     let (event_tx, _) = broadcast::channel::<HarnessEvent>(EVENT_CAP);
 
     let now = Utc::now();
@@ -112,6 +116,7 @@ pub fn spawn_or_attach(
         agent_id.to_string(),
         work_dir,
         event_tx,
+        kernel,
     );
 
     Ok(SpawnOutcome {
@@ -126,6 +131,7 @@ fn spawn_reader_middleware(
     agent_id: String,
     work_dir: PathBuf,
     event_tx: broadcast::Sender<HarnessEvent>,
+    kernel: Arc<tokio::sync::Mutex<ship_substrate::events::KernelRouter>>,
 ) {
     let mut rx = entry.handle.subscribe_output();
     let handle = entry.handle.clone();
@@ -164,10 +170,7 @@ fn spawn_reader_middleware(
                             if let Some(ev) = adapter.parse_output(&line) {
                                 if let HarnessEvent::SessionStarted { session_id } = &ev {
                                     if let Err(e) = bridge::session_file::write_session_file(
-                                        &work_dir,
-                                        &harness,
-                                        session_id,
-                                        &agent_id,
+                                        &work_dir, &harness, session_id, &agent_id,
                                     ) {
                                         tracing::warn!(
                                             harness = %harness,
@@ -205,12 +208,14 @@ fn spawn_reader_middleware(
             duration_ms: Some(duration_ms),
         };
         let stopped_id = actor_id.clone();
+        let kernel = kernel.clone();
         std::thread::spawn(move || {
             let _ = ship_substrate::db::actor_events::emit_actor_stopped(
                 &stopped_id,
                 &payload,
                 None,
                 None,
+                Some(&kernel),
             );
         });
     });

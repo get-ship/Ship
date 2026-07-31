@@ -1,0 +1,38 @@
+{
+  "name": "@ship/arcade",
+  "version": "0.1.0",
+  "description": "Ship Arcade pack \u2014 `<sui-stage>` + sprite / shape / collider / emitter / input / sfx / hud custom elements. Declarative 2D arcade games over @ship/arcade-engine.",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "customElements": "dist/custom-elements.json",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "deck": {
+    "bundles": [
+      {
+        "name": "sail-arcade",
+        "entry": "src/index.ts",
+        "externals": [
+          "@ship/sail-runtime",
+          "@ship/sail-dom"
+        ],
+        "lazy": true
+      }
+    ]
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@ship/arcade-engine": "file:../../../../../ship-apps/packages/arcade-engine",
+    "@ship/sail-dom": "*",
+    "@ship/sail-runtime": "*"
+  },
+  "devDependencies": {
+    "@ship/test-setup": "^0.1.0",
+    "vitest": "^4.1.5"
+  }
+}

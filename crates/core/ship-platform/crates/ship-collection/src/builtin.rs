@@ -2,15 +2,23 @@
 //!
 //! notes — user-facing
 
-use indexmap::IndexMap;
 use crate::types::{FieldDef, FieldKind, SchemaDoc};
+use indexmap::IndexMap;
 
 fn field(kind: FieldKind) -> FieldDef {
-    FieldDef { kind, required: false, values: None }
+    FieldDef {
+        kind,
+        required: false,
+        values: None,
+    }
 }
 
 fn required(kind: FieldKind) -> FieldDef {
-    FieldDef { kind, required: true, values: None }
+    FieldDef {
+        kind,
+        required: true,
+        values: None,
+    }
 }
 
 pub fn notes_schema() -> SchemaDoc {
@@ -19,7 +27,12 @@ pub fn notes_schema() -> SchemaDoc {
     fields.insert("content".into(), field(FieldKind::Markdown));
     fields.insert("tags".into(), field(FieldKind::Array));
     fields.insert("category".into(), field(FieldKind::String));
-    SchemaDoc { id: "notes".into(), title: Some("Notes".into()), system: false, fields }
+    SchemaDoc {
+        id: "notes".into(),
+        title: Some("Notes".into()),
+        system: false,
+        fields,
+    }
 }
 
 /// All built-in schemas.

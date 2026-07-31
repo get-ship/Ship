@@ -79,11 +79,10 @@ pub enum Var {
     DevDbDir,
     /// `SHIP_APPS_BASE_DIR` — base directory the shipd `AppSource` resolver
     /// searches for `<base>/node_modules/<package>`. Default: `<worktree>/`
-    /// (the ship repo root, where the project-root `node_modules/` is
-    /// expected to live once apps install via the registry). In dev
-    /// typically pointed at the ship-apps sibling workspace so the
-    /// into the package graph. Set by the dev start script; unset in
-    /// production (the host ships a `node_modules/` next to `apps.jsonc`).
+    /// (the ship repo root — j-12: hub/spaces live under `apps/` and the
+    /// root `package.json` self-declares them into `node_modules/`). Set by
+    /// the dev start script; unset in production (the host ships a
+    /// `node_modules/` next to `apps.jsonc`).
     AppsBaseDir,
 }
 

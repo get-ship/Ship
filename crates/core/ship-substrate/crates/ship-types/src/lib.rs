@@ -15,23 +15,39 @@ pub mod event_types;
 pub mod hash;
 pub mod identity;
 pub mod payload;
+pub mod stamp;
+pub mod stamped;
 
 // Re-export inventory so the `register_event!` macro can reference it as
-// `::ship_types::inventory::submit!` without downstream crates needing to
-// depend on inventory directly (the macro is `#[macro_export]` from event-core).
-pub use event_core::inventory;
-pub use event_core::register_event;
+// `$crate::inventory::submit!` without downstream crates needing to depend
+// on inventory directly. (`register_event!` is `#[macro_export]` from
+// `event_registry` and is available as `ship_types::register_event!`.)
+pub use inventory;
 
 pub use binding::ScopeBinding;
 pub use caller::{ActorConfig, CallerKind, EmitContext};
 pub use decision::{AskReason, Decision, ScopeViolation};
 pub use enforce::{enforce_scope, stamp_author};
 pub use envelope::EventEnvelope;
-pub use hash::sha256_hex;
-pub use identity::{
-    local_device_id, set_local_device_id, AccountId, DeviceId,
-    SpaceId,
+pub use stamp::{StampError as TypesStampError, apply_stamp};
+pub use stamped::Stamped;
+pub use event_registry::{
+    EventDef, EventDefSource, EventRegistration, EventScope, Retention, Stability, all_names,
+    allowed_scopes, lookup, registry, scope_for,
 };
+pub use hash::sha256_hex;
+pub use identity::{AccountId, DeviceId, SpaceId, local_device_id, set_local_device_id};
+
+use async_trait::async_trait;
+
+/// Port: emit an event envelope. Implementations are host-specific (Ship's
+/// kernel router, a test mock, etc.).
+#[async_trait]
+pub trait EventSink: Send + Sync {
+    /// Persist + route a single envelope. Implementations log their own
+    /// failures; the unit return matches the fire-and-forget call sites.
+    async fn emit(&self, envelope: EventEnvelope);
+}
 
 #[cfg(test)]
 mod tests {

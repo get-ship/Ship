@@ -210,4 +210,3 @@ pub fn list_stacks_at(ship_dir: &Path, space_id: &str) -> Result<Vec<StackRow>> 
         })
         .collect())
 }
-

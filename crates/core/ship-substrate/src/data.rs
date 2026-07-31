@@ -29,7 +29,6 @@ pub struct DataService {
 }
 
 impl DataService {
-
     /// Open a managed SQLite connection at an explicit db-file path (no
     /// startup). This is the seam for the event-sourced data plane: collections
     /// bind their `DataStore` to the SAME per-scope db (`spaces/<id>/space.db`)
@@ -38,7 +37,10 @@ impl DataService {
     /// applies WAL mode; the file is created if missing.
     pub fn open_at(db_path: &Path) -> Result<Self> {
         let conn = open_connection(db_path)?;
-        Ok(Self { conn, db_path: db_path.to_path_buf() })
+        Ok(Self {
+            conn,
+            db_path: db_path.to_path_buf(),
+        })
     }
 
     /// Access the underlying connection for direct SQL operations.
@@ -58,10 +60,8 @@ impl DataService {
         for p in params {
             query = bind_param(query, p);
         }
-        let result = crate::db::block_on(async {
-            query.execute(&mut self.conn).await
-        })
-        .with_context(|| format!("executing: {}", truncate(sql, 100)))?;
+        let result = crate::db::block_on(async { query.execute(&mut self.conn).await })
+            .with_context(|| format!("executing: {}", truncate(sql, 100)))?;
         Ok(result.rows_affected())
     }
 
@@ -71,10 +71,8 @@ impl DataService {
         for p in params {
             query = bind_param(query, p);
         }
-        let rows = crate::db::block_on(async {
-            query.fetch_all(&mut self.conn).await
-        })
-        .with_context(|| format!("querying: {}", truncate(sql, 100)))?;
+        let rows = crate::db::block_on(async { query.fetch_all(&mut self.conn).await })
+            .with_context(|| format!("querying: {}", truncate(sql, 100)))?;
 
         let mut result = Vec::with_capacity(rows.len());
         for row in &rows {
@@ -158,19 +156,29 @@ pub enum SqlParam {
 }
 
 impl From<&str> for SqlParam {
-    fn from(s: &str) -> Self { SqlParam::Text(s.to_string()) }
+    fn from(s: &str) -> Self {
+        SqlParam::Text(s.to_string())
+    }
 }
 impl From<String> for SqlParam {
-    fn from(s: String) -> Self { SqlParam::Text(s) }
+    fn from(s: String) -> Self {
+        SqlParam::Text(s)
+    }
 }
 impl From<i64> for SqlParam {
-    fn from(n: i64) -> Self { SqlParam::Int(n) }
+    fn from(n: i64) -> Self {
+        SqlParam::Int(n)
+    }
 }
 impl From<f64> for SqlParam {
-    fn from(n: f64) -> Self { SqlParam::Float(n) }
+    fn from(n: f64) -> Self {
+        SqlParam::Float(n)
+    }
 }
 impl From<bool> for SqlParam {
-    fn from(b: bool) -> Self { SqlParam::Bool(b) }
+    fn from(b: bool) -> Self {
+        SqlParam::Bool(b)
+    }
 }
 
 // ── Internal helpers ─────────────────────────────────────────────────────────
@@ -199,19 +207,21 @@ fn open_connection(db_path: &Path) -> Result<SqliteConnection> {
         // correct trade for a read model another connection evolves.
         .statement_cache_capacity(0);
 
-    let mut conn = crate::db::block_on(async {
-        SqliteConnection::connect_with(&opts).await
-    })?;
+    let mut conn = crate::db::block_on(async { SqliteConnection::connect_with(&opts).await })?;
 
     crate::db::block_on(async {
-        sqlx::query("PRAGMA journal_mode = WAL").execute(&mut conn).await
+        sqlx::query("PRAGMA journal_mode = WAL")
+            .execute(&mut conn)
+            .await
     })?;
     // `foreign_keys` is a per-connection pragma in sqlite (NOT persisted in
     // the file header like `journal_mode`); re-issue on every fresh
     // connection so FK constraints are enforced (census §2 finding: only set
     // at creation-time).
     crate::db::block_on(async {
-        sqlx::query("PRAGMA foreign_keys = ON").execute(&mut conn).await
+        sqlx::query("PRAGMA foreign_keys = ON")
+            .execute(&mut conn)
+            .await
     })?;
 
     Ok(conn)
@@ -231,7 +241,11 @@ fn bind_param<'q>(
 }
 
 fn truncate(s: &str, max: usize) -> String {
-    if s.len() <= max { s.to_string() } else { format!("{}...", &s[..max]) }
+    if s.len() <= max {
+        s.to_string()
+    } else {
+        format!("{}...", &s[..max])
+    }
 }
 
 #[cfg(test)]
@@ -253,33 +267,37 @@ mod tests {
     #[test]
     fn create_table_and_insert() {
         let (mut svc, _tmp) = test_service();
-        svc.ensure_table(
-            "CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT)"
-        ).unwrap();
+        svc.ensure_table("CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT)")
+            .unwrap();
 
-        let affected = svc.execute(
-            "INSERT INTO kv (key, value) VALUES (?, ?)",
-            &[SqlParam::from("name"), SqlParam::from("ship")],
-        ).unwrap();
+        let affected = svc
+            .execute(
+                "INSERT INTO kv (key, value) VALUES (?, ?)",
+                &[SqlParam::from("name"), SqlParam::from("ship")],
+            )
+            .unwrap();
         assert_eq!(affected, 1);
     }
 
     #[test]
     fn query_returns_rows() {
         let (mut svc, _tmp) = test_service();
-        svc.ensure_table(
-            "CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT)"
-        ).unwrap();
+        svc.ensure_table("CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT)")
+            .unwrap();
         svc.execute(
             "INSERT INTO kv (key, value) VALUES (?, ?)",
             &[SqlParam::from("a"), SqlParam::from("1")],
-        ).unwrap();
+        )
+        .unwrap();
         svc.execute(
             "INSERT INTO kv (key, value) VALUES (?, ?)",
             &[SqlParam::from("b"), SqlParam::from("2")],
-        ).unwrap();
+        )
+        .unwrap();
 
-        let rows = svc.query("SELECT key, value FROM kv ORDER BY key", &[]).unwrap();
+        let rows = svc
+            .query("SELECT key, value FROM kv ORDER BY key", &[])
+            .unwrap();
         assert_eq!(rows.len(), 2);
         assert_eq!(rows[0].get_str("key"), Some("a"));
         assert_eq!(rows[1].get_str("key"), Some("b"));
@@ -288,16 +306,22 @@ mod tests {
     #[test]
     fn query_with_params() {
         let (mut svc, _tmp) = test_service();
-        svc.ensure_table(
-            "CREATE TABLE IF NOT EXISTS items (id TEXT PRIMARY KEY, n INTEGER)"
-        ).unwrap();
-        svc.execute("INSERT INTO items VALUES (?, ?)", &[SqlParam::from("x"), SqlParam::Int(10)]).unwrap();
-        svc.execute("INSERT INTO items VALUES (?, ?)", &[SqlParam::from("y"), SqlParam::Int(20)]).unwrap();
+        svc.ensure_table("CREATE TABLE IF NOT EXISTS items (id TEXT PRIMARY KEY, n INTEGER)")
+            .unwrap();
+        svc.execute(
+            "INSERT INTO items VALUES (?, ?)",
+            &[SqlParam::from("x"), SqlParam::Int(10)],
+        )
+        .unwrap();
+        svc.execute(
+            "INSERT INTO items VALUES (?, ?)",
+            &[SqlParam::from("y"), SqlParam::Int(20)],
+        )
+        .unwrap();
 
-        let rows = svc.query(
-            "SELECT id FROM items WHERE n > ?",
-            &[SqlParam::Int(15)],
-        ).unwrap();
+        let rows = svc
+            .query("SELECT id FROM items WHERE n > ?", &[SqlParam::Int(15)])
+            .unwrap();
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].get_str("id"), Some("y"));
     }
@@ -305,16 +329,21 @@ mod tests {
     #[test]
     fn json_columns_round_trip() {
         let (mut svc, _tmp) = test_service();
-        svc.ensure_table(
-            "CREATE TABLE IF NOT EXISTS docs (id TEXT PRIMARY KEY, data TEXT)"
-        ).unwrap();
+        svc.ensure_table("CREATE TABLE IF NOT EXISTS docs (id TEXT PRIMARY KEY, data TEXT)")
+            .unwrap();
         let json_data = r#"{"title":"Hello","count":42}"#;
         svc.execute(
             "INSERT INTO docs VALUES (?, ?)",
             &[SqlParam::from("d1"), SqlParam::from(json_data)],
-        ).unwrap();
+        )
+        .unwrap();
 
-        let rows = svc.query("SELECT data FROM docs WHERE id = ?", &[SqlParam::from("d1")]).unwrap();
+        let rows = svc
+            .query(
+                "SELECT data FROM docs WHERE id = ?",
+                &[SqlParam::from("d1")],
+            )
+            .unwrap();
         let data = rows[0].get("data").unwrap();
         assert_eq!(data["title"], "Hello");
         assert_eq!(data["count"], 42);
@@ -323,19 +352,20 @@ mod tests {
     #[test]
     fn ensure_index_works() {
         let (mut svc, _tmp) = test_service();
-        svc.ensure_table(
-            "CREATE TABLE IF NOT EXISTS items (id TEXT PRIMARY KEY, data TEXT)"
-        ).unwrap();
+        svc.ensure_table("CREATE TABLE IF NOT EXISTS items (id TEXT PRIMARY KEY, data TEXT)")
+            .unwrap();
         svc.ensure_index(
-            "CREATE INDEX IF NOT EXISTS idx_test ON items(json_extract(data, '$.status'))"
-        ).unwrap();
+            "CREATE INDEX IF NOT EXISTS idx_test ON items(json_extract(data, '$.status'))",
+        )
+        .unwrap();
         // No error = success
     }
 
     #[test]
     fn empty_query_returns_empty() {
         let (mut svc, _tmp) = test_service();
-        svc.ensure_table("CREATE TABLE IF NOT EXISTS empty (id TEXT PRIMARY KEY)").unwrap();
+        svc.ensure_table("CREATE TABLE IF NOT EXISTS empty (id TEXT PRIMARY KEY)")
+            .unwrap();
         let rows = svc.query("SELECT * FROM empty", &[]).unwrap();
         assert!(rows.is_empty());
     }

@@ -6,8 +6,8 @@
 //! replaced by canonical `op.*` events (op.tool_use_started /
 //! op.tool_use_completed / op.tool_use_denied) in #25b; hook.* emission from the HTTP layer is retired.
 
-pub mod tool_gate;
 pub mod http_ingress;
+pub mod tool_gate;
 
 #[cfg(test)]
 mod tests;

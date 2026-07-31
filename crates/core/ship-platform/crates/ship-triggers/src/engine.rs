@@ -15,13 +15,14 @@ use super::actions::{ActionCtx, dispatch};
 use super::def::{HookAction, HookDef};
 use super::filter;
 use super::render;
+use super::schema::TriggerDef;
 use super::sources::SourceManager;
-use ship_config::resolve_hooks_max_depth;
 
-// Historical hook chain depth (events emitted by a hook carry a depth
-// marker; at depth ≥ this value, hooks are not executed). The runtime
-// value is resolved from the `hooks.max_depth` KV setting (default 3) via
-// `ship_config::resolve_hooks_max_depth`.
+/// Default max hook recursion depth when the caller does not inject a value.
+/// Matches the historical `hooks.max_depth` setting default (3). Callers that
+/// read the live setting (e.g. shipd via `ship_settings::resolve_hooks_max_depth`)
+/// pass it through [`HookEngine::with_max_depth`].
+pub const DEFAULT_HOOKS_MAX_DEPTH: u32 = 3;
 
 /// Per-hook / per-event context passed to each action while an action list
 /// runs.
@@ -46,6 +47,9 @@ pub struct HookEngine {
     /// `with_schemas` so a wire-created schema is visible to a trigger insert
     /// (C-2 UD-7).
     schemas: Arc<ship_collection::projection::SchemaRegistry>,
+    /// Max hook chain depth (events emitted by a hook carry a depth marker;
+    /// at depth ≥ this value, hooks are not executed).
+    max_depth: u32,
 }
 
 impl HookEngine {
@@ -56,6 +60,7 @@ impl HookEngine {
             hooks: Arc::new(RwLock::new(HashMap::new())),
             sources: None,
             schemas: Arc::new(ship_collection::projection::SchemaRegistry::new()),
+            max_depth: DEFAULT_HOOKS_MAX_DEPTH,
         }
     }
 
@@ -70,6 +75,7 @@ impl HookEngine {
             hooks: Arc::new(RwLock::new(HashMap::new())),
             sources: Some(sources),
             schemas: Arc::new(ship_collection::projection::SchemaRegistry::new()),
+            max_depth: DEFAULT_HOOKS_MAX_DEPTH,
         }
     }
 
@@ -80,6 +86,14 @@ impl HookEngine {
         schemas: Arc<ship_collection::projection::SchemaRegistry>,
     ) -> Self {
         self.schemas = schemas;
+        self
+    }
+
+    /// Override the max hook recursion depth (default
+    /// [`DEFAULT_HOOKS_MAX_DEPTH`]). Composition roots that own the settings
+    /// plane inject the live `hooks.max_depth` value here.
+    pub fn with_max_depth(mut self, max_depth: u32) -> Self {
+        self.max_depth = max_depth;
         self
     }
 
@@ -99,7 +113,7 @@ impl HookEngine {
     /// definitions. Invalid entries are logged and skipped — one bad
     /// trigger never discards the rest (mirrors the retired JSONC loader's
     /// error-tolerant behavior).
-    pub async fn reload(&self, triggers: &[stack_model::TriggerDef]) {
+    pub async fn reload(&self, triggers: &[TriggerDef]) {
         let mut map = HashMap::with_capacity(triggers.len());
         let mut errors = 0usize;
         for def in triggers {
@@ -132,7 +146,7 @@ impl HookEngine {
     /// prevent other hooks from running.
     pub async fn dispatch_event(&self, envelope: &EventEnvelope) {
         let depth = incoming_depth(envelope);
-        let max_depth = resolve_hooks_max_depth();
+        let max_depth = self.max_depth;
         if depth >= max_depth {
             tracing::warn!(
                 event_id = %envelope.id,
@@ -272,7 +286,7 @@ impl ServiceHandler for HookService {
 /// a wire-created user schema visible to a trigger insert (C-2 UD-7).
 ///
 /// `triggers` is the caller's current descriptor trigger set (e.g. the
-/// active project's `ExtensionLibrary::triggers` from `ship_resolver::roll_up`).
+/// active project's `ExtensionLibrary::triggers` from `space_resolver::roll_up`).
 /// There is no live re-roll-up on change — the caller re-calls `reload` when
 /// the source changes (format-migration Wave 4 phase A retired the
 /// dedicated file-watcher; see the crate doc comment).
@@ -280,14 +294,34 @@ pub async fn spawn_hook_service(
     kernel: Arc<Mutex<KernelRouter>>,
     ship_dir: PathBuf,
     schemas: Arc<ship_collection::projection::SchemaRegistry>,
-    triggers: Vec<stack_model::TriggerDef>,
+    triggers: Vec<TriggerDef>,
+) -> Result<Arc<HookEngine>> {
+    spawn_hook_service_with_max_depth(
+        kernel,
+        ship_dir,
+        schemas,
+        triggers,
+        DEFAULT_HOOKS_MAX_DEPTH,
+    )
+    .await
+}
+
+/// Like [`spawn_hook_service`] but injects a caller-resolved max hook
+/// recursion depth (e.g. shipd reads `hooks.max_depth` from settings).
+pub async fn spawn_hook_service_with_max_depth(
+    kernel: Arc<Mutex<KernelRouter>>,
+    ship_dir: PathBuf,
+    schemas: Arc<ship_collection::projection::SchemaRegistry>,
+    triggers: Vec<TriggerDef>,
+    max_depth: u32,
 ) -> Result<Arc<HookEngine>> {
     let source_mgr = Arc::new(SourceManager::new(ship_dir.clone()));
     source_mgr.start_all(kernel.clone());
 
     let engine = Arc::new(
         HookEngine::new_with_sources(kernel.clone(), ship_dir, source_mgr)
-            .with_schemas(schemas),
+            .with_schemas(schemas)
+            .with_max_depth(max_depth),
     );
     engine.reload(&triggers).await;
 

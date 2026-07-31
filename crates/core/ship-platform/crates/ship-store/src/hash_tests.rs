@@ -18,8 +18,7 @@ fn make_tree(files: &[(&str, &str)]) -> anyhow::Result<tempfile::TempDir> {
 // ── compute_tree_hash — manifest + domain dirs allow-list ──────────────
 
 #[test]
-fn tree_hash_is_deterministic_on_a_known_manifest_plus_skills_tree()
--> anyhow::Result<()> {
+fn tree_hash_is_deterministic_on_a_known_manifest_plus_skills_tree() -> anyhow::Result<()> {
     let dir = make_tree(&[
         ("stack.config.ts", "export default {};\n"),
         ("skills/review/SKILL.md", "# Review\n"),
@@ -71,10 +70,7 @@ fn tree_hash_ignores_build_output_under_a_repo_root() -> anyhow::Result<()> {
     let h_before = compute_tree_hash(dir.path())?;
 
     fs::create_dir_all(dir.path().join("target/debug"))?;
-    fs::write(
-        dir.path().join("target/debug/huge.rlib"),
-        "BUILD ARTIFACT",
-    )?;
+    fs::write(dir.path().join("target/debug/huge.rlib"), "BUILD ARTIFACT")?;
     fs::create_dir_all(dir.path().join("node_modules/left-pad"))?;
     fs::write(
         dir.path().join("node_modules/left-pad/index.js"),

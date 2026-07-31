@@ -31,9 +31,10 @@ impl TestDaemon {
             ship_substrate::events::KernelRouter::new(ship_dir.clone()).unwrap(),
         ));
 
-        let api_state: ApiState = Arc::new(
-            crate::ship_runtime::ShipRuntime::new_test(ship_dir.clone(), kernel),
-        );
+        let api_state: ApiState = Arc::new(crate::ship_runtime::ShipRuntime::new_test(
+            ship_dir.clone(),
+            kernel,
+        ));
 
         Self {
             state: api_state,

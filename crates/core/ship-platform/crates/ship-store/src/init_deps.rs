@@ -50,8 +50,9 @@ pub fn seed_default_dependencies(ship_dir: &Path) -> Result<SeedResult> {
     let raw = std::fs::read_to_string(&jsonc_path)
         .with_context(|| format!("reading {}", jsonc_path.display()))?;
 
-    let mut doc: serde_json::Value = serde_json::from_str(&ship_substrate::fs_util::strip_jsonc_comments(&raw))
-        .with_context(|| format!("parsing {}", jsonc_path.display()))?;
+    let mut doc: serde_json::Value =
+        serde_json::from_str(&ship_substrate::fs_util::strip_jsonc_comments(&raw))
+            .with_context(|| format!("parsing {}", jsonc_path.display()))?;
 
     // Idempotent: if dependencies already exist, leave them alone.
     if doc.get("dependencies").is_some() {
@@ -98,8 +99,9 @@ pub fn try_install_init_deps(ship_dir: &Path) -> Result<bool> {
 
     let raw = std::fs::read_to_string(&jsonc_path)
         .with_context(|| format!("reading {}", jsonc_path.display()))?;
-    let doc: serde_json::Value = serde_json::from_str(&ship_substrate::fs_util::strip_jsonc_comments(&raw))
-        .with_context(|| format!("parsing {}", jsonc_path.display()))?;
+    let doc: serde_json::Value =
+        serde_json::from_str(&ship_substrate::fs_util::strip_jsonc_comments(&raw))
+            .with_context(|| format!("parsing {}", jsonc_path.display()))?;
 
     let deps_val = match doc.get("dependencies") {
         Some(v) if v.is_object() => v,
@@ -172,8 +174,7 @@ mod tests {
         assert_eq!(result.added, DEFAULT_INIT_DEPS.len());
 
         // Verify the file now has dependencies.
-        let content =
-            fs::read_to_string(ship_dir.join("ship.jsonc")).unwrap();
+        let content = fs::read_to_string(ship_dir.join("ship.jsonc")).unwrap();
         let doc: serde_json::Value = serde_json::from_str(&content).unwrap();
         let deps = doc.get("dependencies").expect("dependencies key missing");
         assert!(deps.is_object());
@@ -200,8 +201,7 @@ mod tests {
         assert_eq!(result.added, 0);
 
         // Original deps must be unchanged.
-        let content =
-            fs::read_to_string(ship_dir.join("ship.jsonc")).unwrap();
+        let content = fs::read_to_string(ship_dir.join("ship.jsonc")).unwrap();
         let doc: serde_json::Value = serde_json::from_str(&content).unwrap();
         let deps = doc.get("dependencies").unwrap();
         assert_eq!(
@@ -235,8 +235,7 @@ mod tests {
 
         seed_default_dependencies(&ship_dir).unwrap();
 
-        let content =
-            fs::read_to_string(ship_dir.join("ship.jsonc")).unwrap();
+        let content = fs::read_to_string(ship_dir.join("ship.jsonc")).unwrap();
         let doc: serde_json::Value = serde_json::from_str(&content).unwrap();
         assert_eq!(doc.get("id").and_then(|v| v.as_str()), Some("abc123"));
         assert!(doc.get("project").is_some());

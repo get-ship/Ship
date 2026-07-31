@@ -6,18 +6,18 @@
 
 use std::sync::Arc;
 
-use ship_substrate::{is_safe_ident, Predicate, Query, SpaceContext};
-use ship_types::envelope::EventEnvelope;
 use crate::events::{
     CollectionCreated, CollectionItemCreated, CollectionItemDeleted, CollectionItemUpdated,
     CollectionSchemaChanged,
 };
+use ship_substrate::{Predicate, Query, SpaceContext, is_safe_ident};
+use ship_types::envelope::EventEnvelope;
 
 use crate::error::CollectionError;
 use crate::helpers::{emit_ctx, new_ulid, now_rfc3339, row_to_item};
 use crate::projection::{
-    SchemaRegistry, count_items, ensure_collection_table, ensure_registry_table,
-    persist_schema, update_schema_persistent,
+    SchemaRegistry, count_items, ensure_collection_table, ensure_registry_table, persist_schema,
+    update_schema_persistent,
 };
 use crate::types::{ItemRecord, SchemaDoc};
 
@@ -39,9 +39,9 @@ impl CollectionService {
             return Ok(s);
         }
         let _ = crate::projection::hydrate_from_store(&self.schemas, self.ctx.data()).await;
-        self.schemas.get(id).ok_or_else(|| {
-            CollectionError::NotFound(format!("collection '{id}' not found"))
-        })
+        self.schemas
+            .get(id)
+            .ok_or_else(|| CollectionError::NotFound(format!("collection '{id}' not found")))
     }
 
     /// List all schemas including system ones.
@@ -88,15 +88,12 @@ impl CollectionService {
         // `QueryItems` against an unknown collection indistinguishable from
         // a storage fault. The lookup also rejects path-traversal
         // collection ids (`is_safe_ident`) the same way `apply` does.
-        let collection = q
-            .table
-            .strip_prefix("collection_")
-            .ok_or_else(|| {
-                CollectionError::Validation(format!(
-                    "query table must be a 'collection_<id>' table; got {:?}",
-                    q.table
-                ))
-            })?;
+        let collection = q.table.strip_prefix("collection_").ok_or_else(|| {
+            CollectionError::Validation(format!(
+                "query table must be a 'collection_<id>' table; got {:?}",
+                q.table
+            ))
+        })?;
         if !is_safe_ident(collection) {
             return Err(CollectionError::NotFound(format!(
                 "collection '{collection}' not found"
@@ -106,7 +103,11 @@ impl CollectionService {
         let collection = collection.to_string();
         let result = self.ctx.data().query(q).await?;
         let next_cursor = result.next_cursor.clone();
-        let items = result.rows.into_iter().map(|r| row_to_item(r, &collection)).collect();
+        let items = result
+            .rows
+            .into_iter()
+            .map(|r| row_to_item(r, &collection))
+            .collect();
         Ok((items, next_cursor))
     }
 
@@ -156,7 +157,10 @@ impl CollectionService {
             },
         )
         .map_err(|e| CollectionError::Internal(e.to_string()))?;
-        self.ctx.kernel().emit(envelope, &emit_ctx(&self.ctx.space_id().to_string())).await?;
+        self.ctx
+            .kernel()
+            .emit(envelope, &emit_ctx(&self.ctx.space_id().to_string()))
+            .await?;
 
         Ok(ItemRecord {
             id,
@@ -205,7 +209,10 @@ impl CollectionService {
             },
         )
         .map_err(|e| CollectionError::Internal(e.to_string()))?;
-        self.ctx.kernel().emit(envelope, &emit_ctx(&self.ctx.space_id().to_string())).await?;
+        self.ctx
+            .kernel()
+            .emit(envelope, &emit_ctx(&self.ctx.space_id().to_string()))
+            .await?;
 
         Ok(ItemRecord {
             id: id.to_string(),
@@ -217,11 +224,7 @@ impl CollectionService {
     }
 
     /// Delete an item, emit event.
-    pub async fn delete_item(
-        &self,
-        collection: &str,
-        id: &str,
-    ) -> Result<(), CollectionError> {
+    pub async fn delete_item(&self, collection: &str, id: &str) -> Result<(), CollectionError> {
         self.resolve_schema(collection).await?;
         // EMIT-ONLY: confirm the row exists against the projection (a delete of
         // a missing item is a NotFound, not a silent no-op), then emit; the
@@ -237,7 +240,10 @@ impl CollectionService {
             },
         )
         .map_err(|e| CollectionError::Internal(e.to_string()))?;
-        self.ctx.kernel().emit(envelope, &emit_ctx(&self.ctx.space_id().to_string())).await?;
+        self.ctx
+            .kernel()
+            .emit(envelope, &emit_ctx(&self.ctx.space_id().to_string()))
+            .await?;
         Ok(())
     }
 
@@ -270,15 +276,21 @@ impl CollectionService {
         // items.
         ensure_registry_table(self.ctx.data()).await?;
 
-        let schema_str = serde_json::to_string(&doc)
-            .map_err(|e| CollectionError::Internal(e.to_string()))?;
+        let schema_str =
+            serde_json::to_string(&doc).map_err(|e| CollectionError::Internal(e.to_string()))?;
         let envelope = EventEnvelope::new(
             "collection.created",
             id,
-            &CollectionCreated { collection_id: id.to_string(), schema_json: schema_str },
+            &CollectionCreated {
+                collection_id: id.to_string(),
+                schema_json: schema_str,
+            },
         )
         .map_err(|e| CollectionError::Internal(e.to_string()))?;
-        self.ctx.kernel().emit(envelope, &emit_ctx(&self.ctx.space_id().to_string())).await?;
+        self.ctx
+            .kernel()
+            .emit(envelope, &emit_ctx(&self.ctx.space_id().to_string()))
+            .await?;
         // Durable mirror of the in-memory insert below — the registry's
         // read path (`hydrate_from_store`) restores this row on daemon open.
         // `_schema_registry` lives per-space (Storage Blueprint
@@ -315,18 +327,23 @@ impl CollectionService {
         ensure_collection_table(self.ctx.data(), &doc).await?;
         update_schema_persistent(self.ctx.data(), &doc).await?;
 
-        let schema_str = serde_json::to_string(&doc)
-            .map_err(|e| CollectionError::Internal(e.to_string()))?;
+        let schema_str =
+            serde_json::to_string(&doc).map_err(|e| CollectionError::Internal(e.to_string()))?;
         let envelope = EventEnvelope::new(
             "collection.schema.changed",
             id,
-            &CollectionSchemaChanged { collection_id: id.to_string(), schema_json: schema_str },
+            &CollectionSchemaChanged {
+                collection_id: id.to_string(),
+                schema_json: schema_str,
+            },
         )
         .map_err(|e| CollectionError::Internal(e.to_string()))?;
-        self.ctx.kernel().emit(envelope, &emit_ctx(&self.ctx.space_id().to_string())).await?;
+        self.ctx
+            .kernel()
+            .emit(envelope, &emit_ctx(&self.ctx.space_id().to_string()))
+            .await?;
 
         self.schemas.update(doc.clone());
         Ok(doc)
     }
 }
-

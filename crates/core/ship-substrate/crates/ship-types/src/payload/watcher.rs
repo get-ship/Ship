@@ -22,4 +22,3 @@ pub struct SkillChanged {
     pub path: String,
     pub content_hash: String,
 }
-

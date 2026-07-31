@@ -16,10 +16,10 @@ use crate::def::{
 };
 use crate::engine::HookEngine;
 
-/// Parse a `stack_model::TriggerDef` from its JSON authoring shape — replaces
+/// Parse a `crate::TriggerDef` from its JSON authoring shape — replaces
 /// the retired JSONC-loader helpers (`parse_hook`/`validate_hook`) post
 /// format-migration Wave 4 phase A.
-fn trigger_def(json: &str) -> stack_model::TriggerDef {
+fn trigger_def(json: &str) -> crate::TriggerDef {
     serde_json::from_str(json).unwrap_or_else(|e| panic!("invalid trigger def json: {e}\n{json}"))
 }
 
@@ -34,17 +34,17 @@ fn tmp_ship_dir() -> (TempDir, std::path::PathBuf) {
 }
 
 fn test_kernel(ship_dir: &Path) -> Arc<Mutex<KernelRouter>> {
-     // Register the CollectionItemProjection for the test bus — the
-     // canonical trigger insert path is event-sourced and the projection
-     // materializes the `collection_*` table the read path queries.
-     ship_substrate::projections::install_extra_projections_factory(Box::new(|| {
-         vec![Box::new(
-             ship_collection::item_projection::CollectionItemProjection,
-         )]
-     }));
-     let kr = KernelRouter::new(ship_dir.to_path_buf()).unwrap();
-     Arc::new(Mutex::new(kr))
- }
+    // CollectionItemProjection rides the bus via constructor DI — the
+    // canonical trigger insert path is event-sourced and the projection
+    // materializes the `collection_*` table the read path queries.
+    let factory: ship_substrate::projections::ProjectionFactory = Arc::new(|| {
+        vec![Box::new(
+            ship_collection::item_projection::CollectionItemProjection,
+        )]
+    });
+    let kr = KernelRouter::with_extra_projections(ship_dir.to_path_buf(), factory).unwrap();
+    Arc::new(Mutex::new(kr))
+}
 fn recent_events_matching(ship_dir: &Path, event_prefix: &str) -> Vec<EventEnvelope> {
     ship_substrate::db::events::list_recent_events_at(ship_dir, 200)
         .unwrap_or_default()
@@ -63,7 +63,7 @@ fn diff(before: &[EventEnvelope], after: &[EventEnvelope]) -> Vec<EventEnvelope>
 
 // ── Conversion-time validation ────────────────────────────────────────────────
 //
-// `stack_model::TriggerDef`'s `trigger.event` is a required string (no TS shape
+// `crate::TriggerDef`'s `trigger.event` is a required string (no TS shape
 // for a source-only trigger — def.rs's `convert_trigger_match` doc comment),
 // so "both set"/"neither set" can't arise the way the retired JSONC loader's
 // `reject_both_event_and_source`/`reject_neither_event_nor_source` tested;

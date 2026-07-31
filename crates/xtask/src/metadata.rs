@@ -47,13 +47,12 @@ impl Layer {
 }
 
 /// L0 sibling primitives that live under `crates/core/` next to ship-substrate.
+/// (ship-isolation / ship-sidecar-proto moved to ship-exec in j-09.)
 const L0_SIBLINGS: &[&str] = &[
     "ship-git",
-    "ship-isolation",
     "ship-cloud",
     "ship-ops-rpc",
     "ship-gateway-client",
-    "ship-sidecar-proto",
     "stack-model",
     "agent-config-eval",
 ];
@@ -96,16 +95,16 @@ pub fn classify(rel_dir: &str) -> Option<Layer> {
     // L1 — ship-platform tree + the pipeline runtime.
     if rel_dir == "crates/core/ship-platform"
         || rel_dir.starts_with("crates/core/ship-platform/")
-        || rel_dir == "crates/ship-pipeline-runtime"
+        || rel_dir == "crates/core/ship-substrate/crates/pipeline-defs"
     {
         return Some(Layer::L1);
     }
-    // L1 — ship-resolver (Phase-2 space-shape resolver; orchestrates
+    // L1 — space-resolver (Phase-2 space-shape resolver; orchestrates
     // substrate ports + stack-model). Carved from ship-platform but lives
     // at the L0 sibling root for cycle reasons (depends on
     // ship-store/ship-substrate/compiler, NOT on ship-platform), so it
     // gets its own explicit entry.
-    if rel_dir == "crates/core/ship-resolver" {
+    if rel_dir == "crates/core/space-resolver" {
         return Some(Layer::L1);
     }
     // L2 — apps, packages, tests, examples, plus xtask + build-info tooling.

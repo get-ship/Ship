@@ -3,18 +3,18 @@
 //! `tests/common/` is a subdirectory so Cargo does not compile it as a
 //! standalone test binary (only files directly under `tests/` become binaries).
 
-/// Register `ArtifactProjection` into the substrate's extra-projections
-/// factory once per test process.  In production this is done by
-/// `ship_platform::install_defaults()`; the test harness can't depend on
-/// ship-platform (that would create a cycle), so we do it directly here.
-pub fn install_artifact_projection() {
-    use std::sync::Once;
-    static ONCE: Once = Once::new();
-    ONCE.call_once(|| {
-        ship_substrate::projections::install_extra_projections_factory(Box::new(|| {
-            vec![Box::new(
-                ship_artifacts::metadata_projection::ArtifactProjection,
-            )]
-        }));
-    });
+use std::sync::Arc;
+
+use ship_substrate::projections::ProjectionFactory;
+
+/// Factory that produces `ArtifactProjection` for test kernel / store
+/// construction. In production the composition root passes the full platform
+/// factory; the test harness can't depend on ship-platform (cycle), so domain
+/// tests build the one projection they need here.
+pub fn artifact_projection_factory() -> ProjectionFactory {
+    Arc::new(|| {
+        vec![Box::new(
+            ship_artifacts::metadata_projection::ArtifactProjection,
+        )]
+    })
 }

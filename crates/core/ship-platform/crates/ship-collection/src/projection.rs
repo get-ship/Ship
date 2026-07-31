@@ -31,7 +31,9 @@ impl SchemaRegistry {
         for schema in all_builtin_schemas() {
             map.insert(schema.id.clone(), schema);
         }
-        Self { inner: Mutex::new(map) }
+        Self {
+            inner: Mutex::new(map),
+        }
     }
 
     pub fn list(&self) -> Vec<SchemaDoc> {
@@ -61,23 +63,23 @@ impl Default for SchemaRegistry {
 pub async fn ensure_registry_table(store: &dyn DataStore) -> Result<(), DataStoreError> {
     let schema = TableSchema {
         name: REGISTRY_TABLE.to_string(),
-        columns: vec![
-            ColumnSpec { name: "schema_json".into(), kind: ColumnKind::Text, required: true },
-        ],
+        columns: vec![ColumnSpec {
+            name: "schema_json".into(),
+            kind: ColumnKind::Text,
+            required: true,
+        }],
     };
     store.ensure_table(&schema).await
 }
 
 /// Persist a schema doc to the DataStore registry table.
-pub async fn persist_schema(
-    store: &dyn DataStore,
-    doc: &SchemaDoc,
-) -> Result<(), CollectionError> {
-    let json = serde_json::to_string(doc)
-        .map_err(|e| CollectionError::Internal(e.to_string()))?;
-    let row = Row::new(doc.id.clone())
-        .with("schema_json", serde_json::Value::String(json));
-    store.insert(REGISTRY_TABLE, row).await.map_err(CollectionError::from)
+pub async fn persist_schema(store: &dyn DataStore, doc: &SchemaDoc) -> Result<(), CollectionError> {
+    let json = serde_json::to_string(doc).map_err(|e| CollectionError::Internal(e.to_string()))?;
+    let row = Row::new(doc.id.clone()).with("schema_json", serde_json::Value::String(json));
+    store
+        .insert(REGISTRY_TABLE, row)
+        .await
+        .map_err(CollectionError::from)
 }
 
 /// Update an existing schema doc in the DataStore registry table.
@@ -85,11 +87,12 @@ pub async fn update_schema_persistent(
     store: &dyn DataStore,
     doc: &SchemaDoc,
 ) -> Result<(), CollectionError> {
-    let json = serde_json::to_string(doc)
-        .map_err(|e| CollectionError::Internal(e.to_string()))?;
-    let row = Row::new(doc.id.clone())
-        .with("schema_json", serde_json::Value::String(json));
-    store.update(REGISTRY_TABLE, row).await.map_err(CollectionError::from)
+    let json = serde_json::to_string(doc).map_err(|e| CollectionError::Internal(e.to_string()))?;
+    let row = Row::new(doc.id.clone()).with("schema_json", serde_json::Value::String(json));
+    store
+        .update(REGISTRY_TABLE, row)
+        .await
+        .map_err(CollectionError::from)
 }
 
 /// Hydrate `registry` from the durable `_schema_registry` rows in `store`,
@@ -134,8 +137,16 @@ pub async fn ensure_collection_table(
     doc: &SchemaDoc,
 ) -> Result<(), CollectionError> {
     let mut columns = vec![
-        ColumnSpec { name: "created_at".into(), kind: ColumnKind::Text, required: true },
-        ColumnSpec { name: "updated_at".into(), kind: ColumnKind::Text, required: true },
+        ColumnSpec {
+            name: "created_at".into(),
+            kind: ColumnKind::Text,
+            required: true,
+        },
+        ColumnSpec {
+            name: "updated_at".into(),
+            kind: ColumnKind::Text,
+            required: true,
+        },
     ];
     for (name, field) in &doc.fields {
         columns.push(ColumnSpec {
@@ -148,7 +159,10 @@ pub async fn ensure_collection_table(
         name: format!("collection_{}", doc.id),
         columns,
     };
-    store.ensure_table(&table).await.map_err(CollectionError::from)
+    store
+        .ensure_table(&table)
+        .await
+        .map_err(CollectionError::from)
 }
 
 /// Count items in a collection table.

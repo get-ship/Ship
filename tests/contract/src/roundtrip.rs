@@ -29,7 +29,7 @@ use ship_artifacts as _;
 use ship_auth as _;
 use ship_cloud as _;
 use ship_collection as _;
-use ship_config as _;
+use ship_settings as _;
 use ship_space as _;
 use ship_substrate as _;
 

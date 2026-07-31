@@ -24,8 +24,12 @@
 
 use async_trait::async_trait;
 
-use agent_schema::canonical_session::{SessionStarted, event_types as canonical_session_event_types};
-use agent_schema::dispatch_intent::{DispatchRequestedPayload, event_types as dispatch_event_types};
+use agent_schema::canonical_session::{
+    SessionStarted, event_types as canonical_session_event_types,
+};
+use agent_schema::dispatch_intent::{
+    DispatchRequestedPayload, event_types as dispatch_event_types,
+};
 use ship_substrate::events::EventEnvelope;
 
 use super::dispatch_request::{DispatchRequest, validate_dispatch_request};
@@ -316,7 +320,9 @@ mod tests {
             Err(e) => e,
         };
         match err {
-            DispatchCoreError::BadRequest(m) => assert!(m.contains("`prompt` is required"), "got: {m}"),
+            DispatchCoreError::BadRequest(m) => {
+                assert!(m.contains("`prompt` is required"), "got: {m}")
+            }
             other => panic!("expected BadRequest, got {other:?}"),
         }
         assert_eq!(port.persist_calls.load(Ordering::SeqCst), 0);

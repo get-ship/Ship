@@ -8,7 +8,7 @@
 
 use stack_model::compose::{ComposedLibrary, NounKind, compose_space};
 use stack_model::resolve::{ExtSource, ExtensionDescriptor, ExtensionLibrary, RollupInputs};
-use stack_model::types::ViewDescriptor;
+use ship_ui::ViewDescriptor;
 
 fn view(prefix: &str, route: &str, component_ref: &str) -> ViewDescriptor {
     ViewDescriptor {

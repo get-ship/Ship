@@ -104,7 +104,12 @@ fn assert_master_invariant(db_path: &std::path::Path) {
             .await
     })
     .unwrap();
-    assert_eq!(before, after, "master invariant violated post-crash-recovery at {}", db_path.display());
+    assert_eq!(
+        before,
+        after,
+        "master invariant violated post-crash-recovery at {}",
+        db_path.display()
+    );
 }
 
 /// Run one crash trial: fresh scope db, spawn the child at `crash_point`,
@@ -145,7 +150,10 @@ fn run_crash_trial(crash_point: &str, trial: usize) -> (std::path::PathBuf, bool
         libc::kill(child.id() as i32, libc::SIGKILL);
     }
     let status = child.wait().expect("reap killed child");
-    assert!(!status.success(), "child must have been killed, not exited cleanly");
+    assert!(
+        !status.success(),
+        "child must have been killed, not exited cleanly"
+    );
 
     let (event_present, actor_present) = row_present(&db_path, &event_id, &entity_id);
     (db_path, event_present, actor_present)

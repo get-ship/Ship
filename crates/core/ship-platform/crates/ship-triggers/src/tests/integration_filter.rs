@@ -113,7 +113,7 @@ fn triggers_filter_build_event_context_exposes_envelope_fields() {
 // `triggers_filter_engine_passes_with_matching_filter` and
 // `triggers_filter_engine_blocks_with_nonmatching_filter` (the
 // descriptor-driven filter-gated dispatch cases) are retired:
-// `stack_model::TriggerDef` has no TS shape for the dot-path payload filter
+// `crate::TriggerDef` has no TS shape for the dot-path payload filter
 // yet (def.rs's `convert_trigger_match` always emits `filter: None`), so
 // there is no descriptor input left to build them from. `filter::matches`'s
 // dot-path matching logic itself stays fully covered by the unit tests

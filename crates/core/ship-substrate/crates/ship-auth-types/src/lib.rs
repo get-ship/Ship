@@ -29,6 +29,5 @@ pub mod session;
 pub use peer_identity::{resolve as resolve_peer_identity, PeerIdentity};
 pub use scopes::{
     drop_session, generate_session_token, hex_encode, is_session_token, mint_session,
-    operator_session, session_registry, set_session_registry, space_window_session, DaemonSession,
-    SessionRegistry,
+    operator_session, space_window_session, DaemonSession, SessionRegistry,
 };

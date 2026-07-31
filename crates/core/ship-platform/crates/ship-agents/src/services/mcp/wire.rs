@@ -1,7 +1,7 @@
 //! ConnectRPC wire layer for `McpService`.
 //!
 //! `McpWire<G>` holds an `Arc<dyn McpService>` and a gate closure.
-//! It implements `ship_ops_rpc::McpService` so shipd can mount it via
+//! It implements `ship_proto::ship::ops::v1::McpService` so shipd can mount it via
 //! `McpServiceExt::register`, replacing the `impl McpService for OpsImpl`
 //! that lived in `apps/shipd/src/mcp_rpc.rs`.
 
@@ -10,9 +10,7 @@ use std::sync::Arc;
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
 use ship_files::files::Scope;
 
-use ship_ops_rpc::{
-    IndexEntry, JsonResponse, McpIndexResponse, McpService as McpServiceTrait, ScopedMutation,
-};
+use ship_proto::ship::ops::v1::{IndexEntry, JsonResponse, McpIndexResponse, McpService as McpServiceTrait, ScopedMutation};
 
 use crate::services::mcp::service::McpService;
 use crate::services::mcp::service::{CreateArgs, PutArgs};
@@ -75,7 +73,11 @@ fn scoped(id: &str, resolved: Scope) -> ScopedMutation {
         Scope::User => "user",
     }
     .to_string();
-    ScopedMutation { id: id.to_string(), scope, ..Default::default() }
+    ScopedMutation {
+        id: id.to_string(),
+        scope,
+        ..Default::default()
+    }
 }
 
 // ── Trait implementation ──────────────────────────────────────────────────────
@@ -85,21 +87,28 @@ impl McpServiceTrait for McpWire {
     async fn list(
         &self,
         _ctx: RequestContext,
-        _request: ship_ops_rpc::OwnedListMcpRequestView,
+        _request: ship_proto::ship::ops::v1::OwnedListMcpRequestView,
     ) -> ServiceResult<McpIndexResponse> {
         let items = self
             .svc
             .list()
             .into_iter()
-            .map(|e| IndexEntry { id: e.id, scope: scope_str(e.scope), ..Default::default() })
+            .map(|e| IndexEntry {
+                id: e.id,
+                scope: scope_str(e.scope),
+                ..Default::default()
+            })
             .collect();
-        Ok(Response::new(McpIndexResponse { items, ..Default::default() }))
+        Ok(Response::new(McpIndexResponse {
+            items,
+            ..Default::default()
+        }))
     }
 
     async fn get(
         &self,
         _ctx: RequestContext,
-        request: ship_ops_rpc::OwnedGetMcpRequestView,
+        request: ship_proto::ship::ops::v1::OwnedGetMcpRequestView,
     ) -> ServiceResult<JsonResponse> {
         let scope = parse_scope(request.scope)?;
         let entry = self.svc.get(request.id, scope).map_err(|e| match e {
@@ -108,20 +117,27 @@ impl McpServiceTrait for McpWire {
         })?;
         let json = serde_json::to_string(&entry)
             .map_err(|e| ConnectError::internal(format!("serialize mcp.get: {e}")))?;
-        Ok(Response::new(JsonResponse { json, ..Default::default() }))
+        Ok(Response::new(JsonResponse {
+            json,
+            ..Default::default()
+        }))
     }
 
     async fn create(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedCreateMcpRequestView,
+        request: ship_proto::ship::ops::v1::OwnedCreateMcpRequestView,
     ) -> ServiceResult<ScopedMutation> {
         (self.gate)(&ctx, "mcp.create")?;
         let server = parse_json(request.server_json, "server_json")?;
         let scope = parse_scope(request.scope)?;
         let resolved = self
             .svc
-            .create(CreateArgs { id: request.id.to_string(), server, scope })
+            .create(CreateArgs {
+                id: request.id.to_string(),
+                server,
+                scope,
+            })
             .map_err(mcp_err)?;
         Ok(Response::new(scoped(request.id, resolved)))
     }
@@ -129,14 +145,18 @@ impl McpServiceTrait for McpWire {
     async fn put(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedPutMcpRequestView,
+        request: ship_proto::ship::ops::v1::OwnedPutMcpRequestView,
     ) -> ServiceResult<ScopedMutation> {
         (self.gate)(&ctx, "mcp.put")?;
         let server = parse_json(request.server_json, "server_json")?;
         let scope = parse_scope(request.scope)?;
         let resolved = self
             .svc
-            .put(PutArgs { id: request.id.to_string(), server, scope })
+            .put(PutArgs {
+                id: request.id.to_string(),
+                server,
+                scope,
+            })
             .map_err(mcp_err)?;
         Ok(Response::new(scoped(request.id, resolved)))
     }
@@ -144,7 +164,7 @@ impl McpServiceTrait for McpWire {
     async fn patch(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedPatchMcpRequestView,
+        request: ship_proto::ship::ops::v1::OwnedPatchMcpRequestView,
     ) -> ServiceResult<ScopedMutation> {
         (self.gate)(&ctx, "mcp.patch")?;
         let patch: json_patch::Patch = serde_json::from_str(request.patch_json)
@@ -157,7 +177,7 @@ impl McpServiceTrait for McpWire {
     async fn delete(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedDeleteMcpRequestView,
+        request: ship_proto::ship::ops::v1::OwnedDeleteMcpRequestView,
     ) -> ServiceResult<ScopedMutation> {
         (self.gate)(&ctx, "mcp.delete")?;
         let scope = parse_scope(request.scope)?;

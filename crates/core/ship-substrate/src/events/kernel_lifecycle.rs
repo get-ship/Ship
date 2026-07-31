@@ -47,15 +47,20 @@ impl KernelRouter {
         )?;
         event.actor_id = Some(actor_id.to_string());
         let ctx = crate::events::off_kernel_ctx(binding.clone());
-        crate::events::apply_stamp_chokepoint(&mut event, &binding, &ctx)
-            .map_err(|e| anyhow!("{e}"))?;
+        let stamped = crate::events::apply_stamp_chokepoint_at(
+            &mut event,
+            &binding,
+            &ctx,
+            Some(self.base_dir()),
+        )
+        .map_err(|e| anyhow!("{e}"))?;
 
         // Persist through the inner router — it routes via PartitionedSink
         // (Runtime scope → runtime.db) and dispatches the projection bus,
         // which is what updates the `actors` read model to `crashed`.
         // The actor's mailbox is being torn down here, so mailbox
         // delivery is suppressed by inner.persist (no subscribers).
-        self.inner.persist(&event)?;
+        self.inner.persist(&stamped)?;
 
         let db_path = self.actor_db_path(actor_id);
         if db_path.exists() {

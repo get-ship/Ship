@@ -9,15 +9,16 @@ use serde_json::json;
 use ship_collection::projection::SchemaRegistry;
 use ship_collection::service::CollectionService;
 use ship_substrate::data::DataService;
-use ship_substrate::{new_isolated_for_test, KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
+use ship_substrate::events::new_isolated_for_test_with;
+use ship_substrate::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
 
 mod common;
 
 fn make_kernel(tmp: &tempfile::TempDir) -> Arc<KernelLog> {
-    common::install_collection_projection();
     let ship_dir = tmp.path().join(".ship");
     std::fs::create_dir_all(&ship_dir).unwrap();
-    let router = new_isolated_for_test(ship_dir).unwrap();
+    let router =
+        new_isolated_for_test_with(ship_dir, common::collection_projection_factory()).unwrap();
     Arc::new(KernelLog::new(router))
 }
 
@@ -81,7 +82,11 @@ async fn concurrent_item_creates_produce_no_corruption() {
         })
         .await
         .unwrap();
-    assert_eq!(items.len(), n_writers, "no lost or duplicated rows under concurrency");
+    assert_eq!(
+        items.len(),
+        n_writers,
+        "no lost or duplicated rows under concurrency"
+    );
 
     let mut ids: Vec<&str> = items.iter().map(|i| i.id.as_str()).collect();
     ids.sort();
@@ -93,7 +98,11 @@ async fn concurrent_item_creates_produce_no_corruption() {
         .filter_map(|i| i.data.get("n").and_then(|v| v.as_f64()).map(|f| f as i64))
         .collect();
     ns.sort();
-    assert_eq!(ns, (0..n_writers as i64).collect::<Vec<_>>(), "no value corruption under concurrency");
+    assert_eq!(
+        ns,
+        (0..n_writers as i64).collect::<Vec<_>>(),
+        "no value corruption under concurrency"
+    );
 }
 
 /// Interleave `update_schema` (adding a new column) with concurrent
@@ -152,7 +161,10 @@ async fn schema_change_interleaved_with_item_writes_stays_consistent() {
     });
 
     let schema_result = schema_handle.await.unwrap();
-    assert!(schema_result.is_ok(), "concurrent update_schema must succeed: {schema_result:?}");
+    assert!(
+        schema_result.is_ok(),
+        "concurrent update_schema must succeed: {schema_result:?}"
+    );
 
     let mut pre_ok = 0;
     for h in handles {
@@ -160,7 +172,10 @@ async fn schema_change_interleaved_with_item_writes_stays_consistent() {
             pre_ok += 1;
         }
     }
-    assert_eq!(pre_ok, 20, "every writer racing the schema change must still succeed");
+    assert_eq!(
+        pre_ok, 20,
+        "every writer racing the schema change must still succeed"
+    );
 
     // Post-change writers exercising the new field.
     let mut post_handles = Vec::new();
@@ -169,7 +184,8 @@ async fn schema_change_interleaved_with_item_writes_stays_consistent() {
         post_handles.push(tokio::spawn(async move {
             svc.create_item(
                 "evolve_concur",
-                &serde_json::to_vec(&json!({ "title": format!("post-{i}"), "tag": "new" })).unwrap(),
+                &serde_json::to_vec(&json!({ "title": format!("post-{i}"), "tag": "new" }))
+                    .unwrap(),
             )
             .await
         }));
@@ -190,12 +206,20 @@ async fn schema_change_interleaved_with_item_writes_stays_consistent() {
         })
         .await
         .unwrap();
-    assert_eq!(items.len(), 40, "all pre- and post-evolution writes must survive, none lost");
+    assert_eq!(
+        items.len(),
+        40,
+        "all pre- and post-evolution writes must survive, none lost"
+    );
 
     let mut ids: Vec<&str> = items.iter().map(|i| i.id.as_str()).collect();
     ids.sort();
     ids.dedup();
-    assert_eq!(ids.len(), 40, "no duplicated ids under interleaved schema change + writes");
+    assert_eq!(
+        ids.len(),
+        40,
+        "no duplicated ids under interleaved schema change + writes"
+    );
 
     // Every item's `title` must be intact (non-empty, matches its pre-/post-
     // prefix) — a corrupted projection would show truncated/garbled/blank
@@ -203,15 +227,24 @@ async fn schema_change_interleaved_with_item_writes_stays_consistent() {
     for item in &items {
         let title = item.data.get("title").and_then(|v| v.as_str());
         assert!(
-            title.map(|t| t.starts_with("pre-") || t.starts_with("post-")).unwrap_or(false),
+            title
+                .map(|t| t.starts_with("pre-") || t.starts_with("post-"))
+                .unwrap_or(false),
             "corrupted title for item {}: {:?}",
             item.id,
             item.data
         );
     }
 
-    let final_schema = svc.list().into_iter().find(|s| s.id == "evolve_concur").unwrap();
-    assert!(final_schema.fields.contains_key("tag"), "final schema must reflect the update");
+    let final_schema = svc
+        .list()
+        .into_iter()
+        .find(|s| s.id == "evolve_concur")
+        .unwrap();
+    assert!(
+        final_schema.fields.contains_key("tag"),
+        "final schema must reflect the update"
+    );
 }
 
 /// Concurrent reads racing concurrent writes on the same collection — reads

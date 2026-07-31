@@ -1,11 +1,11 @@
 //! Phase-3 spine smoke — the exemplar loop PROVEN over one real on-disk
 //! fixture, not asserted piecemeal.
 //!
-//! Each piece here is independently proven elsewhere: `ship-resolver`'s own
-//! `roll_up` tests (`crates/core/ship-resolver/src/lib.rs`), `ship-config`'s
+//! Each piece here is independently proven elsewhere: `space-resolver`'s own
+//! `roll_up` tests (`crates/core/space-resolver/src/lib.rs`), `ship-settings`'s
 //! `agents_index_provenance.rs` (`AgentDefIndex::upsert_composed`),
 //! `ship-agents`' `view_state_tests.rs` (the index-backed view surfacing a
-//! shadow), and `ship-resolver`'s `cache.rs` (kernel-log invalidation). This
+//! shadow), and shipd's descriptor-cache (kernel-log invalidation, tested there). This
 //! file is the one place that walks all four across the SAME fixture, in
 //! the SAME process, cross-crate, without the shipd boot wall:
 //!
@@ -28,21 +28,16 @@
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
 
 use harness_config_compiler::compile;
-use stack_model::{ExtSource, resolve_library};
 use ship_agents::services::agents::view_state::{list_agents_from_index, load_agent_from_index};
-use ship_config::agents_index::{AgentDefIndex, AgentDefQuery};
-use ship_resolver::cache::DescriptorCache;
-use ship_resolver::descriptor::{extension_library_canonical, extension_library_content_hash};
-use ship_resolver::roll_up_members;
+use ship_settings::agents_index::{AgentDefIndex, AgentDefQuery};
+use space_resolver::descriptor::{extension_library_canonical, extension_library_content_hash};
+use space_resolver::roll_up_members;
 use ship_substrate::data::DataService;
-use ship_substrate::events::new_isolated_for_test;
+use ship_substrate::ports::{DataStore, SingleBackendDataStore};
+use stack_model::{ExtSource, resolve_library};
 
-use ship_substrate::ports::{DataStore, KernelLog, SingleBackendDataStore, SpaceId};
-use ship_types::payload::ConfigFileChanged;
-use ship_types::{EventEnvelope, event_types};
 
 // ── Fixture ─────────────────────────────────────────────────────────────────
 
@@ -53,7 +48,7 @@ const PKG_HEX: &str = "f00dcafe";
 /// The cached package's bare agent id is `helper`; `load_cached_extensions`
 /// namespaces it to `<PKG_PATH>/helper` on roll-up. The source authors an
 /// agent under that EXACT post-namespace id to force the collision — the
-/// same shape `ship-resolver`'s own
+/// same shape `space-resolver`'s own
 /// `roll_up_source_shadows_cached_agent_on_id_collision` test uses.
 const COLLIDING_ID: &str = "example.test/acme/kit/helper";
 
@@ -92,9 +87,12 @@ defineAgent({{
 }});
 "#,
     );
-    std::fs::write(space_root.join("agents").join(format!("{stem}.ts")), rendered).unwrap();
+    std::fs::write(
+        space_root.join("agents").join(format!("{stem}.ts")),
+        rendered,
+    )
+    .unwrap();
 }
-
 
 /// Author the source's skill on-disk (slice 2b close-out convention):
 /// `skills/<id>/SKILL.md` is the per-extension-project source surface
@@ -119,11 +117,7 @@ fn write_colliding_fixture() -> (tempfile::TempDir, PathBuf, PathBuf) {
     // ship.lock sits beside it.
 
     // 1. Thin pointer manifest.
-    std::fs::write(
-        space_root.join("stack.config.ts"),
-        SPINE_CONFIG_TS_MANIFEST,
-    )
-    .unwrap();
+    std::fs::write(space_root.join("stack.config.ts"), SPINE_CONFIG_TS_MANIFEST).unwrap();
 
     // 2. The colliding agent (the `helper` cached id, namespaced to
     //    the package's full id — per `COLLIDING_ID`).
@@ -132,8 +126,6 @@ fn write_colliding_fixture() -> (tempfile::TempDir, PathBuf, PathBuf) {
 
     // 3. The source's on-disk skill (slice 2b close-out convention).
     write_skill_md(&space_root);
-
-
 
     let cache_root = space_root.join("cache");
     let obj = cache_root.join("objects").join(PKG_HEX);
@@ -173,10 +165,9 @@ fn write_colliding_fixture() -> (tempfile::TempDir, PathBuf, PathBuf) {
 /// only the rule body mutates between the pre-edit and the
 /// change-leg resolve, proving the recompose is visible. The
 /// `COLLIDING_ID` is fixed across edits (the cached-package
-/// collision shape `ship-resolver`'s own
+/// collision shape `space-resolver`'s own
 /// `roll_up_source_shadows_cached_agent_on_id_collision` test
 /// exercises); the agent + skill declarations are stable.
-
 
 async fn make_index(ship_dir: &Path, db_name: &str) -> AgentDefIndex {
     let db = ship_substrate::db::space_db_path(ship_dir, db_name);
@@ -207,7 +198,9 @@ async fn spine_roll_up_index_and_view_agree_on_the_collision() {
     let ship_dir = &space_root.join(".ship");
 
     // 1+2. `roll_up` composes: source wins, shadow record present.
-    let composed = roll_up_members(&[space_root.clone()], Some(&cache_root)).await.unwrap();
+    let composed = roll_up_members(&[space_root.clone()], Some(&cache_root))
+        .await
+        .unwrap();
     assert_eq!(composed.shadows.len(), 1, "one collision recorded");
     let shadow = &composed.shadows[0];
     assert_eq!(shadow.id, COLLIDING_ID);
@@ -248,10 +241,17 @@ async fn spine_roll_up_index_and_view_agree_on_the_collision() {
     //    same truth — the collided id shows the winner and the shadowed row
     //    is still surfaceable through the index's audit surface.
     let list = list_agents_from_index(&index, &ship_dir).await;
-    assert_eq!(list.len(), 1, "the shadow never surfaces as a selectable agent");
+    assert_eq!(
+        list.len(),
+        1,
+        "the shadow never surfaces as a selectable agent"
+    );
     assert_eq!(list[0].id, COLLIDING_ID);
     assert_eq!(list[0].name, "Source Helper");
-    assert_eq!(list[0].source, "space", "the view's source label is the winning tier's kind");
+    assert_eq!(
+        list[0].source, "space",
+        "the view's source label is the winning tier's kind"
+    );
 
     let detail = load_agent_from_index(&index, &ship_dir, COLLIDING_ID)
         .await
@@ -259,7 +259,8 @@ async fn spine_roll_up_index_and_view_agree_on_the_collision() {
     assert_eq!(detail.name, "Source Helper");
 
     assert!(
-        rows.iter().any(|r| r.id == COLLIDING_ID && r.shadowed_by.is_some()),
+        rows.iter()
+            .any(|r| r.id == COLLIDING_ID && r.shadowed_by.is_some()),
         "the shadowed row is queryable even though it never surfaces in list/detail"
     );
 }
@@ -267,84 +268,40 @@ async fn spine_roll_up_index_and_view_agree_on_the_collision() {
 // ── Leg 5: the change leg ─────────────────────────────────────────────────────
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn spine_config_file_changed_invalidates_cache_and_recompose_sees_the_edit() {
+async fn spine_recompose_sees_agent_edit() {
+    // DescriptorCache lives in shipd composition; invalidation is covered
+    // there. This leg still proves the roll-up/recompose path sees an
+    // on-disk agent edit via content-hash change.
     let (_tmp, space_root, cache_root) = write_colliding_fixture();
-    let ship_dir = &space_root.join(".ship");
 
-    let kernel = Arc::new(KernelLog::new(new_isolated_for_test(ship_dir.clone()).unwrap()));
-    let cache = DescriptorCache::open(space_root.join("resolver-cache"), Some(kernel.clone())).unwrap();
-    let sub = cache.spawn_invalidation_subscriber();
-    tokio::task::yield_now().await;
-    let space_id = SpaceId::new("spine-smoke");
-
-    // Resolve once, pre-edit. The load_fn IS the production pipeline
-    // (roll_up → resolve_library → compile), not a stand-in.
     let hash_before = {
-        let composed = roll_up_members(&[space_root.clone()], Some(&cache_root)).await.unwrap();
+        let composed = roll_up_members(&[space_root.clone()], Some(&cache_root))
+            .await
+            .unwrap();
         extension_library_content_hash(&composed.library).unwrap()
     };
-    let before = cache
-        .get_or_load(&space_id, &hash_before, "claude", || {
-            resolve_claude_output(&space_root, &cache_root)
-        })
-        .await
-        .unwrap();
+    let before = resolve_claude_output(&space_root, &cache_root).unwrap();
     let before_context = before.context_content.clone().unwrap_or_default();
     assert!(before_context.contains("Be terse."), "{before_context}");
     assert!(!before_context.contains("Ship it."), "{before_context}");
-    assert_eq!(cache._len().await, 1);
 
-    // Edit the source's agent file — the change leg exercises the
-    // recompose visibility by mutating the agent's inline rule body.
-    // The rules-format cut moved the rule body from the on-disk
-    // `rules/<id>.md` convention to the agent's `rules: { inline }`
-    // block; the change surface is the agent's TS file.
     write_agent_ts_with_rule(&space_root, COLLIDING_ID, "Be terse. Ship it.");
 
-    // Author + broadcast the synthetic `config.file_changed` — the keystone
-    // pattern (no inotify, not flaky), the same shape `ship-resolver`'s own
-    // `cache.rs` tests inject. The cache subscriber filters on event type
-    // (not path); the path is metadata. The change surface is the
-    // agent's TS file (the file we just rewrote); the event's
-    // `path` field carries the manifest path for audit, but the
-    // cache doesn't key on it.
-    kernel.broadcast(
-        EventEnvelope::new(
-            event_types::CONFIG_FILE_CHANGED,
-            "stack.config.ts",
-            &ConfigFileChanged {
-                domain: "source".to_string(),
-                path: "stack.config.ts".to_string(),
-                content_hash: "edited".to_string(),
-            },
-        )
-        .unwrap(),
-    );
-
-    // The descriptor cache invalidates — poll briefly for the tick to land.
-    let deadline = Instant::now() + Duration::from_millis(1000);
-    while Instant::now() < deadline && cache._len().await != 0 {
-        tokio::time::sleep(Duration::from_millis(10)).await;
-    }
-    assert_eq!(cache._len().await, 0, "the descriptor cache invalidates on config.file_changed");
-
-    // The next resolve recomposes with the edit visible.
     let hash_after = {
-        let composed = roll_up_members(&[space_root.clone()], Some(&cache_root)).await.unwrap();
+        let composed = roll_up_members(&[space_root.clone()], Some(&cache_root))
+            .await
+            .unwrap();
         extension_library_content_hash(&composed.library).unwrap()
     };
     assert_ne!(hash_after, hash_before, "the edit changes the roll-up's content hash");
-    let after = cache
-        .get_or_load(&space_id, &hash_after, "claude", || {
-            resolve_claude_output(&space_root, &cache_root)
-        })
-        .await
-        .unwrap();
+    let after = resolve_claude_output(&space_root, &cache_root).unwrap();
     let after_context = after.context_content.clone().unwrap_or_default();
-    assert!(after_context.contains("Ship it."), "recompose must reflect the edit: {after_context}");
-
-    sub.abort();
+    assert!(
+        after_context.contains("Ship it."),
+        "recompose must surface the edited rule body; got: {after_context}"
+    );
 }
+
 
 // ── Leg 6: determinism ────────────────────────────────────────────────────────
 
@@ -352,11 +309,18 @@ async fn spine_config_file_changed_invalidates_cache_and_recompose_sees_the_edit
 async fn spine_roll_up_compose_is_deterministic_across_two_runs() {
     let (_tmp, space_root, cache_root) = write_colliding_fixture();
 
-    let a = roll_up_members(&[space_root.clone()], Some(&cache_root)).await.unwrap();
-    let b = roll_up_members(&[space_root.clone()], Some(&cache_root)).await.unwrap();
+    let a = roll_up_members(&[space_root.clone()], Some(&cache_root))
+        .await
+        .unwrap();
+    let b = roll_up_members(&[space_root.clone()], Some(&cache_root))
+        .await
+        .unwrap();
 
     let a_bytes = extension_library_canonical(&a.library).unwrap();
     let b_bytes = extension_library_canonical(&b.library).unwrap();
-    assert_eq!(a_bytes, b_bytes, "two roll-ups over the same fixture must be byte-identical");
+    assert_eq!(
+        a_bytes, b_bytes,
+        "two roll-ups over the same fixture must be byte-identical"
+    );
     assert_eq!(a.shadows.len(), b.shadows.len());
 }

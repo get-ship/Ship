@@ -36,4 +36,3 @@ pub struct AgentTemplatesResponse {
 pub struct PermissionPresetsResponse {
     pub items: Vec<PermissionPreset>,
 }
-

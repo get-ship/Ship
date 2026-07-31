@@ -11,7 +11,6 @@ use specta::Type;
 
 use ship_pipelines::types::StepType;
 
-
 /// What triggered the step observation.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Type)]
 #[serde(rename_all = "snake_case")]

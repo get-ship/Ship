@@ -8,6 +8,9 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use super::embed::ShipdKernelSink;
+use super::gateway::ShipdGateway;
+use crate::ship_runtime::SharedKernel;
 use agent_schema::dispatch_intent::DispatchRequestedPayload;
 use connectrpc::client::{ClientConfig, Http2Connection};
 use yoke::{
@@ -15,13 +18,10 @@ use yoke::{
     SessionStarted,
     gateway::{Gateway, GatewayCallKind, GatewayError},
 };
-use ship_ops_rpc::yoke::v1::{
-    OpResultRequest, StartSessionRequest, YokeSessionServiceClient,
-    __buffa::view::oneof::session_event as view_event,
+use yoke_proto::ship::yoke::v1::{
+    __buffa::view::oneof::session_event as view_event, OpResultRequest, StartSessionRequest,
+    YokeSessionServiceClient,
 };
-use super::embed::ShipdKernelSink;
-use super::gateway::ShipdGateway;
-use crate::ship_runtime::SharedKernel;
 
 // ── Socket resolution ────────────────────────────────────────────────────────
 
@@ -58,9 +58,17 @@ pub fn resolve_socket_path() -> String {
 /// Terminal outcome of a harness session over Connect.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SessionOutcome {
-    Completed { session_id: String },
-    Failed { session_id: String, message: String },
-    Cancelled { session_id: String, reason: Option<String> },
+    Completed {
+        session_id: String,
+    },
+    Failed {
+        session_id: String,
+        message: String,
+    },
+    Cancelled {
+        session_id: String,
+        reason: Option<String>,
+    },
 }
 
 // ── Dispatch entry ───────────────────────────────────────────────────────────
@@ -114,10 +122,7 @@ pub async fn dispatch_yoke_session_rpc(
         }) => {
             tracing::error!(%session_id, %message, "yoke-connect: session failed");
         }
-        Ok(SessionOutcome::Cancelled {
-            session_id,
-            reason,
-        }) => {
+        Ok(SessionOutcome::Cancelled { session_id, reason }) => {
             tracing::warn!(%session_id, ?reason, "yoke-connect: session cancelled");
         }
         Err(e) => {
@@ -254,10 +259,7 @@ pub async fn run_session(
                         reason: reason.clone(),
                     },
                 );
-                return Ok(SessionOutcome::Cancelled {
-                    session_id,
-                    reason,
-                });
+                return Ok(SessionOutcome::Cancelled { session_id, reason });
             }
             Some(view_event::Event::OpCall(call)) => {
                 let id = call.id.to_string();
@@ -269,15 +271,8 @@ pub async fn run_session(
                     %op,
                     "yoke-connect: op_call",
                 );
-                let result_req = answer_op_call(
-                    gateway.as_ref(),
-                    &auth,
-                    &id,
-                    &session_id,
-                    &op,
-                    args_json,
-                )
-                .await;
+                let result_req =
+                    answer_op_call(gateway.as_ref(), &auth, &id, &session_id, &op, args_json).await;
                 if let Err(e) = op_client.op_result(result_req).await {
                     tracing::warn!(
                         %id,
@@ -307,10 +302,7 @@ async fn answer_op_call(
         serde_json::from_str(args_json).unwrap_or_else(|_| serde_json::json!({}))
     };
 
-    match gateway
-        .call(op, args, auth, GatewayCallKind::First)
-        .await
-    {
+    match gateway.call(op, args, auth, GatewayCallKind::First).await {
         Ok(value) => OpResultRequest {
             id: id.to_string(),
             session_id: session_id.to_string(),

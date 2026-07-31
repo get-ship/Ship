@@ -16,8 +16,8 @@ use std::time::Instant;
 
 use crate::db::envelope::{EVENT_COLS as COLS, envelope_from_row};
 use crate::db::{block_on, ensure_events_db_at_path, open_db_at};
+use crate::projections::{ActorProjection, EventBus, ProjectionFactory, no_extra_projections};
 use ship_types::envelope::EventEnvelope;
-use crate::projections::{ActorProjection, EventBus};
 
 /// Report returned by a projection rebuild. Aggregates across every scope db
 /// that was rebuilt.
@@ -28,13 +28,13 @@ pub struct RebuildReport {
 }
 
 /// Construct the full projection bus: the L0 substrate defaults plus every
-/// projection a higher layer registered via `install_extra_projections_factory`.
+/// extra projection the composition root supplied via `factory`.
 /// The same set is registered against every scope db; each db only materializes
 /// the projections whose event types appear in its own log.
-fn full_bus() -> EventBus {
+fn full_bus(factory: &ProjectionFactory) -> EventBus {
     let mut bus = EventBus::new();
     bus.register(Box::new(ActorProjection::new()));
-    for projection in crate::projections::extra_projections() {
+    for projection in factory() {
         bus.register(projection);
     }
     bus
@@ -77,6 +77,14 @@ fn scope_db_paths(ship_dir: &Path) -> Vec<PathBuf> {
 ///
 /// Returns the per-db `(events_replayed, projections_rebuilt)`.
 pub fn rebuild_scope_db(db_path: &Path) -> Result<(usize, Vec<String>)> {
+    rebuild_scope_db_with(db_path, &no_extra_projections())
+}
+
+/// Like [`rebuild_scope_db`] but registers `factory` extras on the bus.
+pub fn rebuild_scope_db_with(
+    db_path: &Path,
+    factory: &ProjectionFactory,
+) -> Result<(usize, Vec<String>)> {
     ensure_events_db_at_path(db_path)?;
     let mut conn = open_db_at(db_path)?;
 
@@ -91,7 +99,7 @@ pub fn rebuild_scope_db(db_path: &Path) -> Result<(usize, Vec<String>)> {
         .map(|r| envelope_from_row(r, true))
         .collect::<Result<_>>()?;
 
-    let bus = full_bus();
+    let bus = full_bus(factory);
     let report = bus.rebuild(&events, &mut conn)?;
     Ok((report.events_replayed, report.projections_rebuilt))
 }
@@ -102,14 +110,25 @@ pub fn rebuild_scope_db(db_path: &Path) -> Result<(usize, Vec<String>)> {
 /// `spaces/<id>/space.db`, rebuilding each from ITS own event log into ITS own
 /// projection tables. The report aggregates the replayed-event count and the
 /// distinct projection names touched.
+///
+/// L0-only (`ActorProjection`). Prefer [`rebuild_projections_with`] when the
+/// composition root has domain projections to restore.
 pub fn rebuild_projections(ship_dir: &Path) -> Result<RebuildReport> {
+    rebuild_projections_with(ship_dir, &no_extra_projections())
+}
+
+/// Like [`rebuild_projections`] but registers `factory` extras on every scope bus.
+pub fn rebuild_projections_with(
+    ship_dir: &Path,
+    factory: &ProjectionFactory,
+) -> Result<RebuildReport> {
     let start = Instant::now();
 
     let mut events_replayed = 0usize;
     let mut projections_rebuilt: Vec<String> = Vec::new();
 
     for db_path in scope_db_paths(ship_dir) {
-        let (replayed, names) = rebuild_scope_db(&db_path)?;
+        let (replayed, names) = rebuild_scope_db_with(&db_path, factory)?;
         events_replayed += replayed;
         for name in names {
             if !projections_rebuilt.contains(&name) {
@@ -125,7 +144,7 @@ pub fn rebuild_projections(ship_dir: &Path) -> Result<RebuildReport> {
     })
 }
 
-/// Rebuild projections using the default global dir.
+/// Rebuild projections using the default global dir (L0-only bus).
 pub fn rebuild_projections_default() -> Result<RebuildReport> {
     let ship_dir = crate::project::get_global_dir()?;
     rebuild_projections(&ship_dir)

@@ -12,26 +12,26 @@
 use std::sync::Arc;
 
 #[cfg(feature = "bridge")]
-use bridge::lifecycle::build_spawn_env;
-use ship_substrate::events::emit::persist_and_route;
-#[cfg(feature = "bridge")]
-use ship_substrate::events::emit::emit_process_spawned;
-#[cfg(feature = "bridge")]
-#[cfg(feature = "bridge")]
-use bridge::lifecycle::exit_handler;
-#[cfg(feature = "bridge")]
-use bridge::lifecycle::ExitVocabulary;
-#[cfg(feature = "bridge")]
-use ship_substrate::dispatch_gate::DISPATCH_GATE;
-use agent_schema::canonical_session::{SessionFailed, event_types as canonical_session_event_types};
-use agent_schema::dispatch_intent::DispatchRequestedPayload;
+use crate::emit::emit_process_spawned;
 #[cfg(feature = "bridge")]
 use agent_schema::InvocationMode;
-use ship_substrate::events::EventEnvelope;
+use agent_schema::canonical_session::{
+    SessionFailed, event_types as canonical_session_event_types,
+};
+use agent_schema::dispatch_intent::DispatchRequestedPayload;
+#[cfg(feature = "bridge")]
+use bridge::LaunchProfile;
 #[cfg(feature = "bridge")]
 use bridge::dispatch_ports::SessionContext;
 #[cfg(feature = "bridge")]
-use bridge::LaunchProfile;
+use bridge::lifecycle::ExitVocabulary;
+#[cfg(feature = "bridge")]
+use bridge::lifecycle::build_spawn_env;
+#[cfg(feature = "bridge")]
+#[cfg(feature = "bridge")]
+use bridge::lifecycle::exit_handler;
+use ship_substrate::events::EventEnvelope;
+use ship_substrate::events::emit::persist_and_route;
 use tokio::sync::Mutex;
 
 use crate::ports::AgentPorts;
@@ -43,8 +43,8 @@ type Kernel = Arc<Mutex<ship_substrate::events::KernelRouter>>;
 /// the exit handler, and emits `process.spawned`.
 ///
 /// The slow prep (git worktree add + harness spawn + sandbox-up) is detached
-/// off the caller's mailbox loop under the shared L0 [`DISPATCH_GATE`] so one
-/// slow dispatch doesn't stall every other event — see [`crate::actor`].
+/// off the caller's mailbox loop under the injected dispatch-gate semaphore
+/// so one slow dispatch doesn't stall every other event — see [`crate::actor`].
 pub async fn handle_dispatch_requested(
     kernel: &Kernel,
     envelope: &EventEnvelope,
@@ -66,10 +66,7 @@ pub async fn handle_dispatch_requested(
     //
     // `yoke` is the native harness id; `floki` is a temporary alias.
     // Host injects YokeRunFn (shipd: in-process yoke embed by default).
-    let is_native = matches!(
-        payload.harness.as_deref(),
-        Some("floki") | Some("yoke")
-    );
+    let is_native = matches!(payload.harness.as_deref(), Some("floki") | Some("yoke"));
 
     if is_native {
         if ports.yoke_run_fn.is_none() {
@@ -131,7 +128,7 @@ pub async fn handle_dispatch_requested(
         let kernel = kernel.clone();
         let ports = ports.clone();
         tokio::spawn(async move {
-            let _permit = DISPATCH_GATE.acquire().await;
+            let _permit = ports.dispatch_gate.acquire().await;
             dispatch_agent_session_internal(&kernel, &payload, &ports).await;
         });
     }
@@ -155,7 +152,10 @@ async fn dispatch_agent_session_internal(
     // found no handle to stop). Bail before spawning anything — the projection
     // has already marked the session cancelled.
     if ports.registry.take_if_cancelled(slug).await {
-        tracing::info!(slug, "service.agents: session already cancelled — skipping spawn");
+        tracing::info!(
+            slug,
+            "service.agents: session already cancelled — skipping spawn"
+        );
         return;
     }
 
@@ -282,7 +282,10 @@ async fn dispatch_agent_session_internal(
     // now instead of leaving it orphaned.
     if ports.registry.take_if_cancelled(slug).await {
         if let Some(h) = ports.registry.take(slug).await {
-            tracing::info!(slug, "service.agents: cancel raced the spawn — stopping just-spawned child");
+            tracing::info!(
+                slug,
+                "service.agents: cancel raced the spawn — stopping just-spawned child"
+            );
             if let Err(e) = ports.executor.stop(&h).await {
                 tracing::warn!(slug, "service.agents: post-spawn cancel stop failed: {e}");
             }

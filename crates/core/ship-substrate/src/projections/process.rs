@@ -13,8 +13,8 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::events::process::event_types;
 use crate::events::EventEnvelope;
+use crate::events::process::event_types;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -171,9 +171,10 @@ pub fn project(events: &[EventEnvelope]) -> Vec<ProcessRecord> {
             };
 
             if let Some(key) = matching_key
-                && let Some(record) = map.get_mut(&key) {
-                    apply(record, event);
-                }
+                && let Some(record) = map.get_mut(&key)
+            {
+                apply(record, event);
+            }
         }
     }
 

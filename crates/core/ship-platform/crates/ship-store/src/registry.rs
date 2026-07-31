@@ -53,9 +53,7 @@ pub trait Registry: Send + Sync {
 /// Generic over a `BundleFetcher` so the bundle download can be mocked
 /// without touching `reqwest` from tests.
 pub struct HttpRegistry<F: BundleFetcher = ReqwestBundleFetcher> {
-    client: ship_gateway_client::RegistryServiceClient<
-        ship_gateway_client::HttpClient,
-    >,
+    client: ship_gateway_client::RegistryServiceClient<ship_gateway_client::HttpClient>,
     fetcher: F,
 }
 
@@ -73,10 +71,7 @@ impl HttpRegistry<ReqwestBundleFetcher> {
 
 impl<F: BundleFetcher> HttpRegistry<F> {
     /// Build a registry with a custom bundle fetcher (test seam).
-    pub fn with_fetcher(
-        gateway_base_url: &str,
-        fetcher: F,
-    ) -> Result<Self> {
+    pub fn with_fetcher(gateway_base_url: &str, fetcher: F) -> Result<Self> {
         let client = ship_gateway_client::registry_client(gateway_base_url)
             .context("building gateway registry client")?;
         Ok(Self { client, fetcher })

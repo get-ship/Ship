@@ -1,0 +1,68 @@
+[package]
+name = "space-resolver"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Phase-2 space-shape resolver — composes the stack-model leaf (config types) with agent-config-eval (TS eval) over the FsBroker gated door. Emits a canonical ExtensionLibrary + ResolvedConfig descriptor."
+
+[dependencies]
+# The L0 leaf — config types, the `load_library` walk over `.ship/`, the
+# `resolve_library` pure transform, and the Phase-2 field set the descriptor
+# carries (skills_dir, skill_paths, per_agent_skills, modules,
+# globals, rollup_inputs). The new resolver composes with `load_library`
+# for the bulk of the read path; the leaf populates `skill_paths` with
+# the single default entry ([`DEFAULT_SPACE_SKILL_PATH`]) — no
+# `space.skill_paths` ship.jsonc read, no extras walk. Rules are
+# not part of the descriptor field set — the rules-format cut retired
+# the on-disk `rules/<id>.md` convention; rules flow through
+# `declarations.rules` (the resolver's TS eval harvests each agent's
+# `rules: { inline }` body into the merged library).
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "6967f155ca795c19c44a145701c138b2d079c89c" }
+stack-model = { path = "../stack-model" }
+ship-collection = { path = "../ship-platform/crates/ship-collection" }
+ship-pipelines = { path = "../ship-substrate/crates/ship-pipelines" }
+ship-triggers = { path = "../ship-platform/crates/ship-triggers" }
+ship-ui = { path = "../ship-platform/crates/ship-ui" }
+# The V8 isolate glue — `resolve_agents_with_globals` is the only call site
+# for ship.ts eval. V8 is feature-gated on the `deno` feature; the resolver
+# always pulls it (TS eval is the whole point). The `!Send` isolate crosses
+# a `spawn_blocking` boundary here, exactly as shipd's ingest does today
+# (`apps/shipd/src/ship_runtime/tasks.rs:285-304`).
+agent-config-eval = { path = "../agent-config-eval" }
+# The #122 dep-skill / dep-agent cache reader (composition engine).
+# `load_cached_extensions` (Phase-3 J2) returns per-package bundles that
+# the resolver turns into `ExtensionDescriptor`s; the bundling reuses the
+# same ship.lock + cache layout as the agent-def compile path's
+# `resolve_dep_agents` / `resolve_dep_skills`. The new fn is additive —
+# no code motion in ship-store.
+ship-store = { path = "../ship-platform/crates/ship-store" }
+# The gated disk door (R1). All reads route through FsBroker; no `std::fs` /
+# `tokio::fs` in this crate's read path (mirrors ship-settings's grep-gate
+# invariant at `ship-settings/src/agents.rs:1-7`). `fs-cap` lives in
+# ship-substrate, so this is the one place the resolver pulls a substrate
+# dep — the resolver is the FsBroker consumer for project reads.
+ship-substrate = { path = "../ship-substrate" }
+# Closed-world TS strip + SDK stub — re-exported through `agent-config-eval`,
+# but `agent-config-eval` re-exports ship-js and we keep the dep explicit
+# so the resolver's `ts_resolver` module can name the engine in its docs.
+ship-js = { git = "https://github.com/get-ship/ship-exec.git", rev = "ee39e5273ce8829d90043626a01f564e660dd477", features = ["deno"] }
+
+# Plumbing
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true, features = ["preserve_order"] }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "fs", "sync", "time"] }
+tracing = { workspace = true }
+
+# Content-hash helpers — the descriptor's `content_hash` field + the
+# cache key (J5) are SHA-256 hex of the canonical-JSON form. Match the
+# existing `content_hash` in `AgentDefRecord`
+# (`ship-settings/src/agents_index.rs:111-125`) so the cache invalidation
+# key is consistent with the rest of the config tier.
+sha2 = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

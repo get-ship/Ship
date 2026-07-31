@@ -34,10 +34,6 @@
   },
   "plugins": {
     "updater": {
-      "endpoints": [
-        "https://github.com/madvib/Shipwright/releases/latest/download/latest.json"
-      ],
-      "pubkey": "",
       "windows": {
         "installMode": "passive"
       }

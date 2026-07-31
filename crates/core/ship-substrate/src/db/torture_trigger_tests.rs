@@ -9,6 +9,7 @@
 use crate::db::{self, block_on};
 use crate::persistence::event_store::{EventStore, SqliteEventStore};
 use ship_types::envelope::EventEnvelope;
+use ship_types::Stamped;
 use ship_types::event_types as ev;
 
 fn setup() -> (tempfile::TempDir, std::path::PathBuf, SqliteEventStore) {
@@ -23,8 +24,9 @@ fn setup() -> (tempfile::TempDir, std::path::PathBuf, SqliteEventStore) {
 #[test]
 fn update_on_committed_event_row_is_rejected_by_trigger() {
     let (_tmp, db_path, store) = setup();
-    let event = EventEnvelope::new(ev::ACTOR_CREATED, "trigger-drill", &serde_json::json!({})).unwrap();
-    store.append(&event).unwrap();
+    let event =
+        EventEnvelope::new(ev::ACTOR_CREATED, "trigger-drill", &serde_json::json!({})).unwrap();
+    store.append(&Stamped::unchecked(event.clone())).unwrap();
 
     let mut conn = db::open_db_at(&db_path).unwrap();
     let result = block_on(async {
@@ -47,7 +49,10 @@ fn update_on_committed_event_row_is_rejected_by_trigger() {
     // transaction rollback of prior statements, but this lone UPDATE must
     // leave the row exactly as it was).
     let stored = store.get(&event.id).unwrap().unwrap();
-    assert_eq!(stored.payload_json, event.payload_json, "the row must be untouched by the rejected UPDATE");
+    assert_eq!(
+        stored.payload_json, event.payload_json,
+        "the row must be untouched by the rejected UPDATE"
+    );
 }
 
 /// UPDATE rejection must not depend on which column is targeted — the
@@ -56,16 +61,28 @@ fn update_on_committed_event_row_is_rejected_by_trigger() {
 #[test]
 fn update_on_any_column_of_a_committed_event_row_is_rejected() {
     let (_tmp, db_path, store) = setup();
-    let event = EventEnvelope::new(ev::ACTOR_CREATED, "trigger-drill-2", &serde_json::json!({})).unwrap();
-    store.append(&event).unwrap();
+    let event =
+        EventEnvelope::new(ev::ACTOR_CREATED, "trigger-drill-2", &serde_json::json!({})).unwrap();
+    store.append(&Stamped::unchecked(event.clone())).unwrap();
 
     let mut conn = db::open_db_at(&db_path).unwrap();
-    for (col, value) in [("event_type", "tampered.type"), ("entity_id", "tampered-entity"), ("actor", "tampered-actor")] {
+    for (col, value) in [
+        ("event_type", "tampered.type"),
+        ("entity_id", "tampered-entity"),
+        ("actor", "tampered-actor"),
+    ] {
         let sql = format!("UPDATE events SET {col} = ? WHERE id = ?");
         let result = block_on(async {
-            sqlx::query(&sql).bind(value).bind(&event.id).execute(&mut conn).await
+            sqlx::query(&sql)
+                .bind(value)
+                .bind(&event.id)
+                .execute(&mut conn)
+                .await
         });
-        assert!(result.is_err(), "UPDATE on column '{col}' must be rejected by events_immutable");
+        assert!(
+            result.is_err(),
+            "UPDATE on column '{col}' must be rejected by events_immutable"
+        );
     }
 }
 
@@ -77,9 +94,13 @@ fn update_on_any_column_of_a_committed_event_row_is_rejected() {
 fn append_path_is_never_caught_by_the_update_trigger() {
     let (_tmp, _db_path, store) = setup();
     for i in 0..50 {
-        let event = EventEnvelope::new(ev::ACTOR_CREATED, &format!("trigger-append-{i}"), &serde_json::json!({}))
-            .unwrap();
-        store.append(&event).unwrap();
+        let event = EventEnvelope::new(
+            ev::ACTOR_CREATED,
+            &format!("trigger-append-{i}"),
+            &serde_json::json!({}),
+        )
+        .unwrap();
+        store.append(&Stamped::unchecked(event.clone())).unwrap();
         assert!(store.get(&event.id).unwrap().is_some());
     }
 }
@@ -94,8 +115,9 @@ fn append_path_is_never_caught_by_the_update_trigger() {
 #[test]
 fn duplicate_id_insert_fails_on_primary_key_not_the_trigger() {
     let (_tmp, db_path, store) = setup();
-    let event = EventEnvelope::new(ev::ACTOR_CREATED, "trigger-dup", &serde_json::json!({})).unwrap();
-    store.append(&event).unwrap();
+    let event =
+        EventEnvelope::new(ev::ACTOR_CREATED, "trigger-dup", &serde_json::json!({})).unwrap();
+    store.append(&Stamped::unchecked(event.clone())).unwrap();
 
     let mut conn = db::open_db_at(&db_path).unwrap();
     let result = block_on(async {

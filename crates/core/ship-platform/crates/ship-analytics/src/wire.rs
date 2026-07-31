@@ -8,12 +8,7 @@
 
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
 
-use ship_ops_rpc::{
-    AnalyticsGetSessionRequest, AnalyticsListSessionsRequest,
-    AnalyticsService as AnalyticsServiceTrait, AnalyticsSession, AnalyticsSessionResponse,
-    AnalyticsSessionTurnsRequest, AnalyticsSessionTurnsResponse, AnalyticsSessionsResponse,
-    AnalyticsToolUsage, AnalyticsToolUsageRequest, AnalyticsToolUsageResponse, AnalyticsTurn,
-};
+use ship_proto::ship::ops::v1::{AnalyticsGetSessionRequest, AnalyticsListSessionsRequest, AnalyticsService as AnalyticsServiceTrait, AnalyticsSession, AnalyticsSessionResponse, AnalyticsSessionTurnsRequest, AnalyticsSessionTurnsResponse, AnalyticsSessionsResponse, AnalyticsToolUsage, AnalyticsToolUsageRequest, AnalyticsToolUsageResponse, AnalyticsTurn};
 
 use crate::queries::{SessionSummary, ToolUsage as ToolUsageRow, TurnObservation};
 use crate::service;
@@ -76,7 +71,7 @@ impl AnalyticsServiceTrait for AnalyticsWire {
     async fn list_sessions(
         &self,
         _ctx: RequestContext,
-        request: ship_ops_rpc::OwnedAnalyticsListSessionsRequestView,
+        request: ship_proto::ship::ops::v1::OwnedAnalyticsListSessionsRequestView,
     ) -> ServiceResult<AnalyticsSessionsResponse> {
         let limit = request.limit.unwrap_or(100).clamp(1, 500);
         let rows = service::list_recent_sessions(limit).map_err(db_err)?;
@@ -89,7 +84,7 @@ impl AnalyticsServiceTrait for AnalyticsWire {
     async fn get_session(
         &self,
         _ctx: RequestContext,
-        request: ship_ops_rpc::OwnedAnalyticsGetSessionRequestView,
+        request: ship_proto::ship::ops::v1::OwnedAnalyticsGetSessionRequestView,
     ) -> ServiceResult<AnalyticsSessionResponse> {
         let found = service::get_session(request.session_key).map_err(db_err)?;
         Ok(Response::new(AnalyticsSessionResponse {
@@ -101,7 +96,7 @@ impl AnalyticsServiceTrait for AnalyticsWire {
     async fn tool_usage(
         &self,
         _ctx: RequestContext,
-        request: ship_ops_rpc::OwnedAnalyticsToolUsageRequestView,
+        request: ship_proto::ship::ops::v1::OwnedAnalyticsToolUsageRequestView,
     ) -> ServiceResult<AnalyticsToolUsageResponse> {
         let rows = service::tool_usage(request.since, None).map_err(db_err)?;
         Ok(Response::new(AnalyticsToolUsageResponse {
@@ -113,7 +108,7 @@ impl AnalyticsServiceTrait for AnalyticsWire {
     async fn session_turns(
         &self,
         _ctx: RequestContext,
-        request: ship_ops_rpc::OwnedAnalyticsSessionTurnsRequestView,
+        request: ship_proto::ship::ops::v1::OwnedAnalyticsSessionTurnsRequestView,
     ) -> ServiceResult<AnalyticsSessionTurnsResponse> {
         let rows = service::list_session_turns(request.session_key).map_err(db_err)?;
         Ok(Response::new(AnalyticsSessionTurnsResponse {

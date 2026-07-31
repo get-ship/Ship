@@ -12,6 +12,7 @@ use crate::events::EventScope;
 use crate::persistence::event_store::{EventStore, SqliteEventStore};
 use crate::testutil::init_project_minimal as init_project;
 use ship_types::envelope::EventEnvelope;
+use ship_types::Stamped;
 use ship_types::event_types as ev;
 use tempfile::tempdir;
 
@@ -32,7 +33,9 @@ fn rootpage_and_page_size(db_path: &std::path::Path, table: &str) -> (i64, i64) 
     // against `rootpage` matches what's actually on disk once we close and
     // read the raw file.
     block_on(async {
-        sqlx::query("PRAGMA wal_checkpoint(TRUNCATE)").execute(&mut conn).await
+        sqlx::query("PRAGMA wal_checkpoint(TRUNCATE)")
+            .execute(&mut conn)
+            .await
     })
     .unwrap();
     let rootpage: i64 = block_on(async {
@@ -43,7 +46,9 @@ fn rootpage_and_page_size(db_path: &std::path::Path, table: &str) -> (i64, i64) 
     })
     .unwrap();
     let page_size: i64 = block_on(async {
-        sqlx::query_scalar("PRAGMA page_size").fetch_one(&mut conn).await
+        sqlx::query_scalar("PRAGMA page_size")
+            .fetch_one(&mut conn)
+            .await
     })
     .unwrap();
     (rootpage, page_size)
@@ -68,7 +73,14 @@ fn corrupt_table_root_page(db_path: &std::path::Path, table: &str) {
     std::fs::write(db_path, &data).unwrap();
 }
 
-fn setup_with_events(n: usize) -> (tempfile::TempDir, std::path::PathBuf, std::path::PathBuf, Vec<String>) {
+fn setup_with_events(
+    n: usize,
+) -> (
+    tempfile::TempDir,
+    std::path::PathBuf,
+    std::path::PathBuf,
+    Vec<String>,
+) {
     let tmp = tempdir().unwrap();
     let ship_dir = init_project(tmp.path()).unwrap();
     let db_path = db::runtime_db_path(&ship_dir);
@@ -76,7 +88,7 @@ fn setup_with_events(n: usize) -> (tempfile::TempDir, std::path::PathBuf, std::p
     let mut ids = Vec::with_capacity(n);
     for i in 0..n {
         let id = format!("torture-corrupt-{i}");
-        store.append(&actor_created_event(&id)).unwrap();
+        store.append(&Stamped::unchecked(actor_created_event(&id))).unwrap();
         ids.push(id);
     }
     (tmp, ship_dir, db_path, ids)
@@ -154,7 +166,9 @@ fn heal_restores_master_invariant_when_only_projection_corrupted() {
     // Precondition: confirm the check at least detected SOMETHING (not a
     // false-healthy Ok) before judging the heal path.
     match integrity::check_integrity(&db_path) {
-        Ok(integrity::IntegrityStatus::Ok) => panic!("precondition failed: corruption not detected at all"),
+        Ok(integrity::IntegrityStatus::Ok) => {
+            panic!("precondition failed: corruption not detected at all")
+        }
         _ => {}
     }
 
@@ -167,10 +181,16 @@ fn heal_restores_master_invariant_when_only_projection_corrupted() {
             // ONLY those ids.
             let mut conn = db::open_db_at(&db_path).unwrap();
             let count: i64 = block_on(async {
-                sqlx::query_scalar("SELECT COUNT(*) FROM actors").fetch_one(&mut conn).await
+                sqlx::query_scalar("SELECT COUNT(*) FROM actors")
+                    .fetch_one(&mut conn)
+                    .await
             })
             .unwrap();
-            assert_eq!(count as usize, ids.len(), "rebuild must restore exactly fold(log), no more no less");
+            assert_eq!(
+                count as usize,
+                ids.len(),
+                "rebuild must restore exactly fold(log), no more no less"
+            );
 
             match integrity::check_integrity(&db_path).unwrap() {
                 integrity::IntegrityStatus::Ok => {}
@@ -208,7 +228,9 @@ fn unrecoverable_log_corruption_is_not_silently_healed() {
             // Fatal, surfaced as Err rather than the EventsCorrupt variant —
             // still "detected", never falsely healthy.
         }
-        other => panic!("expected the log corruption to be classified EventsCorrupt (or a hard Err), got {other:?}"),
+        other => panic!(
+            "expected the log corruption to be classified EventsCorrupt (or a hard Err), got {other:?}"
+        ),
     }
 
     // Attempting a rebuild against a corrupted log must error, not produce

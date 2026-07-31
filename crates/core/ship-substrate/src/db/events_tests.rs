@@ -3,12 +3,13 @@
 use super::events::{
     list_all_events, list_events_since_time, list_recent_events, query_events_since,
 };
-use ship_types::envelope::EventEnvelope;
-use crate::persistence::event_store::{EventStore, SqliteEventStore};
-use crate::events::types::event_types;
 use crate::events::types::SpaceSeen;
+use crate::events::types::event_types;
+use crate::persistence::event_store::{EventStore, SqliteEventStore};
 use crate::testutil::init_project_minimal as init_project;
 use chrono::Utc;
+use ship_types::envelope::EventEnvelope;
+use ship_types::Stamped;
 use tempfile::tempdir;
 
 fn setup() -> (tempfile::TempDir, std::path::PathBuf) {
@@ -50,8 +51,8 @@ fn list_all_events_starts_empty() {
 fn append_and_list_all() {
     let (_tmp, _ship_dir) = setup();
     let store = runtime_store();
-    store.append(&make_seen_event("first")).unwrap();
-    store.append(&make_seen_event("second")).unwrap();
+    store.append(&Stamped::unchecked(make_seen_event("first"))).unwrap();
+    store.append(&Stamped::unchecked(make_seen_event("second"))).unwrap();
 
     let all = list_all_events().unwrap();
     assert_eq!(all.len(), 2);
@@ -63,7 +64,7 @@ fn append_and_list_all() {
 fn list_since_filters_by_time() {
     let (_tmp, _ship_dir) = setup();
     let store = runtime_store();
-    store.append(&make_seen_event("before")).unwrap();
+    store.append(&Stamped::unchecked(make_seen_event("before"))).unwrap();
 
     let future = Utc::now() + chrono::Duration::hours(1);
     let filtered = list_events_since_time(&future, None).unwrap();
@@ -80,7 +81,9 @@ fn list_since_with_limit() {
     let store = runtime_store();
     let past = Utc::now() - chrono::Duration::hours(1);
     for i in 0..5 {
-        store.append(&make_seen_event(&format!("event-{}", i))).unwrap();
+        store
+            .append(&Stamped::unchecked(make_seen_event(&format!("event-{}", i))))
+            .unwrap();
     }
     let limited = list_events_since_time(&past, Some(3)).unwrap();
     assert_eq!(limited.len(), 3);
@@ -94,7 +97,7 @@ fn list_recent_returns_in_asc_order() {
     for i in 0..5 {
         let ev = make_seen_event(&format!("event-{}", i));
         inserted_ids.push(ev.id.clone());
-        store.append(&ev).unwrap();
+        store.append(&Stamped::unchecked(ev.clone())).unwrap();
     }
     // Ask for last 3, returned in ascending (oldest-first) order
     let recent = list_recent_events(3).unwrap();
@@ -103,15 +106,18 @@ fn list_recent_returns_in_asc_order() {
     let ids: Vec<&str> = recent.iter().map(|e| e.id.as_str()).collect();
     let mut sorted = ids.clone();
     sorted.sort_unstable();
-    assert_eq!(ids, sorted, "list_recent_events must return events in ASC order");
+    assert_eq!(
+        ids, sorted,
+        "list_recent_events must return events in ASC order"
+    );
 }
 
 #[test]
 fn query_events_since_no_cursor_returns_all() {
     let (_tmp, _ship_dir) = setup();
     let store = runtime_store();
-    store.append(&make_seen_event("a")).unwrap();
-    store.append(&make_seen_event("b")).unwrap();
+    store.append(&Stamped::unchecked(make_seen_event("a"))).unwrap();
+    store.append(&Stamped::unchecked(make_seen_event("b"))).unwrap();
     let all = query_events_since(None, false).unwrap();
     assert_eq!(all.len(), 2);
 }
@@ -122,9 +128,9 @@ fn query_events_since_cursor_returns_later_events() {
     let store = runtime_store();
     let ev1 = make_seen_event("first");
     let cursor = ev1.id.clone();
-    store.append(&ev1).unwrap();
-    store.append(&make_seen_event("second")).unwrap();
-    store.append(&make_seen_event("third")).unwrap();
+    store.append(&Stamped::unchecked(ev1.clone())).unwrap();
+    store.append(&Stamped::unchecked(make_seen_event("second"))).unwrap();
+    store.append(&Stamped::unchecked(make_seen_event("third"))).unwrap();
     let after = query_events_since(Some(&cursor), false).unwrap();
     assert_eq!(after.len(), 2);
 }
@@ -135,7 +141,7 @@ fn query_events_since_latest_cursor_returns_empty() {
     let store = runtime_store();
     let ev = make_seen_event("only");
     let cursor = ev.id.clone();
-    store.append(&ev).unwrap();
+    store.append(&Stamped::unchecked(ev.clone())).unwrap();
     let after = query_events_since(Some(&cursor), false).unwrap();
     assert!(after.is_empty());
 }
@@ -146,7 +152,7 @@ fn query_events_since_elevated_only() {
     let (_tmp, _ship_dir) = setup();
     let store = runtime_store();
     // Non-elevated event
-    store.append(&make_seen_event("noise")).unwrap();
+    store.append(&Stamped::unchecked(make_seen_event("noise"))).unwrap();
     // Elevated event
     let elevated = EventEnvelope::new(
         et::SPACE_OPENED,
@@ -159,7 +165,7 @@ fn query_events_since_elevated_only() {
     )
     .unwrap()
     .elevate();
-    store.append(&elevated).unwrap();
+    store.append(&Stamped::unchecked(elevated.clone())).unwrap();
     let all = query_events_since(None, false).unwrap();
     assert_eq!(all.len(), 2);
     let elevated_only = query_events_since(None, true).unwrap();

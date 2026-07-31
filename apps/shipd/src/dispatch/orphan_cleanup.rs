@@ -38,10 +38,10 @@
 
 use std::sync::Arc;
 
+use ship_agents::emit::emit_executor_session_destroyed;
 use ship_agents::services::sessions::canonical_projection::load_sessions;
-use ship_substrate::events::executor::DestructionCause;
-use ship_substrate::events::emit::emit_executor_session_destroyed;
 use ship_substrate::events::KernelRouter;
+use ship_substrate::events::executor::DestructionCause;
 use tokio::sync::Mutex;
 
 use bridge::helpers::{repo_dir, worktrees_dir};

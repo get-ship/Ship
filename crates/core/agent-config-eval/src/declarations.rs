@@ -7,8 +7,8 @@
 //!
 //! - **Pass-through** (pipelines, triggers, collections): the stack authoring
 //!   shape and `compiler`'s type are identical, so the emitted value
-//!   deserializes directly into `stack_model::PipelineDef` /
-//!   `stack_model::TriggerDef` / `stack_model::CollectionDef`.
+//!   deserializes directly into `ship_pipelines::PipelineDef` /
+//!   `ship_triggers::TriggerDef` / `ship_collection::CollectionDef`.
 //! - **Mapped** (mcp servers, config): `compiler`'s type predates the
 //!   stack shape and carries fields the authoring shape doesn't — a private
 //!   `*Declare` struct mirrors the stack shape exactly and a `into_*` fn
@@ -55,8 +55,11 @@ use std::collections::HashMap;
 
 use anyhow::{Context, Result, bail};
 use agent_schema::{AgentProfile, McpServerConfig, McpServerType};
-use stack_model::types::ViewDescriptor;
-use stack_model::{CollectionDef, PipelineDef, TriggerDef, manifest::ManifestDepValue};
+use ship_collection::CollectionDef;
+use ship_pipelines::PipelineDef;
+use ship_triggers::TriggerDef;
+use ship_ui::ViewDescriptor;
+use stack_model::manifest::ManifestDepValue;
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -70,7 +73,7 @@ use serde_json::Value;
 /// (`skills/<id>/SKILL.md`); MCP servers live under
 /// `defineConfig({ agents: { mcp: {…} } })` and are pushed into
 /// `ExtensionLibrary::mcp_servers` by
-/// `ship_resolver::merge_ts_declarations`. Rules arrive exclusively via
+/// `space_resolver::merge_ts_declarations`. Rules arrive exclusively via
 /// the agent composition's `defineAgent({ rules: { inline } })` block
 /// (the `harvest` step projects each agent's inline body into
 /// `declarations.rules`; the on-disk `rules/<id>.md` convention died
@@ -247,7 +250,7 @@ pub fn harvest(out: &mut Declarations, index: usize, raw: Value) -> Result<()> {
 // with slice 2c: MCP server registrations move to
 // `defineConfig({ agents: { mcp: { <name>: McpServerDeclare } } })`. The
 // `ConfigAgents::mcp` map is the harvest surface; the resolver walks it
-// (in `ship_resolver::merge_ts_declarations`) and converts each entry via
+// (in `space_resolver::merge_ts_declarations`) and converts each entry via
 // `McpServerDeclare::into_mcp_server_config` (the same mapping the dead
 // per-call form used). Same fields, same defaults — only the route in
 // changed.
@@ -519,7 +522,7 @@ const COLLECTION_FIELD_DEF_DECLARE_FIELDS: &[&str] = &[
 // `defineView` is HAND-SPEC (precedent: `defineRule`, see decision-morning-answers.md §2):
 // `ViewDescriptor` is provisional pending sail/deck alignment (decision-views-deck-boundary.md),
 // so the fingerprint constant here mirrors the compiler type's field set directly.
-// The drift-test arm below cross-checks against `stack_model::types::ViewDescriptor`'s
+// The drift-test arm below cross-checks against `ship_ui::ViewDescriptor`'s
 // exported fields, not a stack-derived fingerprint.
 #[allow(dead_code)]
 const VIEW_DESCRIPTOR_DECLARE_FIELDS: &[&str] = &["component_ref", "prefix", "route"];
@@ -610,7 +613,7 @@ mod drift_tests {
 
     /// `defineView` is a hand-spec shape (no stack fingerprint — the
     /// `defineRule` precedent applies). The drift check pins the harvest's
-    /// field set to `stack_model::types::ViewDescriptor`'s serialized fields:
+    /// field set to `ship_ui::ViewDescriptor`'s serialized fields:
     /// changing one without the other breaks the `defineView` pass-through
     /// harvest in a non-obvious way. The compiler type is the source of
     /// truth; this list mirrors it. A future stack-fingerprinted version

@@ -27,7 +27,7 @@
 
 use std::collections::BTreeSet;
 
-use ship_substrate::projections::{ActorProjection, Projection, extra_projections};
+use ship_substrate::projections::{ActorProjection, Projection};
 use ship_types::event_registry::{self, Retention};
 
 /// Durable events that the design intentionally leaves as audit-trail-only
@@ -48,10 +48,7 @@ const DAEMON_LIFECYCLE: &[&str] = &[
 
 /// **Executor teardown** — runtime-window / session-destroyed events are
 /// post-mortem audit only; the supervisor reads its own in-memory state.
-const EXECUTOR_TEARDOWN: &[&str] = &[
-    "executor.session_destroyed",
-    "executor.window_destroyed",
-];
+const EXECUTOR_TEARDOWN: &[&str] = &["executor.session_destroyed", "executor.window_destroyed"];
 
 /// **Pipeline audit** — the pipeline engine cut (2026-07-10) retired the
 /// pipeline-step-runs projection, but these event types stay as an audit
@@ -71,7 +68,7 @@ const PIPELINE_AUDIT: &[&str] = &[
 const PROCESS_AUDIT: &[&str] = &["process.exited", "process.killed", "process.orphaned"];
 
 /// **Agent def audit** — `agent.def.updated` is consumed by the read-only
-/// `ship_config::agents_index` re-read loop (function consumer, not a
+/// `ship_settings::agents_index` re-read loop (function consumer, not a
 /// `Projection`). `agent.task.complete` is a domain audit trail.
 const AGENT_DEF_AUDIT: &[&str] = &["agent.def.updated", "agent.task.complete"];
 
@@ -160,8 +157,6 @@ const AUDIT_ONLY: &[&str] = &[
 
 #[test]
 fn every_durable_event_is_either_covered_or_allowlisted() {
-    ship_platform::install_defaults();
-
     // Built first so the error message carries the concrete union of names.
     let covered: BTreeSet<String> = covered_set();
 
@@ -188,9 +183,9 @@ fn every_durable_event_is_either_covered_or_allowlisted() {
     assert!(
         missing.is_empty(),
         "{} durable event(s) have no registered projection AND are not in AUDIT_ONLY.\n\
-         For each: register the projection in `install_defaults()` (preferred), \
-         OR add it to AUDIT_ONLY with a one-line comment justifying why it is \
-         a pure audit-trail event (no derived table). Offenders:\n  - {}",
+         For each: register the projection in `platform_projection_factory()` \
+         (preferred), OR add it to AUDIT_ONLY with a one-line comment justifying \
+         why it is a pure audit-trail event (no derived table). Offenders:\n  - {}",
         missing.len(),
         missing.join("\n  - "),
     );
@@ -199,8 +194,8 @@ fn every_durable_event_is_either_covered_or_allowlisted() {
         stale_audit.is_empty(),
         "{} event(s) are BOTH covered by a registered projection AND listed \
          in AUDIT_ONLY — the allowlist is stale. Remove the entry so the \
-         next regression (projection removed from install_defaults) actually \
-         fails this test. Offenders:\n  - {}",
+         next regression (projection removed from platform_projection_factory) \
+         actually fails this test. Offenders:\n  - {}",
         stale_audit.len(),
         stale_audit.join("\n  - "),
     );
@@ -208,10 +203,7 @@ fn every_durable_event_is_either_covered_or_allowlisted() {
 
 #[test]
 fn no_installed_projection_folds_an_unregistered_event_type() {
-    ship_platform::install_defaults();
-
-    let registered: BTreeSet<&'static str> =
-        event_registry::registry().map(|d| d.name).collect();
+    let registered: BTreeSet<&'static str> = event_registry::registry().map(|d| d.name).collect();
 
     let mut unknown: Vec<(String, String)> = Vec::new();
     for p in projections_in_default_bus() {
@@ -244,8 +236,6 @@ fn no_installed_projection_folds_an_unregistered_event_type() {
 /// the real bug through.
 #[test]
 fn audit_only_entries_are_real_durable_events() {
-    ship_platform::install_defaults();
-
     let mut bad: Vec<&'static str> = Vec::new();
     for name in AUDIT_ONLY {
         let Some(def) = event_registry::lookup(name) else {
@@ -268,13 +258,13 @@ fn audit_only_entries_are_real_durable_events() {
 }
 
 /// Union of `event_types()` over the L0 + L1 projections that ride the
-/// default bus at runtime. Matches `SqliteEventStore::default_bus`.
+/// bus when the composition root passes `platform_projection_factory()`.
 fn covered_set() -> BTreeSet<String> {
     let mut covered: BTreeSet<String> = BTreeSet::new();
     for et in ActorProjection::new().event_types() {
         covered.insert((*et).to_string());
     }
-    for p in extra_projections() {
+    for p in (ship_platform::platform_projection_factory())() {
         for et in p.event_types() {
             covered.insert((*et).to_string());
         }
@@ -282,12 +272,12 @@ fn covered_set() -> BTreeSet<String> {
     covered
 }
 
-/// Projections the default bus installs: ActorProjection + everything the L1
-/// factory closures produce.
+/// Projections the production bus installs: ActorProjection + everything the
+/// platform factory produces.
 fn projections_in_default_bus() -> Vec<Box<dyn Projection>> {
     let mut all: Vec<Box<dyn Projection>> = Vec::new();
     all.push(Box::new(ActorProjection::new()));
-    all.extend(extra_projections());
+    all.extend((ship_platform::platform_projection_factory())());
     all
 }
 

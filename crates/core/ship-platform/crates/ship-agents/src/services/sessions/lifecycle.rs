@@ -4,7 +4,7 @@
 
 use chrono::Utc;
 
-use ship_config::agents_index::AgentDefIndex;
+use ship_settings::agents_index::AgentDefIndex;
 
 use super::registry::Registry;
 use super::types::SessionStatus;
@@ -78,7 +78,7 @@ async fn load_inline_rules(
     }
     let ship_dir = work_dir.to_path_buf();
     let fs = ship_substrate::ports::LocalFsBroker::new();
-    ship_config::agents::read_agent_profile(&fs, &ship_dir, agent_id)
+    ship_settings::agents::read_agent_profile(&fs, &ship_dir, agent_id)
         .ok()
         .flatten()
         .and_then(|p| p.rules.inline)

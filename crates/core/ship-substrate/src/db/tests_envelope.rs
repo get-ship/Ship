@@ -4,9 +4,10 @@
 //! The job projection query omits `target_actor_id` (13-col SELECT).
 //! A shared `envelope_from_row` must handle both schemas correctly.
 
-use ship_types::{envelope::EventEnvelope, event_registry::EventScope};
 use crate::persistence::event_store::{EventStore, SqliteEventStore};
+use ship_types::Stamped;
 use crate::testutil::init_project_minimal as init_project;
+use ship_types::{envelope::EventEnvelope, event_registry::EventScope};
 use tempfile::tempdir;
 
 fn setup() -> (tempfile::TempDir, std::path::PathBuf) {
@@ -26,8 +27,8 @@ fn runtime_store() -> SqliteEventStore {
 }
 
 fn sample_event(target: Option<&str>) -> EventEnvelope {
-    let mut ev = EventEnvelope::new("test.envelope", "entity-1", &serde_json::json!({"k": "v"}))
-        .unwrap();
+    let mut ev =
+        EventEnvelope::new("test.envelope", "entity-1", &serde_json::json!({"k": "v"})).unwrap();
     if let Some(t) = target {
         ev = ev.with_target(t);
     }
@@ -40,7 +41,7 @@ fn envelope_from_row_platform_with_target_actor_id() {
     let store = runtime_store();
 
     let ev = sample_event(Some("actor-42"));
-    store.append(&ev).unwrap();
+    store.append(&Stamped::unchecked(ev.clone())).unwrap();
 
     // Read back via list_all_events which uses row_to_envelope on the 14-col SELECT
     let all = crate::db::events::list_all_events().unwrap();
@@ -58,7 +59,7 @@ fn envelope_from_row_platform_without_target_actor_id() {
     let store = runtime_store();
 
     let ev = sample_event(None);
-    store.append(&ev).unwrap();
+    store.append(&Stamped::unchecked(ev.clone())).unwrap();
 
     let all = crate::db::events::list_all_events().unwrap();
     assert_eq!(all.len(), 1);
@@ -83,7 +84,7 @@ fn envelope_round_trip_preserves_all_fields() {
         .elevate();
     ev.session_id = Some("sess-1".to_string());
 
-    store.append(&ev).unwrap();
+    store.append(&Stamped::unchecked(ev.clone())).unwrap();
 
     let all = crate::db::events::list_all_events().unwrap();
     assert_eq!(all.len(), 1);

@@ -28,8 +28,8 @@ until the integrator's coordinated cutover rolls.
 - **Tests depending on the working file's name carry
   `#[ignore]`.** Three tests that walk the repo root for
   `stack.config.ts` are marked pending the integrator's cutover:
-  `ship-resolver::tests::real_manifest::repo_manifest_rolls_up_with_all_nouns_present`,
-  `ship-resolver::tests::fm_b2a_helm_manifest::fm_b2a_real_manifest_no_longer_declares_working_in_helm`,
+  `space-resolver::tests::real_manifest::repo_manifest_rolls_up_with_all_nouns_present`,
+  `space-resolver::tests::fm_b2a_helm_manifest::fm_b2a_real_manifest_no_longer_declares_working_in_helm`,
   `ship-triggers::schema_tests::trigger_schema_is_valid_json_schema` and
   `view_manifest_schema_is_valid_json_schema`,
   `helmd::tests::parity_capture::capture_full_compile_output_against_worktree_root`.
@@ -104,24 +104,24 @@ edits into a typed `session.failed`.
 - **L0 leaf consolidation (`ship_runner::dedup`, `ship_runner::router`).
   **`EventDedup`**, **`terminal_guard`**, **`Admit`**, and **`DISPATCH_GATE`**
   move from `ship_code::runner` back to L0 `ship-runner` so both
-  `ship-agents` (`service.agents` actor) and `ship-pipeline-runtime`
+  `ship-agents` (`service.agents` actor) and `pipeline-defs`
   (orchestrator) depend on them without a cargo cycle. The closure
   type that `terminal_guard` accepts is now an `Fn(&str) -> Pin<Box<dyn
   Future<Output=bool> + Send>` (per census §4.3 — port-typed to `bool`),
   freeing the gate from a `ProjectionReader` trait import.
   `ship_code::runner` keeps only `exit_handler` / `teardown` /
   `spawn_env` / `invocation` (harness-driver concerns). **Spec target
-  diverged from ship-pipeline-runtime → ship-runner** because the
-  `ship-agents ↔ ship-pipeline-runtime` cycle blocks any other L1
+  diverged from pipeline-defs → ship-runner** because the
+  `ship-agents ↔ pipeline-defs` cycle blocks any other L1
   home; the R13 keystone work breaks that cycle. Documented in the
-  ship-agents / ship-pipeline-runtime README and the runner module
+  ship-agents / pipeline-defs README and the runner module
   docs.
 - **Domain-free ANSI / git-evidence utilities leave `bridge`.**
   `runner::observe::strip_ansi` → `ship_substrate::text::strip_ansi`
   (new L0 leaf; `strip_ansi_bytes` for byte-buffer callers; the
   `runner/mod.rs::compute_step_invocation` and `log_stream::strip_ansi`
   near-duplicates route through the leaf). `scan_git_evidence`,
-  `resolve_head_sha`, and `scan_agent_log_tail` → `ship_pipeline_runtime
+  `resolve_head_sha`, and `scan_agent_log_tail` → `pipeline_defs
   ::loader::git_helpers`. New L1 helper `count_commits_ahead` on the
   ship-git leaf replaces the raw `git rev-list --count` shell-out.
 - **ship-code has zero direct `git` calls.** `helpers::remove_worktree`
@@ -137,7 +137,7 @@ edits into a typed `session.failed`.
   shipd's NoopDispatch / flag-off impls return `None`. shipd's
   `apps/shipd/src/ports/local_paths.rs::worktrees_dir` is the single
   surviving definition (helmd's parallel `helpers::worktrees_dir`
-  reads through `ship_config::worktrees::worktrees_dir` — same answer,
+  reads through `ship_settings::worktrees::worktrees_dir` — same answer,
   same env).
 - **`resolve_project_head_sha` gates + floki = `baseline_sha: None`.
   The function is `#[cfg(feature = "bridge")]`-gated; the
@@ -168,17 +168,17 @@ edits into a typed `session.failed`.
 
 - **Pre-existing flake:** `orchestrator::tests_terminal_guard
   ::step_observed_ignored_when_job_cancelled` fails on `cargo test
-  -p ship-pipeline-runtime` today on the parent commit; this slice
+  -p pipeline-defs` today on the parent commit; this slice
   does not regress it (confirmed by `git stash && cargo test
   …` + `cargo test … -- --skip`). The test seeds a terminal event
   and asserts the projection reflects it; a stale global DB /
   cross-test state is the suspected root cause. Tracked outside
   this commit.
 - **R13 keystone work** (separate commit) breaks the
-  `ship-agents ↔ ship-pipeline-runtime` cycle so the L0 mechanism
+  `ship-agents ↔ pipeline-defs` cycle so the L0 mechanism
   primitives can live in the L1 runner crate as the spec
   requested. Today's stop note in ship-runner's `lib.rs` and
-  ship-pipeline-runtime's README and `orchestrator/router.rs`
+  pipeline-defs's README and `orchestrator/router.rs`
   documents the divergence.
 
 
@@ -277,9 +277,9 @@ Fix:
   branch in `handle_agent_session_started` does regardless of feature
   state.
 
-### (a) — ship-pipeline-runtime gate (DEFERRED to R13 dissolution)
+### (a) — pipeline-defs gate (DEFERRED to R13 dissolution)
 
-`crates/ship-pipeline-runtime/Cargo.toml:25` unconditionally pulls
+`crates/core/ship-substrate/crates/pipeline-defs/Cargo.toml:25` unconditionally pulls
 `bridge` (no `optional`, no feature gate). The runtime is the L1
 orchestrator that USES `ship_code` as its port surface — `ship_code::dispatch_ports::*`
 (SessionContext, LaunchProfile, StepInfo, AgentPlatform, IsolationStrategy,
@@ -288,7 +288,7 @@ ExitSignal, ProcessTreeProbe, TreeSample, ExitCause, Authority, ExecutorHandle)
 and `ship_code::runner::*` (build_spawn_env, resolve_step_invocation,
 dedup, exit_handler, router::{extract_slug, terminal_guard, Admit},
 stop_by_slug, stop_handle, observe::{scan_agent_log_tail, ...}) are
-called from ~30 sites across `crates/ship-pipeline-runtime/src/orchestrator/`
+called from ~30 sites across `crates/core/ship-substrate/crates/pipeline-defs/src/orchestrator/`
 and the step_monitor / fanout / tests_heartbeat subtrees. Gating
 `ship_code` to be optional would require port-typing every call site
 and propagating feature gates through the orchestrator to shipd —
@@ -297,7 +297,7 @@ already chartered to do. We do not duplicate the R13-shaped work in
 this slice.
 
 Net result: `cargo tree -p shipd --no-default-features` still shows
-`bridge`, but only via `ship-pipeline-runtime`. Once R13 dissolves
+`bridge`, but only via `pipeline-defs`. Once R13 dissolves
 the orchestrator, the same cfg-gate pattern used here for the agent
 domain will clean this up.
 

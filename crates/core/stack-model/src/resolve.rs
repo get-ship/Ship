@@ -6,7 +6,12 @@ use agent_schema::{
     Rule, Skill,
 };
 use agent_schema::resolved::ResolvedConfig;
-use crate::types::{CollectionDef, PipelineDef, SpaceManifest, TriggerDef, ViewDescriptor};
+use ship_collection::CollectionDef;
+use ship_pipelines::PipelineDef;
+use ship_triggers::TriggerDef;
+use ship_ui::ViewDescriptor;
+
+use crate::types::SpaceManifest;
 
 // ─── Phase-2 descriptor types ────────────────────────────────────────────────
 // Project-shape extension: a TS source module resolved by the new resolver.
@@ -291,7 +296,7 @@ pub struct ExtensionLibrary {
     /// close-out; no extras are ever appended. Skills themselves
     /// arrive via `defineSkill` declare-forms in
     /// `stack.config.ts` and land in `ExtensionLibrary::skills`
-    /// through `ship_resolver::merge_ts_declarations`.
+    /// through `space_resolver::merge_ts_declarations`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub skill_paths: Vec<String>,
     /// Per-agent skills from the `agents/<id>/{SKILL.md,*.md}` convention walk

@@ -1,23 +1,20 @@
 //! Job + agent-session dispatch composition root (daemon-side).
 //!
-//! These modules were lifted out of the L0 `ship-supervisor` crate as part of
-//! the supervisor split. They are the host-side wiring that the L1 dispatch
-//! ports inject into the pipeline orchestrator (`ship-pipeline-runtime`) and
-//! the agent-session actor (`ship-agents`):
+//! Host-side wiring for the L1 dispatch ports injected into the agent-session
+//! actor (`ship-agents`):
 //!
 //! - `run_dispatch` — `subscribe_job_events`: builds the concrete executor /
-//!   isolation / platform impls, the `OrchestratorContext`, and the
-//!   `AgentPorts`, then starts both actors.
+//!   isolation / platform impls and the `AgentPorts`, then starts the actor.
+//! - `ports` — `ConfigSpawnPolicy` + `ProjectionsReader` (composition-only).
 //! - `platform` — `ShipdPlatform` (the `AgentPlatform` impl) + `MockPlatform`.
 //! - `adapters` — `GitWorktreeIsolation` (the `IsolationStrategy` impl).
 //! - `orphan_cleanup` — startup worktree reaping for terminal jobs.
 //!
-//! They live here (not in `ship-agents`) because they depend on
-//! `ship-pipeline-runtime`, which depends on `ship-agents` — placing them in
-//! `ship-agents` would close a dependency cycle. shipd already depends on both,
-//! so it is the natural composition layer.
+//! Lives here (not in `ship-agents`) to avoid a dependency cycle: these modules
+//! wire bridge/executors that `ship-agents` only names as ports.
 
 pub mod adapters;
 pub mod orphan_cleanup;
 pub mod platform;
+pub mod ports;
 pub mod run_dispatch;

@@ -38,14 +38,12 @@ impl ViewToolPort for ViewToolAdapter {
                 deck::bundler::BundlerError::UnknownTarget(t) => {
                     BundlerBuildError::UnknownTarget(t)
                 }
-                deck::bundler::BundlerError::Bundle { message, .. } => {
-                    BundlerBuildError::Bundle {
-                        message,
-                        file: None,
-                        line: None,
-                        col: None,
-                    }
-                }
+                deck::bundler::BundlerError::Bundle { message, .. } => BundlerBuildError::Bundle {
+                    message,
+                    file: None,
+                    line: None,
+                    col: None,
+                },
             })
     }
 
@@ -77,8 +75,7 @@ impl ViewToolPort for ViewToolAdapter {
     }
 
     fn resolve_view_source(&self, name: &str) -> Result<(String, std::path::PathBuf), String> {
-        let resolved = deck::resolver::resolve(name, None)
-            .map_err(|e| e.message.clone())?;
+        let resolved = deck::resolver::resolve(name, None).map_err(|e| e.message.clone())?;
         let path = resolved
             .source_path
             .ok_or_else(|| "view has no on-disk source".to_string())?;
@@ -95,7 +92,8 @@ impl ViewToolPort for ViewToolAdapter {
         // render-time failures surface through the same None since the
         // helper is source-only — full SSR render is deck-ssr's job and
         // isn't wired into this port).
-        deck::render_helpers::render_view_source(name)
-            .ok_or_else(|| PreviewError::ViewNotFound(format!("view {name} not found or has no source")))
+        deck::render_helpers::render_view_source(name).ok_or_else(|| {
+            PreviewError::ViewNotFound(format!("view {name} not found or has no source"))
+        })
     }
 }

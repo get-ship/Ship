@@ -17,7 +17,7 @@ build-info = { path = "../../crates/build-info" }
 clap = { workspace = true }
 shipd = { path = "../shipd" }
 ship-platform = { path = "../../crates/core/ship-platform" }
-ship-ops-rpc = { path = "../../crates/core/ship-ops-rpc" }
+ship-proto = { git = "https://github.com/get-ship/ship-contracts.git", branch = "feat/next" }
 ship-substrate = { path = "../../crates/core/ship-substrate" }
 ship-types = { path = "../../crates/core/ship-substrate/crates/ship-types" }
 ship-agents = { path = "../../crates/core/ship-platform/crates/ship-agents" }

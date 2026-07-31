@@ -36,9 +36,10 @@ fn main() -> anyhow::Result<()> {
     // Rotate log file if >10 MB.
     let log_path = logs_dir.join("shipd.log");
     if let Ok(meta) = std::fs::metadata(&log_path)
-        && meta.len() > 10 * 1024 * 1024 {
-            let _ = std::fs::rename(&log_path, logs_dir.join("shipd.log.old"));
-        }
+        && meta.len() > 10 * 1024 * 1024
+    {
+        let _ = std::fs::rename(&log_path, logs_dir.join("shipd.log.old"));
+    }
 
     // File appender — JSON-structured logs for crash forensics.
     let file_appender = tracing_appender::rolling::never(&logs_dir, "shipd.log");
@@ -48,8 +49,7 @@ fn main() -> anyhow::Result<()> {
         .with_filter(EnvFilter::new("info"));
 
     // Stderr layer — human-readable for interactive use.
-    let stderr_layer = tracing_subscriber::fmt::layer()
-        .with_filter(EnvFilter::from_default_env());
+    let stderr_layer = tracing_subscriber::fmt::layer().with_filter(EnvFilter::from_default_env());
 
     tracing_subscriber::registry()
         .with(file_layer)
@@ -93,17 +93,17 @@ fn main() -> anyhow::Result<()> {
     // `<worktree>/apps/shipd/apps.jsonc` (set inside `run_network`); the
     // flag is for non-default layouts (a marketing site, docs, a customer
     // shipd install that doesn't ship the Ship apps).
-    let apps_config_override = extract_str_arg(&args, "--apps-config")
-        .map(std::path::PathBuf::from);
+    let apps_config_override =
+        extract_str_arg(&args, "--apps-config").map(std::path::PathBuf::from);
     // `--apps-base-dir <path>` — base dir for the `AppSource` resolver
     // (Phase 1 node resolution). Default: the project root. In dev the
-    // `start.sh` script sets this to the ship-apps workspace so the
-    // resolver finds `<ship-apps>/node_modules/@ship/hub` without
-    // dragging the ship monorepo into the package graph. The flag is
-    // for ops that ship apps via a non-default layout (a customer
+    // `start.sh` script sets this to the ship workspace root so the
+    // resolver finds `<ship>/node_modules/@ship/hub` (j-12: hub/spaces
+    // live in ship/apps; root package.json self-declares them). The flag
+    // is for ops that ship apps via a non-default layout (a customer
     // install whose `node_modules/` lives outside the worktree).
-    let apps_base_dir_override = extract_str_arg(&args, "--apps-base-dir")
-        .map(std::path::PathBuf::from);
+    let apps_base_dir_override =
+        extract_str_arg(&args, "--apps-base-dir").map(std::path::PathBuf::from);
 
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
@@ -126,9 +126,7 @@ fn extract_u16_arg(args: &[String], flag: &str) -> Option<u16> {
 }
 
 fn extract_str_arg(args: &[String], flag: &str) -> Option<String> {
-    args.windows(2)
-        .find(|w| w[0] == flag)
-        .map(|w| w[1].clone())
+    args.windows(2).find(|w| w[0] == flag).map(|w| w[1].clone())
 }
 
 /// Walk up from CWD looking for a `.ship/` directory. Returns the project

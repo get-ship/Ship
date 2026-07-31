@@ -22,8 +22,8 @@ mod config;
 mod crud;
 mod daemon;
 mod process;
-mod space;
 mod skill;
+mod space;
 
 mod spec6;
 mod sync;
@@ -31,7 +31,9 @@ mod watcher;
 
 pub use account::{AccountKeyRefreshed, AccountLoginCompleted, AccountLoginStarted, AccountLogout};
 pub use actor::{ActorCrashed, ActorCreated, ActorSlept, ActorStopped, ActorWoke};
-pub use auth::{AgentGrantsProvisioned, AuthSessionCreated, AuthSessionExpired, AuthSessionRevoked};
+pub use auth::{
+    AgentGrantsProvisioned, AuthSessionCreated, AuthSessionExpired, AuthSessionRevoked,
+};
 // ship-collection/src/events.rs — no re-export here.
 pub use compile::CompileCompleted;
 pub use config::{ConfigChanged, ConfigFileChanged, SettingChanged};
@@ -39,13 +41,13 @@ pub use crud::{
     PermissionsUpdated, RuleCreated, RuleDeleted, RuleUpdated, SkillCreated, SkillDeleted,
     SkillUpdated,
 };
-pub use daemon::{DaemonOwnerBound, DaemonOwnerUnbound, DaemonPortBindFailed, SupervisorShuttingDown};
+pub use daemon::{
+    DaemonOwnerBound, DaemonOwnerUnbound, DaemonPortBindFailed, SupervisorShuttingDown,
+};
 // KernelActor* retired (B2, 2026-06-20).
+pub use process::ProcessOrphaned;
 pub use skill::SkillFailed;
+pub use space::{SpaceOpened, SpaceSeen, StackRegistered};
 pub use spec6::{AgentTaskComplete, HumanResponse, PipelineStepRetry};
 pub use sync::{SyncPushCompleted, SyncPushFailed, SyncStarted, SyncStopped};
 pub use watcher::{AgentDefUpdated, SkillChanged};
-pub use space::{SpaceOpened, SpaceSeen, StackRegistered};
-pub use process::ProcessOrphaned;
-
-

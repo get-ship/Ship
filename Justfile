@@ -112,11 +112,11 @@ doctor:
 # (defaulting to a `bun` on PATH), sui-compiler from target/release/.
 # Idempotent. Run once after a fresh clone.
 #
-# helmd installs the pre-push + pre-commit guards into the shared
-# git-common-dir at dispatch and on every `GitService/Overview` call, so
-# no `core.hooksPath` setup is needed here. If you need to install the
-# guards on a fresh clone before helmd has booted, run
-# `helmd --install-hooks <repo-path>`.
+# shipd installs the pre-push + pre-commit guards into the shared
+# git-common-dir on every `GitService/Overview` call (and at dispatch), so
+# no `core.hooksPath` setup is needed here. (Historical: helmd exposed
+# `--install-hooks`; that binary was removed j-02 step 4 — dial shipd
+# Overview or call shipd's git_guards install path instead.)
 [group('daily')]
 dev-runtime-install:
     #!/usr/bin/env bash
@@ -289,9 +289,9 @@ lint-imports:
 lint-anti-theater:
     cargo run -p xtask --quiet -- lint-anti-theater
 
-# docs site recipes (docs, docs-dev, docs-regen, docs-check-drift) — moved
-# to ship-apps Justfile. apps/docs lives there now (the Astro site is an
-# app-tier concern). Run from the ship-apps repo: `just docs` etc.
+# docs site recipes (docs, docs-dev, docs-regen, docs-check-drift) —
+# historical: lived under ship-apps; site ownership is elsewhere post
+# dissolution (j-12). Not re-homed here.
 
 # The sui-compiler cdylib lives in the external sui repo post-carve. The
 # deck bundler dlopens it for FFI compilation; the build needs the

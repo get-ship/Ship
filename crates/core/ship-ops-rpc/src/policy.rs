@@ -9,10 +9,10 @@
 //! the options. This module is that reader; the gate consumes it instead of a
 //! hand-authored Rust table.
 
-use buffa::Message;
-use buffa::extension::codecs::{Bool, EnumI32, StringCodec};
-use buffa::extension::Extension;
 use buffa::ExtensionSet;
+use buffa::Message;
+use buffa::extension::Extension;
+use buffa::extension::codecs::{Bool, EnumI32, StringCodec};
 use buffa_descriptor::generated::descriptor::FileDescriptorSet;
 
 /// Blast-radius class — the risk gradient the gate enforces against an agent's
@@ -155,7 +155,10 @@ pub fn domain_of(op_name: &str) -> &str {
 /// `ReadOps`/`CommandOps` are the retiring bulk-port scaffold (every op is also
 /// on its per-domain service); `StreamService` is server-streaming.
 pub fn is_non_domain_service(service: &str) -> bool {
-    matches!(service, "ReadOpsService" | "CommandOpsService" | "StreamService")
+    matches!(
+        service,
+        "ReadOpsService" | "CommandOpsService" | "StreamService"
+    )
 }
 
 /// Operational domains (#95) are not part of the agent capability set: kernel/
@@ -195,7 +198,10 @@ pub fn capabilities() -> Vec<Capability> {
     }
     domains
         .into_iter()
-        .map(|id| Capability { sdk_skill: format!("ship-{id}"), id })
+        .map(|id| Capability {
+            sdk_skill: format!("ship-{id}"),
+            id,
+        })
         .collect()
 }
 
@@ -204,10 +210,10 @@ pub fn capabilities() -> Vec<Capability> {
 /// label 3 = repeated.
 fn field_kind(ty: Option<i32>, label: Option<i32>) -> String {
     let base = match ty {
-        Some(8) => "bool",                       // BOOL
+        Some(8) => "bool",                         // BOOL
         Some(9) | Some(12) | Some(14) => "string", // STRING | BYTES | ENUM
-        Some(10) | Some(11) => "map",            // GROUP | MESSAGE (nested object)
-        _ => "number",                            // all numeric scalar types
+        Some(10) | Some(11) => "map",              // GROUP | MESSAGE (nested object)
+        _ => "number",                             // all numeric scalar types
     };
     if label == Some(3) && base != "map" {
         format!("{base}[]")
@@ -229,11 +235,11 @@ impl MethodPolicy {
 /// the gate's `C0Read`.
 fn blast_from_proto(n: Option<i32>) -> BlastRadius {
     match n {
-        Some(1) => BlastRadius::C0Read,      // BLAST_RADIUS_C0_SAFE
-        Some(2) => BlastRadius::C1Space, // BLAST_RADIUS_C1_SPACE
-        Some(3) => BlastRadius::C2Elevated,  // BLAST_RADIUS_C2_ELEVATED
-        Some(4) => BlastRadius::C3Critical,  // BLAST_RADIUS_C3_CRITICAL
-        _ => BlastRadius::C3Critical,        // UNSPECIFIED, unknown — fail closed
+        Some(1) => BlastRadius::C0Read,     // BLAST_RADIUS_C0_SAFE
+        Some(2) => BlastRadius::C1Space,    // BLAST_RADIUS_C1_SPACE
+        Some(3) => BlastRadius::C2Elevated, // BLAST_RADIUS_C2_ELEVATED
+        Some(4) => BlastRadius::C3Critical, // BLAST_RADIUS_C3_CRITICAL
+        _ => BlastRadius::C3Critical,       // UNSPECIFIED, unknown — fail closed
     }
 }
 
@@ -250,17 +256,17 @@ pub fn read_policies() -> Vec<MethodPolicy> {
         std::collections::HashMap::new();
     for file in &fds.file {
         for msg in &file.message_type {
-            let Some(mname) = msg.name.clone() else { continue };
+            let Some(mname) = msg.name.clone() else {
+                continue;
+            };
             let args = msg
                 .field
                 .iter()
                 .filter_map(|f| {
-                    f.name
-                        .clone()
-                        .map(|name| MethodArg {
-                            name,
-                            kind: field_kind(f.r#type.map(|t| t as i32), f.label.map(|l| l as i32)),
-                        })
+                    f.name.clone().map(|name| MethodArg {
+                        name,
+                        kind: field_kind(f.r#type.map(|t| t as i32), f.label.map(|l| l as i32)),
+                    })
                 })
                 .collect();
             messages.insert(mname, args);
@@ -270,9 +276,13 @@ pub fn read_policies() -> Vec<MethodPolicy> {
     for file in &fds.file {
         let package = file.package.clone().unwrap_or_default();
         for service in &file.service {
-            let Some(service_name) = service.name.clone() else { continue };
+            let Some(service_name) = service.name.clone() else {
+                continue;
+            };
             for method in &service.method {
-                let Some(name) = method.name.clone() else { continue };
+                let Some(name) = method.name.clone() else {
+                    continue;
+                };
                 // MessageField derefs to the (default-if-absent) MethodOptions;
                 // an rpc with no custom options yields None for each read.
                 let opts = &*method.options;
@@ -375,7 +385,11 @@ mod tests {
         // No rpc may ship without a declared capability — that would be an
         // ungated surface. (Reads + commands both carry one.)
         for p in read_policies() {
-            assert!(!p.capability.is_empty(), "rpc `{}` has no capability option", p.method);
+            assert!(
+                !p.capability.is_empty(),
+                "rpc `{}` has no capability option",
+                p.method
+            );
         }
     }
 
@@ -392,18 +406,27 @@ mod tests {
     fn from_descriptor_fails_closed_on_unknown_tier_string() {
         // Canonical proto names resolve to their declared tier.
         assert_eq!(BlastRadius::from_descriptor("C0_SAFE"), BlastRadius::C0Read);
-        assert_eq!(BlastRadius::from_descriptor("C1_WORKSPACE"), BlastRadius::C1Space);
-        assert_eq!(BlastRadius::from_descriptor("C2_ELEVATED"), BlastRadius::C2Elevated);
-        assert_eq!(BlastRadius::from_descriptor("C3_CRITICAL"), BlastRadius::C3Critical);
+        assert_eq!(
+            BlastRadius::from_descriptor("C1_WORKSPACE"),
+            BlastRadius::C1Space
+        );
+        assert_eq!(
+            BlastRadius::from_descriptor("C2_ELEVATED"),
+            BlastRadius::C2Elevated
+        );
+        assert_eq!(
+            BlastRadius::from_descriptor("C3_CRITICAL"),
+            BlastRadius::C3Critical
+        );
         // Anything else — typo, retired alias, blank, garbage — fails closed
         // to C3 (operator-only), NEVER to a permissive C0/C1/C2.
         for unknown in [
             "",
-            "C0_READ",          // retired alias — must NOT resolve to C0Read
-            "C1_SPACE",         // retired alias — must NOT resolve to C1Space
-            "c0_safe",          // case sensitivity — proto emits upper
-            "C0",               // bare tier name
-            "BLAST_RADIUS_C0",  // proto enum value name without _SAFE
+            "C0_READ",         // retired alias — must NOT resolve to C0Read
+            "C1_SPACE",        // retired alias — must NOT resolve to C1Space
+            "c0_safe",         // case sensitivity — proto emits upper
+            "C0",              // bare tier name
+            "BLAST_RADIUS_C0", // proto enum value name without _SAFE
             "nonsense",
         ] {
             assert_eq!(
@@ -422,9 +445,15 @@ mod capability_tests {
     #[test]
     fn capabilities_are_per_domain_and_map_1to1_to_sdk_skills() {
         let caps = capabilities();
-        assert!(!caps.is_empty(), "capability registry must derive domains from proto");
+        assert!(
+            !caps.is_empty(),
+            "capability registry must derive domains from proto"
+        );
         // Known domains present; sdk-skill id is exactly ship-<id>.
-        let pipelines = caps.iter().find(|c| c.id == "pipelines").expect("pipelines capability");
+        let pipelines = caps
+            .iter()
+            .find(|c| c.id == "pipelines")
+            .expect("pipelines capability");
         assert_eq!(pipelines.sdk_skill, "ship-pipelines");
         // Operational domains (#95) and the umbrella scaffold are NOT capabilities.
         assert!(!caps.iter().any(|c| c.id == "actor"));

@@ -22,7 +22,7 @@
 // PROTO_ROOT — without the operator needing to re-export anything.
 //
 // The same shape is used in all four consumers (ship-gateway-client,
-// ship-ops-rpc, ship-config, tests/contract) so the resolution logic stays
+// ship-ops-rpc, ship-settings, tests/contract) so the resolution logic stays
 // symmetric.
 
 fn main() {

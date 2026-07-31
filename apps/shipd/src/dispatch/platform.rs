@@ -3,11 +3,11 @@
 
 use anyhow::Result;
 use async_trait::async_trait;
-use ship_substrate::events::executor::DestructionCause;
-use ship_substrate::events::KernelRouter;
 use bridge::dispatch_ports::{AgentPlatform, SessionExecutor};
-use ship_substrate::events::emit::emit_executor_session_destroyed;
 use bridge::process_registry::ProcessRegistry;
+use ship_agents::emit::emit_executor_session_destroyed;
+use ship_substrate::events::KernelRouter;
+use ship_substrate::events::executor::DestructionCause;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -37,7 +37,13 @@ impl AgentPlatform for ShipdPlatform {
     }
 
     fn compile_agent_config(&self, worktree_path: &Path, agent_id: &str) -> Result<()> {
-        ship_agents::services::agents::compile_dispatch::compile_agent_config(worktree_path, agent_id)
+        let kernel =
+            std::sync::Arc::new(ship_substrate::ports::KernelLog::new(self.kernel.clone()));
+        ship_agents::services::agents::compile_dispatch::compile_agent_config(
+            worktree_path,
+            agent_id,
+            Some(kernel),
+        )
     }
 
     async fn graceful_agent_exit(&self, slug: &str, harness: Option<&str>) {
@@ -68,7 +74,8 @@ impl AgentPlatform for ShipdPlatform {
         )
         .await;
         if worktree_path.exists()
-            && let Err(e) = ship_git::write::remove_worktree(&helpers::repo_dir(), &worktree_path, true)
+            && let Err(e) =
+                ship_git::write::remove_worktree(&helpers::repo_dir(), &worktree_path, true)
         {
             tracing::warn!(slug, "platform: worktree cleanup failed: {e}");
         }
@@ -150,10 +157,16 @@ pub struct MockPlatform;
 
 #[async_trait]
 impl AgentPlatform for MockPlatform {
-    fn worktrees_dir(&self) -> Result<PathBuf> { Ok(PathBuf::from("/tmp/test-worktrees")) }
-    fn compile_agent_config(&self, _: &Path, _: &str) -> Result<()> { Ok(()) }
+    fn worktrees_dir(&self) -> Result<PathBuf> {
+        Ok(PathBuf::from("/tmp/test-worktrees"))
+    }
+    fn compile_agent_config(&self, _: &Path, _: &str) -> Result<()> {
+        Ok(())
+    }
     async fn graceful_agent_exit(&self, _: &str, _: Option<&str>) {}
     async fn cleanup_job(&self, _: &str, _: &str) {}
-    fn git_merge(&self, _: &str) -> Result<bool> { Ok(true) }
+    fn git_merge(&self, _: &str) -> Result<bool> {
+        Ok(true)
+    }
     async fn cleanup_orphaned_worktrees(&self) {}
 }

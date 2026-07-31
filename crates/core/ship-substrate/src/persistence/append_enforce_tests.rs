@@ -7,11 +7,11 @@
 //! stamp-or-reject rule the emit chokepoint runs, so no live write reaches
 //! persist with an unenforced scope_key.
 
+use agent_schema::Authority;
+use ship_types::ScopeBinding;
 use ship_types::envelope::EventEnvelope;
 use ship_types::event_registry::EventScope;
 use ship_types::identity::{AccountId, DeviceId, SpaceId};
-use agent_schema::Authority;
-use ship_types::{ScopeBinding};
 
 use super::event_store::{EventStore, SqliteEventStore};
 
@@ -39,9 +39,30 @@ fn spaceless_binding() -> ScopeBinding {
 
 /// A Space-scoped store for `space` rooted under a temp ship-home. The same
 /// db `append_enforced` lands in is the one the reader queries back.
+/// Registers `space` in the spaces registry so strict scope-id validation
+/// (now part of `append_enforced` via inferred ship_dir) accepts the key.
 fn space_store(tmp: &tempfile::TempDir, space: &str) -> SqliteEventStore {
     let root = tmp.path().join(".ship");
+    crate::testutil::register_space(&root, space).unwrap();
     SqliteEventStore::new_for_scope(&root, EventScope::Space, Some(space)).unwrap()
+}
+
+#[test]
+fn append_enforced_rejects_unregistered_space_id() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().join(".ship");
+    // Open a Space store path without registering the id — strict check must reject.
+    let store = SqliteEventStore::new_for_scope(&root, EventScope::Space, Some("ghost")).unwrap();
+    let event = EventEnvelope::new("session.started", "entity-1", &serde_json::json!({}))
+        .unwrap()
+        .with_scope(EventScope::Space, Some("ghost"));
+    let err = store
+        .append_enforced(&event, &space_binding("ghost"))
+        .unwrap_err();
+    assert!(
+        err.to_string().contains("unregistered"),
+        "unexpected error: {err}"
+    );
 }
 
 #[test]

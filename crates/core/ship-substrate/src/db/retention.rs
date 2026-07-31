@@ -76,10 +76,7 @@ fn horizon(now: DateTime<Utc>, ttl_days: u16) -> String {
 
 /// Sweep one scope db at an explicit `now`. Returns per-type deleted counts
 /// (only types that deleted at least one row are reported).
-pub fn sweep_scope_db_at(
-    db_path: &Path,
-    now: DateTime<Utc>,
-) -> Result<Vec<SweptType>> {
+pub fn sweep_scope_db_at(db_path: &Path, now: DateTime<Utc>) -> Result<Vec<SweptType>> {
     sweep_types_at(db_path, &windowed_types(), now)
 }
 
@@ -122,7 +119,11 @@ pub(crate) fn sweep_types_at(
         })?;
         let rows_deleted = result.rows_affected();
         if rows_deleted > 0 {
-            swept.push(SweptType { event_type, ttl_days, rows_deleted });
+            swept.push(SweptType {
+                event_type,
+                ttl_days,
+                rows_deleted,
+            });
         }
     }
     Ok(swept)
@@ -136,10 +137,7 @@ pub fn sweep_windowed_events(ship_dir: &Path) -> Result<SweepReport> {
 
 /// Sweep every present scope db under `ship_dir` at an explicit `now`
 /// (seam for tests; production passes the wall clock).
-pub fn sweep_windowed_events_at(
-    ship_dir: &Path,
-    now: DateTime<Utc>,
-) -> Result<SweepReport> {
+pub fn sweep_windowed_events_at(ship_dir: &Path, now: DateTime<Utc>) -> Result<SweepReport> {
     let mut report = SweepReport::default();
     for db_path in crate::db::integrity::scope_db_paths(ship_dir) {
         report.dbs_visited += 1;

@@ -12,7 +12,7 @@ use ship_account::service::{AccountService, KernelOwnerBinder, OwnerBinder};
 use ship_account::store::{AccountTokenStore, FileTokenStore};
 use ship_account::types::{AccountState, AccountToken};
 
-use ship_substrate::events::global_kernel_router::new_isolated_for_test;
+use ship_substrate::events::new_isolated_for_test;
 use ship_substrate::home::ShipHome;
 use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
 use ship_substrate::ports::KernelLog;

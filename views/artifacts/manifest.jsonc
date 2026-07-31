@@ -1,0 +1,14 @@
+// Route metadata for views/artifacts/. Lists records stored under
+// the `artifacts` collection. Surfaced on the rail as a launch
+// priority — see .artifacts/sui-arc/shell-launch-priority.md.
+{
+  "name": "artifacts",
+  "path": "/artifacts",
+  "title": "Artifacts",
+  "layout": "default",
+  "auth": "user",
+  "rail": {
+    "label": "Artifacts",
+    "icon": "file"
+  }
+}

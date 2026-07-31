@@ -10,14 +10,16 @@ use anyhow::Result;
 use tokio::sync::mpsc;
 
 use ship_substrate::events::{EventEnvelope, Mailbox, SqliteEventStore};
-use ship_substrate::services::{run_service, HealthStatus, ServiceHandler};
+use ship_substrate::services::{HealthStatus, ServiceHandler, run_service};
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 
 struct MinimalHandler;
 
 impl ServiceHandler for MinimalHandler {
-    fn name(&self) -> &str { "minimal" }
+    fn name(&self) -> &str {
+        "minimal"
+    }
     fn handle(&mut self, _event: &EventEnvelope, _store: &SqliteEventStore) -> Result<()> {
         Ok(())
     }
@@ -28,7 +30,9 @@ struct TimeoutRecorder {
 }
 
 impl ServiceHandler for TimeoutRecorder {
-    fn name(&self) -> &str { "timeout-recorder" }
+    fn name(&self) -> &str {
+        "timeout-recorder"
+    }
     fn handle(&mut self, _event: &EventEnvelope, _store: &SqliteEventStore) -> Result<()> {
         Ok(())
     }
@@ -43,7 +47,9 @@ struct DrainOrderRecorder {
 }
 
 impl ServiceHandler for DrainOrderRecorder {
-    fn name(&self) -> &str { "drain-order" }
+    fn name(&self) -> &str {
+        "drain-order"
+    }
     fn handle(&mut self, _event: &EventEnvelope, _store: &SqliteEventStore) -> Result<()> {
         Ok(())
     }
@@ -79,14 +85,20 @@ fn service_handler_has_health_check_default() {
 #[test]
 fn health_status_variants_exist() {
     let _healthy = HealthStatus::Healthy;
-    let _degraded = HealthStatus::Degraded { reason: "test".into() };
-    let _unhealthy = HealthStatus::Unhealthy { reason: "test".into() };
+    let _degraded = HealthStatus::Degraded {
+        reason: "test".into(),
+    };
+    let _unhealthy = HealthStatus::Unhealthy {
+        reason: "test".into(),
+    };
 }
 
 #[test]
 fn on_drain_receives_timeout() {
     let recorded = Arc::new(std::sync::Mutex::new(None));
-    let mut handler = TimeoutRecorder { recorded: recorded.clone() };
+    let mut handler = TimeoutRecorder {
+        recorded: recorded.clone(),
+    };
     handler.on_drain(Duration::from_secs(30)).unwrap();
     let value = recorded.lock().unwrap();
     assert_eq!(*value, Some(Duration::from_secs(30)));
@@ -102,7 +114,9 @@ async fn run_service_calls_on_drain_when_mailbox_closes() {
     let store = SqliteEventStore::new_at_db_path(&db_path).unwrap();
 
     let calls: Arc<std::sync::Mutex<Vec<String>>> = Arc::new(std::sync::Mutex::new(Vec::new()));
-    let handler = DrainOrderRecorder { calls: calls.clone() };
+    let handler = DrainOrderRecorder {
+        calls: calls.clone(),
+    };
     let task = tokio::spawn(run_service(Box::new(handler), store, mailbox));
 
     drop(tx);

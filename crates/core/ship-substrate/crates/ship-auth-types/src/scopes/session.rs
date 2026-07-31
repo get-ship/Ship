@@ -75,37 +75,11 @@ impl DaemonSession {
 }
 
 /// Thread-safe session registry shared across the daemon.
+///
+/// Constructed at the composition root (shipd / helmd) and injected as an
+/// `Arc` into consumers (sandbox spawn path, grant host, middleware). Not a
+/// process-global — no ambient install.
 pub type SessionRegistry = Arc<Mutex<HashMap<String, DaemonSession>>>;
-
-/// Process-wide handle to the daemon's session registry.
-///
-/// shipd installs a clone of the runtime's registry `Arc` at boot via
-/// [`set_session_registry`]. The host-side spawn path (supervisor) reads
-/// it through [`session_registry`] to mint a per-process token for a
-/// sandboxed actor — the token is minted in the ephemeral spawn path, so
-/// it never crosses the event-persistence boundary. Mirrors the
-/// `sandbox::dispatcher()` singleton: the spawn path needs the one
-/// process-wide authority without threading a handle through every layer.
-static SESSION_REGISTRY: std::sync::OnceLock<SessionRegistry> = std::sync::OnceLock::new();
-
-/// Install the process-wide session registry. Called once by shipd at boot
-/// with a clone of the runtime's registry `Arc` (so the global is a *view*
-/// of the one registry, not a second source of truth). Subsequent calls
-/// are no-ops.
-///
-/// `OnceLock` rather than `LazyLock` because the value is handed in at
-/// boot from a runtime-instantiated `Arc` (it isn't a fixed initializer
-/// we can compute at declaration time).
-pub fn set_session_registry(registry: SessionRegistry) {
-    let _ = SESSION_REGISTRY.set(registry);
-}
-
-/// The process-wide session registry, if shipd has installed one. Returns
-/// `None` in processes that never booted the daemon (CLI, tests) — callers
-/// degrade gracefully rather than panic.
-pub fn session_registry() -> Option<SessionRegistry> {
-    SESSION_REGISTRY.get().cloned()
-}
 
 /// Generate a session token with the `ship_sess_` prefix.
 ///

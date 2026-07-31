@@ -484,8 +484,16 @@ mod tests {
         capability::grant("sess-dispatch", "view-dispatch");
 
         let tmp = tempfile::tempdir().expect("tempdir");
-        let ctx = SpaceContext::for_space(tmp.path(), ship_substrate::ports::SpaceId::new("test"))
-            .expect("space context");
+        let ship_dir = tmp.path().to_path_buf();
+        let router = ship_substrate::events::new_isolated_for_test(ship_dir.clone())
+            .expect("kernel");
+        let kernel = Arc::new(ship_substrate::ports::KernelLog::new(router));
+        let ctx = SpaceContext::for_space(
+            &ship_dir,
+            ship_substrate::ports::SpaceId::new("test"),
+            kernel,
+        )
+        .expect("space context");
         let ctx = Arc::new(ctx);
         let ship_dir = tmp.path().to_path_buf();
 

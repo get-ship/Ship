@@ -6,6 +6,8 @@
 
 use std::sync::Arc;
 
+use crate::emit::emit_process_signal_sent;
+use agent_schema::canonical_session::event_types as stream_event_types;
 use agent_schema::canonical_session::{
     SessionCompleted, SessionFailed, TurnEnded, event_types as canonical_session_event_types,
 };
@@ -13,10 +15,9 @@ use agent_schema::op::OpToolUseStarted;
 use async_trait::async_trait;
 use bridge::lifecycle::LifecycleSink;
 use ship_substrate::db::block_on_anyhow;
-use ship_substrate::events::emit::{emit_process_signal_sent, persist_and_route};
-use ship_substrate::events::process::{event_types as process_event_types, ProcessKilledPayload};
+use ship_substrate::events::emit::persist_and_route;
+use ship_substrate::events::process::ProcessKilledPayload;
 use ship_substrate::events::{EmitContext, EventEnvelope, KernelRouter};
-use agent_schema::canonical_session::event_types as stream_event_types;
 use ship_types::event_types as substrate_event_types;
 use tokio::sync::Mutex;
 
@@ -65,7 +66,7 @@ impl LifecycleSink for KernelLifecycleSink {
             reason: reason.to_string(),
             actor: actor.to_string(),
         };
-        match EventEnvelope::new(process_event_types::PROCESS_KILLED, slug, &payload) {
+        match EventEnvelope::new(substrate_event_types::PROCESS_KILLED, slug, &payload) {
             Ok(env) => {
                 let env = env.with_actor_id("service.process-executor");
                 persist_and_route(&self.kernel, env, slug).await;
@@ -130,12 +131,10 @@ impl LifecycleSink for KernelLifecycleSink {
             blast: None,
             started_at: now_iso8601(),
         };
-        let Ok(envelope) = EventEnvelope::new(
-            stream_event_types::OP_TOOL_USE_STARTED,
-            actor_id,
-            &payload,
-        )
-        .map(|e| e.with_actor_id(actor_id)) else {
+        let Ok(envelope) =
+            EventEnvelope::new(stream_event_types::OP_TOOL_USE_STARTED, actor_id, &payload)
+                .map(|e| e.with_actor_id(actor_id))
+        else {
             return;
         };
         let kernel = Arc::clone(&self.kernel);
@@ -183,9 +182,8 @@ impl LifecycleSink for KernelLifecycleSink {
             harness_reported_cost_usd,
             observed_at: Some(now_iso8601()),
         };
-        let Ok(envelope) =
-            EventEnvelope::new(stream_event_types::TURN_ENDED, actor_id, &payload)
-                .map(|e| e.with_actor_id(actor_id))
+        let Ok(envelope) = EventEnvelope::new(stream_event_types::TURN_ENDED, actor_id, &payload)
+            .map(|e| e.with_actor_id(actor_id))
         else {
             return;
         };
@@ -218,6 +216,7 @@ impl LifecycleSink for KernelLifecycleSink {
                 harness.as_deref(),
                 transport.as_deref(),
                 None,
+                Some(&kernel),
             )
             .map_err(|e| anyhow::anyhow!("{e}"))?;
             Ok(())

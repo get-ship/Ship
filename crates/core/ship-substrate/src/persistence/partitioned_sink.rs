@@ -1,6 +1,6 @@
-//! `PartitionedSink` — scope-routed `EventSink`.
+//! `PartitionedSink` — scope-routed `EventPersist`.
 //!
-//! A single `EventSink` that fans every persisted event out to a per-scope
+//! A single `EventPersist` that fans every persisted event out to a per-scope
 //! SQLite db, keyed by the event's `(scope, scope_key)`:
 //!
 //! - `EventScope::Space`   → `spaces/<scope_key>/space.db`
@@ -24,12 +24,14 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use anyhow::{Result, anyhow};
-use ship_kernel::EventSink;
+use ship_kernel::EventPersist;
 use ship_types::envelope::EventEnvelope;
 use ship_types::event_registry::EventScope;
+use ship_types::Stamped;
 
 use super::event_store::SqliteEventStore;
 use crate::db;
+use crate::projections::{ProjectionFactory, no_extra_projections};
 
 /// Routes events to a per-scope SQLite db under a ship-home root.
 pub struct PartitionedSink {
@@ -37,12 +39,25 @@ pub struct PartitionedSink {
     root: PathBuf,
     /// Lazily-opened, cached per-scope stores keyed by db identity.
     stores: Mutex<HashMap<String, Arc<SqliteEventStore>>>,
+    /// Extra (L1+) projections registered on every lazily-opened store.
+    extra: ProjectionFactory,
 }
 
 impl PartitionedSink {
-    /// Construct a sink rooted at the given ship-home directory.
+    /// Construct a sink rooted at the given ship-home directory with only the
+    /// L0 `ActorProjection` on each store bus.
     pub fn new(root: PathBuf) -> Self {
-        Self { root, stores: Mutex::new(HashMap::new()) }
+        Self::with_extra_projections(root, no_extra_projections())
+    }
+
+    /// Construct a sink that registers `extra` projections on every store it
+    /// opens. Composition roots pass the platform projection factory here.
+    pub fn with_extra_projections(root: PathBuf, extra: ProjectionFactory) -> Self {
+        Self {
+            root,
+            stores: Mutex::new(HashMap::new()),
+            extra,
+        }
     }
 
     /// Resolve `(cache_key, db_path)` for an event's scope. Errs when a Space
@@ -85,12 +100,8 @@ impl PartitionedSink {
                 }
                 Ok((format!("space:{key}"), db::space_db_path(&self.root, key)))
             }
-            EventScope::Account => {
-                Ok(("account".to_string(), db::account_db_path(&self.root)))
-            }
-            EventScope::Runtime => {
-                Ok(("runtime".to_string(), db::runtime_db_path(&self.root)))
-            }
+            EventScope::Account => Ok(("account".to_string(), db::account_db_path(&self.root))),
+            EventScope::Runtime => Ok(("runtime".to_string(), db::runtime_db_path(&self.root))),
         }
     }
 
@@ -116,15 +127,18 @@ impl PartitionedSink {
         if let Some(store) = stores.get(&key) {
             return Ok(store.clone());
         }
-        let store = Arc::new(SqliteEventStore::new_at_db_path(&db_path)?);
+        let store = Arc::new(SqliteEventStore::with_projection_factory(
+            &db_path,
+            &self.extra,
+        )?);
         stores.insert(key, store.clone());
         Ok(store)
     }
 }
 
-impl EventSink for PartitionedSink {
-    fn persist(&self, event: &EventEnvelope) -> anyhow::Result<()> {
-        let (key, db_path) = self.route(event)?;
+impl EventPersist for PartitionedSink {
+    fn persist(&self, event: &Stamped) -> anyhow::Result<()> {
+        let (key, db_path) = self.route(event.as_envelope())?;
         let store = self.store_for(key, db_path)?;
         store.persist(event)
     }

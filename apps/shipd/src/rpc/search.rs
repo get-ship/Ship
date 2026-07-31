@@ -23,10 +23,9 @@ use std::sync::Arc;
 
 use connectrpc::{RequestContext, Response, ServiceResult};
 use serde_json::Value;
-use ship_ops_rpc::{OwnedSearchRequestView, SearchResponse as ProtoSearchResponse};
+use ship_proto::ship::ops::v1::{OwnedSearchRequestView, SearchResponse as ProtoSearchResponse};
 use ship_search::{
-    hit_to_proto, parse_request, run_global, SearchScope, SearchService,
-    SpaceTarget,
+    SearchScope, SearchService, SpaceTarget, hit_to_proto, parse_request, run_global,
 };
 use ship_substrate::ports::{DataStore, KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
 
@@ -46,12 +45,15 @@ pub struct ShipdSearchWire {
 
 impl ShipdSearchWire {
     pub fn new(state: ApiState) -> Self {
-        Self { service: SearchService::new(), state }
+        Self {
+            service: SearchService::new(),
+            state,
+        }
     }
 }
 
 #[allow(refining_impl_trait)]
-impl ship_ops_rpc::SearchService for ShipdSearchWire {
+impl ship_proto::ship::ops::v1::SearchService for ShipdSearchWire {
     async fn search(
         &self,
         _ctx: RequestContext,
@@ -116,7 +118,8 @@ impl ShipdSearchWire {
                     // `space_store` open above — that opens a SECOND
                     // DataService over the same file just to read the
                     // `search.global` overlay key.
-                    match SpaceContext::for_space(&dir, SpaceId::new(sid.clone())) {
+                    let kernel = Arc::new(KernelLog::new(state.kernel().clone()));
+                    match SpaceContext::for_space(&dir, SpaceId::new(sid.clone()), kernel) {
                         Ok(space_ctx) => {
                             ShipdSearchContext::for_space(state.clone(), Arc::new(space_ctx))
                         }
@@ -135,12 +138,13 @@ impl ShipdSearchWire {
     /// Live space ids from the Runtime-scoped registry (`SpaceService.List`).
     async fn list_spaces(&self) -> ServiceResult<Vec<String>> {
         use ship_space::service::SpaceService;
-        let svc = SpaceService::new(self.runtime_ctx().map_err(|e| {
-            connectrpc::ConnectError::internal(format!("runtime context: {e}"))
-        })?);
-        let records = svc.list().map_err(|e| {
-            connectrpc::ConnectError::internal(format!("SpaceService.List: {e}"))
-        })?;
+        let svc =
+            SpaceService::new(self.runtime_ctx().map_err(|e| {
+                connectrpc::ConnectError::internal(format!("runtime context: {e}"))
+            })?);
+        let records = svc
+            .list()
+            .map_err(|e| connectrpc::ConnectError::internal(format!("SpaceService.List: {e}")))?;
         let ids: Vec<String> = records.into_iter().map(|r| r.space_id).collect();
         Ok(Response::new(ids))
     }
@@ -170,7 +174,10 @@ impl ShipdSearchWire {
             // path). Unset / non-bool ⇒ included; only an explicit `false` opts
             // out. A read error is conservative: include the space (don't opt
             // it out) — the fan-out gate's default is "include".
-            let value = ship_config::overlay::get(&*store, "search.global").await.ok().flatten();
+            let value = ship_settings::overlay::get(&*store, "search.global")
+                .await
+                .ok()
+                .flatten();
             let included = match value {
                 Some(Value::Bool(b)) => b,
                 _ => true,
@@ -186,28 +193,34 @@ impl ShipdSearchWire {
     fn runtime_ctx(&self) -> anyhow::Result<Arc<SpaceContext>> {
         let store = self.runtime_store()?;
         let kernel = Arc::new(KernelLog::new(self.state.kernel().clone()));
-        Ok(Arc::new(SpaceContext::new(SpaceId::new(RUNTIME_PARTITION), store, kernel)))
+        Ok(Arc::new(SpaceContext::new(
+            SpaceId::new(RUNTIME_PARTITION),
+            store,
+            kernel,
+        )))
     }
 
     fn runtime_store(&self) -> anyhow::Result<Arc<dyn DataStore>> {
         use ship_substrate::data::DataService;
         let runtime_db = ship_substrate::db::runtime_db_path(self.state.ship_dir());
-        let svc = DataService::open_at(&runtime_db)
-            .map_err(|e| anyhow::anyhow!(
+        let svc = DataService::open_at(&runtime_db).map_err(|e| {
+            anyhow::anyhow!(
                 "data service over runtime.db ({}): {e}",
                 runtime_db.display()
-            ))?;
-        Ok(Arc::new(SingleBackendDataStore::new(svc, RUNTIME_PARTITION)))
+            )
+        })?;
+        Ok(Arc::new(SingleBackendDataStore::new(
+            svc,
+            RUNTIME_PARTITION,
+        )))
     }
 
     fn space_store(&self, space_id: &str) -> anyhow::Result<Arc<dyn DataStore>> {
         use ship_substrate::data::DataService;
         let space_db = ship_substrate::db::space_db_path(self.state.ship_dir(), space_id);
-        let svc = DataService::open_at(&space_db)
-            .map_err(|e| anyhow::anyhow!(
-                "data service over space.db ({}): {e}",
-                space_db.display()
-            ))?;
+        let svc = DataService::open_at(&space_db).map_err(|e| {
+            anyhow::anyhow!("data service over space.db ({}): {e}", space_db.display())
+        })?;
         Ok(Arc::new(SingleBackendDataStore::new(svc, space_id)))
     }
 }

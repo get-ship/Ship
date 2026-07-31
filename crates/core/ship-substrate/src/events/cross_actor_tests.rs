@@ -8,16 +8,19 @@
 
 use tempfile::tempdir;
 
-use ship_types::envelope::EventEnvelope;
 use crate::db::{block_on, open_db_at};
 use crate::events::filter::EventFilter;
 use crate::events::kernel_router::{ActorConfig, KernelRouter};
 use crate::events::validator::{CallerKind, EmitContext};
+use ship_types::envelope::EventEnvelope;
 fn runtime_ctx() -> EmitContext {
     EmitContext {
         caller_kind: CallerKind::Runtime,
         skill_id: None,
-        binding: ship_types::ScopeBinding::daemon_internal(Some(ship_types::SpaceId::new("feature/actor-test".to_string())), agent_schema::Authority::Sdk),
+        binding: ship_types::ScopeBinding::daemon_internal(
+            Some(ship_types::SpaceId::new("feature/actor-test".to_string())),
+            agent_schema::Authority::Sdk,
+        ),
         session_id: None,
     }
 }
@@ -26,7 +29,10 @@ fn mcp_ctx() -> EmitContext {
     EmitContext {
         caller_kind: CallerKind::Mcp,
         skill_id: None,
-        binding: ship_types::ScopeBinding::daemon_internal(Some(ship_types::SpaceId::new("feature/actor-test".to_string())), agent_schema::Authority::Sdk),
+        binding: ship_types::ScopeBinding::daemon_internal(
+            Some(ship_types::SpaceId::new("feature/actor-test".to_string())),
+            agent_schema::Authority::Sdk,
+        ),
         session_id: None,
     }
 }
@@ -75,7 +81,9 @@ async fn observer_visual_message_reaches_agent_mailbox() {
     let event = ev("observer.message.visual");
     router.emit(event.clone(), &mcp_ctx()).await.unwrap();
 
-    let received = agent_mb.try_recv().expect("agent mailbox must receive observer event");
+    let received = agent_mb
+        .try_recv()
+        .expect("agent mailbox must receive observer event");
     assert_eq!(received.id, event.id);
     assert_eq!(received.event_type, "observer.message.visual");
 }
@@ -97,7 +105,9 @@ async fn agent_event_reaches_observer_mailbox() {
     let event = ev("agent.task_started");
     router.emit(event.clone(), &mcp_ctx()).await.unwrap();
 
-    let received = observer_mb.try_recv().expect("observer mailbox must receive agent event");
+    let received = observer_mb
+        .try_recv()
+        .expect("observer mailbox must receive agent event");
     assert_eq!(received.id, event.id);
     assert_eq!(received.event_type, "agent.task_started");
 }
@@ -155,15 +165,12 @@ async fn agent_cannot_read_observer_events() {
         event_type: Some("observer.message.visual".into()),
         ..Default::default()
     };
-    let err = router
-        .query_actor_events("agent.mcp", &filter)
-        .unwrap_err();
+    let err = router.query_actor_events("agent.mcp", &filter).unwrap_err();
     assert!(
         err.to_string().contains("read namespace violation"),
         "agent must not be able to query observer events: {err}"
     );
 }
-
 
 // ── artifact event routing ───────────────────────────────────────────────────
 
@@ -231,7 +238,6 @@ async fn observer_feedback_reaches_agent_mailbox() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn kernel_store_records_system_events_for_audit() {
-
     let tmp = tempdir().unwrap();
     let router = KernelRouter::new(tmp.path().join(".ship")).unwrap();
 

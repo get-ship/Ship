@@ -25,7 +25,7 @@ use std::sync::Arc;
 use ship_artifacts::service::ArtifactService;
 use ship_artifacts::types::ArtifactScope;
 use ship_substrate::data::DataService;
-use ship_substrate::events::new_isolated_for_test;
+use ship_substrate::events::new_isolated_for_test_with;
 use ship_substrate::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
 use ship_substrate::testutil::init_project_minimal;
 
@@ -42,8 +42,7 @@ mod common;
 fn make_service(ship_dir: &std::path::Path, scope_space: &str) -> ArtifactService {
     // Ensure ArtifactProjection is in the extra-projections factory before
     // any SqliteEventStore (and its default_bus) is constructed.
-    common::install_artifact_projection();
-    let router = new_isolated_for_test(ship_dir.to_path_buf()).unwrap();
+    let router = new_isolated_for_test_with(ship_dir.to_path_buf(), common::artifact_projection_factory()).unwrap();
     let kernel = Arc::new(KernelLog::new(router));
 
     // I-2: register the fabricated space id so `PartitionedSink::route()`

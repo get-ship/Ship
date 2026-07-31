@@ -8,17 +8,31 @@ pub use ship_types::{CallerKind, EmitContext};
 /// Reasons an event can be rejected before persistence.
 #[derive(Debug)]
 pub enum ValidationError {
-    NamespaceViolation { expected: String, got: String },
-    ReservedNamespace { namespace: String },
-    DirectionViolation { event_type: String, direction: String },
-    SchemaViolation { event_type: String, error: String },
+    NamespaceViolation {
+        expected: String,
+        got: String,
+    },
+    ReservedNamespace {
+        namespace: String,
+    },
+    DirectionViolation {
+        event_type: String,
+        direction: String,
+    },
+    SchemaViolation {
+        event_type: String,
+        error: String,
+    },
 }
 
 impl fmt::Display for ValidationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::NamespaceViolation { expected, got } => {
-                write!(f, "namespace violation: expected '{expected}.*', got '{got}'")
+                write!(
+                    f,
+                    "namespace violation: expected '{expected}.*', got '{got}'"
+                )
             }
             Self::ReservedNamespace { namespace } => {
                 write!(f, "reserved namespace: '{namespace}'")
@@ -27,7 +41,10 @@ impl fmt::Display for ValidationError {
                 event_type,
                 direction,
             } => {
-                write!(f, "direction violation: '{event_type}' cannot be emitted {direction}")
+                write!(
+                    f,
+                    "direction violation: '{event_type}' cannot be emitted {direction}"
+                )
             }
             Self::SchemaViolation { event_type, error } => {
                 write!(f, "schema violation for '{event_type}': {error}")
@@ -40,8 +57,7 @@ impl std::error::Error for ValidationError {}
 
 /// Validates an event before it is persisted.
 pub trait EventValidator: Send + Sync {
-    fn validate(&self, event: &EventEnvelope, ctx: &EmitContext)
-        -> Result<(), ValidationError>;
+    fn validate(&self, event: &EventEnvelope, ctx: &EmitContext) -> Result<(), ValidationError>;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -73,10 +89,7 @@ pub const KERNEL_NAMESPACES: &[&str] = &[
 
 /// Namespaces reserved for non-actor events (UI / config). Persisted in the
 /// per-scope event dbs but NOT routed to actors — actors don't need them.
-pub const PLATFORM_ONLY_NAMESPACES: &[&str] = &[
-    "project.",
-    "skill.",
-];
+pub const PLATFORM_ONLY_NAMESPACES: &[&str] = &["project.", "skill."];
 
 /// All reserved namespaces (kernel + platform-only). Untrusted callers cannot
 /// emit events with these prefixes. Must equal KERNEL_NAMESPACES ∪
@@ -124,11 +137,7 @@ fn is_trusted_caller(kind: &CallerKind) -> bool {
 pub struct NamespaceValidator;
 
 impl EventValidator for NamespaceValidator {
-    fn validate(
-        &self,
-        event: &EventEnvelope,
-        ctx: &EmitContext,
-    ) -> Result<(), ValidationError> {
+    fn validate(&self, event: &EventEnvelope, ctx: &EmitContext) -> Result<(), ValidationError> {
         if is_trusted_caller(&ctx.caller_kind) {
             return Ok(());
         }
@@ -154,11 +163,7 @@ impl EventValidator for NamespaceValidator {
 pub struct ReservedNamespaceValidator;
 
 impl EventValidator for ReservedNamespaceValidator {
-    fn validate(
-        &self,
-        event: &EventEnvelope,
-        ctx: &EmitContext,
-    ) -> Result<(), ValidationError> {
+    fn validate(&self, event: &EventEnvelope, ctx: &EmitContext) -> Result<(), ValidationError> {
         if is_trusted_caller(&ctx.caller_kind) {
             return Ok(());
         }
@@ -175,11 +180,7 @@ impl EventValidator for ReservedNamespaceValidator {
 pub struct ElevatedValidator;
 
 impl EventValidator for ElevatedValidator {
-    fn validate(
-        &self,
-        event: &EventEnvelope,
-        ctx: &EmitContext,
-    ) -> Result<(), ValidationError> {
+    fn validate(&self, event: &EventEnvelope, ctx: &EmitContext) -> Result<(), ValidationError> {
         if event.elevated && !is_trusted_caller(&ctx.caller_kind) {
             return Err(ValidationError::DirectionViolation {
                 event_type: event.event_type.clone(),
@@ -189,4 +190,3 @@ impl EventValidator for ElevatedValidator {
         Ok(())
     }
 }
-

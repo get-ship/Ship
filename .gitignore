@@ -239,3 +239,6 @@ apps/helmd/target/
 # cleanup (the loops harness lives elsewhere); the `results/` is the
 # final untracked residue.
 tests/loops/
+
+**/*.sail.d.ts
+apps/*/.deck/

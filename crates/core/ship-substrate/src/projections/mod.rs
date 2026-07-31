@@ -24,40 +24,28 @@ mod tests_daemon_events;
 pub use actor::ActorProjection;
 pub use async_projection::{AsyncProjection, spawn_projection};
 // CollectionProjection moved to ship-collection::item_projection (keystone A,
-// 2026-06-10). The COLLECTION domain owns its projections at L1; it is wired
-// into the bus via ship-platform's install_extra_projections_factory call.
+// 2026-06-10). The COLLECTION domain owns its projections at L1; the composition
+// root passes them via [`ProjectionFactory`].
 //
 // ProvisionedGrantsProjection moved to ship-auth::grants_projection (keystone-A
 // Phase A bundle 2, 2026-06-10). The AUTH domain owns its projection at L1;
-// it is wired via ship-platform's install_extra_projections_factory call.
+// the composition root passes it via [`ProjectionFactory`].
 pub use process::{ProcessRecord, ProcessStatus, load_processes};
 pub use registry::{EventBus, Projection};
 pub use spawn::{ProjectionHandle, spawn_with_failure_counter};
 
-use std::sync::Mutex;
+use std::sync::Arc;
 
-/// Factory that produces additional projections to register on the default
-/// event bus. Registered at application startup by each higher-layer domain
-/// (platform, pipeline-runtime, …); read by `SqliteEventStore::default_bus`.
-type ExtraProjectionsFactory = Box<dyn Fn() -> Vec<Box<dyn Projection>> + Send + Sync>;
-static EXTRA_PROJECTIONS: Mutex<Vec<ExtraProjectionsFactory>> = Mutex::new(Vec::new());
+/// Factory that produces additional (L1+) projections to register on an event
+/// bus alongside the L0 `ActorProjection` default.
+///
+/// Constructed by the composition root (shipd / platform startup / tests) and
+/// passed into `SqliteEventStore` / `PartitionedSink` / `KernelRouter` /
+/// rebuild. Each store open invokes the factory so every scope db gets its
+/// own projection instances. There is no process-global registry.
+pub type ProjectionFactory = Arc<dyn Fn() -> Vec<Box<dyn Projection>> + Send + Sync>;
 
-/// Register a factory for additional projections beyond the substrate L0
-/// defaults. Each domain contributes its own projections through this single
-/// API; the substrate composes every registered factory at bus-construction
-/// time. Call at app startup before any `SqliteEventStore` is constructed.
-pub fn install_extra_projections_factory(factory: ExtraProjectionsFactory) {
-    EXTRA_PROJECTIONS
-        .lock()
-        .expect("extra-projections registry poisoned")
-        .push(factory);
-}
-
-pub fn extra_projections() -> Vec<Box<dyn Projection>> {
-    EXTRA_PROJECTIONS
-        .lock()
-        .expect("extra-projections registry poisoned")
-        .iter()
-        .flat_map(|f| f())
-        .collect()
+/// Empty factory — bus carries only the L0 `ActorProjection`.
+pub fn no_extra_projections() -> ProjectionFactory {
+    Arc::new(Vec::new)
 }

@@ -163,7 +163,10 @@ fn delete_trashes_dir() {
         .unwrap()
         .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
         .collect();
-    assert!(entries.iter().any(|n| n.ends_with("-doomed")), "trash: {entries:?}");
+    assert!(
+        entries.iter().any(|n| n.ends_with("-doomed")),
+        "trash: {entries:?}"
+    );
 }
 
 #[test]

@@ -19,9 +19,21 @@ pub struct TierRow {
 
 pub fn build_tiers(selected: &str) -> Vec<TierRow> {
     [
-        ("standard", "Standard", "Human confirms risky actions before they run."),
-        ("autonomous", "Autonomous", "Agent acts end-to-end; safety rails still apply."),
-        ("read-only", "Read Only", "Agent inspects and reports. No writes."),
+        (
+            "standard",
+            "Standard",
+            "Human confirms risky actions before they run.",
+        ),
+        (
+            "autonomous",
+            "Autonomous",
+            "Agent acts end-to-end; safety rails still apply.",
+        ),
+        (
+            "read-only",
+            "Read Only",
+            "Agent inspects and reports. No writes.",
+        ),
     ]
     .iter()
     .map(|(id, label, desc)| TierRow {
@@ -49,7 +61,11 @@ pub fn build(id: &str, ship_dir: &Path) -> Option<AgentSettingsCtx> {
     catalogs.skills.retain(|e| !agent.skills.contains(&e.id));
     catalogs.mcp.retain(|e| !agent.mcp_servers.contains(&e.id));
     catalogs.rules.retain(|e| !agent.rules.contains(&e.id));
-    Some(AgentSettingsCtx { agent, tiers, catalogs })
+    Some(AgentSettingsCtx {
+        agent,
+        tiers,
+        catalogs,
+    })
 }
 
 #[cfg(test)]

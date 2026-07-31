@@ -1,29 +1,33 @@
 //! `daemon_owner` projection is registered in the production factory.
 //!
-//! Regression: the production `ship_platform::install_defaults()` did not
-//! include `ship_auth::DaemonOwnerProjection` in its factory, so the
+//! Regression: the production `ship_platform::platform_projection_factory()`
+//! did not include `ship_auth::DaemonOwnerProjection`, so the
 //! `daemon.owner.bound` event emitted by `ship login` never folded into the
 //! `daemon_owner` table outside of tests. `ship_auth::current_owner()` was
 //! always `None` in production. This test goes through the production factory
 //! (NOT `ship_auth::testutil::init_auth`) — a regression here reproduces the
 //! July-2 bug ("c-2026-07-02T01-40-29").
 
+use ship_types::Stamped;
+use ship_substrate::ShipHome;
 use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
 use ship_substrate::project::get_global_dir;
-use ship_substrate::ShipHome;
 
 #[test]
 fn daemon_owner_projection_registered_in_production_factory() {
-    // Drive the production composition root.
-    ship_platform::install_defaults();
-
+    let factory = ship_platform::platform_projection_factory();
     let ship_dir = get_global_dir().expect("auto-isolated test ship dir");
 
-    // Append `daemon.owner.bound` through an Account-scope store. The store
-    // loads its bus from the factory that `install_defaults` just installed;
-    // if `DaemonOwnerProjection` isn't there, the table never folds.
-    let store = SqliteEventStore::new_for_scope(&ship_dir, ship_types::event_registry::EventScope::Account, None)
-        .expect("account store");
+    // Append `daemon.owner.bound` through an Account-scope store that
+    // carries the production factory. If `DaemonOwnerProjection` isn't
+    // in the factory, the table never folds.
+    let store = SqliteEventStore::new_for_scope_with(
+        &ship_dir,
+        ship_types::event_registry::EventScope::Account,
+        None,
+        factory(),
+    )
+    .expect("account store");
 
     let payload = ship_types::payload::DaemonOwnerBound {
         source: "login".to_string(),
@@ -35,7 +39,7 @@ fn daemon_owner_projection_registered_in_production_factory() {
         &payload,
     )
     .expect("envelope");
-    store.append(&envelope).expect("append owner.bound");
+    store.append(&Stamped::unchecked(envelope.clone())).expect("append owner.bound");
 
     // Read via the production helper. With the projection registered the
     // single-row `daemon_owner` table now reflects the bind; without it the

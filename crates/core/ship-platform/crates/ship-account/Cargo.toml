@@ -11,6 +11,7 @@ ship-substrate = { path = "../../../ship-substrate" }
 ship-types = { path = "../../../ship-substrate/crates/ship-types" }
 ship-gateway-client = { path = "../../../ship-gateway-client" }
 ship-ops-rpc = { path = "../../../ship-ops-rpc" }
+ship-proto = { git = "https://github.com/get-ship/ship-contracts.git", branch = "feat/next" }
 
 async-trait = { workspace = true }
 connectrpc = { version = "0.4", features = ["axum"] }

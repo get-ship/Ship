@@ -8,12 +8,16 @@ use tempfile::tempdir;
 fn svc() -> (FilesService, tempfile::TempDir, tempfile::TempDir) {
     let user = tempdir().unwrap();
     let project = tempdir().unwrap();
-    let svc = FilesService::new(user.path().to_path_buf(), Some(project.path().to_path_buf()));
+    let svc = FilesService::new(
+        user.path().to_path_buf(),
+        Some(project.path().to_path_buf()),
+    );
     (svc, user, project)
 }
 
 fn seed(s: &FilesService, scope: Scope, id: &str, body: &str) {
-    s.write(scope, Path::new(&format!("rules/{id}.md")), body.as_bytes()).unwrap();
+    s.write(scope, Path::new(&format!("rules/{id}.md")), body.as_bytes())
+        .unwrap();
 }
 
 #[test]
@@ -39,8 +43,10 @@ fn list_dedupes_project_over_user() {
 fn list_skips_readme_and_non_md() {
     let (s, _u, _p) = svc();
     seed(&s, Scope::Project, "real", "# real");
-    s.write(Scope::Project, Path::new("rules/README.md"), b"nope").unwrap();
-    s.write(Scope::Project, Path::new("rules/notes.txt"), b"nope").unwrap();
+    s.write(Scope::Project, Path::new("rules/README.md"), b"nope")
+        .unwrap();
+    s.write(Scope::Project, Path::new("rules/notes.txt"), b"nope")
+        .unwrap();
     let items = list(&s);
     assert_eq!(items.len(), 1);
     assert_eq!(items[0].id, "real");
@@ -94,7 +100,10 @@ fn write_allow_overwrite_replaces_body() {
 #[test]
 fn missing_returns_not_found() {
     let (s, _u, _p) = svc();
-    assert!(matches!(load_body(&s, "ghost", None), Err(Error::NotFound(_))));
+    assert!(matches!(
+        load_body(&s, "ghost", None),
+        Err(Error::NotFound(_))
+    ));
 }
 
 #[test]
@@ -107,7 +116,10 @@ fn delete_trashes_not_removes() {
         .unwrap()
         .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
         .collect();
-    assert!(trashed.iter().any(|n| n.ends_with("-doomed.md")), "trash: {trashed:?}");
+    assert!(
+        trashed.iter().any(|n| n.ends_with("-doomed.md")),
+        "trash: {trashed:?}"
+    );
 }
 
 #[test]

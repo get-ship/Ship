@@ -8,9 +8,9 @@
 //! - `init`      — construction (`new`), shutdown, and test helpers
 //! - `accessors` — accessor methods, background task starters, event routing
 
-pub mod types;
-pub(crate) mod init;
 mod accessors;
+pub(crate) mod init;
+pub mod types;
 // live_resolvers: the `(domain, op) -> live value` resolver table — built in
 // `init`, held on `ShipRuntime`, exposed via `accessors::live_resolvers`.
 pub mod live_resolvers;
@@ -20,20 +20,15 @@ mod test_ctors;
 
 // Re-export all public types from this module level so callers that use
 // `crate::ship_runtime::*` continue to resolve without path changes.
-pub use types::{
-    RuntimeConfig, AppMetadata,
-    ApiState,
-    SharedKernel,
-    ActorGuard,
-};
+pub use types::{ActorGuard, ApiState, AppMetadata, RuntimeConfig, SharedKernel};
 
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::auth::SessionRegistry;
-use ship_substrate::task_health::HealthRegistry;
 #[cfg(feature = "bridge")]
 use crate::dispatch::run_dispatch::DispatchHandle;
+use crate::task_health::HealthRegistry;
 
 /// Central runtime for shipd. Owns the kernel, registry, and config.
 pub struct ShipRuntime {
@@ -89,7 +84,7 @@ pub struct ShipRuntime {
     /// Wave 4 phase A).
     pub(super) hook_engine: std::sync::OnceLock<std::sync::Arc<ship_triggers::engine::HookEngine>>,
     /// Declarative-tier config watcher (Phase 4) — emits domain.changed events.
-    pub(super) config_watcher: std::sync::OnceLock<ship_platform::config::ConfigWatcher>,
+    pub(super) config_watcher: std::sync::OnceLock<ship_settings::watcher::ConfigWatcher>,
     /// Shared event-log handle for the live agent-def index (agents arc S5).
     /// Set by `start_agent_def_index`: the boot rebuild + the change consumer +
     /// the gated-write NOTIFY all ride THIS one `KernelLog` so the op-emit and
@@ -104,7 +99,7 @@ pub struct ShipRuntime {
     /// clone of the Arc the change consumer owns); `None` until the index is
     /// mounted (space-less boot never mounts it).
     pub(super) agent_def_index:
-        std::sync::OnceLock<std::sync::Arc<ship_platform::config::AgentDefIndex>>,
+        std::sync::OnceLock<std::sync::Arc<ship_settings::agents_index::AgentDefIndex>>,
     /// Reactive registry for the unified agent `Watch` (agents-arc E5). Built
     /// from the SAME shared `agent_def_kernel` the live def-index rides — N
     /// subscribers on one `WatchKey` share one resolver + one kernel
@@ -112,8 +107,7 @@ pub struct ShipRuntime {
     /// kernel (space-less boot never mounts it; the Watch RPC then errors
     /// cleanly). Reuses the existing shared log rather than standing up a
     /// parallel registry (one-way-to-do-things; mirrors collection/space).
-    pub(super) agent_reactive:
-        std::sync::OnceLock<std::sync::Arc<ship_reactive::ReactiveRegistry>>,
+    pub(super) agent_reactive: std::sync::OnceLock<std::sync::Arc<ship_reactive::ReactiveRegistry>>,
     /// In-process Rolldown bundler (#163) — owned here, lazily started on
     /// first access. `Bundler::start` is synchronous (it locates the
     /// `sui-compiler` binary and sets up channels, no child process), so
@@ -134,7 +128,7 @@ pub struct ShipRuntime {
     pub(super) agents: std::sync::Arc<dyn ship_agents::services::agents::service::AgentsService>,
     /// `PipelinesService` impl — sixth mr-02 migration (definition CRUD only;
     /// dispatch / cancel / runs still flow through `runtime_api`).
-    pub(super) pipelines: std::sync::Arc<dyn ship_pipeline_runtime::pipelines::service::PipelinesService>,
+    pub(super) pipelines: std::sync::Arc<dyn pipeline_defs::pipelines::service::PipelinesService>,
     // The dedicated `git` service field is gone — git is an L0 git2 wrapper
     // (`ship_git::{read,write,diff,state}`), not an RPC service. Views read
     // git through the abstract registry op (`live_resolvers` `git.overview`).
@@ -151,5 +145,6 @@ pub struct ShipRuntime {
     /// (The per-window multiplex registry was deleted in the transport move to
     /// deck-axum (#276); it now lives in `deck_core::window_registry` and is
     /// constructed at router-mount time in `apps/shipd/src/router.rs`.)
-    pub(super) live_resolvers: std::sync::Arc<crate::ship_runtime::live_resolvers::LiveResolverRegistry>,
+    pub(super) live_resolvers:
+        std::sync::Arc<crate::ship_runtime::live_resolvers::LiveResolverRegistry>,
 }

@@ -20,25 +20,29 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex as StdMutex};
 use tokio::sync::Mutex;
 
-use agent_schema::canonical_session::{SessionCancelled, event_types as canonical_session_event_types};
-use agent_schema::dispatch_intent::{DispatchRequestedPayload, event_types as dispatch_event_types};
-use ship_agents::services::sessions::{
-    CanonicalSessionProjection, CanonicalSessionStatus, load_canonical_session_by_id,
-};
-use ship_substrate::projections::Projection;
-use ship_substrate::db::block_on;
-use ship_agents::ports::AgentPorts;
-use ship_substrate::dispatch_gate::EventDedup;
 use agent_schema::InvocationMode;
-use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
-use ship_substrate::events::process::event_types as process_event_types;
-use ship_substrate::events::process::ProcessKilledPayload;
-use ship_substrate::events::EventEnvelope;
-use bridge::lifecycle::NoopLifecycleSink;
+use agent_schema::canonical_session::{
+    SessionCancelled, event_types as canonical_session_event_types,
+};
+use agent_schema::dispatch_intent::{
+    DispatchRequestedPayload, event_types as dispatch_event_types,
+};
 use bridge::dispatch_ports::{
     AgentPlatform, Authority, ExecutorHandle, IsolationStrategy, ProcessRegistryPort,
     ProjectionReader, SessionContext, SessionExecutor, SpawnPolicy,
 };
+use bridge::lifecycle::NoopLifecycleSink;
+use ship_agents::dispatch_gate::EventDedup;
+use ship_agents::ports::AgentPorts;
+use ship_agents::services::sessions::{
+    CanonicalSessionProjection, CanonicalSessionStatus, load_canonical_session_by_id,
+};
+use ship_substrate::db::block_on;
+use ship_substrate::events::EventEnvelope;
+use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
+use ship_substrate::events::process::ProcessKilledPayload;
+use ship_substrate::projections::Projection;
+use ship_types::event_types as process_event_types;
 
 // ── Port doubles ────────────────────────────────────────────────────────────
 
@@ -272,6 +276,7 @@ fn ports_with(
         spawn_policy: Arc::new(TokenSpawnPolicy),
         projections: Arc::new(NeverTerminal),
         event_dedup: Arc::new(EventDedup::new()),
+        dispatch_gate: ship_agents::dispatch_gate::new_dispatch_gate(),
     }
 }
 
@@ -292,6 +297,7 @@ fn ports_with_projection(
         spawn_policy: Arc::new(TokenSpawnPolicy),
         projections,
         event_dedup: Arc::new(EventDedup::new()),
+        dispatch_gate: ship_agents::dispatch_gate::new_dispatch_gate(),
     }
 }
 
@@ -310,8 +316,7 @@ fn find_process_spawned(slug: &str) -> bool {
         .ok()
         .map(|events| {
             events.iter().any(|e| {
-                e.entity_id == slug
-                    && e.event_type == process_event_types::PROCESS_SPAWNED
+                e.entity_id == slug && e.event_type == process_event_types::PROCESS_SPAWNED
             })
         })
         .unwrap_or(false)
@@ -339,10 +344,13 @@ async fn dispatch_and_capture(
     captured: &Arc<StdMutex<Option<Captured>>>,
     payload: &DispatchRequestedPayload,
 ) -> Option<Captured> {
-    let envelope =
-        EventEnvelope::new(dispatch_event_types::DISPATCH_REQUESTED, &payload.session_id, payload)
-            .unwrap()
-            .with_actor_id("test");
+    let envelope = EventEnvelope::new(
+        dispatch_event_types::DISPATCH_REQUESTED,
+        &payload.session_id,
+        payload,
+    )
+    .unwrap()
+    .with_actor_id("test");
     ship_agents::handle_agents_event(kernel, &envelope, ports).await;
     // The detached prep task runs under DISPATCH_GATE; poll briefly.
     for _ in 0..50 {
@@ -380,8 +388,16 @@ async fn bare_session_dispatch_threads_harness_model_branch_and_spawn_env() {
         .await
         .expect("executor.spawn called");
 
-    assert_eq!(got.harness.as_deref(), Some("codex"), "harness threads into LaunchProfile");
-    assert_eq!(got.model.as_deref(), Some("gpt-5-codex"), "model threads into LaunchProfile");
+    assert_eq!(
+        got.harness.as_deref(),
+        Some("codex"),
+        "harness threads into LaunchProfile"
+    );
+    assert_eq!(
+        got.model.as_deref(),
+        Some("gpt-5-codex"),
+        "model threads into LaunchProfile"
+    );
     assert_eq!(got.branch, "job/sess-1", "branch threads from payload");
     assert_eq!(
         got.spec_path, "",
@@ -490,7 +506,6 @@ async fn bare_session_dispatch_falls_back_to_spec_body_for_prompt() {
 // — sessions never carry pipeline identity post-cut. The bare
 // `dispatch.requested` path is the only path.)
 
-
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn dispatch_emits_process_spawned_on_success() {
     let tmp = tempfile::TempDir::new().unwrap();
@@ -500,7 +515,10 @@ async fn dispatch_emits_process_spawned_on_success() {
     #[async_trait]
     impl SessionExecutor for OkExecutor {
         async fn spawn(&self, _: &SessionContext) -> anyhow::Result<ExecutorHandle> {
-            Ok(ExecutorHandle { pid: Some(99), inner: Box::new(()) })
+            Ok(ExecutorHandle {
+                pid: Some(99),
+                inner: Box::new(()),
+            })
         }
         async fn is_alive(&self, _: &ExecutorHandle) -> bool {
             true
@@ -541,7 +559,10 @@ async fn dispatch_emits_process_spawned_on_success() {
         }
         tokio::time::sleep(std::time::Duration::from_millis(10)).await;
     }
-    assert!(ok, "process.spawned emitted (entity_id=slug) after a successful spawn");
+    assert!(
+        ok,
+        "process.spawned emitted (entity_id=slug) after a successful spawn"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -550,17 +571,24 @@ async fn cancel_stops_registered_handle_and_emits_process_killed() {
     let stop_calls = Arc::new(AtomicUsize::new(0));
     let cleanup_calls = Arc::new(AtomicUsize::new(0));
     let registry = Arc::new(SeededRegistry {
-        handle: Mutex::new(Some(ExecutorHandle { pid: Some(42), inner: Box::new(()) })),
+        handle: Mutex::new(Some(ExecutorHandle {
+            pid: Some(42),
+            inner: Box::new(()),
+        })),
     });
     let ports = ports_with_projection(
         Arc::new(OkIsolation(PathBuf::from("/tmp"))),
-        Arc::new(StoppingExecutor { stop_calls: stop_calls.clone() }),
+        Arc::new(StoppingExecutor {
+            stop_calls: stop_calls.clone(),
+        }),
         registry,
         Arc::new(TestPlatform {
             worktrees: PathBuf::from("/tmp/test-worktrees"),
             cleanup_calls: cleanup_calls.clone(),
         }),
-        Arc::new(FixedSlugProjection { slug: "cancel-1".into() }),
+        Arc::new(FixedSlugProjection {
+            slug: "cancel-1".into(),
+        }),
     );
 
     let slug = "cancel-1";
@@ -578,8 +606,16 @@ async fn cancel_stops_registered_handle_and_emits_process_killed() {
 
     ship_agents::handle_agents_event(&kernel, &envelope, &ports).await;
 
-    assert_eq!(stop_calls.load(Ordering::SeqCst), 1, "executor.stop called once via L0 teardown");
-    assert_eq!(cleanup_calls.load(Ordering::SeqCst), 1, "platform.cleanup_job called once");
+    assert_eq!(
+        stop_calls.load(Ordering::SeqCst),
+        1,
+        "executor.stop called once via L0 teardown"
+    );
+    assert_eq!(
+        cleanup_calls.load(Ordering::SeqCst),
+        1,
+        "platform.cleanup_job called once"
+    );
     let killed = find_process_killed(slug).expect("process.killed emitted");
     assert_eq!(killed.slug, slug);
     assert_eq!(killed.pid, Some(42));
@@ -593,13 +629,17 @@ async fn cancel_without_handle_still_cleans_and_emits() {
     let cleanup_calls = Arc::new(AtomicUsize::new(0));
     let ports = ports_with_projection(
         Arc::new(OkIsolation(PathBuf::from("/tmp"))),
-        Arc::new(StoppingExecutor { stop_calls: Arc::new(AtomicUsize::new(0)) }),
+        Arc::new(StoppingExecutor {
+            stop_calls: Arc::new(AtomicUsize::new(0)),
+        }),
         Arc::new(NoopRegistry),
         Arc::new(TestPlatform {
             worktrees: PathBuf::from("/tmp/test-worktrees"),
             cleanup_calls: cleanup_calls.clone(),
         }),
-        Arc::new(FixedSlugProjection { slug: "cancel-2".into() }),
+        Arc::new(FixedSlugProjection {
+            slug: "cancel-2".into(),
+        }),
     );
 
     let slug = "cancel-2";
@@ -617,7 +657,11 @@ async fn cancel_without_handle_still_cleans_and_emits() {
 
     ship_agents::handle_agents_event(&kernel, &envelope, &ports).await;
 
-    assert_eq!(cleanup_calls.load(Ordering::SeqCst), 1, "cleanup still runs on a registry miss");
+    assert_eq!(
+        cleanup_calls.load(Ordering::SeqCst),
+        1,
+        "cleanup still runs on a registry miss"
+    );
     let killed = find_process_killed(slug).expect("process.killed emitted");
     assert_eq!(killed.pid, None, "no handle → pid None in the audit event");
 }
@@ -666,6 +710,7 @@ async fn floki_harness_routes_to_yoke_run_fn_and_skips_executor() {
         spawn_policy: Arc::new(TokenSpawnPolicy),
         projections: Arc::new(NeverTerminal),
         event_dedup: Arc::new(EventDedup::new()),
+        dispatch_gate: ship_agents::dispatch_gate::new_dispatch_gate(),
     };
 
     // harness == "floki" is the routing key.
@@ -722,6 +767,7 @@ async fn floki_harness_routes_to_yoke_run_fn_and_skips_executor() {
         spawn_policy: Arc::new(TokenSpawnPolicy),
         projections: Arc::new(NeverTerminal),
         event_dedup: Arc::new(EventDedup::new()),
+        dispatch_gate: ship_agents::dispatch_gate::new_dispatch_gate(),
     };
     let payload_yoke = started_payload("s-yoke-1", "yoke-sess", Some("yoke"), None);
     let env_yoke = EventEnvelope::new(
@@ -769,6 +815,7 @@ async fn floki_harness_without_closure_emits_session_failed() {
         spawn_policy: Arc::new(TokenSpawnPolicy),
         projections: Arc::new(NeverTerminal),
         event_dedup: Arc::new(EventDedup::new()),
+        dispatch_gate: ship_agents::dispatch_gate::new_dispatch_gate(),
     };
 
     let payload = started_payload("s-floki-2", "fl-no-fn", Some("floki"), None);
@@ -790,7 +837,6 @@ async fn floki_harness_without_closure_emits_session_failed() {
         "no floki closure + harness='floki' must NOT route to executor — \
          the loud-refusal fix lands a typed `session.failed` instead",
     );
-
 }
 
 /// SPEC: `session.cancelled` emitted by the Stop RPC is consumed by TWO
@@ -850,7 +896,11 @@ async fn stop_rpc_session_cancelled_actor_tears_down_and_projection_shows_cancel
         CanonicalSessionStatus::Active,
         "precondition: session is Active before cancellation"
     );
-    assert_eq!(before.slug.as_deref(), Some(SLUG), "precondition: slug populated");
+    assert_eq!(
+        before.slug.as_deref(),
+        Some(SLUG),
+        "precondition: slug populated"
+    );
 
     // ── 3. Build session.cancelled envelope ───────────────────────────────
     // Matches exactly what stop_fn in apps/shipd/src/ops_rpc.rs emits:
@@ -873,11 +923,16 @@ async fn stop_rpc_session_cancelled_actor_tears_down_and_projection_shows_cancel
     let stop_calls = Arc::new(AtomicUsize::new(0));
     let cleanup_calls = Arc::new(AtomicUsize::new(0));
     let registry = Arc::new(SeededRegistry {
-        handle: Mutex::new(Some(ExecutorHandle { pid: Some(99), inner: Box::new(()) })),
+        handle: Mutex::new(Some(ExecutorHandle {
+            pid: Some(99),
+            inner: Box::new(()),
+        })),
     });
     let ports = ports_with_projection(
         Arc::new(OkIsolation(PathBuf::from("/tmp"))),
-        Arc::new(StoppingExecutor { stop_calls: stop_calls.clone() }),
+        Arc::new(StoppingExecutor {
+            stop_calls: stop_calls.clone(),
+        }),
         registry,
         Arc::new(TestPlatform {
             worktrees: PathBuf::from("/tmp/test-worktrees"),
@@ -889,11 +944,23 @@ async fn stop_rpc_session_cancelled_actor_tears_down_and_projection_shows_cancel
     ship_agents::handle_agents_event(&kernel, &cancel_env, &ports).await;
 
     // Process torn down via L0.
-    assert_eq!(stop_calls.load(Ordering::SeqCst), 1, "executor.stop called once via actor teardown");
-    assert_eq!(cleanup_calls.load(Ordering::SeqCst), 1, "platform.cleanup_job called once");
+    assert_eq!(
+        stop_calls.load(Ordering::SeqCst),
+        1,
+        "executor.stop called once via actor teardown"
+    );
+    assert_eq!(
+        cleanup_calls.load(Ordering::SeqCst),
+        1,
+        "platform.cleanup_job called once"
+    );
     let killed = find_process_killed(SLUG).expect("process.killed emitted for audit");
     assert_eq!(killed.slug, SLUG, "process.killed keyed on slug");
-    assert_eq!(killed.pid, Some(99), "pid from registered handle threads into process.killed");
+    assert_eq!(
+        killed.pid,
+        Some(99),
+        "pid from registered handle threads into process.killed"
+    );
     assert_eq!(killed.reason, "cancellation");
     assert_eq!(killed.actor, "operator");
 
@@ -910,13 +977,20 @@ async fn stop_rpc_session_cancelled_actor_tears_down_and_projection_shows_cancel
         CanonicalSessionStatus::Cancelled,
         "canonical projection must show Cancelled after session.cancelled applied"
     );
-    assert_eq!(after.outcome.as_deref(), Some("cancelled"), "outcome = cancelled");
+    assert_eq!(
+        after.outcome.as_deref(),
+        Some("cancelled"),
+        "outcome = cancelled"
+    );
     assert_eq!(
         after.reason.as_deref(),
         Some("operator stop"),
         "reason threads from payload into the read-model"
     );
-    assert!(after.ended_at.is_some(), "ended_at must be populated on cancellation");
+    assert!(
+        after.ended_at.is_some(),
+        "ended_at must be populated on cancellation"
+    );
 }
 
 // ── session.failed emit scope ───────────────────────────────────────────────

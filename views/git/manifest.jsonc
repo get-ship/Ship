@@ -1,0 +1,13 @@
+// Route metadata for views/git/. See
+// docs/ship-adrs/references/docs/view-directory-convention.md.
+{
+  "name": "git",
+  "path": "/git",
+  "title": "Git",
+  "layout": "default",
+  "auth": "user",
+  "rail": {
+    "label": "Git",
+    "icon": "git-branch"
+  }
+}

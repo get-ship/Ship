@@ -12,13 +12,16 @@
 //! `portable-pty` + native_pty_system, which is unix-only; the test
 //! stays portable by gating on `cfg(unix)`.
 
-#![cfg(unix)]
+// `terminal_session_spawner` is behind ship-agents' `bridge` feature; skip
+// the whole suite when the feature is off so default-feature `cargo test`
+// still compiles.
+#![cfg(all(unix, feature = "bridge"))]
 
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-use ship_agents::services::sessions::terminal_session_spawner;
 use ship_agents::services::sessions::Registry;
+use ship_agents::services::sessions::terminal_session_spawner;
 use tempfile::TempDir;
 
 const POLL_INTERVAL: Duration = Duration::from_millis(25);
@@ -62,10 +65,14 @@ async fn stop_terminates_the_underlying_child() {
     // Spawn a real shell. The supervisor primitive creates a fresh
     // child process via PtyTransport; we capture its pid so we can
     // probe liveness directly with kill(pid, 0).
+    let ship_dir = work_dir.path().join(".ship");
+    std::fs::create_dir_all(&ship_dir).expect("mkdir .ship");
+    let kernel = ship_substrate::events::new_isolated_for_test(ship_dir).expect("kernel");
     let entry = terminal_session_spawner::spawn_shell(
         &registry,
         PathBuf::from(work_dir.path()),
         PathBuf::from(log_dir.path()),
+        kernel,
     )
     .expect("spawn_shell");
 
@@ -80,9 +87,10 @@ async fn stop_terminates_the_underlying_child() {
     );
 
     // Act — call stop. Returns true on first hit, false thereafter.
-    let stopped = tokio::task::spawn_blocking(move || terminal_session_spawner::stop(&registry, &handle_id))
-        .await
-        .expect("stop join");
+    let stopped =
+        tokio::task::spawn_blocking(move || terminal_session_spawner::stop(&registry, &handle_id))
+            .await
+            .expect("stop join");
     assert!(stopped, "stop must find and stop the just-spawned session");
 
     // The leak we fixed: the pid was alive after spawn AND after the

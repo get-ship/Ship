@@ -13,11 +13,11 @@
 //! All tests use offline-generated Ed25519 keypairs and a closure-backed
 //! `BundleFetcher` mock. No network, no real reqwest calls.
 
-use std::collections::HashMap;
-use std::sync::Arc;
 use jsonwebtoken::{Algorithm, EncodingKey, Header};
 use serde_json::json;
 use sha2::{Digest, Sha256};
+use std::collections::HashMap;
+use std::sync::Arc;
 use tempfile::tempdir;
 
 use super::{
@@ -108,8 +108,7 @@ fn make_tarball(path_in_archive: &str, body: &[u8]) -> Vec<u8> {
     let mut gz = Vec::new();
     {
         use std::io::Write;
-        let mut enc =
-            flate2::write::GzEncoder::new(&mut gz, flate2::Compression::default());
+        let mut enc = flate2::write::GzEncoder::new(&mut gz, flate2::Compression::default());
         enc.write_all(&tar_buf).unwrap();
         enc.finish().unwrap();
     }
@@ -191,7 +190,10 @@ fn manifest_serde_round_trip_golden_fixture() {
     }))
     .expect("serialize golden");
 
-    assert_eq!(serialized, golden, "serialized manifest must match golden shape");
+    assert_eq!(
+        serialized, golden,
+        "serialized manifest must match golden shape"
+    );
 
     let parsed: ChannelManifest = serde_json::from_str(&serialized).expect("parse");
     assert_eq!(parsed, manifest, "round-trip preserves manifest");
@@ -215,7 +217,10 @@ fn manifest_serde_accepts_alternate_field_names() {
     let m: ChannelManifest = serde_json::from_value(raw.clone()).expect("parse");
     let out = serde_json::to_value(&m).expect("serialize");
     assert_eq!(out["bundles"][0]["daemon_compat"], "^0.1.0");
-    assert_eq!(out["bundles"][0]["content_hash"], raw["bundles"][0]["content_hash"]);
+    assert_eq!(
+        out["bundles"][0]["content_hash"],
+        raw["bundles"][0]["content_hash"]
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -238,13 +243,27 @@ fn resolve_picks_newest_matching_entry() {
     let m = ChannelManifest {
         channel: "stable".to_string(),
         bundles: vec![
-            entry_no_sig("ship/themes/midnight", "1.0.0", "^0.1.0", "https://a/1.0.0.tgz"),
-            entry_no_sig("ship/themes/midnight", "1.2.0", "^0.1.0", "https://a/1.2.0.tgz"),
-            entry_no_sig("ship/themes/midnight", "1.1.5", "^0.1.0", "https://a/1.1.5.tgz"),
+            entry_no_sig(
+                "ship/themes/midnight",
+                "1.0.0",
+                "^0.1.0",
+                "https://a/1.0.0.tgz",
+            ),
+            entry_no_sig(
+                "ship/themes/midnight",
+                "1.2.0",
+                "^0.1.0",
+                "https://a/1.2.0.tgz",
+            ),
+            entry_no_sig(
+                "ship/themes/midnight",
+                "1.1.5",
+                "^0.1.0",
+                "https://a/1.1.5.tgz",
+            ),
         ],
     };
-    let resolved =
-        resolve_platform_bundle(&m, "ship/themes/midnight", "0.1.4").expect("resolved");
+    let resolved = resolve_platform_bundle(&m, "ship/themes/midnight", "0.1.4").expect("resolved");
     assert_eq!(resolved.version, "1.2.0");
     assert_eq!(resolved.url, "https://a/1.2.0.tgz");
 }
@@ -262,7 +281,12 @@ fn resolve_filters_by_daemon_compat() {
                 "https://a/2.0.0.tgz",
             ),
             // Always matches
-            entry_no_sig("ship/themes/midnight", "1.0.0", "^0.1.0", "https://a/1.0.0.tgz"),
+            entry_no_sig(
+                "ship/themes/midnight",
+                "1.0.0",
+                "^0.1.0",
+                "https://a/1.0.0.tgz",
+            ),
         ],
     };
     // Daemon 0.2.5 → only the 2.0.0 entry qualifies; it's the newest, so it wins.
@@ -405,14 +429,8 @@ fn fetch_happy_path_stores_extracted_tree_in_cache() {
     let cache_root = tempdir().expect("cache tempdir");
     let cache = PackageCache::with_root(cache_root.path().to_path_buf());
 
-    let cached = fetch_platform_bundle(
-        &entry,
-        "stable",
-        &cache,
-        &fetcher,
-        &product_trusted_key(),
-    )
-    .expect("fetch ok");
+    let cached = fetch_platform_bundle(&entry, "stable", &cache, &fetcher, &product_trusted_key())
+        .expect("fetch ok");
 
     // Cache key is platform/<channel>/<name>.
     assert_eq!(
@@ -421,7 +439,10 @@ fn fetch_happy_path_stores_extracted_tree_in_cache() {
     );
     assert_eq!(cached.version, "1.2.0");
     assert_eq!(cached.commit, entry.content_hash);
-    assert!(cached.dir.is_dir(), "extracted tree lives under cache objects/");
+    assert!(
+        cached.dir.is_dir(),
+        "extracted tree lives under cache objects/"
+    );
     assert!(
         cached.dir.join("views/x/page.sui").is_file(),
         "tree contents preserved"
@@ -450,14 +471,8 @@ fn fetch_rejects_bad_signature_before_fetching() {
     let cache_root = tempdir().expect("cache tempdir");
     let cache = PackageCache::with_root(cache_root.path().to_path_buf());
 
-    let err = fetch_platform_bundle(
-        &entry,
-        "stable",
-        &cache,
-        &fetcher,
-        &product_trusted_key(),
-    )
-    .unwrap_err();
+    let err = fetch_platform_bundle(&entry, "stable", &cache, &fetcher, &product_trusted_key())
+        .unwrap_err();
     // A wrong-key signer produces a signature that fails Ed25519 verification
     // against the trusted product key. Either `Invalid` (math failed) or
     // `Untrusted` (kid didn't match) is a correct rejection — the invariant
@@ -472,7 +487,9 @@ fn fetch_rejects_bad_signature_before_fetching() {
     );
     assert_eq!(fetcher.hits.lock().unwrap().len(), 0, "no fetch on bad sig");
     assert!(
-        cache.get(&platform_dep_path("stable", "ship/x"), "1.0.0").is_none(),
+        cache
+            .get(&platform_dep_path("stable", "ship/x"), "1.0.0")
+            .is_none(),
         "cache untouched on bad sig"
     );
 }
@@ -491,14 +508,8 @@ fn fetch_rejects_content_hash_mismatch() {
     let cache_root = tempdir().expect("cache tempdir");
     let cache = PackageCache::with_root(cache_root.path().to_path_buf());
 
-    let err = fetch_platform_bundle(
-        &entry,
-        "stable",
-        &cache,
-        &fetcher,
-        &product_trusted_key(),
-    )
-    .unwrap_err();
+    let err = fetch_platform_bundle(&entry, "stable", &cache, &fetcher, &product_trusted_key())
+        .unwrap_err();
     match err {
         FetchError::ContentHash { expected, actual } => {
             assert_eq!(expected, entry.content_hash);
@@ -507,7 +518,9 @@ fn fetch_rejects_content_hash_mismatch() {
         other => panic!("expected ContentHash error, got {other:?}"),
     }
     assert!(
-        cache.get(&platform_dep_path("stable", "ship/x"), "1.0.0").is_none(),
+        cache
+            .get(&platform_dep_path("stable", "ship/x"), "1.0.0")
+            .is_none(),
         "cache untouched on content hash mismatch"
     );
 }
@@ -522,14 +535,8 @@ fn fetch_propagates_fetcher_error() {
     let cache_root = tempdir().expect("cache tempdir");
     let cache = PackageCache::with_root(cache_root.path().to_path_buf());
 
-    let err = fetch_platform_bundle(
-        &entry,
-        "stable",
-        &cache,
-        &fetcher,
-        &product_trusted_key(),
-    )
-    .unwrap_err();
+    let err = fetch_platform_bundle(&entry, "stable", &cache, &fetcher, &product_trusted_key())
+        .unwrap_err();
     assert!(matches!(err, FetchError::Fetch(_)));
 }
 
@@ -547,10 +554,7 @@ fn cache_keeps_distinct_bundles_per_version() {
     // the two versions hash to distinct values (the same property the
     // old deny-list hash provided by accident).
     let v1 = make_tarball_with_manifest("views/x/page.sui", b"v1 contents");
-    let v2 = make_tarball_with_manifest(
-        "views/x/page.sui",
-        b"v2 contents -- different body",
-    );
+    let v2 = make_tarball_with_manifest("views/x/page.sui", b"v2 contents -- different body");
     let entry_v1 = signed_entry("ship/x", "1.0.0", "^0.1.0", "https://cdn/x-1.0.0.tgz", &v1);
     let entry_v2 = signed_entry("ship/x", "2.0.0", "^0.1.0", "https://cdn/x-2.0.0.tgz", &v2);
 
@@ -576,10 +580,8 @@ fn cache_keeps_distinct_bundles_per_version() {
     .expect("v2 fetched");
 
     assert_ne!(c1.hash, c2.hash);
-    let v1_contents = std::fs::read(c1.dir.join("views/x/page.sui"))
-        .expect("v1 body readable");
-    let v2_contents = std::fs::read(c2.dir.join("views/x/page.sui"))
-        .expect("v2 body readable");
+    let v1_contents = std::fs::read(c1.dir.join("views/x/page.sui")).expect("v1 body readable");
+    let v2_contents = std::fs::read(c2.dir.join("views/x/page.sui")).expect("v2 body readable");
     assert_eq!(v1_contents, b"v1 contents");
     assert_eq!(v2_contents, b"v2 contents -- different body");
 }
@@ -601,7 +603,9 @@ fn make_oversized_tarball(declared_size: u64) -> Vec<u8> {
         header.set_mode(0o644);
         header.set_cksum();
         let tiny = b"x";
-        builder.append_data(&mut header, "big.bin", &tiny[..]).unwrap();
+        builder
+            .append_data(&mut header, "big.bin", &tiny[..])
+            .unwrap();
         builder.finish().unwrap();
     }
     let mut gz = Vec::new();
@@ -625,14 +629,8 @@ fn fetch_rejects_decompression_bomb_with_limit_named() {
     let cache_root = tempdir().expect("cache tempdir");
     let cache = PackageCache::with_root(cache_root.path().to_path_buf());
 
-    let err = fetch_platform_bundle(
-        &entry,
-        "stable",
-        &cache,
-        &fetcher,
-        &product_trusted_key(),
-    )
-    .expect_err("bomb rejected");
+    let err = fetch_platform_bundle(&entry, "stable", &cache, &fetcher, &product_trusted_key())
+        .expect_err("bomb rejected");
     match err {
         FetchError::Extract(msg) => {
             assert!(
@@ -671,8 +669,7 @@ fn make_tarball_with_manifest(path_in_archive: &str, body: &[u8]) -> Vec<u8> {
     let mut gz = Vec::new();
     {
         use std::io::Write;
-        let mut enc =
-            flate2::write::GzEncoder::new(&mut gz, flate2::Compression::default());
+        let mut enc = flate2::write::GzEncoder::new(&mut gz, flate2::Compression::default());
         enc.write_all(&tar_buf).unwrap();
         enc.finish().unwrap();
     }

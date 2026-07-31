@@ -298,8 +298,10 @@ pub fn verify_entry_signature(
     validation.validate_exp = false;
     validation.required_spec_claims.clear();
 
-    let token = decode::<EntryClaim>(&entry.signature, &decoding_key, &validation)
-        .map_err(|e| match e.kind() {
+    let token =
+        decode::<EntryClaim>(&entry.signature, &decoding_key, &validation).map_err(|e| match e
+            .kind()
+        {
             jsonwebtoken::errors::ErrorKind::InvalidSignature => BadSignature::Invalid,
             _ => BadSignature::Untrusted,
         })?;
@@ -389,9 +391,7 @@ pub fn resolve_platform_bundle(
         match &best {
             None => best = Some((entry_ver, entry.clone())),
             Some((cur_ver, cur_entry)) => {
-                if entry_ver > *cur_ver
-                    || (entry_ver == *cur_ver && entry.url < cur_entry.url)
-                {
+                if entry_ver > *cur_ver || (entry_ver == *cur_ver && entry.url < cur_entry.url) {
                     best = Some((entry_ver, entry.clone()));
                 }
             }

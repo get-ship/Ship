@@ -19,7 +19,7 @@ use ship_artifacts::types::ArtifactScope;
 use ship_collection::projection::SchemaRegistry;
 use ship_collection::service::CollectionService;
 use ship_substrate::data::DataService;
-use ship_substrate::events::new_isolated_for_test;
+use ship_substrate::events::new_isolated_for_test_with;
 use ship_substrate::ports::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
 
 // ── Projection installs ────────────────────────────────────────────────────
@@ -45,11 +45,10 @@ struct TestRig {
 }
 
 fn make_rig() -> TestRig {
-    common::install_all_projections();
     let tmp = tempfile::tempdir().unwrap();
     let data_root = tmp.path().join(".ship");
     std::fs::create_dir_all(&data_root).unwrap();
-    let router = new_isolated_for_test(data_root.clone()).unwrap();
+    let router = new_isolated_for_test_with(data_root.clone(), common::all_projections_factory()).unwrap();
     let kernel = Arc::new(KernelLog::new(router));
     TestRig {
         _tmp: tmp,
@@ -176,7 +175,7 @@ async fn snapshot_restore_drill_round_trips_collection_items_and_artifacts() {
     // 6. Open the restored space via a fresh kernel + data store and
     // assert query parity + blob byte-parity.
     let restored_kernel = {
-        let router = new_isolated_for_test(dest_root.clone()).unwrap();
+        let router = new_isolated_for_test_with(dest_root.clone(), common::all_projections_factory()).unwrap();
         Arc::new(KernelLog::new(router))
     };
     let restored_db = ship_substrate::db::space_db_path(&dest_root, SPACE_ID);

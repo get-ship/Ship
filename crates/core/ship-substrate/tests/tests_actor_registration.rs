@@ -4,8 +4,8 @@
 //! op cut. These tests exercise KernelRouter directly.
 
 use std::sync::Arc;
-use tokio::sync::Mutex;
 use tempfile::TempDir;
+use tokio::sync::Mutex;
 
 use ship_substrate::events::{ActorConfig, CallerKind, EmitContext, EventEnvelope, KernelRouter};
 
@@ -40,7 +40,9 @@ fn cli_ctx() -> EmitContext {
 fn spawn_actor_fails_if_actor_exists() {
     let dir = TempDir::new().unwrap();
     let mut kernel = make_kernel(&dir);
-    kernel.spawn_actor("agent.x", actor_config("agent.x")).unwrap();
+    kernel
+        .spawn_actor("agent.x", actor_config("agent.x"))
+        .unwrap();
     let err = kernel
         .spawn_actor("agent.x", actor_config("agent.x"))
         .expect_err("second spawn must fail when actor already exists");
@@ -54,10 +56,17 @@ fn spawn_actor_fails_if_actor_exists() {
 fn stop_then_respawn_succeeds() {
     let dir = TempDir::new().unwrap();
     let mut kernel = make_kernel(&dir);
-    kernel.spawn_actor("agent.x", actor_config("agent.x")).unwrap();
+    kernel
+        .spawn_actor("agent.x", actor_config("agent.x"))
+        .unwrap();
     kernel.stop_actor("agent.x").unwrap();
-    kernel.spawn_actor("agent.x", actor_config("agent.x")).unwrap();
-    assert!(kernel.has_actor("agent.x"), "actor must be present after stop + respawn");
+    kernel
+        .spawn_actor("agent.x", actor_config("agent.x"))
+        .unwrap();
+    assert!(
+        kernel.has_actor("agent.x"),
+        "actor must be present after stop + respawn"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -85,7 +94,8 @@ async fn spawn_actor_idempotent_via_stop_respawn() {
     for _ in 0..2 {
         let mut k = kernel.lock().await;
         let _ = k.stop_actor("agent.idem");
-        k.spawn_actor("agent.idem", actor_config("agent.idem")).unwrap();
+        k.spawn_actor("agent.idem", actor_config("agent.idem"))
+            .unwrap();
     }
     assert!(
         kernel.lock().await.has_actor("agent.idem"),

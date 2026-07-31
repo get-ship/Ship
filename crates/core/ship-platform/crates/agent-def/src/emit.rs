@@ -5,16 +5,14 @@
 //!
 //! Design:
 //! - [`SessionEventSink`] is the kernel-emit port. Production code wraps a
-//!   real `Arc<dyn ship_kernel::EventSink>` — typically
-//!   `ship_substrate::events::emit::KernelEventSink`, which already implements `EventSink`
-//!   by delegating to `persist_and_route` (the shared runner helper, NOT
-//!   reinvented here). Tests wrap [`ship_kernel::testing::MockSink`],
-//!   which also implements `EventSink`. The port is the same in both — no
-//!   `if kernel else mock` branching at call sites.
+//!   real `Arc<dyn ship_kernel::EventPersist>` (e.g. `PartitionedSink`).
+//!   Tests wrap [`ship_kernel::testing::MockPersist`]. The port is the same
+//!   in both — no `if kernel else mock` branching at call sites.
 //! - The `emit_session_*` / `emit_turn_*` builders take the typed payload
 //!   from [`crate::canonical_session`], build an `EventEnvelope` (Runtime
 //!   scope, per the registry — the whole canonical family is per-machine
-//!   execution state), then call `sink.persist(&envelope)`.
+//!   execution state), run the stamp chokepoint, then
+//!   `persist.persist(&stamped)`.
 //!
 //! Scope (jobs `canonical-session-events` + `workbench-teardown`): the
 //! COMPLETE canonical agent-session family — 5 coarse-grain events
@@ -26,44 +24,39 @@
 //!
 //! Spec: `.artifacts/agents-architecture.md` (R1–R11).
 use serde::Serialize;
-use ship_kernel::EventSink;
+use ship_kernel::EventPersist;
 use std::sync::Arc;
 
 // Re-export canonical payload types so downstream crates (e.g. floki) can
 // build session event payloads through agent-def without adding ship-substrate
 // as a direct runtime dependency.
+use agent_schema::canonical_session::event_types;
 pub use agent_schema::canonical_session::{
     SessionCancelled, SessionCompleted, SessionFailed, SessionStarted, SessionSuspended, TurnEnded,
     TurnStarted,
 };
 use ship_types::envelope::EventEnvelope;
-use agent_schema::canonical_session::event_types;
 
 /// Kernel-emit port for the canonical session family (7 events — see
 /// module docs for the slice scope).
 ///
-/// Production: wrap a kernel-backed `Arc<dyn EventSink>` (e.g.
-/// `ship_substrate::events::emit::KernelEventSink`). The sink persists the canonical
-/// envelope; routing through the kernel happens inside the kernel-backed
-/// sink's implementation (which delegates to `persist_and_route`).
-///
-/// Tests: wrap [`ship_kernel::testing::MockSink`] — `MockSink` implements
-/// `EventSink`, so the same `SessionEventSink` works.
+/// Production: wrap a kernel-backed `Arc<dyn EventPersist>` (e.g.
+/// `PartitionedSink`). Tests: wrap [`ship_kernel::testing::MockPersist`].
 #[derive(Clone)]
 pub struct SessionEventSink {
-    inner: Arc<dyn EventSink>,
+    inner: Arc<dyn EventPersist>,
 }
 
 impl SessionEventSink {
-    /// Wrap an existing `EventSink` (kernel-backed or test mock).
-    pub fn new(sink: Arc<dyn EventSink>) -> Self {
+    /// Wrap an existing `EventPersist` (kernel-backed or test mock).
+    pub fn new(sink: Arc<dyn EventPersist>) -> Self {
         Self { inner: sink }
     }
 
-    /// Borrow the wrapped sink — for tests asserting on the captured
+    /// Borrow the wrapped persist port — for tests asserting on the captured
     /// events. Callers typically downcast to
-    /// `ship_kernel::testing::MockSink` to read `captured()`.
-    pub fn inner(&self) -> &Arc<dyn EventSink> {
+    /// `ship_kernel::testing::MockPersist` to read `captured()`.
+    pub fn inner(&self) -> &Arc<dyn EventPersist> {
         &self.inner
     }
     /// Build + emit a `session.started` envelope. Runtime-scoped, Durable.
@@ -162,18 +155,21 @@ impl SessionEventSink {
 // ── Internal envelope-build helpers ────────────────────────────────────────
 
 fn emit_runtime<P: Serialize>(
-    sink: &Arc<dyn EventSink>,
+    sink: &Arc<dyn EventPersist>,
     event_type: &str,
     entity_id: &str,
     payload: &P,
 ) -> Result<EventEnvelope, serde_json::Error> {
-    let envelope = build_runtime_envelope(event_type, entity_id, payload)?;
-    // The MockSink / KernelEventSink are infallible at this seam; bubble
-    // any other sink's error as a panic because emit-side failures are
-    // unrecoverable here (the kernel-emit port contract is fire-and-forget).
-    sink.persist(&envelope)
-        .expect("EventSink::persist errored — kernel-emit port must be infallible at the test seam (see MockSink)");
-    Ok(envelope)
+    let mut envelope = build_runtime_envelope(event_type, entity_id, payload)?;
+    let binding = ship_types::ScopeBinding::daemon_internal(None, agent_schema::Authority::Sdk);
+    let ctx = ship_substrate::events::off_kernel_ctx(binding.clone());
+    let stamped = ship_substrate::events::apply_stamp_chokepoint(&mut envelope, &binding, &ctx)
+        .expect("session emit stamp chokepoint must succeed for registered session.* payloads");
+    // MockPersist / PartitionedSink are infallible at this seam for valid
+    // stamped events; bubble other errors as panic (fire-and-forget port).
+    sink.persist(&stamped)
+        .expect("EventPersist::persist errored — kernel-emit port must be infallible at the test seam (see MockPersist)");
+    Ok(stamped.into_envelope())
 }
 
 fn build_runtime_envelope<P: Serialize>(
@@ -192,17 +188,17 @@ fn build_runtime_envelope<P: Serialize>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ship_kernel::testing::MockSink;
+    use ship_kernel::testing::MockPersist;
     use ship_types::event_registry::{EventScope, Retention};
 
-    fn fresh_sink() -> (Arc<MockSink>, SessionEventSink) {
-        let mock = Arc::new(MockSink::new());
+    fn fresh_sink() -> (Arc<MockPersist>, SessionEventSink) {
+        let mock = Arc::new(MockPersist::new());
         let session_sink = SessionEventSink::new(mock.clone());
         (mock, session_sink)
     }
 
     fn assert_one_event(
-        mock: &Arc<MockSink>,
+        mock: &Arc<MockPersist>,
         expected_type: &str,
         expected_scope: EventScope,
         expected_retention: Retention,

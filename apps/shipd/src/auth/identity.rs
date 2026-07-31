@@ -8,7 +8,11 @@
 //! CLI / Studio / SDK callers remain free to act on behalf of any agent —
 //! they're the trusted intermediary by design.
 
-use axum::{Json, http::StatusCode, response::{IntoResponse, Response}};
+use axum::{
+    Json,
+    http::StatusCode,
+    response::{IntoResponse, Response},
+};
 use serde_json::json;
 use ship_auth::peer_identity::PeerIdentity;
 use ship_substrate::events::CallerKind;
@@ -32,10 +36,7 @@ use crate::auth::AuthContext;
 ///   `grants` (DB-backed) at the runtime layer.
 /// - [`PeerIdentity::Unresolved`] → `None`: the host couldn't attribute the
 ///   peer, so the caller MUST fail closed (reject), never default to operator.
-pub fn auth_context_from_peer(
-    identity: &PeerIdentity,
-    grants: Vec<String>,
-) -> Option<AuthContext> {
+pub fn auth_context_from_peer(identity: &PeerIdentity, grants: Vec<String>) -> Option<AuthContext> {
     match identity {
         PeerIdentity::LocalOwner => Some(AuthContext {
             caller_kind: CallerKind::Cli,
@@ -160,8 +161,8 @@ mod tests {
     #[test]
     fn peer_agent_carries_id_and_passed_grants() {
         let id = PeerIdentity::Agent("rust-lane-01".to_string());
-        let ctx = auth_context_from_peer(&id, vec!["ship-orchestration".into()])
-            .expect("agent resolves");
+        let ctx =
+            auth_context_from_peer(&id, vec!["ship-orchestration".into()]).expect("agent resolves");
         assert_eq!(ctx.caller_kind, CallerKind::Mcp);
         assert_eq!(ctx.agent_id.as_deref(), Some("rust-lane-01"));
         assert_eq!(ctx.grants, vec!["ship-orchestration".to_string()]);

@@ -10,8 +10,8 @@
 //! the public openers.
 
 use crate::db::{
-    block_on, ensure_kv_db_at, ensure_kv_db_at_path, kv_db_path, open_db_at, open_kv_db_at,
-    open_runtime_db, open_account_db, open_space_db,
+    block_on, ensure_kv_db_at, ensure_kv_db_at_path, kv_db_path, open_account_db, open_db_at,
+    open_kv_db_at, open_runtime_db, open_space_db,
 };
 
 fn query_synchronous(conn: &mut sqlx::SqliteConnection) -> i64 {
@@ -103,5 +103,8 @@ fn ensure_db_at_path_sets_synchronous_normal_and_foreign_keys_on() {
     crate::db::ensure_events_db_at_path(&path).expect("ensure_events_db_at_path");
 
     let mut conn = open_db_at(&path).expect("open_db_at");
-    assert_pragmas(&mut conn, "ensure_db_at_path (via ensure_events_db_at_path)");
+    assert_pragmas(
+        &mut conn,
+        "ensure_db_at_path (via ensure_events_db_at_path)",
+    );
 }

@@ -67,7 +67,7 @@ fn emit_expired(expired: &[DaemonSession]) {
         };
         if let Some(ref s) = store {
             if let Err(e) =
-                ship_substrate::persistence::event_store::EventStore::append(s, &envelope)
+                s.append_enforced(&envelope, &ship_types::ScopeBinding::daemon_sdk())
             {
                 tracing::warn!("session sweep: append failed: {e}");
             }

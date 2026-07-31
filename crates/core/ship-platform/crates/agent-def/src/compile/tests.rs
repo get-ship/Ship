@@ -2,8 +2,8 @@
 //! Relocated from apps/ship-cli/src/loader_tests.rs and compile/tests*.rs.
 
 use super::*;
-use skill_parser::parse_skill;
 use agent_schema::{HookTrigger, McpServerConfig, McpServerType};
+use skill_parser::parse_skill;
 use std::path::Path;
 use tempfile::TempDir;
 
@@ -121,7 +121,7 @@ fn loads_http_mcp_server_by_url() {
 // Migration path: tests that need agents / skills in the compiled
 // output must use `stack.config.ts` and route through the composed
 // descriptor (`compile_project_from_library` /
-// `ship_resolver::roll_up`). Post slice 3, the leaf's `load_library`
+// `space_resolver::roll_up`). Post slice 3, the leaf's `load_library`
 // is disk-shape for mcp only — permissions + hooks +
 // permissions_presets are resolver-sourced (the per-noun walks land
 // in `ExtensionLibrary.{permissions,hooks,permissions_presets}` from
@@ -139,7 +139,7 @@ fn loads_http_mcp_server_by_url() {
 // Migration path: tests that need agents / skills in the compiled
 // output must use `stack.config.ts` and route through the composed
 // descriptor (`compile_project_from_library` /
-// `ship_resolver::roll_up`). The leaf's `load_library` is now
+// `space_resolver::roll_up`). The leaf's `load_library` is now
 // disk-shape for permissions / hooks / mcp only — rules live on
 // the agent composition (`defineAgent({ rules: { inline } })`).
 
@@ -152,7 +152,7 @@ fn loads_http_mcp_server_by_url() {
 // Migration path: tests that need agents / skills in the compiled
 // output must use `stack.config.ts` and route through the composed
 // descriptor (`compile_project_from_library` /
-// `ship_resolver::roll_up`). The leaf's `load_library` is now
+// `space_resolver::roll_up`). The leaf's `load_library` is now
 // disk-shape for permissions / hooks / mcp only — rules live on
 // the agent composition (`defineAgent({ rules: { inline } })`).
 
@@ -219,7 +219,7 @@ fn load_permission_preset_empty_map_returns_none() {
 // Migration path: tests that need agents / skills in the compiled
 // output must use `stack.config.ts` and route through the composed
 // descriptor (`compile_project_from_library` /
-// `ship_resolver::roll_up`). The leaf's `load_library` is now
+// `space_resolver::roll_up`). The leaf's `load_library` is now
 // disk-shape for permissions / hooks / mcp / rules only.
 
 #[test]
@@ -240,7 +240,7 @@ fn agent_profiles_empty_when_dir_missing() {
 // Migration path: tests that need agents / skills in the compiled
 // output must use `stack.config.ts` and route through the composed
 // descriptor (`compile_project_from_library` /
-// `ship_resolver::roll_up`). The leaf's `load_library` is now
+// `space_resolver::roll_up`). The leaf's `load_library` is now
 // disk-shape for permissions / hooks / mcp / rules only.
 
 // ── I3: unresolved mcp.servers refs (agent → space catalog join) ────────────

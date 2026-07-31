@@ -26,7 +26,7 @@ use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::Arc;
 
-use ship_ops_rpc::UiPack;
+use ship_proto::ship::ops::v1::UiPack;
 
 // ── Public types ────────────────────────────────────────────────────────────
 
@@ -297,7 +297,7 @@ fn catalog_from_workspace(workspace_dir: &Path) -> Result<Vec<UiPack>, String> {
         });
         for (tag, abs) in entries {
             let rel = rel_unix(workspace_dir, &abs);
-            pack.components.push(ship_ops_rpc::UiComponent {
+            pack.components.push(ship_proto::ship::ops::v1::UiComponent {
                 tag,
                 file: rel,
                 title: String::new(),
@@ -354,7 +354,7 @@ fn walk_views(
                 components: Vec::new(),
                 __buffa_unknown_fields: Default::default(),
             });
-            pack.components.push(ship_ops_rpc::UiComponent {
+            pack.components.push(ship_proto::ship::ops::v1::UiComponent {
                 tag: "page".to_string(),
                 file: rel,
                 title: String::new(),

@@ -23,11 +23,11 @@
 
 use std::collections::BTreeSet;
 
-use agent_schema::profile::{
-    AgentProfile, McpRefs, PluginRefs, ProfileApps, ProfileMeta,
-    ProfilePermissions, ProfileRules, SkillRefs,
-};
 use agent_schema::capability::{BlastRadius, Capability};
+use agent_schema::profile::{
+    AgentProfile, McpRefs, PluginRefs, ProfileApps, ProfileMeta, ProfilePermissions, ProfileRules,
+    SkillRefs,
+};
 use agent_schema::{HookConfig, HookTrigger};
 use serde_json::Value;
 use ship_isolation::{IsolationStrategy, IsolationTier};
@@ -92,8 +92,12 @@ fn full_profile() -> AgentProfile {
             icon: Some("test-tube".into()),
         },
         capabilities: vec![Capability::new("collections", BlastRadius::C2Elevated)],
-        skills: SkillRefs { refs: vec!["tdd".into()] },
-        mcp: McpRefs { servers: vec!["github".into()] },
+        skills: SkillRefs {
+            refs: vec!["tdd".into()],
+        },
+        mcp: McpRefs {
+            servers: vec!["github".into()],
+        },
         plugins: PluginRefs {
             install: vec!["superpowers@claude-plugins-official".into()],
             scope: Some("project".into()),
@@ -105,7 +109,10 @@ fn full_profile() -> AgentProfile {
             tools_deny: vec!["WebFetch".into()],
             default_mode: Some("acceptEdits".into()),
         },
-        rules: ProfileRules { inline: Some("Be precise.".into()), refs: vec!["style".into()] },
+        rules: ProfileRules {
+            inline: Some("Be precise.".into()),
+            refs: vec!["style".into()],
+        },
         hooks: vec![
             HookConfig {
                 id: "session-end".into(),
@@ -130,12 +137,9 @@ fn full_profile() -> AgentProfile {
         ],
         target_agents: vec!["claude".into()],
         apps: ProfileApps { studio: true },
-        harness_settings: [(
-            "claude".to_string(),
-            serde_json::json!({ "model": "opus" }),
-        )]
-        .into_iter()
-        .collect(),
+        harness_settings: [("claude".to_string(), serde_json::json!({ "model": "opus" }))]
+            .into_iter()
+            .collect(),
     }
 }
 
@@ -150,18 +154,18 @@ fn top_level_key_parity() {
     // `isolation` is resolved at platform runtime (lives on
     // `config::AgentProfile`, not the compiler struct) and is cross-checked
     // separately by `isolation_enums_match_ship_isolation`.
-    let metadata_allowlist: BTreeSet<String> =
-        ["$schema", "schema_version", "isolation"]
-            .iter()
-            .map(|s| s.to_string())
-            .collect();
+    let metadata_allowlist: BTreeSet<String> = ["$schema", "schema_version", "isolation"]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
     let schema_keys: BTreeSet<String> = property_keys(&schema)
         .difference(&metadata_allowlist)
         .cloned()
         .collect();
 
     assert_eq!(
-        struct_keys, schema_keys,
+        struct_keys,
+        schema_keys,
         "top-level key drift: {}",
         diff_report(&struct_keys, &schema_keys)
     );
@@ -192,7 +196,14 @@ fn per_section_key_parity() {
     // `cursor_event` would only ever underflow the schema side, not the
     // struct side, so a single representative element catches the drift.)
     for section in [
-        "agent", "skills", "mcp", "plugins", "permissions", "rules", "hooks", "apps",
+        "agent",
+        "skills",
+        "mcp",
+        "plugins",
+        "permissions",
+        "rules",
+        "hooks",
+        "apps",
     ] {
         let section_value = profile_obj
             .get(section)
@@ -214,16 +225,19 @@ fn per_section_key_parity() {
                 ),
             )
         } else {
-            (serialized_keys(section_value), property_keys(schema_section))
+            (
+                serialized_keys(section_value),
+                property_keys(schema_section),
+            )
         };
         assert_eq!(
-            struct_keys, schema_keys,
+            struct_keys,
+            schema_keys,
             "section `{section}` key drift: {}",
             diff_report(&struct_keys, &schema_keys)
         );
     }
 }
-
 
 #[test]
 fn isolation_enums_match_ship_isolation() {
@@ -245,10 +259,13 @@ fn isolation_enums_match_ship_isolation() {
     };
 
     let schema_tiers = enum_ids(isolation, "tier");
-    let rust_tiers: BTreeSet<String> =
-        IsolationTier::ALL.iter().map(|t| t.as_id().to_string()).collect();
+    let rust_tiers: BTreeSet<String> = IsolationTier::ALL
+        .iter()
+        .map(|t| t.as_id().to_string())
+        .collect();
     assert_eq!(
-        schema_tiers, rust_tiers,
+        schema_tiers,
+        rust_tiers,
         "isolation.tier.enum drift vs ship_isolation::IsolationTier: {}",
         diff_report(&schema_tiers, &rust_tiers)
     );
@@ -259,7 +276,8 @@ fn isolation_enums_match_ship_isolation() {
         .map(|s| s.as_id().to_string())
         .collect();
     assert_eq!(
-        schema_strategies, rust_strategies,
+        schema_strategies,
+        rust_strategies,
         "isolation.strategy.enum drift vs ship_isolation::IsolationStrategy: {}",
         diff_report(&schema_strategies, &rust_strategies)
     );
@@ -273,7 +291,10 @@ fn isolation_enums_match_ship_isolation() {
 fn harness_settings_seam_matches_registry() {
     use std::collections::BTreeSet;
 
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../../schemas/agent.schema.json");
+    let path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../schemas/agent.schema.json"
+    );
     let raw = std::fs::read_to_string(path)
         .unwrap_or_else(|e| panic!("read agent schema at {path}: {e}"));
     let schema: serde_json::Value = serde_json::from_str(&raw).expect("agent schema is valid JSON");

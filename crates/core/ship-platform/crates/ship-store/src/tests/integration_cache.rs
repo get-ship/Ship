@@ -45,12 +45,22 @@ fn registry_cache_store_and_get_round_trip() -> anyhow::Result<()> {
         ("skills/foo/SKILL.md", "# Skill"),
         ("skills/foo/guide.md", "guide"),
     ])?;
-    let stored = cache.store("github.com/owner/pkg", "v1.0.0", &commit('a'), content.path())?;
+    let stored = cache.store(
+        "github.com/owner/pkg",
+        "v1.0.0",
+        &commit('a'),
+        content.path(),
+    )?;
 
-    assert!(stored.hash.starts_with("sha256:"), "hash has sha256: prefix");
+    assert!(
+        stored.hash.starts_with("sha256:"),
+        "hash has sha256: prefix"
+    );
     assert!(stored.dir.is_dir(), "object dir exists");
 
-    let hit = cache.get("github.com/owner/pkg", "v1.0.0").expect("cache hit");
+    let hit = cache
+        .get("github.com/owner/pkg", "v1.0.0")
+        .expect("cache hit");
     assert_eq!(hit.hash, stored.hash, "get returns same hash as store");
     assert_eq!(hit.commit, commit('a'), "commit preserved");
     assert_eq!(hit.path, "github.com/owner/pkg");
@@ -77,7 +87,12 @@ fn registry_cache_verify_passes_on_clean_entry() -> anyhow::Result<()> {
     let cache = PackageCache::with_root(root.path().to_path_buf());
 
     let content = make_content(&[("skills/a/SKILL.md", "data")])?;
-    let stored = cache.store("github.com/owner/pkg", "v1.0.0", &commit('b'), content.path())?;
+    let stored = cache.store(
+        "github.com/owner/pkg",
+        "v1.0.0",
+        &commit('b'),
+        content.path(),
+    )?;
 
     cache.verify(&stored)?;
     Ok(())
@@ -89,7 +104,12 @@ fn registry_cache_verify_detects_corruption_and_evicts_index() -> anyhow::Result
     let cache = PackageCache::with_root(root.path().to_path_buf());
 
     let content = make_content(&[("skills/a/SKILL.md", "original")])?;
-    let stored = cache.store("github.com/owner/pkg", "v1.0.0", &commit('c'), content.path())?;
+    let stored = cache.store(
+        "github.com/owner/pkg",
+        "v1.0.0",
+        &commit('c'),
+        content.path(),
+    )?;
 
     // Corrupt the stored content (a domain-dir file; the manifest stays
     // intact so the hash shift comes from the file we corrupted, not
@@ -158,6 +178,10 @@ fn registry_cache_store_idempotent_returns_same_hash() -> anyhow::Result<()> {
 fn registry_cache_root_returns_configured_path() -> anyhow::Result<()> {
     let root = tempdir()?;
     let cache = PackageCache::with_root(root.path().to_path_buf());
-    assert_eq!(cache.root(), root.path(), "root() must return the configured path");
+    assert_eq!(
+        cache.root(),
+        root.path(),
+        "root() must return the configured path"
+    );
     Ok(())
 }

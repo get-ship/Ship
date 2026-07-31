@@ -113,7 +113,11 @@ pub struct RestoreResult {
 /// exist and be writable. The bundle is written into a fresh
 /// `space-<id>-<utc_stamp>/` subdirectory so multiple snapshots of
 /// the same space do not collide.
-pub fn snapshot_space(data_root: &Path, space_id: &str, target_dir: &Path) -> Result<SnapshotResult> {
+pub fn snapshot_space(
+    data_root: &Path,
+    space_id: &str,
+    target_dir: &Path,
+) -> Result<SnapshotResult> {
     if !target_dir.is_dir() {
         return Err(anyhow!(
             "snapshot target_dir does not exist or is not a directory: {}",
@@ -173,8 +177,8 @@ pub fn snapshot_space(data_root: &Path, space_id: &str, target_dir: &Path) -> Re
         .with_context(|| format!("stat {}", bundle_db.display()))?
         .len();
     let db_sha256 = {
-        let bytes = std::fs::read(&bundle_db)
-            .with_context(|| format!("read {}", bundle_db.display()))?;
+        let bytes =
+            std::fs::read(&bundle_db).with_context(|| format!("read {}", bundle_db.display()))?;
         sha256_hex(&bytes)
     };
 
@@ -201,8 +205,8 @@ pub fn snapshot_space(data_root: &Path, space_id: &str, target_dir: &Path) -> Re
         tool_version: TOOL_VERSION.to_string(),
     };
     let manifest_path = bundle.join(BUNDLE_MANIFEST);
-    let manifest_bytes = serde_json::to_vec_pretty(&manifest)
-        .context("serialize snapshot manifest")?;
+    let manifest_bytes =
+        serde_json::to_vec_pretty(&manifest).context("serialize snapshot manifest")?;
     fs_util::write_atomic(&manifest_path, &manifest_bytes)
         .with_context(|| format!("write {}", manifest_path.display()))?;
 
@@ -220,12 +224,7 @@ pub fn snapshot_space(data_root: &Path, space_id: &str, target_dir: &Path) -> Re
 /// files + bytes for the manifest. The source layout under `src` is
 /// `blobs/<h[:2]>/<h>` — preserving the same relative tree under `dst`
 /// keeps restore's copy direction trivial.
-fn copy_blobs(
-    src_root: &Path,
-    dst_root: &Path,
-    count: &mut u32,
-    bytes: &mut u64,
-) -> Result<()> {
+fn copy_blobs(src_root: &Path, dst_root: &Path, count: &mut u32, bytes: &mut u64) -> Result<()> {
     for entry in walkdir::WalkDir::new(src_root)
         .follow_links(false)
         .into_iter()
@@ -253,8 +252,7 @@ fn copy_blobs(
             std::fs::create_dir_all(parent)
                 .with_context(|| format!("create_dir_all {}", parent.display()))?;
         }
-        let src_bytes = std::fs::read(path)
-            .with_context(|| format!("read {}", path.display()))?;
+        let src_bytes = std::fs::read(path).with_context(|| format!("read {}", path.display()))?;
         // Hash-check on copy: content-addressed store, so the filename
         // IS the hash — but verify anyway so a corrupt source never
         // reaches the backup. Mismatches are a data-integrity bug we
@@ -318,8 +316,8 @@ pub fn restore_space(
     let bundle_blobs = bundle_dir.join(BUNDLE_BLOBS_DIR);
 
     // ── integrity: verify db sha256 BEFORE we touch the destination ────────
-    let db_bytes = std::fs::read(&bundle_db)
-        .with_context(|| format!("read {}", bundle_db.display()))?;
+    let db_bytes =
+        std::fs::read(&bundle_db).with_context(|| format!("read {}", bundle_db.display()))?;
     let actual_db_hash = sha256_hex(&db_bytes);
     if actual_db_hash != manifest.db_sha256 {
         return Err(anyhow!(
@@ -364,7 +362,12 @@ pub fn restore_space(
     if bundle_blobs.is_dir() {
         std::fs::create_dir_all(&dest_blobs)
             .with_context(|| format!("create_dir_all {}", dest_blobs.display()))?;
-        copy_blobs(&bundle_blobs, &dest_blobs, &mut blob_count, &mut blob_bytes_total)?;
+        copy_blobs(
+            &bundle_blobs,
+            &dest_blobs,
+            &mut blob_count,
+            &mut blob_bytes_total,
+        )?;
     }
 
     Ok(RestoreResult {
@@ -423,8 +426,7 @@ mod tests {
 
         // Plant two blobs.
         let blob1: &[u8] = b"hello world";
-        let blob2: &[u8] =
-            b"a much larger blob of bytes that should still match its content hash";
+        let blob2: &[u8] = b"a much larger blob of bytes that should still match its content hash";
         let h1 = sha256_hex(blob1);
         let h2 = sha256_hex(blob2);
         for (h, bytes) in [(&h1, blob1), (&h2, blob2)] {
@@ -433,8 +435,7 @@ mod tests {
             fs_util::write_atomic(&p, bytes).unwrap();
         }
 
-        let res =
-            snapshot_space(data_root.path(), space_id, target.path()).expect("snapshot ok");
+        let res = snapshot_space(data_root.path(), space_id, target.path()).expect("snapshot ok");
         assert_eq!(res.space_id, space_id);
         assert!(res.path.is_dir());
         assert_eq!(res.blob_count, 2);
@@ -445,8 +446,7 @@ mod tests {
 
         // Manifest round-trips.
         let m_path = res.path.join(BUNDLE_MANIFEST);
-        let m: SnapshotManifest =
-            serde_json::from_slice(&std::fs::read(&m_path).unwrap()).unwrap();
+        let m: SnapshotManifest = serde_json::from_slice(&std::fs::read(&m_path).unwrap()).unwrap();
         assert_eq!(m.space_id, space_id);
         assert_eq!(m.db_bytes, res.db_bytes);
         assert_eq!(m.db_sha256, res.db_sha256);
@@ -468,8 +468,7 @@ mod tests {
         let target = tempdir().unwrap();
         let space_id = "restore-test";
         let _ = ensure_space_db(data_root.path(), space_id);
-        let bundle =
-            snapshot_space(data_root.path(), space_id, target.path()).expect("snapshot");
+        let bundle = snapshot_space(data_root.path(), space_id, target.path()).expect("snapshot");
 
         // First restore (no existing space) succeeds.
         let dest = tempdir().unwrap();
@@ -493,8 +492,7 @@ mod tests {
         let target = tempdir().unwrap();
         let space_id = "tamper";
         let _ = ensure_space_db(data_root.path(), space_id);
-        let bundle =
-            snapshot_space(data_root.path(), space_id, target.path()).expect("snapshot");
+        let bundle = snapshot_space(data_root.path(), space_id, target.path()).expect("snapshot");
 
         // Corrupt the bundled db (append a byte past the existing content).
         let db = bundle.path.join(BUNDLE_DB_FILE);
@@ -526,12 +524,9 @@ mod tests {
             tokio::spawn(async move {
                 for i in 0..50 {
                     if let Ok(mut conn) = crate::db::open_db_at(&db_path) {
-                        let _ = sqlx::query(&format!(
-                            "INSERT INTO ping (n) VALUES ({})",
-                            i + 1000
-                        ))
-                        .execute(&mut conn)
-                        .await;
+                        let _ = sqlx::query(&format!("INSERT INTO ping (n) VALUES ({})", i + 1000))
+                            .execute(&mut conn)
+                            .await;
                     }
                     tokio::time::sleep(std::time::Duration::from_millis(2)).await;
                 }

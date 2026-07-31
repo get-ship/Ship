@@ -6,7 +6,7 @@
 //! (cancel teardown), runs the L0 router gate (dedup + terminal-state guard)
 //! before its policy match, then dispatches:
 //!   - `dispatch.requested` → [`crate::dispatch::handle_dispatch_requested`]
-//!     (detached off the loop under the shared L0 `DISPATCH_GATE`);
+//!     (detached off the loop under the injected dispatch-gate semaphore);
 //!   - `session.cancelled` → [`crate::cancel::handle_agent_cancelled`].
 //!
 //! The no-double-spawn invariant: this actor is the SOLE actor that acts on
@@ -24,7 +24,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 #[cfg(feature = "bridge")]
-use ship_substrate::dispatch_gate::{terminal_guard, Admit};
+use crate::dispatch_gate::{Admit, terminal_guard};
 use ship_substrate::events::EventEnvelope;
 use tokio::sync::Mutex;
 
@@ -79,7 +79,7 @@ pub async fn start_agents(kernel: Kernel, ports: Arc<AgentPorts>) {
 /// arm are absent (no process to kill, no dedup registry). The floki dispatch
 /// path in `handle_dispatch_requested` remains active.
 pub async fn handle_agents_event(kernel: &Kernel, envelope: &EventEnvelope, ports: &AgentPorts) {
-    // Runner-mechanism entry gate (L0 `ship_substrate::dispatch_gate`): dedup by event id
+    // Runner-mechanism entry gate (`dispatch_gate`): dedup by event id
     // AND the terminal-state guard. The terminal check goes through the
     // ProjectionReader port (primitive `bool`) so this crate never names the
     // projection status enum.
@@ -104,7 +104,7 @@ pub async fn handle_agents_event(kernel: &Kernel, envelope: &EventEnvelope, port
     match envelope.event_type.as_str() {
         // The dispatch.requested event — the spawn trigger. Owns the spawn /
         // register / exit-handler-attach atom. Detaches the slow prep itself
-        // (under DISPATCH_GATE), so it returns to the loop immediately.
+        // (under the injected dispatch gate), so it returns to the loop immediately.
         "dispatch.requested" => {
             handle_dispatch_requested(kernel, envelope, ports).await;
         }

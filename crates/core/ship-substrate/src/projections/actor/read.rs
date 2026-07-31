@@ -3,15 +3,13 @@
 use anyhow::Result;
 use sqlx::SqliteConnection;
 
-use super::row::{row_to_actor, ActorRow, ListActorsFilter, SELECT_COLS};
+use super::row::{ActorRow, ListActorsFilter, SELECT_COLS, row_to_actor};
 use crate::db::block_on;
 
 pub fn list_actors(filter: &ListActorsFilter) -> Result<Vec<ActorRow>> {
     let mut conn = crate::db::open_runtime_db(&crate::project::get_global_dir()?)?;
     let limit = if filter.limit > 0 { filter.limit } else { 200 }.min(1000);
-    let mut sql = format!(
-        "SELECT {SELECT_COLS} FROM actors WHERE 1=1"
-    );
+    let mut sql = format!("SELECT {SELECT_COLS} FROM actors WHERE 1=1");
     if filter.kind.is_some() {
         sql.push_str(" AND kind = ?");
     }
@@ -38,7 +36,10 @@ pub fn get_actor(actor_id: &str) -> Result<Option<ActorRow>> {
     let mut conn = crate::db::open_runtime_db(&crate::project::get_global_dir()?)?;
     let sql = format!("SELECT {SELECT_COLS} FROM actors WHERE id = ?");
     block_on(async {
-        let row = sqlx::query(&sql).bind(actor_id).fetch_optional(&mut conn).await?;
+        let row = sqlx::query(&sql)
+            .bind(actor_id)
+            .fetch_optional(&mut conn)
+            .await?;
         Ok(row.as_ref().map(row_to_actor))
     })
 }
@@ -169,12 +170,11 @@ pub fn list_actor_events(
 pub fn actor_status(actor_id: &str) -> Result<Option<(String, Option<String>)>> {
     let mut conn = crate::db::open_runtime_db(&crate::project::get_global_dir()?)?;
     block_on(async {
-        let row: Option<(String, Option<String>)> = sqlx::query_as(
-            "SELECT status, space_id FROM actors WHERE id = ?",
-        )
-        .bind(actor_id)
-        .fetch_optional(&mut conn)
-        .await?;
+        let row: Option<(String, Option<String>)> =
+            sqlx::query_as("SELECT status, space_id FROM actors WHERE id = ?")
+                .bind(actor_id)
+                .fetch_optional(&mut conn)
+                .await?;
         Ok(row)
     })
 }
@@ -201,7 +201,9 @@ pub fn active_actor_ids() -> Result<std::collections::HashSet<String>> {
 /// Test/explicit-path variant of [`active_actor_ids`]. Mirrors the
 /// `load_*_at` shape used by the pipeline-run and agent-session
 /// projections so callers can point at a specific platform db.
-pub fn active_actor_ids_at(ship_dir: &std::path::Path) -> Result<std::collections::HashSet<String>> {
+pub fn active_actor_ids_at(
+    ship_dir: &std::path::Path,
+) -> Result<std::collections::HashSet<String>> {
     let mut conn = crate::db::open_runtime_db(ship_dir)?;
     active_actor_ids_on(&mut conn)
 }
@@ -212,9 +214,6 @@ fn active_actor_ids_on(conn: &mut SqliteConnection) -> Result<std::collections::
         let rows = sqlx::query("SELECT id FROM actors WHERE status NOT IN ('stopped', 'crashed')")
             .fetch_all(conn)
             .await?;
-        Ok(rows
-            .iter()
-            .map(|r| r.get::<String, _>("id"))
-            .collect())
+        Ok(rows.iter().map(|r| r.get::<String, _>("id")).collect())
     })
 }

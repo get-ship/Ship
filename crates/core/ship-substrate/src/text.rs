@@ -2,7 +2,7 @@
 //!
 //! L0 leaf — no domain knowledge, no git/process/event deps. Originally
 //! hosted by `ship_code::runner::observe::strip_ansi` and the byte-flavored
-//! `ship_pipeline_runtime::log_stream::strip_ansi` near-duplicate; both call
+//! `pipeline_defs::log_stream::strip_ansi` near-duplicate; both call
 //! sites now route through here so the ANSI escape grammar is defined once.
 
 /// Strip ANSI CSI escape sequences from a `str`, returning the cleaned text.

@@ -4,7 +4,7 @@
 //! cut). shipd now starts ONLY the bare agent-session actor
 //! (`ship_agents::start_agents`). The shared L1 port impls
 //! (`ConfigSpawnPolicy` + `ProjectionsReader`) live in
-//! `ship_pipeline_runtime::ports::` and are shared with helmd.
+//! `crate::dispatch::ports::`.
 //!
 //! `yoke_run_fn`: when `Some`, injected into `AgentPorts` so the
 //! `service.agents` actor routes yoke-harness sessions to it instead of
@@ -18,14 +18,14 @@
 //! path is the only dispatch surface post-cut.
 
 use ship_agents::ports::YokeRunFn;
-use ship_agents::{start_agents, AgentPorts};
+use ship_agents::{AgentPorts, start_agents};
 
 use bridge::process_registry::SharedRegistry;
 
-use bridge::executors::RoutingExecutor;
 use bridge::dispatch_ports::ProcessRegistryPort;
 use bridge::dispatch_ports::SessionExecutor;
 use bridge::dispatch_ports::SpawnPolicy;
+use bridge::executors::RoutingExecutor;
 use bridge::process_registry::ProcessRegistry;
 use ship_substrate::events::KernelRouter;
 use std::path::PathBuf;
@@ -50,7 +50,7 @@ pub struct DispatchHandle {
 pub async fn subscribe_job_events(
     kernel: Arc<Mutex<KernelRouter>>,
     _ship_dir: PathBuf,
-    health_registry: &ship_substrate::task_health::HealthRegistry,
+    health_registry: &crate::task_health::HealthRegistry,
     session_registry: ship_auth::scopes::SessionRegistry,
     daemon_url: String,
     _served_space_id: Option<String>,
@@ -70,8 +70,11 @@ pub async fn subscribe_job_events(
     // in ship-code for incremental adopt.
     let lifecycle: Arc<dyn bridge::lifecycle::LifecycleSink> =
         Arc::new(ship_agents::KernelLifecycleSink::new(kernel.clone()));
-    let sandbox: Arc<dyn bridge::sandbox_port::SandboxPort> =
-        Arc::new(ship_agents::sandbox_port::ShipSandboxPort);
+    // Inject the same session registry Arc used by auth middleware / grant
+    // host so sandboxed-actor scoped tokens mint into the live registry.
+    let sandbox: Arc<dyn bridge::sandbox_port::SandboxPort> = Arc::new(
+        ship_agents::sandbox_port::ShipSandboxPort::new(session_registry.clone()),
+    );
     let executor: Arc<dyn SessionExecutor> = Arc::new(RoutingExecutor::new(
         Arc::clone(&lifecycle),
         sandbox,
@@ -88,18 +91,17 @@ pub async fn subscribe_job_events(
         daemon_base_url: daemon_url,
     });
 
-    // The shared dispatch ports — one instance each, shared with helmd so
+    // The shared dispatch ports — one instance each so
     // role/token resolution and the canonical-sessions projection reads are
     // identical on every dispatch path.
-    let isolation: Arc<dyn bridge::dispatch_ports::IsolationStrategy> =
-        Arc::new(crate::dispatch::adapters::GitWorktreeIsolation);
-    let registry_port: Arc<dyn ProcessRegistryPort> =
-        Arc::new(SharedRegistry(registry.clone()));
-    let spawn_policy: Arc<dyn SpawnPolicy> = Arc::new(
-        ship_pipeline_runtime::ports::spawn_policy::ConfigSpawnPolicy::new(platform.clone()),
+    let isolation: Arc<dyn bridge::dispatch_ports::IsolationStrategy> = Arc::new(
+        crate::dispatch::adapters::GitWorktreeIsolation::new(kernel.clone()),
     );
+    let registry_port: Arc<dyn ProcessRegistryPort> = Arc::new(SharedRegistry(registry.clone()));
+    let spawn_policy: Arc<dyn SpawnPolicy> =
+        Arc::new(crate::dispatch::ports::spawn_policy::ConfigSpawnPolicy::new(platform.clone()));
     let projections: Arc<dyn bridge::dispatch_ports::ProjectionReader> =
-        Arc::new(ship_pipeline_runtime::ports::projection_reader::ProjectionsReader);
+        Arc::new(crate::dispatch::ports::projection_reader::ProjectionsReader);
 
     let agent_ports = Arc::new(AgentPorts {
         yoke_run_fn,
@@ -110,11 +112,12 @@ pub async fn subscribe_job_events(
         registry: registry_port,
         spawn_policy,
         projections,
-        event_dedup: Arc::new(ship_substrate::dispatch_gate::EventDedup::new()),
+        event_dedup: Arc::new(ship_agents::dispatch_gate::EventDedup::new()),
+        dispatch_gate: ship_agents::dispatch_gate::new_dispatch_gate(),
     });
 
     let kr_agents = kernel.clone();
-    ship_substrate::task_health::spawn_monitored(health_registry, "agent-sessions", async move {
+    crate::task_health::spawn_monitored(health_registry, "agent-sessions", async move {
         start_agents(kr_agents, agent_ports).await;
     });
 

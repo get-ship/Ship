@@ -1,7 +1,7 @@
-//! KernelRouter — per-actor mailboxes with sink-based persistence.
+//! KernelRouter — per-actor mailboxes with EventPersist-backed persistence.
 //!
 //! Pure event routing with no filesystem or database dependencies.
-//! Persistence is delegated to the caller-provided `EventSink`.
+//! Persistence is delegated to the caller-provided `EventPersist`.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -9,9 +9,10 @@ use std::sync::Arc;
 use tokio::sync::mpsc;
 
 use ship_types::envelope::EventEnvelope;
+use ship_types::Stamped;
 pub use ship_types::ActorConfig;
 use crate::mailbox::Mailbox;
-use crate::sink::EventSink;
+use crate::sink::EventPersist;
 use crate::validator::EventValidator;
 use crate::KernelError;
 
@@ -19,7 +20,7 @@ const MAILBOX_CAPACITY: usize = 256;
 
 /// Kernel-managed event router with per-actor isolation.
 pub struct KernelRouter {
-    sink: Arc<dyn EventSink>,
+    sink: Arc<dyn EventPersist>,
     mailboxes: HashMap<String, mpsc::Sender<EventEnvelope>>,
     actor_configs: HashMap<String, ActorConfig>,
     subscriptions: HashMap<String, Vec<String>>,
@@ -27,8 +28,8 @@ pub struct KernelRouter {
 }
 
 impl KernelRouter {
-    /// Create a new router backed by the given event sink.
-    pub fn new(sink: Arc<dyn EventSink>) -> Self {
+    /// Create a new router backed by the given event persist port.
+    pub fn new(sink: Arc<dyn EventPersist>) -> Self {
         Self {
             sink,
             mailboxes: HashMap::new(),
@@ -182,36 +183,37 @@ impl KernelRouter {
     /// Events with no registered definition (ad-hoc / test) default to
     /// `Durable` to preserve existing emit-site behavior — fail-closed
     /// toward persisting, not toward dropping.
-    pub async fn route(&self, event: EventEnvelope) -> anyhow::Result<()> {
+    pub async fn route(&self, event: Stamped) -> anyhow::Result<()> {
+        let env = event.as_envelope();
         // Run validators
         for v in &self.validators {
-            v.validate(&event)?;
+            v.validate(env)?;
         }
 
         // Skip the durable write for transient signals. Mailbox delivery
         // below is unaffected.
-        if ship_types::event_registry::lookup(&event.event_type)
+        if ship_types::event_registry::lookup(&env.event_type)
             .map(|d| !d.retention.persists())
             .unwrap_or(false)
         {
-            self.deliver(&event);
+            self.deliver(env);
             return Ok(());
         }
 
-        // Persist via sink
+        // Persist via EventPersist
         self.sink.persist(&event)?;
 
         // Deliver without re-running validators or persisting.
-        self.deliver(&event);
+        self.deliver(env);
         Ok(())
     }
 
-    /// Persist an event via the sink (firing the projection bus) WITHOUT
+    /// Persist an event via EventPersist (firing the projection bus) WITHOUT
     /// delivering to mailboxes. For lifecycle events (crash/suspend/restore)
     /// emitted while an actor is being torn down: its mailbox is gone, so
     /// delivery would fail or race — the durable, projected write is what
     /// these events need.
-    pub fn persist(&self, event: &EventEnvelope) -> anyhow::Result<()> {
+    pub fn persist(&self, event: &Stamped) -> anyhow::Result<()> {
         self.sink.persist(event)?;
         Ok(())
     }

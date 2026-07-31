@@ -19,7 +19,7 @@
 
 use std::sync::Arc;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use sqlx::{Row, SqliteConnection};
 use tempfile::tempdir;
 
@@ -27,6 +27,7 @@ use super::event_store::{EventStore, SqliteEventStore};
 use crate::db::{self, block_on};
 use crate::projections::{ActorProjection, EventBus, Projection};
 use ship_types::envelope::EventEnvelope;
+use ship_types::Stamped;
 use ship_types::event_types as ev;
 
 /// A projection that reads a `"should_fail"` bool out of its own event's
@@ -50,7 +51,10 @@ impl Projection for ConditionalFailProjection {
             .and_then(|v| v.get("should_fail").and_then(|b| b.as_bool()))
             .unwrap_or(false);
         if should_fail {
-            Err(anyhow!("torture: conditional projection failure for {}", event.id))
+            Err(anyhow!(
+                "torture: conditional projection failure for {}",
+                event.id
+            ))
         } else {
             Ok(())
         }
@@ -87,7 +91,12 @@ fn actor_created_event(id: &str, should_fail: bool) -> EventEnvelope {
 
 fn event_row_count(path: &std::path::Path) -> i64 {
     let mut conn = db::open_db_at(path).unwrap();
-    block_on(async { sqlx::query_scalar("SELECT COUNT(*) FROM events").fetch_one(&mut conn).await }).unwrap()
+    block_on(async {
+        sqlx::query_scalar("SELECT COUNT(*) FROM events")
+            .fetch_one(&mut conn)
+            .await
+    })
+    .unwrap()
 }
 
 fn actor_row_exists(path: &std::path::Path, id: &str) -> bool {
@@ -154,7 +163,8 @@ fn assert_master_invariant(path: &std::path::Path) {
     let (_replayed, _names) = crate::db::rebuild::rebuild_scope_db(path).unwrap();
     let after = dump_actors(path);
     assert_eq!(
-        before, after,
+        before,
+        after,
         "master invariant violated: live actors state != fold(committed log) at {}",
         path.display()
     );
@@ -172,13 +182,23 @@ fn every_append_fails_leaves_zero_rows() {
     for i in 0..50 {
         let id = format!("torture-allfail-{i}");
         let ev = actor_created_event(&id, true);
-        if store.append(&ev).is_ok() {
+        if store.append(&Stamped::unchecked(ev.clone())).is_ok() {
             ok_count += 1;
         }
-        assert!(!actor_row_exists(&db_path, &id), "actor row must not survive a failed projection ({id})");
+        assert!(
+            !actor_row_exists(&db_path, &id),
+            "actor row must not survive a failed projection ({id})"
+        );
     }
-    assert_eq!(ok_count, 0, "a projection that always fails must never report Ok");
-    assert_eq!(event_row_count(&db_path), 0, "no event row may survive when every projection failed");
+    assert_eq!(
+        ok_count, 0,
+        "a projection that always fails must never report Ok"
+    );
+    assert_eq!(
+        event_row_count(&db_path),
+        0,
+        "no event row may survive when every projection failed"
+    );
     assert_master_invariant(&db_path);
 }
 
@@ -193,8 +213,11 @@ fn every_append_succeeds_commits_all_rows() {
     for i in 0..50 {
         let id = format!("torture-allok-{i}");
         let ev = actor_created_event(&id, false);
-        store.append(&ev).unwrap();
-        assert!(actor_row_exists(&db_path, &id), "actor row must be present after a clean append ({id})");
+        store.append(&Stamped::unchecked(ev.clone())).unwrap();
+        assert!(
+            actor_row_exists(&db_path, &id),
+            "actor row must be present after a clean append ({id})"
+        );
     }
     assert_eq!(event_row_count(&db_path), 50);
     assert_master_invariant(&db_path);
@@ -219,13 +242,19 @@ fn random_projection_failures_never_produce_an_orphan() {
         let should_fail = rng.next_bool();
         let id = format!("torture-rand-{i}");
         let ev = actor_created_event(&id, should_fail);
-        let result = store.append(&ev);
+        let result = store.append(&Stamped::unchecked(ev.clone()));
 
         if should_fail {
-            assert!(result.is_err(), "projection marked should_fail=true must reject the append ({id})");
+            assert!(
+                result.is_err(),
+                "projection marked should_fail=true must reject the append ({id})"
+            );
             expect_rejected.push(id);
         } else {
-            assert!(result.is_ok(), "projection marked should_fail=false must accept the append ({id}): {result:?}");
+            assert!(
+                result.is_ok(),
+                "projection marked should_fail=false must accept the append ({id}): {result:?}"
+            );
             expect_committed.push(id);
         }
     }
@@ -233,10 +262,16 @@ fn random_projection_failures_never_produce_an_orphan() {
     // Row-by-row: every committed id has exactly an event row + an actor
     // row; every rejected id has neither.
     for id in &expect_committed {
-        assert!(actor_row_exists(&db_path, id), "committed id {id} must have an actor row");
+        assert!(
+            actor_row_exists(&db_path, id),
+            "committed id {id} must have an actor row"
+        );
     }
     for id in &expect_rejected {
-        assert!(!actor_row_exists(&db_path, id), "rejected id {id} must NOT have an actor row (orphan fold)");
+        assert!(
+            !actor_row_exists(&db_path, id),
+            "rejected id {id} must NOT have an actor row (orphan fold)"
+        );
     }
 
     assert_eq!(
@@ -266,8 +301,12 @@ fn failure_at_every_position_in_a_run_rolls_back_only_that_position() {
             let should_fail = i == fail_at;
             let id = format!("torture-pos-{i}");
             let ev = actor_created_event(&id, should_fail);
-            let result = store.append(&ev);
-            assert_eq!(result.is_ok(), !should_fail, "position {i} (fail_at={fail_at}) unexpected result: {result:?}");
+            let result = store.append(&Stamped::unchecked(ev.clone()));
+            assert_eq!(
+                result.is_ok(),
+                !should_fail,
+                "position {i} (fail_at={fail_at}) unexpected result: {result:?}"
+            );
         }
 
         assert_eq!(
@@ -276,7 +315,10 @@ fn failure_at_every_position_in_a_run_rolls_back_only_that_position() {
             "exactly one position (fail_at={fail_at}) must be rejected, the rest committed"
         );
         let failed_id = format!("torture-pos-{fail_at}");
-        assert!(!actor_row_exists(&db_path, &failed_id), "the failed position must not leave an actor row");
+        assert!(
+            !actor_row_exists(&db_path, &failed_id),
+            "the failed position must not leave an actor row"
+        );
 
         assert_master_invariant(&db_path);
     }

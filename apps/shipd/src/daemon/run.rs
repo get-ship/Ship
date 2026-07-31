@@ -36,25 +36,25 @@ pub async fn run_network(
     daemon_mode: deck::DaemonMode,
     apps_config_override: Option<std::path::PathBuf>,
     // Base dir for the `AppSource` resolver. `None` ⇒ the project root
-    // (the workspace dir or `.`); in dev typically the ship-apps
-    // workspace so the resolver finds `<ship-apps>/node_modules/`.
+    // (the workspace dir or `.`); in dev the ship workspace root so the
+    // resolver finds `<ship>/node_modules/` (j-12: hub/spaces in-repo).
     // Override per launch via `--apps-base-dir` or `SHIP_APPS_BASE_DIR`.
     apps_base_dir_override: Option<std::path::PathBuf>,
 ) -> Result<()> {
     if unsafe_skip_auth {
-        tracing::warn!(
-            "╔══════════════════════════════════════════════════════════════════╗"
-        );
+        tracing::warn!("╔══════════════════════════════════════════════════════════════════╗");
         tracing::warn!(
             "║  SHIPD --unsafe-skip-auth — AUTH RELAXED: loopback callers need no token ║"
         );
-        tracing::warn!(
-            "║  Localhost only. Contributor use ONLY. NEVER in production.       ║"
-        );
+        tracing::warn!("║  Localhost only. Contributor use ONLY. NEVER in production.       ║");
     }
     // The bypass forces a localhost bind. Agents can set SHIP_HOST env vars, but
     // they can't flip the --unsafe-skip-auth flag on the daemon they didn't start.
-    let host = if unsafe_skip_auth { "127.0.0.1".to_string() } else { host };
+    let host = if unsafe_skip_auth {
+        "127.0.0.1".to_string()
+    } else {
+        host
+    };
     crate::auth::unsafe_skip_auth::set_unsafe_skip_auth_mode(unsafe_skip_auth);
     let global_dir = ship_substrate::project::get_global_dir()?;
     let init_started_at = std::time::Instant::now();
@@ -66,7 +66,9 @@ pub async fn run_network(
     // worktree's own root (not the redirected main project root) is what
     // lets each linked worktree run its own daemon without trampling the
     // others' IPC handshakes.
-    let project_probe = workspace_dir.clone().or_else(|| std::env::current_dir().ok());
+    let project_probe = workspace_dir
+        .clone()
+        .or_else(|| std::env::current_dir().ok());
     let project_root = project_probe
         .as_ref()
         .and_then(|p| ship_substrate::home::ProjectRoot::discover(p));
@@ -101,10 +103,12 @@ pub async fn run_network(
             );
         }
     }
-    crate::ship_runtime::init::identity_files::cleanup_stale_daemon_files(&daemon_dir).map_err(|e| {
-        eprintln!("\nshipd startup aborted: {e}\n");
-        e
-    })?;
+    crate::ship_runtime::init::identity_files::cleanup_stale_daemon_files(&daemon_dir).map_err(
+        |e| {
+            eprintln!("\nshipd startup aborted: {e}\n");
+            e
+        },
+    )?;
     if let Some(ref w) = workspace_dir {
         tracing::info!(workspace = %w.display(), daemon_dir = %daemon_dir.display(), "shipd: project-scoped mode");
         // Make `--workspace` authoritative for the SUI resolver chain.
@@ -127,7 +131,9 @@ pub async fn run_network(
         use ship_substrate::env::{self, Var};
         if env::read(Var::DevProjectDir).is_none() {
             // SAFETY: pre-async-runtime, no concurrent env access.
-            unsafe { env::set(Var::DevProjectDir, w); }
+            unsafe {
+                env::set(Var::DevProjectDir, w);
+            }
         }
         // Authoritative project-root override for deck-core's resolver. Same
         // value the router reads at DeckConfig::load time (router.rs's
@@ -139,9 +145,9 @@ pub async fn run_network(
         if let Some(r) = repo_root {
             deck::resolver::set_project_root(r);
         }
-     } else {
-         tracing::info!(daemon_dir = %daemon_dir.display(), "shipd: global-only mode (no --workspace given)");
-     }
+    } else {
+        tracing::info!(daemon_dir = %daemon_dir.display(), "shipd: global-only mode (no --workspace given)");
+    }
 
     // Resolve the desired port. Caller-supplied --port wins; otherwise we
     // derive from the worktree root (path-hash, see
@@ -157,7 +163,11 @@ pub async fn run_network(
         global_dir: global_dir.clone(),
         workspace_dir: workspace_dir.clone(),
     };
-    let config = ship_runtime::RuntimeConfig { host: host.clone(), port: desired_port, ..Default::default() };
+    let config = ship_runtime::RuntimeConfig {
+        host: host.clone(),
+        port: desired_port,
+        ..Default::default()
+    };
     let runtime = ship_runtime::ShipRuntime::new(meta, config).await?;
     // The MeshService was the in-shipd mesh.* op surface; it was killed
     // along with the REST routes and `ship mesh broadcast` CLI. Real
@@ -226,11 +236,17 @@ pub async fn run_network(
     } else if let Some(root) = project_root.as_ref() {
         crate::ship_runtime::init::identity_files::write_workspace_file(&daemon_dir, root.path())?;
     }
-    crate::ship_runtime::init::identity_files::write_sha_file(&daemon_dir, build_info::build_info!().git_sha)?;
+    crate::ship_runtime::init::identity_files::write_sha_file(
+        &daemon_dir,
+        build_info::build_info!().git_sha,
+    )?;
 
     let ct = CancellationToken::new();
     let ct2 = ct.clone();
-    tokio::spawn(async move { super::shutdown_signal().await; ct2.cancel(); });
+    tokio::spawn(async move {
+        super::shutdown_signal().await;
+        ct2.cancel();
+    });
     // Hand the runtime a CHILD of the signal token (#256) so long-lived SSE
     // keepalive/data loops can `select!` against cancellation. When the signal
     // handler above cancels `ct`, the child fires and those streams close —
@@ -239,15 +255,10 @@ pub async fn run_network(
     rt.set_shutdown_token(ct.child_token());
 
     let session_registry = rt.session_registry().clone();
-    // Install the process-wide registry handle so the host-side spawn path
-    // (supervisor) can mint per-process tokens for sandboxed actors without
-    // threading a registry through the event→orchestrator→executor chain.
-    ship_auth::scopes::set_session_registry(session_registry.clone());
     // Install the daemon's reachable origin so the spawn path can inject
     // SHIP_DAEMON_URL into sandboxed actors (rewritten to a
-    // container-reachable host for Tier 2+). Same boot-install pattern as
-    // the session registry above.
-    ship_platform::isolation::set_daemon_origin(rt.daemon_origin());
+    // container-reachable host for Tier 2+).
+    ship_isolation::decision::set_daemon_origin(rt.daemon_origin());
     // Hydrate any persisted paired sessions from a previous daemon lifetime.
     // The unsafe-skip-auth bypass starts fresh — don't carry prior sessions
     // across restarts.
@@ -269,13 +280,16 @@ pub async fn run_network(
     // `deck.jsonc` into an `AppServeConfig`.
     //
     // Default: `<worktree>/apps/shipd/apps.jsonc`. Default base dir: the
-    // worktree root (when apps live alongside `apps/shipd/`) or, in dev,
-    // the ship-apps workspace when `SHIP_APPS_BASE_DIR` / `--apps-base-dir`
-    // points there. The dev `start.sh` script sets the env var so the
-    // resolver finds `<ship-apps>/node_modules/@ship/hub` etc.
+    // worktree root (hub/spaces live under `apps/` post j-12). The dev
+    // `start.sh` script sets `SHIP_APPS_BASE_DIR` to the ship workspace so
+    // the resolver finds `<ship>/node_modules/@ship/hub` etc.
     use deck_core::AppRegistry as _;
     let apps_config_path = apps_config_override
-        .or_else(|| worktree_root.as_ref().map(|r| r.join("apps/shipd/apps.jsonc")))
+        .or_else(|| {
+            worktree_root
+                .as_ref()
+                .map(|r| r.join("apps/shipd/apps.jsonc"))
+        })
         .unwrap_or_else(|| std::path::PathBuf::from("apps/shipd/apps.jsonc"));
     // Base dir precedence: explicit `--apps-base-dir` flag →
     // `SHIP_APPS_BASE_DIR` env var → worktree root → `.` (cwd-relative).
@@ -288,13 +302,12 @@ pub async fn run_network(
         })
         .or_else(|| worktree_root.clone())
         .unwrap_or_else(|| std::path::PathBuf::from("."));
-    let app_registry =
-        router::apps_config::ShipAppRegistry::new(apps_base_dir, apps_config_path);
+    let app_registry = router::apps_config::ShipAppRegistry::new(apps_base_dir, apps_config_path);
     let apps = app_registry.serve_configs();
     // Per-app view-output dir is CONVENTION (`<package>/<source>/views`) —
     // every app gets it registered so deck's runtime serves compiled
     // view bundles from the right per-app location (e.g.
-    // `<ship-apps>/node_modules/@ship/hub/hub/.deck/views/<name>/view.js`)
+    // `<ship>/node_modules/@ship/hub/.deck/views/<name>/view.js`)
     // before falling back to the workspace-root output. We resolve the
     // absolute path through the registry's `package_dirs()` snapshot
     // (the resolved package dir on disk) + the app's `source` (the
@@ -387,8 +400,9 @@ pub async fn run_network(
         listener,
         app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
     )
-        .with_graceful_shutdown(async move { ct.cancelled_owned().await })
-        .await.map_err(|e| anyhow!("server error: {e}"))?;
+    .with_graceful_shutdown(async move { ct.cancelled_owned().await })
+    .await
+    .map_err(|e| anyhow!("server error: {e}"))?;
 
     // Serve has returned (graceful shutdown drained the listener). Tear down the
     // bundler's detached tasks (#256): flip its watch flag so `run_watch` exits,

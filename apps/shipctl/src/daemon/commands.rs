@@ -153,7 +153,8 @@ pub(super) fn daemon_rebuild(dry_run: bool) -> Result<()> {
                 println!("dry-run: not rebuilding");
                 return Ok(());
             }
-            let report = rebuild::rebuild_projections(&ship_dir)
+            let projections = ship_platform::platform_projection_factory();
+            let report = rebuild::rebuild_projections_with(&ship_dir, &projections)
                 .context("rebuild_projections failed")?;
             println!(
                 "rebuilt: {} events replayed, {} projections refreshed ({} ms)",

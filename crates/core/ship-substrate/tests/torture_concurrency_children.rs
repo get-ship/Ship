@@ -14,6 +14,7 @@ use std::time::{Duration, Instant};
 use ship_substrate::db;
 use ship_substrate::persistence::{EventStore, SqliteEventStore};
 use ship_types::envelope::EventEnvelope;
+use ship_types::Stamped;
 use ship_types::event_types as ev;
 
 fn actor_created_event(id: &str) -> EventEnvelope {
@@ -28,12 +29,22 @@ fn actor_created_event(id: &str) -> EventEnvelope {
 
 fn actor_row_count(path: &std::path::Path) -> i64 {
     let mut conn = db::open_db_at(path).unwrap();
-    db::block_on(async { sqlx::query_scalar("SELECT COUNT(*) FROM actors").fetch_one(&mut conn).await }).unwrap()
+    db::block_on(async {
+        sqlx::query_scalar("SELECT COUNT(*) FROM actors")
+            .fetch_one(&mut conn)
+            .await
+    })
+    .unwrap()
 }
 
 fn event_row_count(path: &std::path::Path) -> i64 {
     let mut conn = db::open_db_at(path).unwrap();
-    db::block_on(async { sqlx::query_scalar("SELECT COUNT(*) FROM events").fetch_one(&mut conn).await }).unwrap()
+    db::block_on(async {
+        sqlx::query_scalar("SELECT COUNT(*) FROM events")
+            .fetch_one(&mut conn)
+            .await
+    })
+    .unwrap()
 }
 
 /// Master invariant: replaying the whole log must reproduce the exact same
@@ -57,7 +68,10 @@ fn assert_master_invariant(path: &std::path::Path) {
             .await
     })
     .unwrap();
-    assert_eq!(before, after, "master invariant violated after multi-process concurrent writers");
+    assert_eq!(
+        before, after,
+        "master invariant violated after multi-process concurrent writers"
+    );
 }
 
 /// `post_commit` commits for real, writes a "committed" marker, then parks
@@ -109,7 +123,7 @@ fn concurrent_child_processes_and_threads_on_same_scope_db() {
         thread_handles.push(std::thread::spawn(move || {
             let id = format!("torture-conc-thread-{i}");
             let ev = actor_created_event(&id);
-            store.append(&ev)
+            store.append(&Stamped::unchecked(ev.clone()))
         }));
     }
 
@@ -127,11 +141,17 @@ fn concurrent_child_processes_and_threads_on_same_scope_db() {
             thread_ok += 1;
         }
     }
-    assert_eq!(thread_ok, N_THREADS, "no lost thread appends while child processes wrote concurrently");
+    assert_eq!(
+        thread_ok, N_THREADS,
+        "no lost thread appends while child processes wrote concurrently"
+    );
 
     for (mut child, marker) in children {
         let status = wait_for_marker(&marker, Duration::from_secs(20));
-        assert_eq!(status, "committed", "child writer must have committed before parking");
+        assert_eq!(
+            status, "committed",
+            "child writer must have committed before parking"
+        );
         unsafe {
             libc::kill(child.id() as i32, libc::SIGKILL);
         }

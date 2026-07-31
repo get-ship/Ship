@@ -15,8 +15,8 @@ use tokio::sync::Mutex;
 use crate::data::{DataService, SqlParam};
 
 use super::data_store::{
-    is_safe_ident, ColumnKind, CountQuery, DataStore, DataStoreError, FilterOp, Predicate,
-    PrimaryKey, Query, QueryResult, Row, TableSchema,
+    ColumnKind, CountQuery, DataStore, DataStoreError, FilterOp, Predicate, PrimaryKey, Query,
+    QueryResult, Row, TableSchema, is_safe_ident,
 };
 
 pub struct SingleBackendDataStore {
@@ -86,7 +86,10 @@ impl DataStore for SingleBackendDataStore {
                 ColumnKind::Real => "REAL",
                 ColumnKind::Boolean => "INTEGER",
             };
-            let alter = format!("ALTER TABLE `{}` ADD COLUMN `{}` {sql_type}", schema.name, c.name);
+            let alter = format!(
+                "ALTER TABLE `{}` ADD COLUMN `{}` {sql_type}",
+                schema.name, c.name
+            );
             svc.execute(&alter, &[]).map_err(DataStoreError::from)?;
         }
         Ok(())
@@ -143,7 +146,10 @@ impl DataStore for SingleBackendDataStore {
         check_ident(table)?;
         let mut svc = self.inner.lock().await;
         let sql = format!("DELETE FROM `{table}` WHERE id = ? AND space_id = ?");
-        let params = [SqlParam::from(key.0.as_str()), SqlParam::from(self.space_id.as_str())];
+        let params = [
+            SqlParam::from(key.0.as_str()),
+            SqlParam::from(self.space_id.as_str()),
+        ];
         let affected = svc.execute(&sql, &params).map_err(DataStoreError::from)?;
         Ok(affected > 0)
     }

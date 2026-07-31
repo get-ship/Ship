@@ -1,7 +1,7 @@
 //! ConnectRPC wire layer for `AgentsService` — the keystone service.
 //!
 //! `AgentsWire` holds all the state the handler needs and implements
-//! `ship_ops_rpc::AgentsService` so shipd can mount it via
+//! `ship_proto::ship::ops::v1::AgentsService` so shipd can mount it via
 //! `AgentsServiceExt::register`, replacing the `impl AgentsService for OpsImpl`
 //! that lived in `apps/shipd/src/agent_rpc.rs` + `agent_rpc_helpers.rs`.
 //!
@@ -25,14 +25,8 @@ use std::sync::Arc;
 
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
 use serde_json::{Value, json};
-use ship_config::agents_index::AgentDefIndex;
-use ship_ops_rpc::{
-    AgentCatalogsResponse, AgentDetail, AgentDoc, AgentIndexResponse, AgentSettingsResponse,
-    AgentTemplatesResponse, AgentWireResponse, AgentsService as AgentsServiceTrait,
-    AgentsSummariesResponse, DispatchResult, GrantResult, JsonResponse,
-    PermissionPresetsResponse, ScopedMutation, SessionsListResponse, SteerResult, StopResult,
-    WatchEvent,
-};
+use ship_settings::agents_index::AgentDefIndex;
+use ship_proto::ship::ops::v1::{AgentCatalogsResponse, AgentDetail, AgentDoc, AgentIndexResponse, AgentSettingsResponse, AgentTemplatesResponse, AgentWireResponse, AgentsService as AgentsServiceTrait, AgentsSummariesResponse, DispatchResult, GrantResult, JsonResponse, PermissionPresetsResponse, ScopedMutation, SessionsListResponse, SteerResult, StopResult, WatchEvent};
 use ship_reactive::{ReactiveRegistry, ResolverSpec, WatchKey};
 use ship_substrate::events::EventFilter;
 use ship_substrate::ports::KernelLog;
@@ -243,11 +237,11 @@ fn settings_value(ship_dir: &Path, id: &str) -> Value {
 }
 
 // ── Proto conversion ──────────────────────────────────────────────────────────
-// CANONICAL ship_reactive ↔ reactive.proto bridge — ship-pipeline-runtime's
+// CANONICAL ship_reactive ↔ reactive.proto bridge — pipeline-defs's
 // wire delegates here instead of keeping a byte-identical copy.
 
-pub fn patch_op_to_proto(op: &ship_reactive::PatchOp) -> ship_ops_rpc::PatchOp {
-    use ship_ops_rpc::PatchOp as P;
+pub fn patch_op_to_proto(op: &ship_reactive::PatchOp) -> ship_proto::ship::ops::v1::PatchOp {
+    use ship_proto::ship::ops::v1::PatchOp as P;
     use ship_reactive::PatchOp::*;
     match op {
         Set => P::PATCH_OP_SET,
@@ -263,7 +257,7 @@ pub fn patch_op_to_proto(op: &ship_reactive::PatchOp) -> ship_ops_rpc::PatchOp {
 }
 
 pub fn patch_frame_to_proto(frame: ship_reactive::PatchFrame) -> WatchEvent {
-    use ship_ops_rpc::{Patch as ProtoPatch, PatchFrame as ProtoFrame};
+    use ship_proto::ship::ops::v1::{Patch as ProtoPatch, PatchFrame as ProtoFrame};
     let patches: Vec<ProtoPatch> = frame
         .patches
         .into_iter()
@@ -281,7 +275,7 @@ pub fn patch_frame_to_proto(frame: ship_reactive::PatchFrame) -> WatchEvent {
         })
         .collect();
     WatchEvent {
-        body: Some(ship_ops_rpc::__buffa::oneof::watch_event::Body::Patches(
+        body: Some(ship_proto::ship::ops::v1::__buffa::oneof::watch_event::Body::Patches(
             Box::new(ProtoFrame {
                 patches,
                 ..Default::default()
@@ -300,7 +294,7 @@ impl AgentsServiceTrait for AgentsWire {
     async fn list(
         &self,
         _ctx: RequestContext,
-        _request: ship_ops_rpc::OwnedListAgentsRequestView,
+        _request: ship_proto::ship::ops::v1::OwnedListAgentsRequestView,
     ) -> ServiceResult<AgentIndexResponse> {
         // The C0 List read goes through the composed roll-up — no
         // `.ship/agents/*.jsonc` directory scan survives the W5 follow-up
@@ -315,7 +309,7 @@ impl AgentsServiceTrait for AgentsWire {
     async fn summaries(
         &self,
         _ctx: RequestContext,
-        _request: ship_ops_rpc::OwnedListAgentsSummariesRequestView,
+        _request: ship_proto::ship::ops::v1::OwnedListAgentsSummariesRequestView,
     ) -> ServiceResult<AgentsSummariesResponse> {
         // Serve project scope from the index snapshot when mounted; the file
         // reader is the space-less / lean fallback.
@@ -331,7 +325,7 @@ impl AgentsServiceTrait for AgentsWire {
     async fn detail(
         &self,
         _ctx: RequestContext,
-        request: ship_ops_rpc::OwnedGetAgentDetailRequestView,
+        request: ship_proto::ship::ops::v1::OwnedGetAgentDetailRequestView,
     ) -> ServiceResult<AgentDetail> {
         let id = request.id;
         let detail = match self.def_index.as_ref() {
@@ -350,7 +344,7 @@ impl AgentsServiceTrait for AgentsWire {
     async fn catalogs(
         &self,
         _ctx: RequestContext,
-        _request: ship_ops_rpc::OwnedListAgentsCatalogsRequestView,
+        _request: ship_proto::ship::ops::v1::OwnedListAgentsCatalogsRequestView,
     ) -> ServiceResult<AgentCatalogsResponse> {
         let catalogs = view_state::list_agent_catalogs(&self.ship_dir);
         serde_json::from_value::<AgentCatalogsResponse>(
@@ -364,7 +358,7 @@ impl AgentsServiceTrait for AgentsWire {
     async fn get(
         &self,
         _ctx: RequestContext,
-        request: ship_ops_rpc::OwnedGetAgentRequestView,
+        request: ship_proto::ship::ops::v1::OwnedGetAgentRequestView,
     ) -> ServiceResult<AgentDoc> {
         let id = request.id;
         let scope = parse_scope_opt(request.scope)?;
@@ -395,7 +389,7 @@ impl AgentsServiceTrait for AgentsWire {
     async fn wire(
         &self,
         _ctx: RequestContext,
-        request: ship_ops_rpc::OwnedGetAgentWireRequestView,
+        request: ship_proto::ship::ops::v1::OwnedGetAgentWireRequestView,
     ) -> ServiceResult<AgentWireResponse> {
         use crate::services::agents::wire;
         let id = request.id;
@@ -412,7 +406,7 @@ impl AgentsServiceTrait for AgentsWire {
     async fn settings(
         &self,
         _ctx: RequestContext,
-        request: ship_ops_rpc::OwnedGetAgentSettingsRequestView,
+        request: ship_proto::ship::ops::v1::OwnedGetAgentSettingsRequestView,
     ) -> ServiceResult<AgentSettingsResponse> {
         use crate::services::agents::settings_view;
         let id = request.id;
@@ -429,7 +423,7 @@ impl AgentsServiceTrait for AgentsWire {
     async fn templates(
         &self,
         _ctx: RequestContext,
-        _request: ship_ops_rpc::OwnedListAgentTemplatesRequestView,
+        _request: ship_proto::ship::ops::v1::OwnedListAgentTemplatesRequestView,
     ) -> ServiceResult<AgentTemplatesResponse> {
         use crate::services::agents::create;
         serde_json::from_value::<AgentTemplatesResponse>(
@@ -442,7 +436,7 @@ impl AgentsServiceTrait for AgentsWire {
     async fn permission_presets(
         &self,
         _ctx: RequestContext,
-        _request: ship_ops_rpc::OwnedListAgentPermissionPresetsRequestView,
+        _request: ship_proto::ship::ops::v1::OwnedListAgentPermissionPresetsRequestView,
     ) -> ServiceResult<PermissionPresetsResponse> {
         use crate::services::agents::create;
         serde_json::from_value::<PermissionPresetsResponse>(
@@ -452,11 +446,10 @@ impl AgentsServiceTrait for AgentsWire {
         .map_err(|e| ConnectError::internal(format!("agents.permission_presets decode: {e}")))
     }
 
-
     async fn create_ctx(
         &self,
         _ctx: RequestContext,
-        _request: ship_ops_rpc::OwnedGetAgentCreateCtxRequestView,
+        _request: ship_proto::ship::ops::v1::OwnedGetAgentCreateCtxRequestView,
     ) -> ServiceResult<JsonResponse> {
         use crate::services::agents::create;
         let ctx = create::build_create_ctx();
@@ -473,7 +466,7 @@ impl AgentsServiceTrait for AgentsWire {
     async fn sessions(
         &self,
         _ctx: RequestContext,
-        _request: ship_ops_rpc::OwnedListSessionsReqView,
+        _request: ship_proto::ship::ops::v1::OwnedListSessionsReqView,
     ) -> ServiceResult<SessionsListResponse> {
         // sessions_fn() returns the items array Value directly.
         let items = (self.sessions_fn)();
@@ -486,7 +479,7 @@ impl AgentsServiceTrait for AgentsWire {
     async fn sessions_live(
         &self,
         _ctx: RequestContext,
-        _request: ship_ops_rpc::OwnedListSessionsReqView,
+        _request: ship_proto::ship::ops::v1::OwnedListSessionsReqView,
     ) -> ServiceResult<ServiceStream<JsonResponse>> {
         // sessions_fn() returns the items array Value; wrap in {"items": ...} for the stream.
         let initial_items = (self.sessions_fn)();
@@ -518,7 +511,7 @@ impl AgentsServiceTrait for AgentsWire {
     async fn create(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedCreateAgentRequestView,
+        request: ship_proto::ship::ops::v1::OwnedCreateAgentRequestView,
     ) -> ServiceResult<ScopedMutation> {
         use crate::services::agents::service::CreateArgs;
         (self.gate)(&ctx, "agents.create")?;
@@ -541,7 +534,7 @@ impl AgentsServiceTrait for AgentsWire {
     async fn put(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedPutAgentRequestView,
+        request: ship_proto::ship::ops::v1::OwnedPutAgentRequestView,
     ) -> ServiceResult<ScopedMutation> {
         use crate::services::agents::service::PutArgs;
         (self.gate)(&ctx, "agents.put")?;
@@ -564,7 +557,7 @@ impl AgentsServiceTrait for AgentsWire {
     async fn patch(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedPatchAgentRequestView,
+        request: ship_proto::ship::ops::v1::OwnedPatchAgentRequestView,
     ) -> ServiceResult<ScopedMutation> {
         (self.gate)(&ctx, "agents.patch")?;
         let id = request.id;
@@ -579,7 +572,7 @@ impl AgentsServiceTrait for AgentsWire {
     async fn delete(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedDeleteAgentRequestView,
+        request: ship_proto::ship::ops::v1::OwnedDeleteAgentRequestView,
     ) -> ServiceResult<ScopedMutation> {
         (self.gate)(&ctx, "agents.delete")?;
         let id = request.id;
@@ -592,7 +585,7 @@ impl AgentsServiceTrait for AgentsWire {
     async fn rename(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedRenameAgentRequestView,
+        request: ship_proto::ship::ops::v1::OwnedRenameAgentRequestView,
     ) -> ServiceResult<ScopedMutation> {
         (self.gate)(&ctx, "agents.rename")?;
         let id = request.id;
@@ -607,7 +600,7 @@ impl AgentsServiceTrait for AgentsWire {
     async fn duplicate(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedDuplicateAgentRequestView,
+        request: ship_proto::ship::ops::v1::OwnedDuplicateAgentRequestView,
     ) -> ServiceResult<ScopedMutation> {
         use crate::services::agents::service::DuplicateArgs;
         (self.gate)(&ctx, "agents.duplicate")?;
@@ -631,7 +624,7 @@ impl AgentsServiceTrait for AgentsWire {
     async fn move_scope(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedMoveAgentScopeRequestView,
+        request: ship_proto::ship::ops::v1::OwnedMoveAgentScopeRequestView,
     ) -> ServiceResult<ScopedMutation> {
         (self.gate)(&ctx, "agents.move_scope")?;
         let id = request.id;
@@ -652,7 +645,7 @@ impl AgentsServiceTrait for AgentsWire {
     async fn dispatch(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedDispatchAgentRequestView,
+        request: ship_proto::ship::ops::v1::OwnedDispatchAgentRequestView,
     ) -> ServiceResult<DispatchResult> {
         (self.gate)(&ctx, "agents.dispatch")?;
 
@@ -661,7 +654,7 @@ impl AgentsServiceTrait for AgentsWire {
         // model) and fall back to the composed-roll-up check only when the
         // index doesn't carry this scope entry. That fallback (`with_roots`,
         // no `AgentDefIndex` — helmd's lean posture) resolves through
-        // `ship_resolver::roll_up_registered_blocking`, the SAME composed world the
+        // `space_resolver::roll_up_registered_blocking`, the SAME composed world the
         // index itself is seeded from — NOT a `.ship/agents/*.jsonc`
         // directory scan (format-migration W5 follow-up).
         let agent_in_index = if let Some(index) = self.def_index.as_ref() {
@@ -720,7 +713,7 @@ impl AgentsServiceTrait for AgentsWire {
     async fn stop(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedStopAgentRequestView,
+        request: ship_proto::ship::ops::v1::OwnedStopAgentRequestView,
     ) -> ServiceResult<StopResult> {
         (self.gate)(&ctx, "agents.stop")?;
         let result = (self.stop_fn)(request.slug.to_string()).await?;
@@ -732,7 +725,7 @@ impl AgentsServiceTrait for AgentsWire {
     async fn steer(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedSteerAgentRequestView,
+        request: ship_proto::ship::ops::v1::OwnedSteerAgentRequestView,
     ) -> ServiceResult<SteerResult> {
         (self.gate)(&ctx, "agents.steer")?;
         let result = (self.steer_fn)(request.slug.to_string(), request.message.to_string()).await?;
@@ -750,7 +743,7 @@ impl AgentsServiceTrait for AgentsWire {
     async fn grant(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedGrantAgentRequestView,
+        request: ship_proto::ship::ops::v1::OwnedGrantAgentRequestView,
     ) -> ServiceResult<GrantResult> {
         // C3 gate — enforced here before the GrantFn body runs.
         (self.gate)(&ctx, "agents.grant")?;
@@ -770,9 +763,9 @@ impl AgentsServiceTrait for AgentsWire {
     async fn watch(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedAgentWatchReqView,
+        request: ship_proto::ship::ops::v1::OwnedAgentWatchReqView,
     ) -> ServiceResult<ServiceStream<WatchEvent>> {
-        use ship_ops_rpc::__buffa::oneof::agent_watch_req::Scope;
+        use ship_proto::ship::ops::v1::__buffa::oneof::agent_watch_req::Scope;
         let scope = match request.to_owned_message().scope {
             Some(Scope::All(_)) => None,
             Some(Scope::AgentId(id)) => Some(id),

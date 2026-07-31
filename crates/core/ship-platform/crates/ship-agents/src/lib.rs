@@ -17,6 +17,9 @@ pub mod actor;
 #[cfg(feature = "bridge")]
 pub mod cancel;
 pub mod dispatch;
+pub mod dispatch_gate;
+pub mod emit;
+pub mod errors;
 pub mod hooks;
 #[cfg(feature = "bridge")]
 pub mod lifecycle_sink;
@@ -26,14 +29,15 @@ pub mod ports;
 // `KernelLifecycleSink` and `ShipSandboxPort`.
 #[cfg(feature = "bridge")]
 pub mod sandbox_port;
-
 pub mod services;
-
+#[cfg(feature = "bridge")]
+pub mod supervisor_sink;
 
 pub use actor::{handle_agents_event, start_agents};
 #[cfg(feature = "bridge")]
 pub use cancel::handle_agent_cancelled;
 pub use dispatch::handle_dispatch_requested;
+pub use errors::WorkspaceError;
 #[cfg(feature = "bridge")]
 pub use lifecycle_sink::KernelLifecycleSink;
 pub use ports::AgentPorts;

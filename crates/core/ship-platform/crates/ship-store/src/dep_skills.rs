@@ -11,9 +11,9 @@
 //!           → if `<within-path>/` is a namespace dir (sub-dirs with SKILL.md)
 //!             → expand to all leaf skills within
 
+use agent_schema::skill::{Skill, SkillSource};
 use anyhow::{Context, Result};
 use stack_model::lockfile::{LockPackage, ShipLock};
-use agent_schema::skill::{Skill, SkillSource};
 use std::path::{Path, PathBuf};
 
 // ── Dep ref detection ─────────────────────────────────────────────────────────
@@ -258,7 +258,9 @@ pub fn resolve_dep_skills(
             // the test-context isolation gate kicks in. A raw `home::home_dir()`
             // bypass here would let a non-isolated test resolve the operator's
             // real `cache_dir()` — see datasafety-shiphome.
-            default_cache = ship_substrate::ShipHome::from_env().cache_dir().to_path_buf();
+            default_cache = ship_substrate::ShipHome::from_env()
+                .cache_dir()
+                .to_path_buf();
             &default_cache
         }
     };
@@ -288,10 +290,10 @@ pub fn resolve_dep_skills(
 // `#122` flat dep-agents merge (each locked package's `exports.agents`
 // namespaced by package path, flat-`extend`ed into the compile path)
 // is subsumed by `compose_space`'s precedence law — the
-// `ship_resolver::roll_up` flow composes the cache tier, the
+// `space_resolver::roll_up` flow composes the cache tier, the
 // operator-enabled library tier, and the space's own source under one
 // law (census-format-migration.md §3.1 + §3.2). The W2 coverage test
-// (`ship-resolver/src/lib_tests.rs::roll_up_covers_every_case_resolve_dep_agents_covers`)
+// (`space-resolver/src/lib_tests.rs::roll_up_covers_every_case_resolve_dep_agents_covers`)
 // pinned the equivalence. Dep-agent namespacing + shadow tracking
 // both come for free from `compose_space`.
 
@@ -315,7 +317,7 @@ pub struct TransitiveCapabilities {
 /// for approval. Returns empty when there is no lockfile.
 ///
 /// The walk is the same shape a member stack's resolver uses
-/// (`ship_resolver::space_loader::walk_skills_dir`); the dep cache is a
+/// (`space_resolver::space_loader::walk_skills_dir`); the dep cache is a
 /// content-addressed mirror of the same dir tree, so one code path
 /// suffices.
 pub fn transitive_capabilities(
@@ -325,8 +327,8 @@ pub fn transitive_capabilities(
     if !lock_path.exists() {
         return Ok(TransitiveCapabilities::default());
     }
-    let lock =
-        ShipLock::from_file(lock_path).with_context(|| format!("reading {}", lock_path.display()))?;
+    let lock = ShipLock::from_file(lock_path)
+        .with_context(|| format!("reading {}", lock_path.display()))?;
 
     let default_cache: PathBuf;
     let cache_root = match cache_root {
@@ -334,7 +336,9 @@ pub fn transitive_capabilities(
         None => {
             // See `resolve_dep_skills`: route through ShipHome so SHIP_HOME is
             // honored and the test-context isolation gate kicks in.
-            default_cache = ship_substrate::ShipHome::from_env().cache_dir().to_path_buf();
+            default_cache = ship_substrate::ShipHome::from_env()
+                .cache_dir()
+                .to_path_buf();
             &default_cache
         }
     };
@@ -370,7 +374,11 @@ pub fn transitive_capabilities(
         .filter(|r| !granted_set.contains(r.as_str()))
         .cloned()
         .collect();
-    Ok(TransitiveCapabilities { required, granted, unmet })
+    Ok(TransitiveCapabilities {
+        required,
+        granted,
+        unmet,
+    })
 }
 
 // ── Per-package composition bundle (Phase-3 J2) ──────────────────────────────
@@ -413,14 +421,14 @@ pub struct CachedExtension {
     /// `pkg_path`. The per-view data (`route`, `component_ref`) reads from
     /// `<view_dir>/view.jsonc` (the dep sidecar; absent → silently
     /// skipped, the same lenient contract the other noun loaders have).
-    pub views: Vec<stack_model::types::ViewDescriptor>,
+    pub views: Vec<ship_ui::ViewDescriptor>,
 }
 
 /// Load every locked package's content as a per-package bundle, suitable
 /// for the Phase-3 roll-up's `ExtensionDescriptor` construction.
 ///
 /// The walk is the same shape a member stack's resolver uses
-/// (`ship_resolver::space_loader::PER_NOUN_SOURCE_DIRS` + the `walk_*_dir`
+/// (`space_resolver::space_loader::PER_NOUN_SOURCE_DIRS` + the `walk_*_dir`
 /// helpers). For each locked package we walk the cache's domain dirs in
 /// `stack_model::DOMAIN_DIRS` order, the same way pack decides what is
 /// content. The manifest's `exports` declaration is dead — the dirs are
@@ -438,8 +446,8 @@ pub fn load_cached_extensions(
     if !lock_path.exists() {
         return Ok(vec![]);
     }
-    let lock =
-        ShipLock::from_file(lock_path).with_context(|| format!("reading {}", lock_path.display()))?;
+    let lock = ShipLock::from_file(lock_path)
+        .with_context(|| format!("reading {}", lock_path.display()))?;
 
     let default_cache: PathBuf;
     let cache_root = match cache_root {
@@ -447,14 +455,20 @@ pub fn load_cached_extensions(
         None => {
             // See `resolve_dep_skills`: route through ShipHome so SHIP_HOME is
             // honored and the test-context isolation gate kicks in.
-            default_cache = ship_substrate::ShipHome::from_env().cache_dir().to_path_buf();
+            default_cache = ship_substrate::ShipHome::from_env()
+                .cache_dir()
+                .to_path_buf();
             &default_cache
         }
     };
 
     let mut out = Vec::new();
     for pkg in &lock.packages {
-        let hex = pkg.hash.strip_prefix("sha256:").unwrap_or(&pkg.hash).to_string();
+        let hex = pkg
+            .hash
+            .strip_prefix("sha256:")
+            .unwrap_or(&pkg.hash)
+            .to_string();
         let cache_dir = cache_root.join("objects").join(&hex);
         if !cache_dir.is_dir() {
             // No cache object — the package is partially installed; skip
@@ -504,10 +518,9 @@ pub fn load_cached_extensions(
                         profile.agent.id = format!("{}/{}", pkg.path, profile.agent.id);
                         agent_profiles.push(profile);
                     }
-                    Err(e) => tracing::warn!(
-                        "load_cached_extensions: {}::{rel_str} parse: {e}",
-                        pkg.path
-                    ),
+                    Err(e) => {
+                        tracing::warn!("load_cached_extensions: {}::{rel_str} parse: {e}", pkg.path)
+                    }
                 }
             }
         }
@@ -563,7 +576,7 @@ pub fn load_cached_extensions(
                 };
                 match agent_schema::jsonc::from_jsonc_str::<ViewSidecar>(&content) {
                     Ok(sidecar) => {
-                        views.push(stack_model::types::ViewDescriptor {
+                        views.push(ship_ui::ViewDescriptor {
                             prefix: pkg.path.clone(),
                             route: sidecar.route,
                             component_ref: sidecar.component_ref,

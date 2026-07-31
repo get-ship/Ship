@@ -1,15 +1,16 @@
-//! `stack-model` — the stack's data model and composition law (L0 pure
-//! logic, no ship runtime deps).
+//! `stack-model` — the stack's data model and composition law.
 //!
 //! Owns the manifest, lockfile, skill parsing, library types, and the
-//! compose law (`compose_space`). Standard-tier: shared by floki and
-//! ship-code alike. Harness codegen lives in `harness-config-compiler` (the
-//! third-party-harness driver box), which depends on this crate — never
-//! the reverse.
+//! compose law (`compose_space`). Product noun schemas (collections,
+//! pipelines, triggers, views) live with their product crates; this crate
+//! references them on `ExtensionLibrary` / compose. Standard-tier: shared
+//! by floki and ship-code alike. Harness codegen lives in
+//! `harness-config-compiler` (the third-party-harness driver box), which
+//! depends on this crate — never the reverse.
 //!
-//! Key modules: `types` (all config types), `resolve` (library
-//! resolution), `compose` (the space compose law), `loader`, `manifest`,
-//! `lockfile`, `skill_parser`.
+//! Key modules: `types` (retained config / catalog / transfer types),
+//! `resolve` (library resolution), `compose` (the space compose law),
+//! `loader`, `manifest`, `lockfile`, `skill_parser`.
 
 pub mod archive_header;
 pub mod compose;
@@ -19,7 +20,6 @@ pub mod loader;
 pub mod lockfile;
 pub mod manifest;
 pub mod resolve;
-pub mod route_tree;
 pub mod skill_parser;
 pub mod types;
 
@@ -33,13 +33,10 @@ pub use resolve::{
     ExtSource, ExtSourceKind, ExtensionDescriptor, ExtensionLibrary, ModuleDescriptor,
     PrecedenceRow, RollupInputs, WorkspaceOverrides, resolve, resolve_library,
 };
-pub use route_tree::{RouteNode, RouteTree, compose_route_tree};
 pub use types::{
     AgentBundle, AgentLayerConfig, ArtifactType, CatalogCategory, CatalogEntry, CatalogKind,
-    CollectionDef, CollectionFieldDef, CollectionFieldType, ListAgentsResponse, NamespaceConfig,
-    PipelineDef, PipelineGate, PipelineStep, PipelineStepSpec, PullAgent, PullMcpServer,
-    PullProfile, PullResponse, PullRule, PullSkill, SkillBundle, SpaceManifest, TransferBundle,
-    TriggerAction, TriggerDef, TriggerEventMatch, TriggerSourceDef, list_catalog,
+    ListAgentsResponse, NamespaceConfig, PullAgent, PullMcpServer, PullProfile, PullResponse,
+    PullRule, PullSkill, SkillBundle, SpaceManifest, TransferBundle, list_catalog,
     list_catalog_by_kind, search_catalog,
 };
 

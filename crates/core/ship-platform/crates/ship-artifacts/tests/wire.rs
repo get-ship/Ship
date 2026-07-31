@@ -9,24 +9,21 @@ use std::sync::Arc;
 
 use connectrpc::RequestContext;
 use ship_artifacts::wire::ArtifactsWire;
-use ship_ops_rpc::ArtifactsService;
-use ship_ops_rpc::{
-    CreateArtifactRequest, GetArtifactBlobRequest, OwnedCreateArtifactRequestView,
-    OwnedGetArtifactBlobRequestView,
-};
+use ship_proto::ship::ops::v1::ArtifactsService;
+use ship_proto::ship::ops::v1::{CreateArtifactRequest, GetArtifactBlobRequest, OwnedCreateArtifactRequestView, OwnedGetArtifactBlobRequestView};
 use ship_substrate::data::DataService;
 use ship_substrate::home::ShipHome;
-use ship_substrate::{new_isolated_for_test, KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
+use ship_substrate::events::new_isolated_for_test_with;
+use ship_substrate::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
 
 mod common;
 
 const SCOPE_SPACE: &str = "proj1";
 
 fn make_kernel(tmp: &tempfile::TempDir) -> Arc<KernelLog> {
-    common::install_artifact_projection();
     let ship_dir = tmp.path().join(".ship");
     std::fs::create_dir_all(&ship_dir).unwrap();
-    let router = new_isolated_for_test(ship_dir).unwrap();
+    let router = new_isolated_for_test_with(ship_dir, common::artifact_projection_factory()).unwrap();
     Arc::new(KernelLog::new(router))
 }
 

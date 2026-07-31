@@ -11,6 +11,7 @@ agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "6967f155c
 ship-substrate = { path = "../../../ship-substrate" }
 ship-types = { path = "../../../ship-substrate/crates/ship-types" }
 ship-ops-rpc = { path = "../../../ship-ops-rpc" }
+ship-proto = { git = "https://github.com/get-ship/ship-contracts.git", branch = "feat/next" }
 connectrpc = { version = "0.4", features = ["axum"] }
 
 anyhow = { workspace = true }

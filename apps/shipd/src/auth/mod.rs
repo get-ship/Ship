@@ -16,9 +16,6 @@
 // preserves the `crate::auth::attest` path the daemon uses.
 pub use ship_auth::attest;
 
-/// Contributor-only relaxed-auth flag (`--unsafe-skip-auth`). Stripped from
-/// shipped (release) builds; never on by default.
-pub mod unsafe_skip_auth;
 /// The one capability gate — a pure `decide(blast, service, caller)` plus the
 /// thin `caller_from_auth` adapter onto [`AuthContext`]. shipd-local; invoked by
 /// the `GateFn` closure in `rpc::ops::router`.
@@ -30,11 +27,14 @@ pub mod identity;
 pub mod peer_socket;
 pub mod scopes;
 pub mod session;
+/// Contributor-only relaxed-auth flag (`--unsafe-skip-auth`). Stripped from
+/// shipped (release) builds; never on by default.
+pub mod unsafe_skip_auth;
 
-mod context;
-mod middleware;
 #[cfg(test)]
 mod auth_tests;
+mod context;
+mod middleware;
 pub use context::AuthContext;
 pub use middleware::{auth_middleware, project_authority_middleware};
 

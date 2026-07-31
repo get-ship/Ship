@@ -1,3 +1,11 @@
+#[cfg(test)]
+mod integration_cache;
+#[cfg(test)]
+mod integration_compose;
+#[cfg(test)]
+mod integration_constraint;
+#[cfg(test)]
+mod integration_dep_skills;
 /// Integration tests for the registry module.
 ///
 /// Each test uses a fresh `tempdir()` — no shared mutable state. The registry
@@ -9,11 +17,3 @@
 /// coverage tool matches them via the `<service>_<method>_*` pattern.
 #[cfg(test)]
 mod integration_hash;
-#[cfg(test)]
-mod integration_cache;
-#[cfg(test)]
-mod integration_dep_skills;
-#[cfg(test)]
-mod integration_compose;
-#[cfg(test)]
-mod integration_constraint;

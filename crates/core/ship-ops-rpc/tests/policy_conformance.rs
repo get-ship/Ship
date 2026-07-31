@@ -11,8 +11,8 @@
 //! These tests pin the closed state: every C2 op resolves to operator-authority,
 //! and an unknown op resolves to `None` (the gate inverts that to deny).
 
-use ship_ops_rpc::policy::{is_non_domain_service, op_name, policy_for, read_policies};
 use ship_ops_rpc::BlastRadius;
+use ship_ops_rpc::policy::{is_non_domain_service, op_name, policy_for, read_policies};
 
 /// Every op the descriptor classifies `C2_ELEVATED` (operator-authority — the
 /// highest agent-reachable blast radius) MUST resolve through the op-name keyed
@@ -40,7 +40,10 @@ fn every_c2_op_resolves_to_operator_authority() {
         orphans.is_empty(),
         "C2 ops orphaned from the policy map (gate fails OPEN for these): {orphans:?}"
     );
-    assert!(mistiered.is_empty(), "C2 ops that resolved to the wrong tier: {mistiered:?}");
+    assert!(
+        mistiered.is_empty(),
+        "C2 ops that resolved to the wrong tier: {mistiered:?}"
+    );
 }
 
 /// The fail-closed contract the gate relies on: an op with no proto policy
@@ -123,6 +126,10 @@ fn op_name_for_agents_service_is_plural() {
         ("Stop", "agents.stop"),
         ("Grant", "agents.grant"),
     ] {
-        assert_eq!(op_name("AgentsService", method), want, "AgentsService.{method}");
+        assert_eq!(
+            op_name("AgentsService", method),
+            want,
+            "AgentsService.{method}"
+        );
     }
 }

@@ -60,14 +60,11 @@ const INBOUND_FORBIDDEN: &[&str] = &["axum", "connectrpc", "http", "tonic", "hyp
 const OUTBOUND_FORBIDDEN: &[&str] = &["reqwest", "ureq", "tower", "hyper-util"];
 
 /// INBOUND allowlist — proto-codegen / protocol-boundary crates whose generated
-/// surface unavoidably pulls a server/codec, plus `ship-sidecar` (the in-sandbox
-/// daemon binary — lives under the L0 tree for co-location but is effectively L2
-/// and is never consumed as a library by other L0 crates).
+/// surface unavoidably pulls a server/codec. (ship-sidecar-proto / ship-sidecar
+/// moved to ship-exec in j-09.)
 const INBOUND_ALLOWLIST: &[&str] = &[
     "ship-ops-rpc",
-    "ship-sidecar-proto",
     "ship-gateway-client",
-    "ship-sidecar",
 ];
 
 /// OUTBOUND allowlist — the charter transport crates that are *supposed* to make
@@ -76,7 +73,6 @@ const OUTBOUND_ALLOWLIST: &[&str] = &[
     "ship-cloud",
     "ship-gateway-client",
     "ship-ops-rpc",
-    "ship-sidecar-proto",
 ];
 
 /// R2 known-violations — L0 crates that currently carry transport deps but are
@@ -84,11 +80,11 @@ const OUTBOUND_ALLOWLIST: &[&str] = &[
 /// Each emits a WARN; the lint does NOT fail on them. The owning lane ratchets
 /// these to the allowlist or fixes the architecture before removing them.
 ///
-/// - `ship-isolation` — runs/drives a Connect server inside L0.
 /// - `ship-substrate` — `reqwest` pulled by `services/human_gateway.rs`; the fix
 ///   is moving that human-gateway egress out of the substrate (de-bucket), not
 ///   suppressing it here.
-const R2_KNOWN_VIOLATIONS: &[&str] = &["ship-isolation", "ship-substrate"];
+/// (ship-isolation moved to ship-exec in j-09.)
+const R2_KNOWN_VIOLATIONS: &[&str] = &["ship-substrate"];
 
 // ── R4 — known L1→L2 / L0→L2 edges (WARN, non-blocking) ────────────────────────
 

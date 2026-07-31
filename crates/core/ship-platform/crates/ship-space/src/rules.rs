@@ -10,7 +10,7 @@
 //! { "body": "string", "order": number, "enabled": bool, "attribution": "string|null" }
 //! ```
 //!
-//! Reads go through `ship_config::overlay::get_all` — the same per-scope typed
+//! Reads go through `ship_settings::overlay::get_all` — the same per-scope typed
 //! reader the `SettingsService` uses for the SPACE scope. Writes travel the
 //! canonical path (SettingsService `Set(scope=Space, key, value)` →
 //! `overlay::set`); the entity author lives in whatever future surface is
@@ -24,11 +24,11 @@
 //!
 //! No new tables, projections, protos, or RPCs are introduced — the storage
 //! surface is the existing per-space `settings_overlay` partition owned by
-//! `ship_config` (settings.proto's SPACE scope).
+//! `ship_settings` (settings.proto's SPACE scope).
 
 use std::sync::Arc;
 
-use ship_config::overlay;
+use ship_settings::overlay;
 use ship_substrate::data::DataService;
 use ship_substrate::db;
 use ship_substrate::ports::{DataStore, SingleBackendDataStore};
@@ -103,7 +103,7 @@ impl StoredRule {
     }
 }
 
-/// Coerce a JSON value to `i64` the same way `ship_config::settings::coerce_u64`
+/// Coerce a JSON value to `i64` the same way `ship_settings::settings::coerce_u64`
 /// does for the daemon settings tier — accept a JSON number, or a stringified
 /// number (settings are persisted as JSON; older writers may have stringified).
 fn coerce_i64(v: serde_json::Value) -> Option<i64> {

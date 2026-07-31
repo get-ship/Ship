@@ -4,13 +4,14 @@ version = "0.1.0"
 edition = "2024"
 license-file = "LICENSE"
 publish = false
-description = "The L0 substrate engine: truth-and-storage (db/persistence/projections/queries) + the kernel/event plumbing + the port surface (DataStore/KernelLog/BlobStore/FsBroker). One crate — the heavy adapters (blob-s3, fs-watch, process-supervisor, isolation-port, journal-sqlite) are leaves. Consumed by shipd and by lightweight L1 crates (ship-collection/reactive/artifacts) alike; no object_store/notify/portable-pty pulled in transitively."
+description = "The L0 substrate engine: truth-and-storage (db/persistence/projections/queries) + the kernel/event plumbing + the port surface (DataStore/KernelLog/BlobStore/FsBroker). One crate — the heavy adapters (blob-s3, fs-watch, isolation-port) are leaves. Consumed by shipd and by lightweight L1 crates (ship-collection/reactive/artifacts) alike; no object_store/notify/portable-pty pulled in transitively."
 
 [features]
 unstable = []
+# Unchecked `Stamped` mint for tests. Production builds never enable this.
+test-support = ["ship-types/test-support"]
 
 [dependencies]
-event-core = { git = "https://github.com/get-ship/ship-exec.git", rev = "ee39e5273ce8829d90043626a01f564e660dd477" }
 agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "6967f155ca795c19c44a145701c138b2d079c89c" }
 ship-kernel = { path = "crates/ship-kernel" }
 ship-types = { path = "crates/ship-types" }
@@ -18,9 +19,7 @@ ship-paths = { path = "crates/ship-paths" }
 fs-util = { path = "crates/fs-util" }
 config-doc = { path = "crates/config-doc" }
 bounded-spawn = { git = "https://github.com/get-ship/ship-exec.git", rev = "ee39e5273ce8829d90043626a01f564e660dd477" }
-process-supervisor = { git = "https://github.com/get-ship/ship-exec.git", rev = "ee39e5273ce8829d90043626a01f564e660dd477" }
-path-layout = { path = "crates/path-layout" }
-task-health = { path = "crates/task-health" }
+path-layout = { path = "../path-layout" }
 blobstore = { path = "crates/blobstore" }
 fs-cap = { path = "crates/fs-cap" }
 ship-pipelines = { path = "crates/ship-pipelines", features = ["specta"] }
@@ -43,9 +42,7 @@ tempfile = { workspace = true }
 tracing = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 home = { workspace = true }
-# Pure path-layout helper for composed traveling-artifact overlays. No ship
-# deps — compiler depends only on serde/serde_json/anyhow/minijinja/etc.
-stack-model = { path = "../stack-model" }
+nanoid = { workspace = true }
 walkdir = "2.3"
 
 [target.'cfg(target_os = "linux")'.dependencies]
@@ -55,6 +52,9 @@ libc = { workspace = true }
 serde_yaml = { workspace = true }
 tokio = { workspace = true, features = ["test-util"] }
 proptest = "1"
+# Unit/integration tests mint Stamped via unchecked.
+ship-types = { path = "crates/ship-types", features = ["test-support"] }
+trybuild = "1.0"
 
 # T1 storage-torture (S3): a real child process opens the scope db and begins
 # an append; the parent test SIGKILLs it mid-transaction to prove WAL

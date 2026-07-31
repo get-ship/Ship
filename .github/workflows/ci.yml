@@ -2,8 +2,9 @@ name: CI
 
 # Post-multi-repo split (chore/umbrella-resolution phase 1, 2026-06-28).
 # This CI is scoped to the **ship** repo's owned surfaces only:
-#   - The Rust daemon (shipd, shipctl, ship-host, helmd) and the L0/L1
+#   - The Rust daemon (shipd, shipctl, ship-host) and the L0/L1
 #     platform (crates/*).
+#     (helmd was deleted j-02 step 4 — wires live on shipd.)
 #   - The xtask codegen that operates on this repo's source (gen-fixtures,
 #     gen-events, the lints).
 #   - The contract-conformance Rust test (tests/contract).
@@ -103,16 +104,10 @@ jobs:
       # and matches the registry's metadata (scope/retention/stability).
       - name: Contract conformance
         run: cargo test -p ship-contract-tests
-      # Isolation live cells (T1/T2) run as part of `cargo test
-      # --workspace` but skip without a substrate. Installing podman +
-      # building the sidecar bin makes the Linux podman cells execute
-      # for real. T3 (Firecracker/KVM) and mac/Windows stay manual.
-      - name: Install podman + pull test image (isolation live cells)
-        run: |
-          sudo apt-get update && sudo apt-get install -y podman
-          podman pull ubuntu:24.04
-      - name: Build ship-sidecar (the live cells drive it)
-        run: cargo build -p ship-sidecar
+      # Isolation unit (ship-isolation / ship-sidecar) lives in ship-exec
+      # (j-09). Continuous coverage is ship-exec's CI
+      # (.github/workflows/ci.yml there: cargo test -p ship-isolation,
+      # cargo build -p ship-sidecar, optional podman live cells).
       - name: Cargo test
         run: cargo test --workspace --exclude ship-host --features unstable
       # Daemon correctness: boot shipd and exercise its ConnectRPC +

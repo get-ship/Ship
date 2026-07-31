@@ -18,9 +18,9 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
-use agent_schema::dispatch_intent::DispatchRequestedPayload;
 #[cfg(feature = "bridge")]
-use ship_substrate::dispatch_gate::EventDedup;
+use crate::dispatch_gate::EventDedup;
+use agent_schema::dispatch_intent::DispatchRequestedPayload;
 #[cfg(feature = "bridge")]
 use bridge::dispatch_ports::{
     AgentPlatform, IsolationStrategy, ProcessRegistryPort, ProjectionReader, SessionExecutor,
@@ -28,17 +28,16 @@ use bridge::dispatch_ports::{
 };
 #[cfg(feature = "bridge")]
 use bridge::lifecycle::LifecycleSink;
+#[cfg(feature = "bridge")]
+use tokio::sync::Semaphore;
 
 /// Async callback for native Yoke harness dispatch.
 ///
 /// Ungated so `AgentPorts` carries it with or without `ship-code`. The
 /// host (shipd) captures gateway/kernel; `ship-agents` never imports yoke.
 /// Payload type is L1 (`agent-def`).
-pub type YokeRunFn = Arc<
-    dyn Fn(DispatchRequestedPayload) -> Pin<Box<dyn Future<Output = ()> + Send>>
-        + Send
-        + Sync,
->;
+pub type YokeRunFn =
+    Arc<dyn Fn(DispatchRequestedPayload) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync>;
 
 /// Ports for agent-session orchestration. Cloneable (all `Arc`) so the actor
 /// can hand a snapshot to each detached dispatch task.
@@ -84,6 +83,11 @@ pub struct AgentPorts {
     /// double-admitting a spawn.
     #[cfg(feature = "bridge")]
     pub event_dedup: Arc<EventDedup>,
+    /// Bounds concurrent agent-session dispatch preps. Constructed by the
+    /// composition root via [`crate::dispatch_gate::new_dispatch_gate`]
+    /// and shared across detached prep tasks — not a process-global.
+    #[cfg(feature = "bridge")]
+    pub dispatch_gate: Arc<Semaphore>,
 }
 impl AgentPorts {
     /// Construct a flag-off `AgentPorts` carrying ONLY the yoke-harness

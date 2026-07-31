@@ -3,13 +3,11 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use ship_substrate::task_health::HealthRegistry;
 #[cfg(feature = "bridge")]
 use crate::dispatch::run_dispatch::DispatchHandle;
+use crate::task_health::HealthRegistry;
 
-use super::{
-    ShipRuntime, RuntimeConfig, SharedKernel,
-};
+use super::{RuntimeConfig, SharedKernel, ShipRuntime};
 
 impl ShipRuntime {
     /// Process uptime since the runtime was constructed.
@@ -70,7 +68,8 @@ impl ShipRuntime {
     /// Mirrors `ShipHome::account_token_path`; typed accessor in place of a
     /// hand-joined path so the live-data resolver matches the wire's path.
     pub fn account_token_path(&self) -> PathBuf {
-        self.daemon_dir.join(ship_substrate::ShipHome::account_token_file())
+        self.daemon_dir
+            .join(ship_substrate::ShipHome::account_token_file())
     }
 
     /// `SkillsService` accessor.
@@ -79,9 +78,7 @@ impl ShipRuntime {
     }
 
     /// `RulesService` as a cloned `Arc` — for wire mounts that need to own the handle.
-    pub fn rules_arc(
-        &self,
-    ) -> Arc<dyn ship_agents::services::rules::service::RulesService> {
+    pub fn rules_arc(&self) -> Arc<dyn ship_agents::services::rules::service::RulesService> {
         self.rules.clone()
     }
 
@@ -91,9 +88,7 @@ impl ShipRuntime {
     }
 
     /// `SkillsService` as a cloned `Arc` — for wire mounts.
-    pub fn skills_arc(
-        &self,
-    ) -> Arc<dyn ship_agents::services::skills::service::SkillsService> {
+    pub fn skills_arc(&self) -> Arc<dyn ship_agents::services::skills::service::SkillsService> {
         self.skills.clone()
     }
 
@@ -111,9 +106,7 @@ impl ShipRuntime {
 
     /// `PipelinesService` as a cloned `Arc` — for diagnostic snapshot providers
     /// that need to hold the handle independently of the runtime borrow.
-    pub fn pipelines_arc(
-        &self,
-    ) -> Arc<dyn ship_pipeline_runtime::pipelines::service::PipelinesService> {
+    pub fn pipelines_arc(&self) -> Arc<dyn pipeline_defs::pipelines::service::PipelinesService> {
         self.pipelines.clone()
     }
 
@@ -146,9 +139,7 @@ impl ShipRuntime {
     }
     /// The shared collection schema registry (C-2 UD-7) — used by the wire mount
     /// and any caller that needs the same registry instance.
-    pub fn collection_schemas(
-        &self,
-    ) -> Arc<ship_collection::projection::SchemaRegistry> {
+    pub fn collection_schemas(&self) -> Arc<ship_collection::projection::SchemaRegistry> {
         self.schemas.clone()
     }
 
@@ -183,8 +174,6 @@ impl ShipRuntime {
         self.dispatch_handle.get()
     }
 
-
-
     pub fn live_sessions(&self) -> &ship_agents::services::sessions::Registry {
         &self.live_sessions
     }
@@ -204,7 +193,9 @@ impl ShipRuntime {
 
     /// The live-read resolver registry — SSOT for snapshot `(domain, op)` reads,
     /// consumed by both the per-op `<Op>Live` streams and the multiplex.
-    pub fn live_resolvers(&self) -> &Arc<crate::ship_runtime::live_resolvers::LiveResolverRegistry> {
+    pub fn live_resolvers(
+        &self,
+    ) -> &Arc<crate::ship_runtime::live_resolvers::LiveResolverRegistry> {
         &self.live_resolvers
     }
 }

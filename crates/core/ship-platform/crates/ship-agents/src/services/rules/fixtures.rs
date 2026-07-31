@@ -10,8 +10,14 @@ impl RulesIndexResponse {
     pub fn example() -> Self {
         RulesIndexResponse {
             items: vec![
-                IndexEntry { id: "no-placeholders".to_string(), scope: ScopeTag::Project },
-                IndexEntry { id: "commit-style".to_string(), scope: ScopeTag::User },
+                IndexEntry {
+                    id: "no-placeholders".to_string(),
+                    scope: ScopeTag::Project,
+                },
+                IndexEntry {
+                    id: "commit-style".to_string(),
+                    scope: ScopeTag::User,
+                },
             ],
         }
     }

@@ -7,7 +7,7 @@
 //! registration; nothing else is stack content.
 //!
 //! The set is the SAME shape the resolver harvests from a member stack
-//! (`ship_resolver::space_loader::PER_NOUN_SOURCE_DIRS`, plus the dirs the
+//! (`space_resolver::space_loader::PER_NOUN_SOURCE_DIRS`, plus the dirs the
 //! resolver walks from `ExtensionLibrary`): agents, collections, pipelines,
 //! triggers, views, skills, hooks. Naming the dirs here (rather than in
 //! ship-store) keeps `stack-model` the leaf both crates already depend on,

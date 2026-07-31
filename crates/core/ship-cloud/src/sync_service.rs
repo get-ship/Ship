@@ -72,12 +72,11 @@ impl Default for SyncConfig {
 ///
 /// Push cycle fires on the tick interval and on threshold accumulation.
 ///
-/// Holds its own kernel handle (rather than reaching for the process-global
-/// `ship_substrate::events::kernel_router()`) so `sync.*` emission is
-/// injectable — the `ServiceHandler` trait's `store: &SqliteEventStore`
-/// parameter is shared with every other service impl and can't be widened to
-/// an emit port without cascading beyond this file, so the kernel travels
-/// with the handler instead of through the trait.
+/// Holds its own kernel handle so `sync.*` emission is injectable — the
+/// `ServiceHandler` trait's `store: &SqliteEventStore` parameter is shared
+/// with every other service impl and can't be widened to an emit port
+/// without cascading beyond this file, so the kernel travels with the
+/// handler instead of through the trait.
 pub struct SyncServiceHandler {
     config: SyncConfig,
     client: Box<dyn SyncTransport>,

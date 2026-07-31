@@ -105,14 +105,20 @@ mod tests {
     #[test]
     fn missing_returns_none() {
         let _tmp = setup();
-        let key = format!("missing-{}", chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0));
+        let key = format!(
+            "missing-{}",
+            chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
+        );
         assert!(get(&key).unwrap().is_none());
     }
 
     #[test]
     fn set_and_get_roundtrip() {
         let _tmp = setup();
-        let key = format!("daemon.port-{}", chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0));
+        let key = format!(
+            "daemon.port-{}",
+            chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
+        );
         set(&key, &json!("9315")).unwrap();
         let val = get(&key).unwrap().unwrap();
         assert_eq!(val, json!("9315"));
@@ -121,7 +127,10 @@ mod tests {
     #[test]
     fn set_overwrites() {
         let _tmp = setup();
-        let key = format!("theme-{}", chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0));
+        let key = format!(
+            "theme-{}",
+            chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
+        );
         set(&key, &json!("dark")).unwrap();
         set(&key, &json!("light")).unwrap();
         assert_eq!(get(&key).unwrap().unwrap(), json!("light"));
@@ -130,7 +139,10 @@ mod tests {
     #[test]
     fn delete_removes_row() {
         let _tmp = setup();
-        let key = format!("scratch-{}", chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0));
+        let key = format!(
+            "scratch-{}",
+            chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
+        );
         set(&key, &json!(true)).unwrap();
         delete(&key).unwrap();
         assert!(get(&key).unwrap().is_none());

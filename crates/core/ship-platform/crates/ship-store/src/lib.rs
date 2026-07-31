@@ -18,6 +18,7 @@ pub mod cache;
 pub mod collection_schemas;
 pub mod compose;
 pub mod constraint;
+pub mod content_scan;
 pub mod dep_skills;
 pub mod fetch;
 pub mod hash;

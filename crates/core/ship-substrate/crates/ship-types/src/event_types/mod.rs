@@ -13,11 +13,11 @@ pub mod supervisor;
 // `ship_collection::events::ALL_COLLECTION`). Full-linkage vocabulary guards
 // live in shipd (`tests/event_vocabulary.rs`): a pinned registry count plus a
 // live-validator sweep, with NO exception lists.
-pub const ACTOR_CREATED: &str = event_core::event_types::ACTOR_CREATED;
-pub const ACTOR_WOKE: &str = event_core::event_types::ACTOR_WOKE;
-pub const ACTOR_SLEPT: &str = event_core::event_types::ACTOR_SLEPT;
-pub const ACTOR_STOPPED: &str = event_core::event_types::ACTOR_STOPPED;
-pub const ACTOR_CRASHED: &str = event_core::event_types::ACTOR_CRASHED;
+pub const ACTOR_CREATED: &str = "actor.created";
+pub const ACTOR_WOKE: &str = "actor.woke";
+pub const ACTOR_SLEPT: &str = "actor.slept";
+pub const ACTOR_STOPPED: &str = "actor.stopped";
+pub const ACTOR_CRASHED: &str = "actor.crashed";
 pub const CONFIG_CHANGED: &str = "config.changed";
 /// Fine-grained per-file config change (path + content_hash) — see
 /// `ConfigFileChanged`. Emitted by the watcher alongside the coarse `*.changed`.
@@ -122,7 +122,6 @@ pub const SETTINGS_CHANGED: &str = "settings.changed";
 /// Agent — a dispatched task ran to completion. `entity_id` is the task id.
 pub const AGENT_TASK_COMPLETE: &str = "agent.task.complete";
 
-
 /// Sync — a push to the remote sync target failed.
 /// A1: device, durable.
 pub const SYNC_PUSH_FAILED: &str = "sync.push.failed";
@@ -171,7 +170,6 @@ pub const SUPERVISOR_SWEEP_COMPLETED: &str = supervisor::SWEEP_COMPLETED;
 pub const SUPERVISOR_DRIFT_DETECTED: &str = supervisor::DRIFT_DETECTED;
 pub const SUPERVISOR_COHERENCE_RESTORED: &str = supervisor::COHERENCE_RESTORED;
 
-
 #[cfg(test)]
 mod tests {
     /// Registered event names are unique. (The former const-level uniqueness
@@ -183,7 +181,11 @@ mod tests {
     fn registered_event_names_are_unique() {
         let mut seen = std::collections::HashSet::new();
         for def in crate::event_registry::registry() {
-            assert!(seen.insert(def.name), "duplicate event registration: {}", def.name);
+            assert!(
+                seen.insert(def.name),
+                "duplicate event registration: {}",
+                def.name
+            );
         }
     }
 }

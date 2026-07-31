@@ -107,13 +107,10 @@ pub fn validate_schema_doc(doc: &SchemaDoc) -> Result<(), CollectionError> {
 }
 
 /// Validate an item's `data` JSON object against a schema.
-pub fn validate_item(
-    schema: &SchemaDoc,
-    data: &serde_json::Value,
-) -> Result<(), CollectionError> {
-    let obj = data.as_object().ok_or_else(|| {
-        CollectionError::Validation("item data must be a JSON object".into())
-    })?;
+pub fn validate_item(schema: &SchemaDoc, data: &serde_json::Value) -> Result<(), CollectionError> {
+    let obj = data
+        .as_object()
+        .ok_or_else(|| CollectionError::Validation("item data must be a JSON object".into()))?;
 
     let mut errors: Vec<String> = Vec::new();
 
@@ -147,10 +144,7 @@ pub fn validate_item(
 
 fn check_field(path: &str, field: &FieldDef, value: &serde_json::Value, errors: &mut Vec<String>) {
     match field.kind {
-        FieldKind::String
-        | FieldKind::Markdown
-        | FieldKind::Date
-        | FieldKind::File => {
+        FieldKind::String | FieldKind::Markdown | FieldKind::Date | FieldKind::File => {
             if !value.is_string() {
                 errors.push(format!("field '{path}' must be a string"));
             }

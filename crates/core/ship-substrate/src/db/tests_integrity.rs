@@ -77,10 +77,11 @@ fn corrupted_db_detected() {
 
 fn destruction_drill_drop_static_projection_table_rebuilds_from_log() {
     use crate::db::rebuild;
-    use crate::persistence::event_store::{EventStore, SqliteEventStore};
     use crate::events::EventScope;
     use crate::events::types::event_types;
+    use crate::persistence::event_store::{EventStore, SqliteEventStore};
     use ship_types::envelope::EventEnvelope;
+use ship_types::Stamped;
     let (_tmp, ship_dir, runtime_db) = setup();
 
     // Append an actor.created event so the events log now references
@@ -108,15 +109,13 @@ fn destruction_drill_drop_static_projection_table_rebuilds_from_log() {
     .unwrap()
     .with_actor_id("actor-destruction-drill")
     .with_scope(EventScope::Runtime, None);
-    store.append(&env).unwrap();
+    store.append(&Stamped::unchecked(env.clone())).unwrap();
 
     // Now DROP the `actors` projection table — the destruction drill.
     {
         let mut conn = crate::db::open_db_at(&runtime_db).unwrap();
-        crate::db::block_on(async {
-            sqlx::query("DROP TABLE actors").execute(&mut conn).await
-        })
-        .unwrap();
+        crate::db::block_on(async { sqlx::query("DROP TABLE actors").execute(&mut conn).await })
+            .unwrap();
     }
 
     // (1) Integrity check classifies as ProjectionsCorrupt (recoverable),
@@ -135,7 +134,12 @@ fn destruction_drill_drop_static_projection_table_rebuilds_from_log() {
     // (2) Rebuild recreates the table and re-fills it from the log.
     let report = rebuild::rebuild_projections(&ship_dir).unwrap();
     assert_eq!(report.events_replayed, 1);
-    assert!(report.projections_rebuilt.iter().any(|n| n == "actor_state"));
+    assert!(
+        report
+            .projections_rebuilt
+            .iter()
+            .any(|n| n == "actor_state")
+    );
 
     // After rebuild, the integrity check is clean.
     match integrity::check_integrity(&runtime_db).unwrap() {
@@ -153,7 +157,10 @@ fn destruction_drill_drop_static_projection_table_rebuilds_from_log() {
             .await
     })
     .unwrap();
-    assert_eq!(count, 1, "rebuild must materialize the actor row from the log");
+    assert_eq!(
+        count, 1,
+        "rebuild must materialize the actor row from the log"
+    );
 }
 
 /// An empty events log MUST NOT trigger absence detection: a fresh
@@ -185,7 +192,9 @@ fn table_less_scope_db_is_treated_as_fresh() {
     std::fs::File::create(&husk_db).unwrap();
     let mut conn = crate::db::open_db_at(&husk_db).unwrap();
     crate::db::block_on(async {
-        sqlx::query("PRAGMA user_version = 0").execute(&mut conn).await
+        sqlx::query("PRAGMA user_version = 0")
+            .execute(&mut conn)
+            .await
     })
     .unwrap();
     drop(conn);
@@ -207,6 +216,7 @@ fn integrity_details_are_prefixed_with_the_db_path() {
     use crate::events::types::event_types;
     use crate::persistence::event_store::{EventStore, SqliteEventStore};
     use ship_types::envelope::EventEnvelope;
+use ship_types::Stamped;
 
     let store = SqliteEventStore::new_for_scope(&ship_dir, EventScope::Runtime, None).unwrap();
     let env = EventEnvelope::new(
@@ -223,14 +233,12 @@ fn integrity_details_are_prefixed_with_the_db_path() {
     .unwrap()
     .with_actor_id("actor-path-prefix-drill")
     .with_scope(EventScope::Runtime, None);
-    store.append(&env).unwrap();
+    store.append(&Stamped::unchecked(env.clone())).unwrap();
 
     {
         let mut conn = crate::db::open_db_at(&runtime_db).unwrap();
-        crate::db::block_on(async {
-            sqlx::query("DROP TABLE actors").execute(&mut conn).await
-        })
-        .unwrap();
+        crate::db::block_on(async { sqlx::query("DROP TABLE actors").execute(&mut conn).await })
+            .unwrap();
     }
 
     match integrity::check_integrity(&runtime_db).unwrap() {

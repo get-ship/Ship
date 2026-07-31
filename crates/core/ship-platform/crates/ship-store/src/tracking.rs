@@ -78,7 +78,9 @@ mod tests {
         unsafe { ship_substrate::env::set(ship_substrate::env::Var::RegistryUrl, "") };
         track_install("github.com/test/pkg", false);
         match prev {
-            Some(val) => unsafe { ship_substrate::env::set(ship_substrate::env::Var::RegistryUrl, &val) },
+            Some(val) => unsafe {
+                ship_substrate::env::set(ship_substrate::env::Var::RegistryUrl, &val)
+            },
             None => unsafe { ship_substrate::env::remove(ship_substrate::env::Var::RegistryUrl) },
         }
     }
@@ -93,12 +95,16 @@ mod tests {
         // blocking wait on the caller side.
         // SAFETY: test is single-threaded; env var is restored immediately after.
         let prev = ship_substrate::env::read_raw(ship_substrate::env::Var::RegistryUrl).ok();
-        unsafe { ship_substrate::env::set(ship_substrate::env::Var::RegistryUrl, "http://127.0.0.1:1") };
+        unsafe {
+            ship_substrate::env::set(ship_substrate::env::Var::RegistryUrl, "http://127.0.0.1:1")
+        };
         let start = std::time::Instant::now();
         track_install("github.com/test/pkg", false);
         let elapsed = start.elapsed();
         match prev {
-            Some(val) => unsafe { ship_substrate::env::set(ship_substrate::env::Var::RegistryUrl, &val) },
+            Some(val) => unsafe {
+                ship_substrate::env::set(ship_substrate::env::Var::RegistryUrl, &val)
+            },
             None => unsafe { ship_substrate::env::remove(ship_substrate::env::Var::RegistryUrl) },
         }
         assert!(

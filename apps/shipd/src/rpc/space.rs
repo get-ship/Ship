@@ -28,13 +28,18 @@ use crate::ship_runtime::ApiState;
 const RUNTIME_PARTITION: &str = "runtime";
 
 /// Build a `DataStore` over runtime.db bound to the Runtime partition.
-fn runtime_store(state: &ApiState) -> Result<Arc<dyn ship_substrate::ports::DataStore>, ConnectError> {
+fn runtime_store(
+    state: &ApiState,
+) -> Result<Arc<dyn ship_substrate::ports::DataStore>, ConnectError> {
     use ship_substrate::data::DataService;
     use ship_substrate::ports::SingleBackendDataStore;
     let runtime_db = ship_substrate::db::runtime_db_path(state.ship_dir());
     let svc = DataService::open_at(&runtime_db)
         .map_err(|e| ConnectError::internal(format!("data service over runtime.db: {e}")))?;
-    Ok(Arc::new(SingleBackendDataStore::new(svc, RUNTIME_PARTITION)))
+    Ok(Arc::new(SingleBackendDataStore::new(
+        svc,
+        RUNTIME_PARTITION,
+    )))
 }
 
 /// The runtime-scoped `SpaceContext` the crate uses for the registry + emits.
@@ -42,7 +47,11 @@ fn runtime_ctx(state: &ApiState) -> Result<Arc<SpaceContext>, ConnectError> {
     use ship_substrate::ports::{KernelLog, SpaceId};
     let store = runtime_store(state)?;
     let kernel = Arc::new(KernelLog::new(state.kernel().clone()));
-    Ok(Arc::new(SpaceContext::new(SpaceId::new(RUNTIME_PARTITION), store, kernel)))
+    Ok(Arc::new(SpaceContext::new(
+        SpaceId::new(RUNTIME_PARTITION),
+        store,
+        kernel,
+    )))
 }
 
 /// Wrap the shared gate with an extra restriction on `space.create`.
@@ -86,12 +95,14 @@ pub fn space_wire(
 ) -> Arc<
     ship_space::SpaceWire<
         impl Fn(&connectrpc::RequestContext) -> Result<Arc<SpaceContext>, ConnectError>
-            + Send
-            + Sync
-            + 'static,
+        + Send
+        + Sync
+        + 'static,
     >,
 > {
-    let kernel = Arc::new(ship_substrate::ports::KernelLog::new(state.kernel().clone()));
+    let kernel = Arc::new(ship_substrate::ports::KernelLog::new(
+        state.kernel().clone(),
+    ));
     let ctx_state = state.clone();
     Arc::new(ship_space::SpaceWire::new(
         kernel,
@@ -138,21 +149,30 @@ mod tests {
         // PeerIdentity::LocalOwner resolves to exactly this shape: no
         // agent_id, empty grants, no operator cred (see auth::identity).
         let gate = gate_space_create(Arc::new(allow_all));
-        let ctx = ctx_with_auth(AuthContext { agent_id: None, ..base_auth() });
+        let ctx = ctx_with_auth(AuthContext {
+            agent_id: None,
+            ..base_auth()
+        });
         assert!(gate(&ctx, "space.create").is_err());
     }
 
     #[test]
     fn provisioned_space_grant_allows_create() {
         let gate = gate_space_create(Arc::new(allow_all));
-        let ctx = ctx_with_auth(AuthContext { grants: vec!["space".to_string()], ..base_auth() });
+        let ctx = ctx_with_auth(AuthContext {
+            grants: vec!["space".to_string()],
+            ..base_auth()
+        });
         assert!(gate(&ctx, "space.create").is_ok());
     }
 
     #[test]
     fn operator_allows_create_without_the_grant() {
         let gate = gate_space_create(Arc::new(allow_all));
-        let ctx = ctx_with_auth(AuthContext { operator_cred: true, ..base_auth() });
+        let ctx = ctx_with_auth(AuthContext {
+            operator_cred: true,
+            ..base_auth()
+        });
         assert!(gate(&ctx, "space.create").is_ok());
     }
 

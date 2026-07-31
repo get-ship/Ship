@@ -23,7 +23,6 @@ use std::sync::Arc;
 use ship_substrate::FsBroker;
 use ship_substrate::events::EventFilter;
 use ship_substrate::events::new_isolated_for_test;
-use ship_substrate::home::ShipHome;
 use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
 use ship_substrate::ports::{
     FsCap, FsMode, FsRoot, KernelLog, LocalFsBroker, SpaceId as PortSpaceId,
@@ -224,7 +223,7 @@ async fn consumer_ignores_unrelated_event_types() {
 
 /// The deleted-marker (empty `content_hash`) flows verbatim from the
 /// transient signal to the durable `agent.def.updated` — the read-only
-/// index in ship-config depends on this to drop its row.
+/// index in ship-settings depends on this to drop its row.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn consumer_propagates_deleted_marker_to_durable_event() {
     let (_tmp, ship_dir, kernel, space) = setup().await;
@@ -255,7 +254,7 @@ async fn consumer_propagates_deleted_marker_to_durable_event() {
 
 /// Two transients in quick succession produce two durable rows (no
 /// dedup at the consumer layer). The read-only agent-def index
-/// (`ship_config::agents_index`) is the idempotent surface — it
+/// (`ship_settings::agents_index`) is the idempotent surface — it
 /// re-reads the file on each notification and upserts / drops as
 /// appropriate. The consumer is a pure signal-forwarder.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

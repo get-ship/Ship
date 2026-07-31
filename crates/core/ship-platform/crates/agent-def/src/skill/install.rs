@@ -189,7 +189,7 @@ pub fn install_skill_from_source(
             let dest_root = ensure_project_skills_storage(project_dir)?;
             // A2: the resolved descriptor (roll_up → ResolvedConfig) is the
             // one source of truth for skill delivery. The pre-cutover write
-            // to `ship_config::project::save_config`'s `config.agent.skills`
+            // to `ship_settings::project::save_config`'s `config.agent.skills`
             // array was a side effect of the dead ship.jsonc manifest model
             // — skills arrive via `defineSkill` declare-forms in
             // `stack.config.ts`; the roll-up re-materializes the descriptor

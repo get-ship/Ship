@@ -1,7 +1,7 @@
 //! Tests for event validators: namespace, elevated, and alignment.
 
-use ship_types::envelope::EventEnvelope;
 use crate::events::validator::*;
+use ship_types::envelope::EventEnvelope;
 
 fn skill_ctx(skill_id: &str) -> EmitContext {
     EmitContext {

@@ -54,10 +54,17 @@ async fn wait_for_actor_count(kernel: &SharedKernel, expected: usize, what: &str
 async fn explicit_drop_stops_the_actor() {
     let (_tmp, kernel) = new_kernel().await;
     let actor_id = "mux-explicit-drop".to_string();
-    kernel.lock().await.spawn_actor(&actor_id, config("config")).unwrap();
+    kernel
+        .lock()
+        .await
+        .spawn_actor(&actor_id, config("config"))
+        .unwrap();
     assert_eq!(kernel.lock().await.actor_count(), 1);
 
-    let guard = ActorGuard { actor_id: actor_id.clone(), kernel: kernel.clone() };
+    let guard = ActorGuard {
+        actor_id: actor_id.clone(),
+        kernel: kernel.clone(),
+    };
     drop(guard);
 
     wait_for_actor_count(&kernel, 0, "explicit drop").await;
@@ -69,10 +76,17 @@ async fn explicit_drop_stops_the_actor() {
 async fn scope_exit_stops_the_actor() {
     let (_tmp, kernel) = new_kernel().await;
     let actor_id = "mux-scope-exit".to_string();
-    kernel.lock().await.spawn_actor(&actor_id, config("config")).unwrap();
+    kernel
+        .lock()
+        .await
+        .spawn_actor(&actor_id, config("config"))
+        .unwrap();
 
     {
-        let _guard = ActorGuard { actor_id: actor_id.clone(), kernel: kernel.clone() };
+        let _guard = ActorGuard {
+            actor_id: actor_id.clone(),
+            kernel: kernel.clone(),
+        };
         // Guard goes out of scope at the end of this block — the "stream
         // end" disconnect shape.
     }
@@ -88,9 +102,16 @@ async fn scope_exit_stops_the_actor() {
 async fn option_take_then_drop_stops_the_actor() {
     let (_tmp, kernel) = new_kernel().await;
     let actor_id = "mux-take-drop".to_string();
-    kernel.lock().await.spawn_actor(&actor_id, config("config")).unwrap();
+    kernel
+        .lock()
+        .await
+        .spawn_actor(&actor_id, config("config"))
+        .unwrap();
 
-    let mut slot: Option<ActorGuard> = Some(ActorGuard { actor_id: actor_id.clone(), kernel: kernel.clone() });
+    let mut slot: Option<ActorGuard> = Some(ActorGuard {
+        actor_id: actor_id.clone(),
+        kernel: kernel.clone(),
+    });
     let _ = slot.take();
 
     wait_for_actor_count(&kernel, 0, "Option::take() drop").await;
@@ -109,8 +130,15 @@ async fn concurrent_guard_drops_all_tear_down_cleanly() {
     let mut guards = Vec::with_capacity(N);
     for i in 0..N {
         let actor_id = format!("mux-concurrent-{i}");
-        kernel.lock().await.spawn_actor(&actor_id, config("config")).unwrap();
-        guards.push(ActorGuard { actor_id, kernel: kernel.clone() });
+        kernel
+            .lock()
+            .await
+            .spawn_actor(&actor_id, config("config"))
+            .unwrap();
+        guards.push(ActorGuard {
+            actor_id,
+            kernel: kernel.clone(),
+        });
     }
     assert_eq!(kernel.lock().await.actor_count(), N);
 
@@ -136,9 +164,16 @@ async fn concurrent_guard_drops_all_tear_down_cleanly() {
 async fn mailbox_recv_returns_none_after_actor_stopped() {
     let (_tmp, kernel) = new_kernel().await;
     let actor_id = "mux-stream-end".to_string();
-    let mut mailbox = kernel.lock().await.spawn_actor(&actor_id, config("config")).unwrap();
+    let mut mailbox = kernel
+        .lock()
+        .await
+        .spawn_actor(&actor_id, config("config"))
+        .unwrap();
 
-    let guard = ActorGuard { actor_id: actor_id.clone(), kernel: kernel.clone() };
+    let guard = ActorGuard {
+        actor_id: actor_id.clone(),
+        kernel: kernel.clone(),
+    };
     drop(guard);
     wait_for_actor_count(&kernel, 0, "stream-end teardown").await;
 

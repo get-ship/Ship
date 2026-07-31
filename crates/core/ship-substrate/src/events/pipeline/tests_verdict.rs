@@ -37,8 +37,13 @@ impl Default for Evidence {
 
 fn verdict(e: Evidence) -> StepVerdict {
     PipelineStepObservedPayload::compute_verdict(
-        &e.step_type, e.done, e.done_result,
-        e.exit, e.commits, e.uncommitted, &e.trigger,
+        &e.step_type,
+        e.done,
+        e.done_result,
+        e.exit,
+        e.commits,
+        e.uncommitted,
+        &e.trigger,
     )
 }
 
@@ -49,8 +54,10 @@ fn done_declared_true_wins_over_everything() {
     // Even with timeout + non-zero exit + no commits, the agent said yes.
     assert_eq!(
         verdict(Evidence {
-            done: true, done_result: Some(true),
-            exit: Some(1), trigger: StepTrigger::Timeout,
+            done: true,
+            done_result: Some(true),
+            exit: Some(1),
+            trigger: StepTrigger::Timeout,
             ..Default::default()
         }),
         StepVerdict::Advance,
@@ -62,8 +69,10 @@ fn done_declared_false_wins_over_commits() {
     // Agent said it failed. Trust over git state.
     assert_eq!(
         verdict(Evidence {
-            done: true, done_result: Some(false),
-            commits: 10, trigger: StepTrigger::DoneDeclared,
+            done: true,
+            done_result: Some(false),
+            commits: 10,
+            trigger: StepTrigger::DoneDeclared,
             ..Default::default()
         }),
         StepVerdict::Failed,
@@ -74,7 +83,8 @@ fn done_declared_false_wins_over_commits() {
 fn done_declared_without_result_is_advance() {
     assert_eq!(
         verdict(Evidence {
-            done: true, done_result: None,
+            done: true,
+            done_result: None,
             trigger: StepTrigger::DoneDeclared,
             ..Default::default()
         }),
@@ -91,7 +101,8 @@ fn done_declared_without_result_is_advance() {
 fn commits_with_channel_closed_advance() {
     assert_eq!(
         verdict(Evidence {
-            commits: 5, trigger: StepTrigger::ChannelClosed,
+            commits: 5,
+            trigger: StepTrigger::ChannelClosed,
             ..Default::default()
         }),
         StepVerdict::Advance,
@@ -104,7 +115,8 @@ fn commits_with_timeout_advance() {
     // can reject if what it did is wrong.
     assert_eq!(
         verdict(Evidence {
-            commits: 3, trigger: StepTrigger::Timeout,
+            commits: 3,
+            trigger: StepTrigger::Timeout,
             ..Default::default()
         }),
         StepVerdict::Advance,
@@ -117,7 +129,8 @@ fn commits_with_nonzero_exit_is_inconclusive() {
     // the implementation is fine and a final test run bailed.
     assert_eq!(
         verdict(Evidence {
-            commits: 5, exit: Some(127),
+            commits: 5,
+            exit: Some(127),
             trigger: StepTrigger::ProcessExit,
             ..Default::default()
         }),
@@ -133,7 +146,8 @@ fn uncommitted_files_with_timeout_is_inconclusive() {
     // progress; let a human decide.
     assert_eq!(
         verdict(Evidence {
-            uncommitted: 4, trigger: StepTrigger::Timeout,
+            uncommitted: 4,
+            trigger: StepTrigger::Timeout,
             ..Default::default()
         }),
         StepVerdict::Inconclusive,
@@ -144,7 +158,8 @@ fn uncommitted_files_with_timeout_is_inconclusive() {
 fn uncommitted_files_with_channel_close_is_inconclusive() {
     assert_eq!(
         verdict(Evidence {
-            uncommitted: 2, trigger: StepTrigger::ChannelClosed,
+            uncommitted: 2,
+            trigger: StepTrigger::ChannelClosed,
             ..Default::default()
         }),
         StepVerdict::Inconclusive,
@@ -169,7 +184,8 @@ fn timeout_with_no_evidence_fails() {
 fn channel_close_no_evidence_nonzero_exit_fails() {
     assert_eq!(
         verdict(Evidence {
-            exit: Some(1), trigger: StepTrigger::ChannelClosed,
+            exit: Some(1),
+            trigger: StepTrigger::ChannelClosed,
             ..Default::default()
         }),
         StepVerdict::Failed,
@@ -184,7 +200,8 @@ fn process_exit_no_evidence_zero_exit_is_failed() {
     // legitimate noop — bare channel closure with zero evidence fails.
     assert_eq!(
         verdict(Evidence {
-            exit: Some(0), trigger: StepTrigger::ProcessExit,
+            exit: Some(0),
+            trigger: StepTrigger::ProcessExit,
             ..Default::default()
         }),
         StepVerdict::Failed,
@@ -211,7 +228,8 @@ fn nonzero_exit_with_commits_does_not_fail() {
     // verdict. Earlier code short-circuited Failed here; that violated
     // the evidence-based principle.
     let v = verdict(Evidence {
-        exit: Some(2), commits: 1,
+        exit: Some(2),
+        commits: 1,
         trigger: StepTrigger::ProcessExit,
         ..Default::default()
     });

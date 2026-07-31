@@ -12,6 +12,20 @@ use std::sync::{Mutex, MutexGuard, OnceLock};
 
 pub use crate::project::STACK_CONFIG_FILENAME;
 
+use ship_types::envelope::EventEnvelope;
+use ship_types::Stamped;
+
+/// Unchecked stamp mint for tests.
+///
+/// Requires `ship-types/test-support` (enabled for ship-substrate test builds
+/// via `[dev-dependencies]` feature unification). Production builds never
+/// enable that feature, so this helper is not available outside test graphs
+/// that opt in.
+#[cfg(any(test, feature = "test-support"))]
+pub fn stamped(env: EventEnvelope) -> Stamped {
+    Stamped::unchecked(env)
+}
+
 /// Create a minimal STACK at `base_dir` suitable for L0 tests: a bare
 /// `stack.config.ts` manifest (presence-only; L0 never evals it). Returns
 /// the STACK ROOT. Identity lives in the runtime registry, never the tree.

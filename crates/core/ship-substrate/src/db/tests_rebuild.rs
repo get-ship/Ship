@@ -4,11 +4,12 @@
 //! write through the Runtime scope store (`runtime.db`) and rebuild from there.
 
 use crate::db::rebuild;
-use ship_types::envelope::EventEnvelope;
-use ship_types::event_registry::EventScope;
-use crate::persistence::event_store::{EventStore, SqliteEventStore};
 use crate::events::types::event_types;
+use crate::persistence::event_store::{EventStore, SqliteEventStore};
 use crate::testutil::init_project_minimal as init_project;
+use ship_types::envelope::EventEnvelope;
+use ship_types::Stamped;
+use ship_types::event_registry::EventScope;
 use tempfile::tempdir;
 
 fn setup() -> (tempfile::TempDir, std::path::PathBuf) {
@@ -57,7 +58,7 @@ fn rebuild_replays_events_without_panic() {
         space_seen_event("feature/rebuild-b"),
     ];
     for ev in &events {
-        store.append(ev).unwrap();
+        store.append(&Stamped::unchecked(ev.clone())).unwrap();
     }
 
     let report = rebuild::rebuild_projections(&ship_dir).unwrap();

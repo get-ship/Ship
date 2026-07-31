@@ -2,7 +2,7 @@
 //!
 //! ## Context approach
 //!
-//! `ship_ops_rpc::SearchService` trait methods only receive a `RequestContext`
+//! `ship_proto::ship::ops::v1::SearchService` trait methods only receive a `RequestContext`
 //! (the Connect call envelope), not a `SearchContext` (the per-request scope
 //! port). Rather than injecting `SearchContext` through axum request extensions
 //! (which couples this crate to axum's extract machinery), we wrap
@@ -18,10 +18,7 @@
 //! parsing ([`parse_request`]) and hit→proto mapping ([`hit_to_proto`]) are
 //! shared by both wires so the boundary logic lives once.
 
-use ship_ops_rpc::{
-    EntityKind as ProtoEntityKind, OwnedSearchRequestView, SearchHit as ProtoSearchHit,
-    SearchScope as ProtoSearchScope,
-};
+use ship_proto::ship::ops::v1::{EntityKind as ProtoEntityKind, OwnedSearchRequestView, SearchHit as ProtoSearchHit, SearchScope as ProtoSearchScope};
 
 use crate::service::sanitize_query;
 use crate::types::{Cursor, EntityKind, EntityKindFilter, SearchOpts};

@@ -85,7 +85,7 @@ pub trait AgentsHost: Clone + Send + Sync + 'static {
     /// Attached project workspace (for the project-scope notifier branch).
     fn workspace_dir(&self) -> Option<PathBuf>;
 
-    /// The shared `agent_def_kernel` (`OnceLock`-mounted) when the agent
+    /// The shared `agent_def_kernel` (composition-root injected) when the agent
     /// reactive registry is up. `None` for a space-less boot.
     fn agent_def_kernel(&self) -> Option<Arc<KernelLog>>;
 
@@ -93,9 +93,7 @@ pub trait AgentsHost: Clone + Send + Sync + 'static {
     /// profile READ handlers serve list/detail from its DataStore snapshot
     /// instead of re-reading `.ship/agents/*.jsonc`. `None` for a space-less
     /// boot or a host that does not run the index.
-    fn agent_def_index(
-        &self,
-    ) -> Option<Arc<ship_config::agents_index::AgentDefIndex>> {
+    fn agent_def_index(&self) -> Option<Arc<ship_settings::agents_index::AgentDefIndex>> {
         None
     }
 
@@ -143,15 +141,15 @@ pub trait AgentsWatchHost: AgentsHost {
 /// `agent_reactive`) are filled in by the caller: [`mount`] substitutes a
 /// lean stub + `None`; [`mount_full`] uses the live values.
 struct AgentsWireCoreConfig {
-    svc:              Arc<dyn AgentsService>,
-    ship_dir:         PathBuf,
-    kernel:           Arc<KernelLog>,
-    gate:             GateFn,
-    sessions_fn:      SessionsFn,
-    notify_saved:     NotifySavedFn,
-    dispatch_port:    Arc<dyn AgentDispatchPort>,
-    stop_fn:          StopFn,
-    steer_fn:         SteerFn,
+    svc: Arc<dyn AgentsService>,
+    ship_dir: PathBuf,
+    kernel: Arc<KernelLog>,
+    gate: GateFn,
+    sessions_fn: SessionsFn,
+    notify_saved: NotifySavedFn,
+    dispatch_port: Arc<dyn AgentDispatchPort>,
+    stop_fn: StopFn,
+    steer_fn: SteerFn,
 }
 
 /// Build the ship-agents + ship-substrate portion of an `AgentsWireConfig`.
@@ -177,7 +175,7 @@ fn build_core<H: AgentsHost>(host: &H, gate: GateFn) -> AgentsWireCoreConfig {
 
     // notify_saved_fn: post a profile write fan-out so the reactive index
     // resolves fresh state. Resolves project vs user scope from the wire's
-    // scope string and forwards to ship-config's `notify_agent_def_saved`.
+    // scope string and forwards to ship-settings's `notify_agent_def_saved`.
     let notify_saved_host = host.clone();
     let notify_saved_fn: NotifySavedFn = Arc::new(move |id: String, scope_str: String| {
         let host = notify_saved_host.clone();
@@ -199,8 +197,8 @@ fn build_core<H: AgentsHost>(host: &H, gate: GateFn) -> AgentsWireCoreConfig {
                     // The CONTENT-ID from the registry pointer is the
                     // space-id, so agent-def events route to the same
                     // spaces/<content-id>/space.db every other path uses.
-                    let space = ship_substrate::project::resolve_active_space(&ws)
-                        .map(SpaceId::new);
+                    let space =
+                        ship_substrate::project::resolve_active_space(&ws).map(SpaceId::new);
                     (ws.clone(), space)
                 }
                 Scope::User => (host.ship_dir(), None),
@@ -210,7 +208,7 @@ fn build_core<H: AgentsHost>(host: &H, gate: GateFn) -> AgentsWireCoreConfig {
                 None => Arc::new(KernelLog::new(host.kernel_router())),
             };
             let fs = LocalFsBroker::new();
-            ship_config::agents_write::notify_agent_def_saved(&kernel, &fs, &ship_dir, &id, space)
+            ship_settings::agents_write::notify_agent_def_saved(&kernel, &fs, &ship_dir, &id, space)
                 .await;
         })
     });
@@ -284,20 +282,20 @@ fn lean_grant_fn() -> GrantFn {
 pub fn mount<H: AgentsHost>(host: &H, gate: GateFn, router: ConnectRouter) -> ConnectRouter {
     let core = build_core(host, gate);
     let agents_wire = Arc::new(AgentsWire::new(AgentsWireConfig {
-        svc:              core.svc,
-        ship_dir:         core.ship_dir,
-        kernel:           core.kernel,
-        gate:             core.gate,
-        sessions_fn:      core.sessions_fn,
-        notify_saved:     core.notify_saved,
-        dispatch_port:    core.dispatch_port,
-        stop_fn:          core.stop_fn,
-        steer_fn:         core.steer_fn,
-        grant_fn:         lean_grant_fn(),
-        agent_reactive:   None,
-        def_index:        host.agent_def_index(),
+        svc: core.svc,
+        ship_dir: core.ship_dir,
+        kernel: core.kernel,
+        gate: core.gate,
+        sessions_fn: core.sessions_fn,
+        notify_saved: core.notify_saved,
+        dispatch_port: core.dispatch_port,
+        stop_fn: core.stop_fn,
+        steer_fn: core.steer_fn,
+        grant_fn: lean_grant_fn(),
+        agent_reactive: None,
+        def_index: host.agent_def_index(),
     }));
-    ship_ops_rpc::AgentsServiceExt::register(agents_wire, router)
+    ship_proto::ship::ops::v1::AgentsServiceExt::register(agents_wire, router)
 }
 
 /// Mount `AgentsWire` onto `router` — the FULL mount.
@@ -306,11 +304,7 @@ pub fn mount<H: AgentsHost>(host: &H, gate: GateFn, router: ConnectRouter) -> Co
 /// `agent.grant`) and [`AgentsWatchHost`] (for the `Watch` stream). This is
 /// what shipd uses; behavior is byte-for-byte identical to the prior single
 /// `mount` body.
-pub fn mount_full<H>(
-    host: &H,
-    gate: GateFn,
-    router: ConnectRouter,
-) -> ConnectRouter
+pub fn mount_full<H>(host: &H, gate: GateFn, router: ConnectRouter) -> ConnectRouter
 where
     H: AgentsHost + AgentsGrantHost + AgentsWatchHost,
 {
@@ -381,18 +375,18 @@ where
     );
 
     let agents_wire = Arc::new(AgentsWire::new(AgentsWireConfig {
-        svc:              core.svc,
-        ship_dir:         core.ship_dir,
-        kernel:           core.kernel,
-        gate:             core.gate,
-        sessions_fn:      core.sessions_fn,
-        notify_saved:     core.notify_saved,
-        dispatch_port:    core.dispatch_port,
-        stop_fn:          core.stop_fn,
-        steer_fn:         core.steer_fn,
+        svc: core.svc,
+        ship_dir: core.ship_dir,
+        kernel: core.kernel,
+        gate: core.gate,
+        sessions_fn: core.sessions_fn,
+        notify_saved: core.notify_saved,
+        dispatch_port: core.dispatch_port,
+        stop_fn: core.stop_fn,
+        steer_fn: core.steer_fn,
         grant_fn,
-        agent_reactive:   host.agent_reactive(),
-        def_index:        host.agent_def_index(),
+        agent_reactive: host.agent_reactive(),
+        def_index: host.agent_def_index(),
     }));
-    ship_ops_rpc::AgentsServiceExt::register(agents_wire, router)
+    ship_proto::ship::ops::v1::AgentsServiceExt::register(agents_wire, router)
 }

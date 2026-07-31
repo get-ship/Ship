@@ -54,7 +54,10 @@ fn boolean_field_rejects_number_zero_or_one() {
     let s = all_fields_schema();
     for v in [json!(0), json!(1)] {
         let item = json!({ "s": "x", "n": 1.0, "b": v });
-        assert!(validate_item(&s, &item).is_err(), "b={v:?} must be rejected, not coerced");
+        assert!(
+            validate_item(&s, &item).is_err(),
+            "b={v:?} must be rejected, not coerced"
+        );
     }
 }
 
@@ -92,7 +95,10 @@ fn enum_field_is_case_sensitive() {
     // would be a coercion surprise.
     let s = all_fields_schema();
     let item = json!({ "s": "x", "n": 1.0, "e": "A" });
-    assert!(validate_item(&s, &item).is_err(), "enum match must be case-sensitive");
+    assert!(
+        validate_item(&s, &item).is_err(),
+        "enum match must be case-sensitive"
+    );
 }
 
 // ── nulls in required fields ──────────────────────────────────────────────
@@ -115,7 +121,10 @@ fn required_field_rejects_missing() {
 fn optional_field_accepts_null() {
     let s = all_fields_schema();
     let item = json!({ "s": "x", "n": 1.0, "b": null });
-    assert!(validate_item(&s, &item).is_ok(), "optional field explicit null should be accepted");
+    assert!(
+        validate_item(&s, &item).is_ok(),
+        "optional field explicit null should be accepted"
+    );
 }
 
 #[test]
@@ -131,7 +140,10 @@ fn optional_field_accepts_absence() {
 fn unknown_field_is_rejected() {
     let s = all_fields_schema();
     let item = json!({ "s": "x", "n": 1.0, "not_a_field": "surprise" });
-    assert!(validate_item(&s, &item).is_err(), "unknown fields must be rejected, not silently dropped");
+    assert!(
+        validate_item(&s, &item).is_err(),
+        "unknown fields must be rejected, not silently dropped"
+    );
 }
 
 #[test]
@@ -146,9 +158,18 @@ fn unknown_field_name_matching_reserved_sql_keyword_is_rejected_as_unknown() {
 #[test]
 fn number_field_accepts_extremes() {
     let s = all_fields_schema();
-    for v in [json!(f64::MAX), json!(-f64::MAX), json!(0), json!(-0.0), json!(1e308)] {
+    for v in [
+        json!(f64::MAX),
+        json!(-f64::MAX),
+        json!(0),
+        json!(-0.0),
+        json!(1e308),
+    ] {
         let item = json!({ "s": "x", "n": v });
-        assert!(validate_item(&s, &item).is_ok(), "n={v:?} should validate as a number");
+        assert!(
+            validate_item(&s, &item).is_ok(),
+            "n={v:?} should validate as a number"
+        );
     }
 }
 
@@ -158,14 +179,20 @@ fn number_field_rejects_nan_and_infinity_as_unrepresentable_json() {
     // boundary itself refuses them before validate_item ever sees them.
     let nan_json = "{\"s\":\"x\",\"n\":NaN}";
     let parsed: Result<serde_json::Value, _> = serde_json::from_str(nan_json);
-    assert!(parsed.is_err(), "NaN is not valid JSON — must fail at parse, not at validate_item");
+    assert!(
+        parsed.is_err(),
+        "NaN is not valid JSON — must fail at parse, not at validate_item"
+    );
 }
 
 #[test]
 fn string_field_accepts_empty_string() {
     let s = all_fields_schema();
     let item = json!({ "s": "", "n": 1.0 });
-    assert!(validate_item(&s, &item).is_ok(), "empty string is a valid string");
+    assert!(
+        validate_item(&s, &item).is_ok(),
+        "empty string is a valid string"
+    );
 }
 
 #[test]
@@ -173,7 +200,10 @@ fn string_field_accepts_very_long_string() {
     let s = all_fields_schema();
     let huge = "x".repeat(10_000_000);
     let item = json!({ "s": huge, "n": 1.0 });
-    assert!(validate_item(&s, &item).is_ok(), "no documented max-length bound on string fields");
+    assert!(
+        validate_item(&s, &item).is_ok(),
+        "no documented max-length bound on string fields"
+    );
 }
 
 /// FINDING (fixed): a deeply nested JSON value (5000 levels) reaching item
@@ -215,7 +245,10 @@ fn deeply_nested_object_field_does_not_stack_overflow() {
     // Must be a clean rejection, not a panic/crash — matches the real
     // create_item/update_item ingress path.
     let result = parse_item_data(data_json.as_bytes());
-    assert!(result.is_err(), "expected rejection for over-depth item data, got {result:?}");
+    assert!(
+        result.is_err(),
+        "expected rejection for over-depth item data, got {result:?}"
+    );
 }
 
 #[test]
@@ -231,7 +264,13 @@ fn huge_array_field_validates_without_panicking() {
 #[test]
 fn non_object_data_root_is_rejected() {
     let s = all_fields_schema();
-    for bad_root in [json!([1, 2, 3]), json!("a string"), json!(42), json!(null), json!(true)] {
+    for bad_root in [
+        json!([1, 2, 3]),
+        json!("a string"),
+        json!(42),
+        json!(null),
+        json!(true),
+    ] {
         assert!(
             validate_item(&s, &bad_root).is_err(),
             "root={bad_root:?} must be rejected — item data must be an object"
@@ -247,7 +286,10 @@ fn multiple_violations_all_reported_and_none_silently_coerced() {
     // Missing required `s`, wrong type for `n`, unknown field `zzz`.
     let item = json!({ "n": "wrong-type", "zzz": 1 });
     let err = validate_item(&s, &item).unwrap_err().to_string();
-    assert!(err.contains('s'), "must mention missing required field: {err}");
+    assert!(
+        err.contains('s'),
+        "must mention missing required field: {err}"
+    );
     assert!(err.contains("zzz"), "must mention unknown field: {err}");
 }
 
@@ -260,7 +302,10 @@ fn enum_field_without_values_is_rejected_at_schema_definition_time() {
         "fields": { "e": { "type": "enum" } }
     }))
     .unwrap();
-    assert!(parse_schema_doc(&bad).is_err(), "enum field with no 'values' must be rejected");
+    assert!(
+        parse_schema_doc(&bad).is_err(),
+        "enum field with no 'values' must be rejected"
+    );
 }
 
 #[test]
@@ -271,7 +316,7 @@ fn schema_with_no_fields_is_rejected() {
 
 #[test]
 fn schema_missing_id_is_rejected() {
-    let bad = serde_json::to_vec(&json!({ "id": "", "fields": { "a": { "type": "string" } } }))
-        .unwrap();
+    let bad =
+        serde_json::to_vec(&json!({ "id": "", "fields": { "a": { "type": "string" } } })).unwrap();
     assert!(parse_schema_doc(&bad).is_err());
 }

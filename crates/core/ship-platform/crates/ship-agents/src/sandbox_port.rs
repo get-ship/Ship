@@ -10,15 +10,88 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use async_trait::async_trait;
+use bridge::ProcessRuntime;
+use bridge::SandboxOwner;
 use bridge::dispatch_ports::{LaunchCommand, SessionContext};
 use bridge::sandbox_port::{PreparedSandbox, SandboxPort};
-use bridge::SandboxOwner;
-use bridge::ProcessRuntime;
+use ship_isolation::decision::DecisionInputs;
+use ship_isolation::strategies_config::StrategiesSettings;
 use ship_isolation::tier::IsolationProfile;
+use ship_substrate::db::daemon_settings;
 
 /// Ship implementation of [`SandboxPort`].
-#[derive(Debug, Default)]
-pub struct ShipSandboxPort;
+///
+/// Holds the composition-root [`SessionRegistry`] so scoped-token mint/drop
+/// on the spawn path does not read ambient process state.
+#[derive(Debug, Clone)]
+pub struct ShipSandboxPort {
+    session_registry: ship_auth::scopes::SessionRegistry,
+}
+
+impl ShipSandboxPort {
+    /// Construct with the daemon (or leaf product) session registry.
+    pub fn new(session_registry: ship_auth::scopes::SessionRegistry) -> Self {
+        Self { session_registry }
+    }
+}
+
+fn string_setting(key: &str) -> Result<Option<String>> {
+    Ok(match daemon_settings::get(key)? {
+        Some(serde_json::Value::String(s)) => Some(s),
+        Some(serde_json::Value::Bool(b)) => Some(b.to_string()),
+        Some(v) => Some(v.to_string()),
+        None => None,
+    })
+}
+
+/// Load isolation decision inputs from daemon_settings (composition root).
+fn load_decision_inputs() -> Result<DecisionInputs> {
+    let caps_cache = match daemon_settings::get(ship_isolation::decision::CAPS_CACHE_KEY)? {
+        Some(serde_json::Value::String(s)) => Some(s),
+        _ => {
+            let probed = ship_isolation::decision::probe_capabilities();
+            if let Ok(serialized) = ship_isolation::decision::serialize_capabilities(&probed) {
+                let _ = daemon_settings::set(
+                    ship_isolation::decision::CAPS_CACHE_KEY,
+                    &serde_json::Value::String(serialized.clone()),
+                );
+                Some(serialized)
+            } else {
+                None
+            }
+        }
+    };
+    let tier = string_setting("isolation.default_tier")?;
+    let strategy = string_setting("isolation.default_strategy")?;
+    let allow_tier_0 = string_setting("isolation.allow_tier_0")?;
+    let network = string_setting("isolation.network_default")?;
+    let allowlist = string_setting("isolation.allowlist_default")?;
+    Ok(ship_isolation::decision::decision_inputs_from_strings(
+        tier.as_deref(),
+        strategy.as_deref(),
+        allow_tier_0.as_deref(),
+        network.as_deref(),
+        allowlist.as_deref(),
+        caps_cache.as_deref(),
+    ))
+}
+
+fn load_enforcement_enabled() -> bool {
+    string_setting("isolation.enforce")
+        .ok()
+        .flatten()
+        .as_deref()
+        .map(|s| matches!(s.trim().to_ascii_lowercase().as_str(), "true" | "1" | "yes"))
+        .unwrap_or(false)
+}
+
+fn load_strategies_settings() -> Result<StrategiesSettings> {
+    let raw = daemon_settings::get(ship_isolation::strategies_config::SETTINGS_KEY)?;
+    match raw {
+        Some(value) => Ok(serde_json::from_value(value).unwrap_or_default()),
+        None => Ok(Default::default()),
+    }
+}
 
 #[async_trait]
 impl SandboxPort for ShipSandboxPort {
@@ -32,8 +105,13 @@ impl SandboxPort for ShipSandboxPort {
         // The agent descriptor has no isolation field today; future overrides
         // will be folded in from the `SpawnPolicy` role map on the dispatch wire.
         let agent_override: Option<IsolationProfile> = None;
-        let decision = ship_isolation::decision::decide(agent_override.as_ref(), None);
-        let enforce = ship_isolation::decision::enforcement_enabled();
+        let decision = match load_decision_inputs() {
+            Ok(inputs) => ship_isolation::decision::decide(agent_override.as_ref(), None, &inputs),
+            Err(e) => Err(ship_isolation::decision::IsolationDecisionError::Settings(
+                e,
+            )),
+        };
+        let enforce = load_enforcement_enabled();
 
         if let Ok(d) = &decision {
             tracing::info!(
@@ -44,10 +122,8 @@ impl SandboxPort for ShipSandboxPort {
                 enforce,
                 "isolation decision"
             );
-            out.env.push((
-                "SHIP_ISOLATION_TIER".into(),
-                d.resolved.tier.to_string(),
-            ));
+            out.env
+                .push(("SHIP_ISOLATION_TIER".into(), d.resolved.tier.to_string()));
             out.env.push((
                 "SHIP_ISOLATION_STRATEGY".into(),
                 d.resolved.strategy.to_string(),
@@ -55,16 +131,20 @@ impl SandboxPort for ShipSandboxPort {
 
             let mut active = "0";
             if enforce {
+                use ship_isolation::IsolationStrategy;
                 use ship_isolation::harness::{HarnessSandboxMechanism, tier1_mechanism_for};
                 use ship_isolation::settings::{WrapContext, wrap_launch};
-                use ship_isolation::IsolationStrategy;
 
                 let harness_id = ctx.launch.harness.as_deref().unwrap_or("claude");
                 let resolved_strategy = match d.resolved.strategy {
                     IsolationStrategy::HarnessSandbox => {
                         match tier1_mechanism_for(harness_id, d.capabilities.os) {
-                            HarnessSandboxMechanism::Native { .. } => IsolationStrategy::HarnessNative,
-                            HarnessSandboxMechanism::SrtWrapper { .. } => IsolationStrategy::SrtWrapper,
+                            HarnessSandboxMechanism::Native { .. } => {
+                                IsolationStrategy::HarnessNative
+                            }
+                            HarnessSandboxMechanism::SrtWrapper { .. } => {
+                                IsolationStrategy::SrtWrapper
+                            }
                             HarnessSandboxMechanism::Unavailable { .. } => IsolationStrategy::Noop,
                         }
                     }
@@ -101,10 +181,10 @@ impl SandboxPort for ShipSandboxPort {
                     IsolationStrategy::SrtWrapper => {
                         let bun = which_bin("bun");
                         let srt = resolve_srt_entry();
-                        let settings_path = ctx.work_dir.join(".artifacts").join(format!(
-                            "srt-{}.json",
-                            ctx.slug.replace('/', "_")
-                        ));
+                        let settings_path = ctx
+                            .work_dir
+                            .join(".artifacts")
+                            .join(format!("srt-{}.json", ctx.slug.replace('/', "_")));
                         if let (Some(bun_path), Some(srt_path)) = (bun.as_ref(), srt.as_ref()) {
                             if let Err(e) = write_srt_settings(&settings_path, &ctx.work_dir) {
                                 tracing::warn!(
@@ -126,10 +206,7 @@ impl SandboxPort for ShipSandboxPort {
                                 launch.bin = w.bin.to_string_lossy().into_owned();
                                 launch.args = w.args;
                                 active = "1";
-                                tracing::info!(
-                                    slug = ctx.slug,
-                                    "isolation enforced: SrtWrapper"
-                                );
+                                tracing::info!(slug = ctx.slug, "isolation enforced: SrtWrapper");
                             }
                         } else {
                             tracing::warn!(
@@ -143,6 +220,7 @@ impl SandboxPort for ShipSandboxPort {
                     IsolationStrategy::Noop => {}
                     IsolationStrategy::DockerEngine => {
                         if let Some((runtime, token)) = wire_sidecar_sandbox(
+                            &self.session_registry,
                             &ctx,
                             d.resolved.tier,
                             d.resolved.strategy,
@@ -161,6 +239,7 @@ impl SandboxPort for ShipSandboxPort {
                     #[cfg(target_os = "linux")]
                     IsolationStrategy::Firecracker => {
                         if let Some((runtime, token)) = wire_sidecar_sandbox(
+                            &self.session_registry,
                             &ctx,
                             d.resolved.tier,
                             d.resolved.strategy,
@@ -178,6 +257,7 @@ impl SandboxPort for ShipSandboxPort {
                     }
                     IsolationStrategy::LimaVm => {
                         if let Some((runtime, token)) = wire_sidecar_sandbox(
+                            &self.session_registry,
                             &ctx,
                             d.resolved.tier,
                             d.resolved.strategy,
@@ -195,6 +275,7 @@ impl SandboxPort for ShipSandboxPort {
                     }
                     IsolationStrategy::Wsl2 => {
                         if let Some((runtime, token)) = wire_sidecar_sandbox(
+                            &self.session_registry,
                             &ctx,
                             d.resolved.tier,
                             d.resolved.strategy,
@@ -220,7 +301,8 @@ impl SandboxPort for ShipSandboxPort {
                     }
                 }
             }
-            out.env.push(("SHIP_ISOLATION_ACTIVE".into(), active.into()));
+            out.env
+                .push(("SHIP_ISOLATION_ACTIVE".into(), active.into()));
         } else if let Err(e) = &decision {
             tracing::warn!(
                 slug = ctx.slug,
@@ -233,12 +315,16 @@ impl SandboxPort for ShipSandboxPort {
         Ok(out)
     }
 
-    async fn register_actor(&self,
-        ctx: &SessionContext,
-        actor_id: &str,
-    ) {
+    async fn register_actor(&self, ctx: &SessionContext, actor_id: &str) {
         let agent_override: Option<IsolationProfile> = None;
-        let decision = ship_isolation::decision::decide(agent_override.as_ref(), None);
+        let inputs = match load_decision_inputs() {
+            Ok(i) => i,
+            Err(e) => {
+                tracing::warn!(slug = ctx.slug, error = %e, "isolation inputs load failed");
+                return;
+            }
+        };
+        let decision = ship_isolation::decision::decide(agent_override.as_ref(), None, &inputs);
         if let Ok(d) = &decision {
             let project_key = ctx.work_dir.to_string_lossy().to_string();
             let isolation_profile = IsolationProfile {
@@ -270,27 +356,27 @@ impl SandboxPort for ShipSandboxPort {
         }
     }
 
-    async fn notify_actor_exit(&self,
-        actor_id: &str,
-    ) {
-        if let Err(e) = ship_device::sandbox::dispatcher().notify_actor_exit(actor_id).await {
-            tracing::debug!(
-                actor_id,
-                "sandbox dispatcher notify_actor_exit: {e}"
-            );
+    async fn notify_actor_exit(&self, actor_id: &str) {
+        if let Err(e) = ship_device::sandbox::dispatcher()
+            .notify_actor_exit(actor_id)
+            .await
+        {
+            tracing::debug!(actor_id, "sandbox dispatcher notify_actor_exit: {e}");
         }
     }
 
     async fn drop_scoped_token(&self, token: &str) {
-        if let Some(registry) = ship_auth::scopes::session_registry() {
-            ship_auth::scopes::drop_session(&registry, token).await;
-        }
+        ship_auth::scopes::drop_session(&self.session_registry, token).await;
     }
 }
 
 /// `which`-style lookup. Returns the first match on `$PATH`, or `None`.
 fn which_bin(name: &str) -> Option<std::path::PathBuf> {
-    let which = if cfg!(target_os = "windows") { "where" } else { "which" };
+    let which = if cfg!(target_os = "windows") {
+        "where"
+    } else {
+        "which"
+    };
     let out = std::process::Command::new(which).arg(name).output().ok()?;
     if !out.status.success() {
         return None;
@@ -311,10 +397,7 @@ fn resolve_srt_entry() -> Option<std::path::PathBuf> {
     if p.is_dir() { Some(p) } else { None }
 }
 
-fn write_srt_settings(
-    path: &std::path::Path,
-    work_dir: &std::path::Path,
-) -> anyhow::Result<()> {
+fn write_srt_settings(path: &std::path::Path, work_dir: &std::path::Path) -> anyhow::Result<()> {
     use bridge::{FsMount, MountMode, NetworkPolicy, SandboxPolicy};
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
@@ -340,7 +423,7 @@ struct BackendPrepared {
 }
 
 fn resolve_sidecar_bin() -> std::path::PathBuf {
-    if let Ok(s) = ship_isolation::decision::strategies_settings()
+    if let Ok(s) = load_strategies_settings()
         && !s.docker.sidecar_bin.is_empty()
     {
         return std::path::PathBuf::from(s.docker.sidecar_bin);
@@ -359,11 +442,10 @@ fn resolve_sidecar_bin() -> std::path::PathBuf {
 async fn prepare_docker_sandbox(
     ctx: &SessionContext,
 ) -> Result<BackendPrepared, bridge::IsolatorError> {
-    use ship_isolation::backends::{Docker, DockerConfig};
     use bridge::{FsMount, MountMode, NetworkPolicy, ResourceLimits, SandboxPolicy};
+    use ship_isolation::backends::{Docker, DockerConfig};
 
-    let settings = ship_isolation::decision::strategies_settings()
-        .map_err(bridge::IsolatorError::Other)?;
+    let settings = load_strategies_settings().map_err(bridge::IsolatorError::Other)?;
     let cfg = DockerConfig {
         engine_bin: settings.docker.engine_bin.clone(),
         image: settings.docker.image.clone(),
@@ -406,18 +488,21 @@ async fn prepare_docker_sandbox(
     };
     let sandbox = isolator.prepare(&policy).await?;
     let endpoint = ship_isolation::backends::Docker::sidecar_endpoint(&sandbox);
-    Ok(BackendPrepared { isolator, sandbox, endpoint })
+    Ok(BackendPrepared {
+        isolator,
+        sandbox,
+        endpoint,
+    })
 }
 
 #[cfg(target_os = "linux")]
 async fn prepare_firecracker_sandbox(
     ctx: &SessionContext,
 ) -> Result<BackendPrepared, bridge::IsolatorError> {
-    use ship_isolation::backends::{Firecracker, FirecrackerConfig};
     use bridge::{FsMount, MountMode, NetworkPolicy, ResourceLimits, SandboxPolicy};
+    use ship_isolation::backends::{Firecracker, FirecrackerConfig};
 
-    let settings = ship_isolation::decision::strategies_settings()
-        .map_err(bridge::IsolatorError::Other)?;
+    let settings = load_strategies_settings().map_err(bridge::IsolatorError::Other)?;
     let fc = &settings.firecracker;
     let firecracker_bin = if !fc.bin.is_empty() {
         std::path::PathBuf::from(&fc.bin)
@@ -460,17 +545,20 @@ async fn prepare_firecracker_sandbox(
 
     let sandbox = isolator.prepare(&policy).await?;
     let endpoint = ship_isolation::backends::Firecracker::sidecar_endpoint(&sandbox);
-    Ok(BackendPrepared { isolator, sandbox, endpoint })
+    Ok(BackendPrepared {
+        isolator,
+        sandbox,
+        endpoint,
+    })
 }
 
 async fn prepare_lima_sandbox(
     ctx: &SessionContext,
 ) -> Result<BackendPrepared, bridge::IsolatorError> {
-    use ship_isolation::backends::{Lima, LimaConfig};
     use bridge::SandboxPolicy;
+    use ship_isolation::backends::{Lima, LimaConfig};
 
-    let settings = ship_isolation::decision::strategies_settings()
-        .map_err(bridge::IsolatorError::Other)?;
+    let settings = load_strategies_settings().map_err(bridge::IsolatorError::Other)?;
     let lima = &settings.lima;
     let cfg = LimaConfig {
         limactl_bin: std::path::PathBuf::from(&lima.bin),
@@ -486,17 +574,20 @@ async fn prepare_lima_sandbox(
     };
     let sandbox = isolator.prepare(&policy).await?;
     let endpoint = ship_isolation::backends::Lima::sidecar_endpoint(&sandbox);
-    Ok(BackendPrepared { isolator, sandbox, endpoint })
+    Ok(BackendPrepared {
+        isolator,
+        sandbox,
+        endpoint,
+    })
 }
 
 async fn prepare_wsl_sandbox(
     ctx: &SessionContext,
 ) -> Result<BackendPrepared, bridge::IsolatorError> {
-    use ship_isolation::backends::{Wsl, WslConfig};
     use bridge::SandboxPolicy;
+    use ship_isolation::backends::{Wsl, WslConfig};
 
-    let settings = ship_isolation::decision::strategies_settings()
-        .map_err(bridge::IsolatorError::Other)?;
+    let settings = load_strategies_settings().map_err(bridge::IsolatorError::Other)?;
     let wsl = &settings.wsl;
     let cfg = WslConfig {
         wsl_bin: std::path::PathBuf::from(&wsl.bin),
@@ -512,43 +603,32 @@ async fn prepare_wsl_sandbox(
     };
     let sandbox = isolator.prepare(&policy).await?;
     let endpoint = ship_isolation::backends::Wsl::sidecar_endpoint(&sandbox);
-    Ok(BackendPrepared { isolator, sandbox, endpoint })
+    Ok(BackendPrepared {
+        isolator,
+        sandbox,
+        endpoint,
+    })
 }
 
 async fn mint_scoped_token(
+    registry: &ship_auth::scopes::SessionRegistry,
     ctx: &SessionContext,
     launch: &mut LaunchCommand,
 ) -> Option<String> {
-    match ship_auth::scopes::session_registry() {
-        Some(registry) => {
-            match ship_auth::scopes::mint_session(&registry,
-                ctx.agent.clone(),
-                vec![],
-                None,
-            )
-            .await
-            {
-                Ok(token) => {
-                    launch.env.insert("SHIP_TOKEN".into(), token.clone());
-                    Some(token)
-                }
-                Err(e) => {
-                    tracing::warn!(slug = ctx.slug, "sandbox token mint failed: {e}");
-                    None
-                }
-            }
+    match ship_auth::scopes::mint_session(registry, ctx.agent.clone(), vec![], None).await {
+        Ok(token) => {
+            launch.env.insert("SHIP_TOKEN".into(), token.clone());
+            Some(token)
         }
-        None => {
-            tracing::warn!(
-                slug = ctx.slug,
-                "no session registry installed; sandboxed actor has no scoped token"
-            );
+        Err(e) => {
+            tracing::warn!(slug = ctx.slug, "sandbox token mint failed: {e}");
             None
         }
     }
 }
 
 async fn wire_sidecar_sandbox<F, Fut>(
+    registry: &ship_auth::scopes::SessionRegistry,
     ctx: &SessionContext,
     tier: ship_isolation::tier::IsolationTier,
     strategy: ship_isolation::IsolationStrategy,
@@ -559,9 +639,7 @@ async fn wire_sidecar_sandbox<F, Fut>(
 ) -> Result<Option<(Arc<dyn ProcessRuntime>, Option<String>)>>
 where
     F: FnOnce() -> Fut,
-    Fut: Future<
-        Output = Result<BackendPrepared, bridge::IsolatorError>,
-    >,
+    Fut: Future<Output = Result<BackendPrepared, bridge::IsolatorError>>,
 {
     let project_key = ctx.work_dir.to_string_lossy().to_string();
     let dispatcher = ship_device::sandbox::dispatcher();
@@ -585,10 +663,13 @@ where
         }
     };
 
-    let existing = dispatcher.endpoint_for(&sandbox_id).await.and_then(|e| match e {
-        ship_device::sandbox::RuntimeEndpoint::Remote { addr, .. } => Some(addr),
-        _ => None,
-    });
+    let existing = dispatcher
+        .endpoint_for(&sandbox_id)
+        .await
+        .and_then(|e| match e {
+            ship_device::sandbox::RuntimeEndpoint::Remote { addr, .. } => Some(addr),
+            _ => None,
+        });
     let endpoint = if let Some(addr) = existing {
         addr
     } else {
@@ -622,7 +703,7 @@ where
             launch.env.insert("SHIP_DAEMON_URL".into(), url);
         }
     }
-    let minted = mint_scoped_token(ctx, launch).await;
+    let minted = mint_scoped_token(registry, ctx, launch).await;
     tracing::info!(
         slug = ctx.slug,
         sandbox_id = %sandbox_id.0,
@@ -635,6 +716,7 @@ where
 #[cfg(test)]
 mod tests {
     use bridge::dispatch_ports::LaunchProfile;
+    use tokio::sync::Mutex;
 
     use super::*;
 
@@ -642,17 +724,8 @@ mod tests {
     // mint/drop path is ship-side wiring, not fleet runtime code.
     #[tokio::test]
     async fn scoped_token_round_trips_through_ship_auth() {
-        let registry = ship_auth::scopes::session_registry();
-        if registry.is_none() {
-            // In most test environments the auth registry is installed by
-            // shipd init; skip if not available.
-            return;
-        }
-        let Some(registry) = ship_auth::scopes::session_registry() else {
-            // In most test environments the auth registry is installed by
-            // shipd init; skip if not available.
-            return;
-        };
+        let registry: ship_auth::scopes::SessionRegistry =
+            Arc::new(Mutex::new(std::collections::HashMap::new()));
         let ctx = SessionContext {
             session_id: "token-test".into(),
             slug: "token-slug".into(),
@@ -675,23 +748,20 @@ mod tests {
             args: vec![],
             env: Default::default(),
         };
-        let token = mint_scoped_token(&ctx, &mut launch).await;
+        let token = mint_scoped_token(&registry, &ctx, &mut launch).await;
         assert!(
             token.is_some(),
-            "mint_scoped_token should succeed when a registry is installed"
+            "mint_scoped_token should succeed with an injected registry"
         );
         assert_eq!(
             launch.env.get("SHIP_TOKEN"),
             token.as_ref(),
             "SHIP_TOKEN env must equal the minted token"
         );
-        ship_auth::scopes::drop_session(
-            &registry,
-            token.as_ref().unwrap(),
-        ).await;
-        // Dropping must succeed; the public validate API is not exposed by
-        // ship_auth::scopes, so we assert the token was non-empty and the drop
-        // did not panic.
-        assert!(!token.as_ref().unwrap().is_empty());
+        let token = token.expect("minted");
+        assert!(registry.lock().await.contains_key(&token));
+        ship_auth::scopes::drop_session(&registry, &token).await;
+        assert!(!registry.lock().await.contains_key(&token));
+        assert!(!token.is_empty());
     }
 }

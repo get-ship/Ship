@@ -20,21 +20,35 @@
 // Stable surface re-exports — every prior `ship_platform::auth::scopes::Foo`
 // import path continues to resolve through this module.
 pub use ship_auth_types::{
-    session_registry, DaemonSession, SessionRegistry, drop_session, generate_session_token,
-    hex_encode, is_session_token, mint_session, operator_session, set_session_registry,
-    space_window_session,
+    DaemonSession, SessionRegistry, drop_session, generate_session_token, hex_encode,
+    is_session_token, mint_session, operator_session, space_window_session,
 };
+
+/// Auth-domain projections that must ride the Account-scope bus for
+/// off-kernel emits (`auth.session.*`, `daemon.owner.*`, `agent.grants.*`).
+/// Domain-local DI: the AUTH crate owns these projections and registers them
+/// on the store it opens — no process-global factory.
+fn auth_account_projections() -> Vec<Box<dyn ship_substrate::projections::Projection>> {
+    vec![
+        Box::new(crate::projection::AuthSessionsProjection),
+        Box::new(crate::projection::DaemonOwnerProjection),
+        Box::new(crate::grants_projection::ProvisionedGrantsProjection),
+    ]
+}
 
 /// Open the Account-scope `account.db` for off-kernel auth/owner emits.
 ///
 /// `auth.session.*` and `daemon.owner.*` are Account-owned → they land in
 /// account.db, the db the `auth_sessions` / `daemon_owner` projections read.
+/// The store bus carries the AUTH projections this domain owns so same-TX
+/// folds land without ambient process state.
 pub fn account_store(
 ) -> anyhow::Result<ship_substrate::persistence::event_store::SqliteEventStore> {
-    ship_substrate::persistence::event_store::SqliteEventStore::new_for_scope(
+    ship_substrate::persistence::event_store::SqliteEventStore::new_for_scope_with(
         &ship_substrate::project::get_global_dir()?,
         ship_types::event_registry::EventScope::Account,
         None,
+        auth_account_projections(),
     )
 }
 
@@ -81,7 +95,7 @@ pub fn provision_grants(
         &payload,
     )?;
     let store = account_store()?;
-    ship_substrate::persistence::event_store::EventStore::append(&store, &envelope)?;
+    store.append_enforced(&envelope, &ship_types::ScopeBinding::daemon_sdk())?;
     Ok(())
 }
 
@@ -146,7 +160,7 @@ pub fn persist_session(session: &DaemonSession) {
             return;
         }
     };
-    if let Err(e) = ship_substrate::persistence::event_store::EventStore::append(&store, &envelope) {
+    if let Err(e) = store.append_enforced(&envelope, &ship_types::ScopeBinding::daemon_sdk()) {
         tracing::warn!("session persist: append failed: {e}");
     }
 }
@@ -174,7 +188,7 @@ pub fn remove_persisted_session(token: &str) {
             return;
         }
     };
-    if let Err(e) = ship_substrate::persistence::event_store::EventStore::append(&store, &envelope) {
+    if let Err(e) = store.append_enforced(&envelope, &ship_types::ScopeBinding::daemon_sdk()) {
         tracing::warn!("session revoke: append failed: {e}");
     }
 }

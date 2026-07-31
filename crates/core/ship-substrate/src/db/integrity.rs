@@ -112,11 +112,9 @@ fn check_integrity_inner(db_path: &Path) -> Result<IntegrityStatus> {
     // events schema is fatal. Projection tables include the static
     // per-scope list + the dynamic `collection_*` / `_schema_registry` /
     // `collection_artifacts` family.
-    let projection_only = details.iter().all(|d| {
-        PROJECTION_TABLE_TAGS
-            .iter()
-            .any(|t| d.contains(t))
-    });
+    let projection_only = details
+        .iter()
+        .all(|d| PROJECTION_TABLE_TAGS.iter().any(|t| d.contains(t)));
 
     if projection_only {
         Ok(IntegrityStatus::ProjectionsCorrupt {
@@ -173,17 +171,13 @@ pub const PROJECTION_TABLE_TAGS: &[&str] = &[
 ///   2. **Dynamic tables** (space scope only). Walk `collection.*` events
 ///      and extract `collection_id`; check `collection_<id>` exists.
 ///      Walk `artifact.*` events; check `collection_artifacts` exists.
-fn check_absence(
-    conn: &mut sqlx::SqliteConnection,
-    scope: EventScope,
-) -> Result<Option<String>> {
+fn check_absence(conn: &mut sqlx::SqliteConnection, scope: EventScope) -> Result<Option<String>> {
     let mut drift: Vec<String> = Vec::new();
 
     // User-defined tables actually present in the db (excludes sqlite
     // internals + index/trigger objects).
     let present = user_tables(conn)?;
-    let present_set: std::collections::HashSet<&str> =
-        present.iter().map(|s| s.as_str()).collect();
+    let present_set: std::collections::HashSet<&str> = present.iter().map(|s| s.as_str()).collect();
 
     // A scope db with NO tables at all — not even `events` — is a fresh or
     // crash-husk-mid-provision file, not drift: there is no log to check
@@ -196,11 +190,9 @@ fn check_absence(
     // Pull event types + payloads once; absence detection only needs
     // "any event of these types exists" + the dynamic collection_id.
     let event_types: Vec<(String, String)> = block_on(async {
-        sqlx::query_as::<_, (String, String)>(
-            "SELECT event_type, payload_json FROM events",
-        )
-        .fetch_all(&mut *conn)
-        .await
+        sqlx::query_as::<_, (String, String)>("SELECT event_type, payload_json FROM events")
+            .fetch_all(&mut *conn)
+            .await
     })
     .context("absence check: SELECT event_type FROM events")?;
 
@@ -226,8 +218,7 @@ fn check_absence(
             if !event_type.starts_with("collection.") {
                 continue;
             }
-            let collection_id = collection_id_from_payload(payload_json)
-                .unwrap_or_default();
+            let collection_id = collection_id_from_payload(payload_json).unwrap_or_default();
             if collection_id.is_empty() {
                 continue;
             }
@@ -238,9 +229,7 @@ fn check_absence(
                 ));
             }
         }
-        if event_types
-            .iter()
-            .any(|(t, _)| t.starts_with("artifact."))
+        if event_types.iter().any(|(t, _)| t.starts_with("artifact."))
             && !present_set.contains("collection_artifacts")
         {
             drift.push(
@@ -270,10 +259,7 @@ fn user_tables(conn: &mut sqlx::SqliteConnection) -> Result<Vec<String>> {
         .fetch_all(&mut *conn)
         .await
     })?;
-    Ok(rows
-        .iter()
-        .map(|r| r.get::<String, _>("name"))
-        .collect())
+    Ok(rows.iter().map(|r| r.get::<String, _>("name")).collect())
 }
 
 /// Map a missing static table name to the event types owned by the

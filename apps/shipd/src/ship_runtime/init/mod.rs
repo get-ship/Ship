@@ -13,9 +13,9 @@ use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+use super::{AppMetadata, RuntimeConfig, ShipRuntime};
+use crate::task_health::HealthRegistry;
 use ship_substrate::events::EmitContext;
-use ship_substrate::task_health::HealthRegistry;
-use super::{ShipRuntime, RuntimeConfig, AppMetadata};
 
 impl ShipRuntime {
     /// Create a new runtime. Performs integrity check, DB init, and kernel init.
@@ -23,6 +23,46 @@ impl ShipRuntime {
     pub async fn new(meta: AppMetadata, config: RuntimeConfig) -> Result<Self> {
         let global_dir = &meta.global_dir;
         let workspace_dir = meta.workspace_dir.clone();
+
+        // Scope-id heal FIRST (before integrity / strict write path).
+        // Quarantines `spaces/<id>/` dirs with no `spaces` registry row so
+        // the strict UnregisteredScope validator never sees orphan partitions
+        // left by historical collections/triggers misuse. Fail-closed: a
+        // registry read error aborts boot rather than quarantine everything.
+        if ship_substrate::db::runtime_db_path(global_dir).exists() {
+            match ship_substrate::db::scope_heal::heal_unregistered_scopes(global_dir) {
+                Ok(report) => {
+                    if !report.quarantined.is_empty() {
+                        tracing::warn!(
+                            quarantined = report.quarantined.len(),
+                            remaining = report.remaining_unregistered.len(),
+                            "shipd: unregistered space dirs quarantined under spaces/.quarantine/"
+                        );
+                        for q in &report.quarantined {
+                            tracing::warn!(
+                                scope_key = %q.scope_key,
+                                to = %q.to.display(),
+                                "shipd: quarantined unregistered space dir"
+                            );
+                        }
+                    }
+                    if !report.is_clean() {
+                        return Err(anyhow!(
+                            "shipd: unregistered space dirs remain after heal: {:?}. \
+                             Inspect spaces/ and spaces/.quarantine/ under {}",
+                            report.remaining_unregistered,
+                            global_dir.display()
+                        ));
+                    }
+                }
+                Err(e) => {
+                    return Err(anyhow!(
+                        "shipd: scope-id heal failed (registry unreadable or I/O): {e}. \
+                         Refusing to start rather than quarantine registered spaces."
+                    ));
+                }
+            }
+        }
 
         // Integrity check + rebuild if needed.
         //
@@ -47,8 +87,9 @@ impl ShipRuntime {
                         "shipd: projection tables drifted from event log ({details}), rebuilding per-scope"
                     );
                     let dir = global_dir.clone();
+                    let projections = ship_platform::platform_projection_factory();
                     let report = tokio::task::spawn_blocking(move || {
-                        ship_substrate::db::rebuild::rebuild_projections(&dir)
+                        ship_substrate::db::rebuild::rebuild_projections_with(&dir, &projections)
                     })
                     .await
                     .map_err(|e| anyhow!("projection rebuild task failed: {e}"))??;
@@ -59,9 +100,7 @@ impl ShipRuntime {
                         "shipd: per-scope projection rebuild complete"
                     );
                 }
-                Ok(ship_substrate::db::integrity::IntegrityStatus::EventsCorrupt {
-                    details,
-                }) => {
+                Ok(ship_substrate::db::integrity::IntegrityStatus::EventsCorrupt { details }) => {
                     return Err(anyhow!(
                         "a scope event log is corrupt and cannot be recovered: \
                          {details}. Back up the named db under ~/.ship/, then either \
@@ -80,34 +119,33 @@ impl ShipRuntime {
             }
         }
 
-         // Ensure DB exists and init kernel.
-         //
-         // The kernel routes every event into its per-scope db
-         // (runtime.db / account.db / spaces/<id>/space.db) via PartitionedSink.
-         // The space/account dbs are provisioned lazily on first persist; the
-         // runtime db is provisioned eagerly here. data.db is opened once at
-         // startup so the per-collection schema migrations run (no-op on a
-         // fresh install). platform.db is dead — no boot step touches it.
-         //
-         // Install platform-level projections + supervisor hooks before
-         // any SqliteEventStore is constructed.
-         // (Engine cut 2026-07-10: the pipeline-run projection is gone;
-         // install_projections() is now a no-op and dropped from the boot path.)
-         ship_platform::install_defaults();
- 
-         let home = ship_substrate::ShipHome::from_env();
-         let dir = home.data_dir().to_path_buf();
-         let kernel = tokio::task::spawn_blocking(move || {
-             ship_substrate::home::ensure_layout(&home)
-                 .context("ensure ship home layout")?;
-             // data.db is gone (S5.3): the active data plane (collections,
-             // _schema_registry) lives per-scope in space.db via
-             // DataService::open_at; there is no machine-wide data.db to provision.
-             ship_substrate::events::init_kernel_router(dir)
-                 .map_err(|e| anyhow!("failed to initialize KernelRouter: {e}"))
-         })
-         .await
-         .map_err(|e| anyhow!("spawn_blocking failed: {e}"))??;
+        // Ensure DB exists and init kernel.
+        //
+        // The kernel routes every event into its per-scope db
+        // (runtime.db / account.db / spaces/<id>/space.db) via PartitionedSink.
+        // The space/account dbs are provisioned lazily on first persist; the
+        // runtime db is provisioned eagerly here. data.db is opened once at
+        // startup so the per-collection schema migrations run (no-op on a
+        // fresh install). platform.db is dead — no boot step touches it.
+        //
+        // Build the platform projection factory and pass it into kernel
+        // construction — no process-global install step.
+        // (Engine cut 2026-07-10: the pipeline-run projection is gone;
+        // install_projections() is now a no-op and dropped from the boot path.)
+        let projections = ship_platform::platform_projection_factory();
+
+        let home = ship_substrate::ShipHome::from_env();
+        let dir = home.data_dir().to_path_buf();
+        let kernel = tokio::task::spawn_blocking(move || {
+            ship_substrate::home::ensure_layout(&home).context("ensure ship home layout")?;
+            // data.db is gone (S5.3): the active data plane (collections,
+            // _schema_registry) lives per-scope in space.db via
+            // DataService::open_at; there is no machine-wide data.db to provision.
+            ship_substrate::events::init_kernel_router_with(dir, projections)
+                .map_err(|e| anyhow!("failed to initialize KernelRouter: {e}"))
+        })
+        .await
+        .map_err(|e| anyhow!("spawn_blocking failed: {e}"))??;
 
         // One-line startup status: events persisted, latest event id. Makes
         // it easy to spot if a restart "lost" events (a mismatched count vs.
@@ -154,7 +192,9 @@ impl ShipRuntime {
         let served_space_id: Option<String> = {
             let kernel_log =
                 std::sync::Arc::new(ship_substrate::ports::KernelLog::new(kernel.clone()));
-            let probe = workspace_dir.clone().or_else(|| std::env::current_dir().ok());
+            let probe = workspace_dir
+                .clone()
+                .or_else(|| std::env::current_dir().ok());
             match probe.as_deref() {
                 Some(p) => {
                     let canonical = std::fs::canonicalize(p).unwrap_or_else(|_| p.to_path_buf());
@@ -199,7 +239,7 @@ impl ShipRuntime {
         // Post format-migration Wave 4 phase A: collections arrive via
         // `defineCollection` declare-forms in the space's `stack.config.ts`
         // and land in the descriptor's `library.collections` (a
-        // `Vec<stack_model::CollectionDef>`). `hydrate_registry` converts
+        // `Vec<ship_collection::CollectionDef>`). `hydrate_registry` converts
         // those to `SchemaDoc` and registers them; the previous
         // `.ship/collections/*.jsonc` file walk is gone — see
         // `census-format-migration.md` Section 4 row 3.
@@ -209,9 +249,11 @@ impl ShipRuntime {
             // is also done at `start_agent_def_index` time; we re-roll
             // here so the schema registry is seeded before any
             // collection op lands.
-            let probe = workspace_dir.clone().or_else(|| std::env::current_dir().ok());
+            let probe = workspace_dir
+                .clone()
+                .or_else(|| std::env::current_dir().ok());
             if let Some(workspace) = probe.as_deref() {
-                match ship_resolver::roll_up_registered(workspace, None).await {
+                match space_resolver::roll_up_registered(workspace, None).await {
                     Ok(composed) => {
                         ship_store::collection_schemas::hydrate_registry(
                             &schemas,
@@ -259,7 +301,9 @@ impl ShipRuntime {
                 // git worktree, else the singleton. Mirrors lib.rs::run_network —
                 // hash the worktree's own root so each linked worktree gets
                 // its own slot.
-                let probe = workspace_dir.clone().or_else(|| std::env::current_dir().ok());
+                let probe = workspace_dir
+                    .clone()
+                    .or_else(|| std::env::current_dir().ok());
                 let wt_root = probe
                     .as_ref()
                     .and_then(|p| ship_substrate::home::worktree_root_for(p))
@@ -295,9 +339,15 @@ impl ShipRuntime {
             // re-introduce the path when runtime permissions become
             // a real thing; the wire is not mounted for now.
             mcp: ship_agents::services::mcp::service::McpServiceImpl::arc(global_dir.clone()),
-            skills: ship_agents::services::skills::service::SkillsServiceImpl::arc(global_dir.clone()),
-            agents: ship_agents::services::agents::service::AgentsServiceImpl::arc(global_dir.clone()),
-            pipelines: ship_pipeline_runtime::pipelines::service::PipelinesServiceImpl::arc(global_dir.clone()),
+            skills: ship_agents::services::skills::service::SkillsServiceImpl::arc(
+                global_dir.clone(),
+            ),
+            agents: ship_agents::services::agents::service::AgentsServiceImpl::arc(
+                global_dir.clone(),
+            ),
+            pipelines: pipeline_defs::pipelines::service::PipelinesServiceImpl::arc(
+                global_dir.clone(),
+            ),
             served_space_id: std::sync::OnceLock::from(served_space_id),
             workspace_dir,
             started_at: std::time::Instant::now(),
@@ -335,10 +385,9 @@ impl ShipRuntime {
         ) {
             let ctx = EmitContext::daemon_internal(None);
             let kernel = self.kernel.clone();
-            let result = tokio::task::spawn(async move {
-                kernel.lock().await.emit(envelope, &ctx).await
-            })
-            .await;
+            let result =
+                tokio::task::spawn(async move { kernel.lock().await.emit(envelope, &ctx).await })
+                    .await;
             match result {
                 Ok(Err(e)) => {
                     tracing::warn!("shipd: failed to emit shutting_down event: {e}");
@@ -412,7 +461,11 @@ pub fn build_space_db_context_arc(
     };
     let data_store = Arc::new(SingleBackendDataStore::new(data_svc, space_id));
     let kernel_log = Arc::new(KernelLog::new(kernel));
-    Some(Arc::new(SpaceContext::new(SpaceId::new(space_id), data_store, kernel_log)))
+    Some(Arc::new(SpaceContext::new(
+        SpaceId::new(space_id),
+        data_store,
+        kernel_log,
+    )))
 }
 
 /// Emit a single INFO line with event-log health at startup. Gives operators

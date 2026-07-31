@@ -9,9 +9,9 @@ pub(crate) fn emit_ctx(space_id: &str) -> ship_substrate::events::validator::Emi
     // space-unbound caller (`ScopeViolation::NoSpaceForSpaceEvent`). Bind the
     // service's `SpaceContext` space so the daemon-internal mint carries the
     // right scope key.
-    ship_substrate::events::validator::EmitContext::daemon_internal(Some(
-        ship_types::SpaceId::new(space_id),
-    ))
+    ship_substrate::events::validator::EmitContext::daemon_internal(Some(ship_types::SpaceId::new(
+        space_id,
+    )))
 }
 
 pub(crate) fn now_rfc3339() -> String {

@@ -45,8 +45,6 @@ impl DataPort for ShipDataPort {
         let resolve_fn = self.state.live_resolvers().resolve_fn(domain, op, args)?;
         Some(resolve_fn(&self.state))
     }
-
-
 }
 
 /// shipd's `ChangeSource` impl — opens a kernel `config` subscription per
@@ -92,8 +90,10 @@ impl ChangeSource for ShipChangeSource {
                 actor_id: actor_id.clone(),
                 kernel: state.kernel().clone(),
             };
-            Ok(Box::new(ShipChangeFeed { mailbox, _guard: Some(guard) })
-                as Box<dyn ChangeFeed>)
+            Ok(Box::new(ShipChangeFeed {
+                mailbox,
+                _guard: Some(guard),
+            }) as Box<dyn ChangeFeed>)
         })
     }
 }

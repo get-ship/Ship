@@ -1,28 +1,30 @@
 //! Daemon-side adapters for the L1 device service's injected seams.
 //!
 //! The device service (`ship_device`) owns window-management *mechanism* but
-//! injects two transport-/runtime-owned capabilities as ports. The daemon
-//! supplies the concrete impls here:
+//! injects transport-/runtime-owned capabilities as ports. The daemon supplies
+//! the concrete impls here:
 //!
 //!   - [`OwnedRegistryWindowSessions`] — mints / revokes the pid-bound C2
-//!     window token against the daemon's in-memory `SessionRegistry`. The
-//!     mint/revoke mechanism the retired space-window seam used, now
-//!     sole-owned here against the device crate's `WindowSessions` trait.
+//!     window token against the daemon's in-memory `SessionRegistry`.
 //!   - [`LiveSpaceRegistry`] — validates a window's target `space_id`
-//!     against the daemon's *live* served-space identity (the mint-once
-//!     `space_id` the runtime assigned at boot through
-//!     `ship_space::identity::ensure_identity_for_root`), not against the
-//!     full Runtime-scoped `spaces` projection. A window cannot conjure a
-//!     space the daemon never opened.
+//!     against the daemon's *live* served-space identity.
+//!   - [`SubstrateWindowActors`] — actor projection reads + actor-events
+//!     writes for window lifecycle (the substrate path isolation no longer
+//!     reaches into).
+
+use std::sync::Arc;
 
 use anyhow::Result;
 use async_trait::async_trait;
+use tokio::sync::Mutex;
 
-use ship_device::ports::{SpaceRegistry, WindowSessions};
+use ship_device::ports::{SpaceRegistry, WindowActors, WindowRow, WindowSessions};
+use ship_substrate::db::actor_events;
+use ship_substrate::events::KernelRouter;
+use ship_substrate::projections::actor::{self, ActorRow};
 
 use crate::auth::SessionRegistry;
 use crate::ship_runtime::ApiState;
-
 
 /// Owned (cloned) registry — use this when the sessions adapter needs to be
 /// stored in an `Arc` for a crate-owned wire (the borrowed variant can't be
@@ -84,5 +86,55 @@ impl SpaceRegistry for LiveSpaceRegistry {
         // reaches for the projection directly via `ship_space::spaces::list`,
         // not through this seam.)
         Ok(self.state.active_space_id().as_deref() == Some(space_id))
+    }
+}
+
+/// Substrate-backed [`WindowActors`]: projection reads + actor-events writes.
+///
+/// Holds the daemon's shared kernel router so window register/deregister
+/// always deliver live mailbox notifications (no optional silent skip).
+pub struct SubstrateWindowActors {
+    kernel: Arc<Mutex<KernelRouter>>,
+}
+
+impl SubstrateWindowActors {
+    pub fn new(kernel: Arc<Mutex<KernelRouter>>) -> Self {
+        Self { kernel }
+    }
+}
+
+fn map_row(r: ActorRow) -> WindowRow {
+    WindowRow {
+        id: r.id,
+        kind: r.kind,
+        space_id: r.space_id,
+        pid: r.pid,
+        live: r.live,
+    }
+}
+
+impl WindowActors for SubstrateWindowActors {
+    fn find_live_for_space(&self, space_id: &str) -> Result<Option<WindowRow>> {
+        Ok(actor::find_live_window_for_space(space_id)?.map(map_row))
+    }
+
+    fn list_windows(&self) -> Result<Vec<WindowRow>> {
+        Ok(actor::list_windows()?.into_iter().map(map_row).collect())
+    }
+
+    fn get_actor(&self, actor_id: &str) -> Result<Option<WindowRow>> {
+        Ok(actor::get_actor(actor_id)?.map(map_row))
+    }
+
+    fn register_window(&self, actor_id: &str, space_id: &str, pid: u32) -> Result<()> {
+        actor_events::register_window(actor_id, space_id, pid, Some(&self.kernel))
+    }
+
+    fn deregister_window(&self, actor_id: &str, space_id: &str) -> Result<()> {
+        actor_events::deregister_window(actor_id, space_id, Some(&self.kernel))
+    }
+
+    fn new_actor_id(&self) -> String {
+        ship_substrate::gen_ulid()
     }
 }

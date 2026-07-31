@@ -42,8 +42,14 @@ impl Connected<IncomingStream<'_, UnixListener>> for PeerCredInfo {
     fn connect_info(stream: IncomingStream<'_, UnixListener>) -> Self {
         use std::os::unix::io::AsRawFd;
         match host_adapter::peer_cred(stream.io().as_raw_fd()) {
-            Some(c) => PeerCredInfo { pid: Some(c.pid), uid: Some(c.uid) },
-            None => PeerCredInfo { pid: None, uid: None },
+            Some(c) => PeerCredInfo {
+                pid: Some(c.pid),
+                uid: Some(c.uid),
+            },
+            None => PeerCredInfo {
+                pid: None,
+                uid: None,
+            },
         }
     }
 }
@@ -135,8 +141,7 @@ pub fn spawn_host_socket(
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        if let Err(e) =
-            std::fs::set_permissions(&sock_path, std::fs::Permissions::from_mode(0o600))
+        if let Err(e) = std::fs::set_permissions(&sock_path, std::fs::Permissions::from_mode(0o600))
         {
             tracing::warn!(path = %sock_path.display(), error = %e,
                 "shipd: could not restrict ship.sock permissions to 0600");
@@ -174,7 +179,9 @@ mod tests {
     /// request through (it must not).
     async fn whoami(auth: Option<Extension<crate::auth::AuthContext>>) -> String {
         match auth {
-            Some(Extension(ctx)) => ctx.agent_id.map_or("operator".into(), |id| format!("agent:{id}")),
+            Some(Extension(ctx)) => ctx
+                .agent_id
+                .map_or("operator".into(), |id| format!("agent:{id}")),
             None => "none".into(),
         }
     }

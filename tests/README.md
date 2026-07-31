@@ -7,8 +7,8 @@ the daemon's behavior that no single crate owns.
 Post-multi-repo split (see `chore/umbrella-resolution` phase 1), the test
 suites for other bounded contexts have moved out:
 
-- `tests/e2e/` — moved to **ship-apps** at `apps/hub/test/e2e/`. Owns
-  Playwright UI tests against the ship-apps views (hub, spaces, etc.).
+- `tests/e2e/` — lives at `apps/hub/test/e2e/` (j-12: was ship-apps). Owns
+  Playwright UI tests against hub/spaces views.
 - `tests/integration/` — moved to **sui** at `tests/integration/`. Owns
   SUI mount/dispose resource symmetry against the framework's source.
 - `tests/parity/` — moved to **sui** at `tests/parity/`. Sui emit
@@ -16,7 +16,7 @@ suites for other bounded contexts have moved out:
 - `tests/perf/` — moved to **sui** at `tests/perf/`. Vendored keyed/sui
   bench harness + baselines.
 - `tests/loops/` — dropped (was untracked scratch from local dev).
-- `tests/_shared/prod-guard.mjs` — duplicated to ship-apps at
+- `tests/_shared/prod-guard.mjs` — also at apps/hub/test/_shared (j-12 from ship-apps)
   `apps/hub/test/_shared/`. Long-term, both consumers should import from
   a single source in ship-contracts.
 

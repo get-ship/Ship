@@ -12,9 +12,9 @@
 //! ([`apply_agent_permissions`]) passes the map, not a `ship_dir`.
 //! See [`super::permissions`] for the consumer.
 
+use agent_schema::{McpServerConfig, McpServerType};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use agent_schema::{McpServerConfig, McpServerType};
 use stack_model::ExtensionLibrary;
 use std::collections::HashMap;
 use std::path::Path;
@@ -226,9 +226,9 @@ pub fn load_permission_preset(
 // format-migration Wave 5, agent profiles arrive via `defineAgent`
 // declare-forms in the space's `stack.config.ts` and land in
 // `ExtensionLibrary::agent_profiles` through
-// `ship_resolver::merge_ts_declarations` — see
+// `space_resolver::merge_ts_declarations` — see
 // `census-format-migration.md` §4 row 3 (last paragraph). The
-// ship_config reader (`ship_config::agents::read_agent_profiles`)
+// ship_settings reader (`ship_settings::agents::read_agent_profiles`)
 // stays in place — it is the S2 READ door for the agent-def write
 // surface (`AgentsService` + the `agents_write` door), not a
 // `.ship/`-shape loader anymore. Disk-authoring is gone.

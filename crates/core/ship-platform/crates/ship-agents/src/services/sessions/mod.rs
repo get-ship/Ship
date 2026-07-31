@@ -19,21 +19,19 @@
 //! * `types`           — `SessionId`, `SessionStatus`, `AgentSessionMeta`, `TerminalSessionMeta`.
 //! * `canonical_projection` — read-side projection over the event log.
 
-
-pub mod registry;
 #[cfg(feature = "bridge")]
 pub mod agent_session_spawner;
 pub mod canonical_projection;
 pub mod lifecycle;
+pub mod registry;
 #[cfg(feature = "bridge")]
 pub mod terminal_session_spawner;
 pub mod types;
 
-pub use registry::{Entry, Registry, SessionRecord};
 pub use canonical_projection::{
     CanonicalSession, CanonicalSessionProjection, CanonicalSessionStatus,
     load_canonical_session_by_slug, load_canonical_session_by_slug_at,
     load_canonical_sessions_by_parent, load_latest_resumable_session,
-    load_session_by_id as load_canonical_session_by_id,
-    load_sessions as load_canonical_sessions,
+    load_session_by_id as load_canonical_session_by_id, load_sessions as load_canonical_sessions,
 };
+pub use registry::{Entry, Registry, SessionRecord};

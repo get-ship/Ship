@@ -232,7 +232,7 @@ pub fn set_daemon_owner(user_id: &str) -> anyhow::Result<()> {
     )?;
     // daemon.owner.* is Account-scoped → write account.db (the daemon_owner db).
     let store = super::scopes::account_store()?;
-    ship_substrate::persistence::event_store::EventStore::append(&store, &envelope)?;
+    store.append_enforced(&envelope, &ship_types::ScopeBinding::daemon_sdk())?;
     Ok(())
 }
 
@@ -251,7 +251,7 @@ pub fn clear_daemon_owner() -> anyhow::Result<()> {
     )?;
     // daemon.owner.* is Account-scoped → write account.db (the daemon_owner db).
     let store = super::scopes::account_store()?;
-    ship_substrate::persistence::event_store::EventStore::append(&store, &envelope)?;
+    store.append_enforced(&envelope, &ship_types::ScopeBinding::daemon_sdk())?;
     Ok(())
 }
 

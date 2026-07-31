@@ -48,7 +48,9 @@ pub fn path_hash(path: &Path) -> String {
 pub fn worktree_root_for(from: &Path) -> Option<PathBuf> {
     for ancestor in from.ancestors() {
         if ancestor.join(".git").exists() {
-            return Some(std::fs::canonicalize(ancestor).unwrap_or_else(|_| ancestor.to_path_buf()));
+            return Some(
+                std::fs::canonicalize(ancestor).unwrap_or_else(|_| ancestor.to_path_buf()),
+            );
         }
     }
     None
@@ -200,7 +202,10 @@ pub fn worktree_port_for(project_root: &Path) -> u16 {
 }
 
 fn read_trim<P: AsRef<Path>>(path: P) -> Option<String> {
-    std::fs::read_to_string(path.as_ref()).ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
+    std::fs::read_to_string(path.as_ref())
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
 }
 
 #[cfg(unix)]

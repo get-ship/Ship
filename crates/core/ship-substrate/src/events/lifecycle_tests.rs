@@ -3,9 +3,9 @@
 use tempfile::tempdir;
 
 use crate::db::{block_on, open_db_at};
-use ship_types::envelope::EventEnvelope;
 use crate::events::kernel_router::{ActorConfig, KernelRouter};
 use crate::events::validator::{CallerKind, EmitContext};
+use ship_types::envelope::EventEnvelope;
 
 fn setup() -> (tempfile::TempDir, KernelRouter) {
     let tmp = tempdir().unwrap();
@@ -66,7 +66,9 @@ fn actor_status(router: &KernelRouter, actor_id: &str) -> Option<String> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn crash_updates_actor_projection() {
     let (_tmp, mut router) = setup();
-    router.spawn_actor("dispatch", agent_config("dispatch")).unwrap();
+    router
+        .spawn_actor("dispatch", agent_config("dispatch"))
+        .unwrap();
 
     // Seed the actors projection row via the canonical bus-firing path.
     let created = EventEnvelope::new(
@@ -82,7 +84,9 @@ async fn crash_updates_actor_projection() {
         "actor.created must project a row"
     );
 
-    router.handle_actor_crash("dispatch", "task panicked").unwrap();
+    router
+        .handle_actor_crash("dispatch", "task panicked")
+        .unwrap();
 
     assert_eq!(
         actor_status(&router, "dispatch").as_deref(),
@@ -94,9 +98,13 @@ async fn crash_updates_actor_projection() {
 #[test]
 fn crash_removes_mailbox_and_emits_event() {
     let (_tmp, mut router) = setup();
-    let _mb = router.spawn_actor("dispatch", agent_config("dispatch")).unwrap();
+    let _mb = router
+        .spawn_actor("dispatch", agent_config("dispatch"))
+        .unwrap();
 
-    router.handle_actor_crash("dispatch", "task panicked").unwrap();
+    router
+        .handle_actor_crash("dispatch", "task panicked")
+        .unwrap();
 
     assert_eq!(router.actor_count(), 0, "crashed actor must be removed");
     assert_eq!(
@@ -113,7 +121,9 @@ fn crash_removes_mailbox_and_emits_event() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn crash_removes_subscriptions() {
     let (_tmp, mut router) = setup();
-    router.spawn_actor("dispatch", agent_config("dispatch")).unwrap();
+    router
+        .spawn_actor("dispatch", agent_config("dispatch"))
+        .unwrap();
 
     router.handle_actor_crash("dispatch", "panic").unwrap();
 
@@ -125,12 +135,17 @@ async fn crash_removes_subscriptions() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn crash_closes_mailbox() {
     let (_tmp, mut router) = setup();
-    let mut mb = router.spawn_actor("dispatch", agent_config("dispatch")).unwrap();
+    let mut mb = router
+        .spawn_actor("dispatch", agent_config("dispatch"))
+        .unwrap();
 
     router.handle_actor_crash("dispatch", "panic").unwrap();
 
     // Sender was dropped — recv returns None.
-    assert!(mb.recv().await.is_none(), "crashed actor mailbox must be closed");
+    assert!(
+        mb.recv().await.is_none(),
+        "crashed actor mailbox must be closed"
+    );
 }
 
 #[test]
@@ -144,17 +159,19 @@ fn crash_errors_on_unknown_actor() {
 #[test]
 fn crash_payload_contains_reason() {
     let (_tmp, mut router) = setup();
-    router.spawn_actor("dispatch", agent_config("dispatch")).unwrap();
+    router
+        .spawn_actor("dispatch", agent_config("dispatch"))
+        .unwrap();
 
-    router.handle_actor_crash("dispatch", "task panicked: division by zero").unwrap();
+    router
+        .handle_actor_crash("dispatch", "task panicked: division by zero")
+        .unwrap();
 
     let mut conn = open_db_at(&router.kernel_store_path()).unwrap();
     let payload: String = block_on(async {
-        sqlx::query_scalar(
-            "SELECT payload_json FROM events WHERE event_type = 'actor.crashed'"
-        )
-        .fetch_one(&mut conn)
-        .await
+        sqlx::query_scalar("SELECT payload_json FROM events WHERE event_type = 'actor.crashed'")
+            .fetch_one(&mut conn)
+            .await
     })
     .unwrap();
     let parsed: serde_json::Value = serde_json::from_str(&payload).unwrap();
@@ -174,7 +191,9 @@ fn crash_event_is_stamped_and_scoped() {
     // write path runs. A reconciliation that filters by author or
     // scope must include kernel-lifecycle crash events.
     let (_tmp, mut router) = setup();
-    router.spawn_actor("dispatch", agent_config("dispatch")).unwrap();
+    router
+        .spawn_actor("dispatch", agent_config("dispatch"))
+        .unwrap();
 
     router.handle_actor_crash("dispatch", "boom").unwrap();
 
@@ -190,7 +209,10 @@ fn crash_event_is_stamped_and_scoped() {
         })
         .unwrap();
     assert_eq!(scope, "runtime");
-    assert!(scope_key.is_some(), "Runtime scope must be stamped with a key");
+    assert!(
+        scope_key.is_some(),
+        "Runtime scope must be stamped with a key"
+    );
     assert!(
         author_device_id.is_some(),
         "crash event must be stamped with author_device_id"
@@ -206,27 +228,31 @@ fn crash_event_is_stamped_and_scoped() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn stable_path_mailbox_full_drops_silently() {
     let (_tmp, mut router) = setup();
-    let _mb = router.spawn_actor("neutral", ActorConfig {
-        namespace: "neutral".into(),
-        write_namespaces: vec!["neutral.".into()],
-        read_namespaces: vec!["neutral.".into()],
-        subscribe_namespaces: vec!["neutral.".into()],
-        see_directed_events: false,
-    }).unwrap();
+    let _mb = router
+        .spawn_actor(
+            "neutral",
+            ActorConfig {
+                namespace: "neutral".into(),
+                write_namespaces: vec!["neutral.".into()],
+                read_namespaces: vec!["neutral.".into()],
+                subscribe_namespaces: vec!["neutral.".into()],
+                see_directed_events: false,
+            },
+        )
+        .unwrap();
 
     // Fill the mailbox.
     for i in 0..256 {
-        let event = EventEnvelope::new(
-            "neutral.tick",
-            "entity",
-            &serde_json::json!({ "seq": i }),
-        )
-        .unwrap();
+        let event =
+            EventEnvelope::new("neutral.tick", "entity", &serde_json::json!({ "seq": i })).unwrap();
         router.emit(event, &runtime_ctx()).await.unwrap();
     }
 
     // Overflow event: route() returns Ok (delivery-only, best-effort — drop on full).
     let overflow = ev("neutral.overflow");
     let result = router.emit(overflow, &runtime_ctx()).await;
-    assert!(result.is_ok(), "route() must not error on mailbox full (best-effort delivery)");
+    assert!(
+        result.is_ok(),
+        "route() must not error on mailbox full (best-effort delivery)"
+    );
 }

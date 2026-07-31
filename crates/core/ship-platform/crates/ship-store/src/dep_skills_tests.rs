@@ -1,14 +1,14 @@
 use std::path::Path;
 
 use super::*;
-use stack_model::lockfile::{LockPackage, Rails, ShipLock};
 use agent_schema::skill::{Skill, SkillSource};
+use stack_model::lockfile::{LockPackage, Rails, ShipLock};
 use tempfile::TempDir;
 
 // `resolve_dep_agents` retired with format-migration Wave 5. The
 // coverage test that pinned the equivalence with the new
-// `ship_resolver::roll_up` flow lives in
-// `ship-resolver/src/lib_tests.rs::roll_up_covers_every_case_resolve_dep_agents_covers`.
+// `space_resolver::roll_up` flow lives in
+// `space-resolver/src/lib_tests.rs::roll_up_covers_every_case_resolve_dep_agents_covers`.
 
 // ── load_cached_extensions (Phase-3 J2) ─────────────────────────────
 

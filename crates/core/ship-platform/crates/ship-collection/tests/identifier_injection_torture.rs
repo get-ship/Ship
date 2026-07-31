@@ -15,16 +15,17 @@ use ship_collection::projection::SchemaRegistry;
 use ship_collection::schema::is_safe_identifier;
 use ship_collection::service::CollectionService;
 use ship_substrate::data::DataService;
+use ship_substrate::events::new_isolated_for_test_with;
 use ship_substrate::is_safe_ident;
-use ship_substrate::{new_isolated_for_test, KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
+use ship_substrate::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
 
 mod common;
 
 fn make_kernel(tmp: &tempfile::TempDir) -> Arc<KernelLog> {
-    common::install_collection_projection();
     let ship_dir = tmp.path().join(".ship");
     std::fs::create_dir_all(&ship_dir).unwrap();
-    let router = new_isolated_for_test(ship_dir).unwrap();
+    let router =
+        new_isolated_for_test_with(ship_dir, common::collection_projection_factory()).unwrap();
     Arc::new(KernelLog::new(router))
 }
 
@@ -38,7 +39,10 @@ fn make_ctx(tmp: &tempfile::TempDir, kernel: Arc<KernelLog>) -> Arc<SpaceContext
 }
 
 fn make_service(ctx: Arc<SpaceContext>) -> CollectionService {
-    CollectionService { ctx, schemas: Arc::new(SchemaRegistry::new()) }
+    CollectionService {
+        ctx,
+        schemas: Arc::new(SchemaRegistry::new()),
+    }
 }
 
 // ── is_safe_ident (the strict, DDL-facing gate) — the payload set ────────────
@@ -219,11 +223,8 @@ fn translate_ast_rejects_malicious_table_names() {
                 }]
             }
         });
-        let result = ship_substrate::query::translate_ast(
-            &serde_json::to_vec(&ast).unwrap(),
-            None,
-            50,
-        );
+        let result =
+            ship_substrate::query::translate_ast(&serde_json::to_vec(&ast).unwrap(), None, 50);
         assert!(result.is_err(), "table name {payload:?} must be rejected");
     }
 }
@@ -265,11 +266,8 @@ fn translate_ast_rejects_malicious_column_names_in_where() {
                 }
             }
         });
-        let result = ship_substrate::query::translate_ast(
-            &serde_json::to_vec(&ast).unwrap(),
-            None,
-            50,
-        );
+        let result =
+            ship_substrate::query::translate_ast(&serde_json::to_vec(&ast).unwrap(), None, 50);
         assert!(result.is_err(), "WHERE column {payload:?} must be rejected");
     }
 }
@@ -303,12 +301,12 @@ fn translate_ast_rejects_malicious_order_by_column() {
                 }]
             }
         });
-        let result = ship_substrate::query::translate_ast(
-            &serde_json::to_vec(&ast).unwrap(),
-            None,
-            50,
+        let result =
+            ship_substrate::query::translate_ast(&serde_json::to_vec(&ast).unwrap(), None, 50);
+        assert!(
+            result.is_err(),
+            "ORDER BY column {payload:?} must be rejected"
         );
-        assert!(result.is_err(), "ORDER BY column {payload:?} must be rejected");
     }
 }
 

@@ -27,8 +27,8 @@ pub fn poll_events_core(
     limit: usize,
 ) -> Result<Value, String> {
     let limit = limit.min(2000);
-    let events = crate::db::events::list_recent_events_at(ship_dir, 5_000)
-        .map_err(|e| e.to_string())?;
+    let events =
+        crate::db::events::list_recent_events_at(ship_dir, 5_000).map_err(|e| e.to_string())?;
 
     let filtered: Vec<_> = events
         .into_iter()
@@ -63,10 +63,7 @@ pub fn poll_events_core(
 
 /// Project process events from an explicit `ship_dir` without going through
 /// the global db path.
-pub fn list_processes_at(
-    ship_dir: &Path,
-    slug: Option<&str>,
-) -> Result<Vec<ProcessRecord>> {
+pub fn list_processes_at(ship_dir: &Path, slug: Option<&str>) -> Result<Vec<ProcessRecord>> {
     let events = crate::db::events::list_recent_events_at(ship_dir, 50_000)?;
     let mut records = crate::projections::process::project(&events);
     if let Some(s) = slug {
@@ -74,5 +71,3 @@ pub fn list_processes_at(
     }
     Ok(records)
 }
-
-

@@ -20,8 +20,8 @@ use std::sync::Arc;
 use connectrpc::Router as ConnectRouter;
 use ship_agents::services::agents::code_wire::{CodeWire, CodeWireConfig};
 use ship_agents::services::agents::dispatch_core::AgentDispatchPort;
-use ship_substrate::ports::KernelLog;
 use ship_substrate::ShipHome;
+use ship_substrate::ports::KernelLog;
 
 use crate::ports::agent_events::AgentDispatchAdapter;
 use crate::ship_runtime::ApiState;

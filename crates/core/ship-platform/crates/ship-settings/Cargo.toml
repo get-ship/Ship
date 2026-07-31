@@ -1,0 +1,51 @@
+[package]
+name = "ship-settings"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "SettingsService home — unified scope-discriminated settings (SPACE/ACCOUNT/RUNTIME) over substrate ports + the legacy declarative-tier file projection (agents/watcher over FsBroker). Implements settings.proto's 4 RPCs, event-sourced via settings.changed; ZERO raw fs."
+
+[dependencies]
+# Generated proto bindings (ship-contracts SSOT). Direct dep so the build.rs
+# can read `DEP_SHIP_PROTO_PROTO_DIR` and resolve `<proto>/fixtures/` without
+# a hand-set SHIP_PROTO_DIR — the same git+branch shape used by the other
+# proto-binding consumers (ship-ops-rpc, ship-gateway-client).
+# (ship-sidecar-proto moved to ship-exec in j-09 and owns its own proto.)
+ship-proto = { git = "https://github.com/get-ship/ship-contracts.git", branch = "feat/next" }
+ship-substrate = { path = "../../../ship-substrate" }
+fs-watch = { path = "../../../ship-substrate/crates/fs-watch" }
+ship-types = { path = "../../../ship-substrate/crates/ship-types" }
+ship-reactive = { path = "../ship-reactive" }
+ship-ops-rpc = { path = "../../../ship-ops-rpc" }
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "6967f155ca795c19c44a145701c138b2d079c89c" }
+stack-model = { path = "../../../stack-model" }
+
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+home = { workspace = true }
+sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio-rustls", "migrate", "macros"] }
+async-stream = "0.3"
+chrono = { workspace = true }
+connectrpc = { version = "0.4", features = ["axum"] }
+buffa = { version = "0.5" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tokio = { workspace = true, features = ["sync", "rt"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "time"] }
+tempfile = { workspace = true }
+futures-util = { workspace = true }
+ship-reactive = { path = "../ship-reactive" }
+# Test-only: link in the agent-def registrations so `agent.def.updated` is
+# present in this test binary's inventory (job/transient-events — the
+# space-scope assertion depends on the registry view, the way the runtime
+# shipd binary sees it). Cargo permits the dev-dep cycle through agent-def.
+agent-def = { path = "../agent-def" }
+# Test-only: drives the `.ts` ingest path end-to-end (defineAgent eval → index).
+# Pulls V8 into the TEST binary only — the crate's runtime graph stays V8-free.
+agent-config-eval = { path = "../../../agent-config-eval" }
+[lints]
+workspace = true

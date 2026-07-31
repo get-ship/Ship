@@ -22,8 +22,7 @@ pub fn load_lock_if_present(path: &Path) -> anyhow::Result<Option<ShipLock>> {
     if !path.exists() {
         return Ok(None);
     }
-    let lock = ShipLock::from_file(path)
-        .with_context(|| format!("parsing {}", path.display()))?;
+    let lock = ShipLock::from_file(path).with_context(|| format!("parsing {}", path.display()))?;
     Ok(Some(lock))
 }
 
@@ -48,11 +47,11 @@ pub fn fetch_and_store(
     };
 
     // Security scan: block packages with critical hidden Unicode characters.
-    let findings = content_scan::scan_dir(content_dir);
-    if content_scan::has_critical(&findings) {
+    let findings = crate::content_scan::scan_dir(content_dir);
+    if crate::content_scan::has_critical(&findings) {
         let critical_findings: Vec<_> = findings
             .iter()
-            .filter(|f| f.severity == content_scan::Severity::Critical)
+            .filter(|f| f.severity == crate::content_scan::Severity::Critical)
             .collect();
         let details: Vec<String> = critical_findings.iter().map(|f| f.to_string()).collect();
         anyhow::bail!(

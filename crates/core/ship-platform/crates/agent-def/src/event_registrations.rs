@@ -8,7 +8,7 @@
 //! `register_event!` macro from `ship_types`, making them available to
 //! downstream code that calls `event_registry::registry()`.
 //!
-//! The `agent.def.updated` registration lives in `ship-config` (its emitter).
+//! The `agent.def.updated` registration lives in `ship-settings` (its emitter).
 
 use ship_types::event_registry::{EventScope, Retention, Stability};
 use ship_types::register_event;
@@ -137,10 +137,10 @@ register_event!(
 // and the carried validator — live with the domain.
 // `agent.def.updated` is the durable domain event for an agent-def file
 // change. Reclassified from Ephemeral to Durable in job/transient-events:
-// the read-only agent-def index (`ship-config::agents_index`) reads back
+// the read-only agent-def index (`ship-settings::agents_index`) reads back
 // from the space db on boot, and the agent-fanout consumers
 // (`ship-agents::services::agents::watch`) key off its presence.
-// Registered here (the domain owner); ship-config's tests link agent-def via a
+// Registered here (the domain owner); ship-settings's tests link agent-def via a
 // dev-dependency, and the daemon links both in production.
 register_event!(
     "agent.def.updated",

@@ -23,10 +23,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Result;
+use bridge::HarnessEvent;
+use bridge::ProcessHandle;
 use chrono::{DateTime, Utc};
 use parking_lot::Mutex;
-use bridge::ProcessHandle;
-use bridge::HarnessEvent;
 use tokio::sync::broadcast;
 
 use super::types::{AgentSessionMeta, SessionId, SessionStatus, TerminalSessionMeta};
@@ -177,10 +177,8 @@ impl Registry {
     /// this is not that entry point.
     pub fn list_all(&self) -> Vec<SessionRecord> {
         let guard = self.inner.lock();
-        let mut records: Vec<SessionRecord> = guard
-            .values()
-            .map(|e| e.meta.lock().clone())
-            .collect();
+        let mut records: Vec<SessionRecord> =
+            guard.values().map(|e| e.meta.lock().clone()).collect();
         records.sort_by_key(|m| std::cmp::Reverse(m.last_activity));
         records
     }

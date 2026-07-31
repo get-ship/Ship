@@ -89,16 +89,16 @@
 // "can this OOM the host?" review harder, not easier. ~40% of the length is the
 // load-bearing doc comment that documents that safety story.
 
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
+use ship_substrate::ShipHome;
+use ship_substrate::events::EventFilter;
 use ship_substrate::events::kernel_router::KernelRouter;
 use ship_substrate::events::validator::{CallerKind, EmitContext};
-use ship_substrate::events::EventFilter;
 use ship_substrate::events::{ActorConfig, EventEnvelope};
 use ship_substrate::gen_ulid;
-use ship_substrate::ShipHome;
 
 // ── Safety + measurement constants ──────────────────────────────────────────
 
@@ -125,7 +125,6 @@ const SAMPLE_EVERY: u64 = 50;
 
 /// Run a projection-rebuild (event-log read-back) round every this many cycles.
 const REBUILD_EVERY: u64 = 100;
-
 
 /// Fraction of samples (from the front) discarded as warmup before fitting.
 const WARMUP_FRACTION: f64 = 0.20;
@@ -389,10 +388,11 @@ async fn daemon_rss_slope_is_flat_under_connection_churn() {
         let target_id = format!("sui-hmr-target-{}", gen_ulid());
         let _ = router.spawn_actor(&hmr_id, sse_source_config(&hmr_id));
         let _ = router.spawn_actor(&target_id, sse_source_config(&target_id));
-        let fanout = EventEnvelope::new("sse.tick", "fanout", &serde_json::json!({ "cycle": cycle }))
-            .expect("envelope")
-            .with_actor_id(&hmr_id)
-            .with_target(&target_id);
+        let fanout =
+            EventEnvelope::new("sse.tick", "fanout", &serde_json::json!({ "cycle": cycle }))
+                .expect("envelope")
+                .with_actor_id(&hmr_id)
+                .with_target(&target_id);
         let _ = router.emit(fanout, &ctx).await;
         let _ = router.stop_actor(&hmr_id);
         let _ = router.stop_actor(&target_id);
@@ -411,7 +411,6 @@ async fn daemon_rss_slope_is_flat_under_connection_churn() {
                 });
             }
         }
-
 
         cycles_run = cycle + 1;
 

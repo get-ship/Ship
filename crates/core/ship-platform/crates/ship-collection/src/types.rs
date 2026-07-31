@@ -73,6 +73,4 @@ pub struct ItemRecord {
 /// behalf (built-in schemas + `view_snapshots`). A parity test in
 /// `tests/parity.rs` enumerates known system IDs and asserts each is reserved,
 /// so a new system collection can never ship without governance.
-pub const RESERVED_IDS: &[&str] = &[
-    "notes", "view_snapshots", "_schema_registry",
-];
+pub const RESERVED_IDS: &[&str] = &["notes", "view_snapshots", "_schema_registry"];

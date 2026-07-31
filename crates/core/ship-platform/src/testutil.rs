@@ -5,11 +5,10 @@ use std::path::{Path, PathBuf};
 /// (presence only — identity lives in the `projects` pointer) plus the
 /// subdirectories that L1 functions (skills, rules, collections) expect.
 ///
-/// Also installs the platform-level projection factory + supervisor hooks
-/// so any `SqliteEventStore` constructed by the test sees the full bus.
-/// Idempotent across tests.
+/// Domain projections are no longer ambient — callers that need them pass
+/// [`crate::platform_projection_factory`] into store / kernel constructors.
+/// This helper only scaffolds dirs; it does not install projections.
 pub fn init_project(base_dir: impl AsRef<Path>) -> Result<PathBuf> {
-    crate::install_defaults();
     let base_dir = base_dir.as_ref();
     std::fs::create_dir_all(base_dir)?;
     std::fs::write(

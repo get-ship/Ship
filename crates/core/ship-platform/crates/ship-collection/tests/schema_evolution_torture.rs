@@ -10,15 +10,17 @@ use serde_json::json;
 use ship_collection::projection::SchemaRegistry;
 use ship_collection::service::CollectionService;
 use ship_substrate::data::DataService;
-use ship_substrate::{new_isolated_for_test, KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
+use ship_substrate::events::new_isolated_for_test_with;
+use ship_substrate::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
 
 mod common;
 
 fn make_kernel(tmp: &tempfile::TempDir) -> (std::path::PathBuf, Arc<KernelLog>) {
-    common::install_collection_projection();
     let ship_dir = tmp.path().join(".ship");
     std::fs::create_dir_all(&ship_dir).unwrap();
-    let router = new_isolated_for_test(ship_dir.clone()).unwrap();
+    let router =
+        new_isolated_for_test_with(ship_dir.clone(), common::collection_projection_factory())
+            .unwrap();
     (ship_dir, Arc::new(KernelLog::new(router)))
 }
 
@@ -31,7 +33,10 @@ fn make_ctx(ship_dir: &std::path::Path, kernel: Arc<KernelLog>) -> Arc<SpaceCont
 }
 
 fn make_service(ctx: Arc<SpaceContext>) -> CollectionService {
-    CollectionService { ctx, schemas: Arc::new(SchemaRegistry::new()) }
+    CollectionService {
+        ctx,
+        schemas: Arc::new(SchemaRegistry::new()),
+    }
 }
 
 // ── Additive evolution: adding columns across multiple schema.changed ────────
@@ -58,9 +63,12 @@ async fn additive_columns_accumulate_across_schema_changes() {
     .await
     .unwrap();
 
-    svc.create_item("eventlog", &serde_json::to_vec(&json!({ "title": "v1" })).unwrap())
-        .await
-        .unwrap();
+    svc.create_item(
+        "eventlog",
+        &serde_json::to_vec(&json!({ "title": "v1" })).unwrap(),
+    )
+    .await
+    .unwrap();
 
     // schema.changed #1: add a column.
     svc.update_schema(
@@ -103,7 +111,10 @@ async fn additive_columns_accumulate_across_schema_changes() {
         .await
         .unwrap();
     let fetched = svc.get_item("eventlog", &item.id).await.unwrap();
-    assert_eq!(fetched.data.get("priority").and_then(|v| v.as_f64()), Some(2.0));
+    assert_eq!(
+        fetched.data.get("priority").and_then(|v| v.as_f64()),
+        Some(2.0)
+    );
 
     // Original item (created before either evolution) survives with old
     // columns null/absent, not corrupted.
@@ -114,10 +125,19 @@ async fn additive_columns_accumulate_across_schema_changes() {
     assert_eq!(items.len(), 2, "both pre- and post-evolution items survive");
 
     // Rebuild from the event log must reproduce the same row count and data.
-    let (replayed, projections) =
-        ship_substrate::db::rebuild::rebuild_scope_db(&space_db_path(&ship_dir)).unwrap();
+    // Pass the same domain factory the live kernel used — L0-only
+    // `rebuild_scope_db` does not register CollectionItemProjection.
+    let factory = common::collection_projection_factory();
+    let (replayed, projections) = ship_substrate::db::rebuild::rebuild_scope_db_with(
+        &space_db_path(&ship_dir),
+        &factory,
+    )
+    .unwrap();
     assert!(replayed > 0, "expected events replayed");
-    assert!(projections.iter().any(|p| p == "collection"), "collection projection ran");
+    assert!(
+        projections.iter().any(|p| p == "collection"),
+        "collection projection ran"
+    );
 
     let (items_after_rebuild, _) = svc
         .query_items_by_query(ship_substrate::ports::Query::new("collection_eventlog"))
@@ -130,7 +150,10 @@ async fn additive_columns_accumulate_across_schema_changes() {
     );
     for (before, after) in items.iter().zip(items_after_rebuild.iter()) {
         assert_eq!(before.id, after.id);
-        assert_eq!(before.data, after.data, "rebuild must reproduce identical item data");
+        assert_eq!(
+            before.data, after.data,
+            "rebuild must reproduce identical item data"
+        );
     }
 }
 
@@ -167,7 +190,10 @@ async fn retyping_a_field_does_not_corrupt_existing_rows() {
     .unwrap();
 
     let item = svc
-        .create_item("retype", &serde_json::to_vec(&json!({ "count": 42 })).unwrap())
+        .create_item(
+            "retype",
+            &serde_json::to_vec(&json!({ "count": 42 })).unwrap(),
+        )
         .await
         .unwrap();
 
@@ -220,7 +246,9 @@ async fn rebuild_after_multiple_evolutions_matches_live_state() {
     )
     .await
     .unwrap();
-    svc.create_item("eq", &serde_json::to_vec(&json!({ "a": "1" })).unwrap()).await.unwrap();
+    svc.create_item("eq", &serde_json::to_vec(&json!({ "a": "1" })).unwrap())
+        .await
+        .unwrap();
 
     for field in ["b", "c", "d"] {
         let mut fields = json!({ "a": { "type": "string" } });
@@ -237,24 +265,41 @@ async fn rebuild_after_multiple_evolutions_matches_live_state() {
         )
         .await
         .unwrap();
-        svc.create_item("eq", &serde_json::to_vec(&json!({ "a": format!("row-{field}") })).unwrap())
-            .await
-            .unwrap();
+        svc.create_item(
+            "eq",
+            &serde_json::to_vec(&json!({ "a": format!("row-{field}") })).unwrap(),
+        )
+        .await
+        .unwrap();
     }
 
     let (before, _) = svc
-        .query_items_by_query(ship_substrate::ports::Query { table: "collection_eq".into(), limit: 100, ..Default::default() })
+        .query_items_by_query(ship_substrate::ports::Query {
+            table: "collection_eq".into(),
+            limit: 100,
+            ..Default::default()
+        })
         .await
         .unwrap();
 
-    ship_substrate::db::rebuild::rebuild_scope_db(&space_db_path(&ship_dir)).unwrap();
+    let factory = common::collection_projection_factory();
+    ship_substrate::db::rebuild::rebuild_scope_db_with(&space_db_path(&ship_dir), &factory)
+        .unwrap();
 
     let (after, _) = svc
-        .query_items_by_query(ship_substrate::ports::Query { table: "collection_eq".into(), limit: 100, ..Default::default() })
+        .query_items_by_query(ship_substrate::ports::Query {
+            table: "collection_eq".into(),
+            limit: 100,
+            ..Default::default()
+        })
         .await
         .unwrap();
 
-    assert_eq!(before.len(), after.len(), "rebuild must not change row count");
+    assert_eq!(
+        before.len(),
+        after.len(),
+        "rebuild must not change row count"
+    );
     let mut before_sorted = before.clone();
     let mut after_sorted = after.clone();
     before_sorted.sort_by(|a, b| a.id.cmp(&b.id));

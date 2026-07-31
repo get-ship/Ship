@@ -124,10 +124,7 @@ fn try_github_tarball(owner: &str, repo: &str, commit: &str, dest: &Path) -> any
         // shape-filtered hand-join below does not, so this check is
         // the zip-slip guard.
         if !path_stays_in_dest(&path) {
-            anyhow::bail!(
-                "tar entry path {} escapes destination",
-                path.display()
-            );
+            anyhow::bail!("tar entry path {} escapes destination", path.display());
         }
         // Determine the relative path to extract based on package shape.
         let rel = match shape {
@@ -152,7 +149,6 @@ fn try_github_tarball(owner: &str, repo: &str, commit: &str, dest: &Path) -> any
         }
 
         // Sum declared entry size first — refuse before writing.
-
 
         let entry_size = entry.header().entry_size().unwrap_or(0);
         total_bytes = total_bytes.saturating_add(entry_size);
@@ -382,7 +378,8 @@ fn clone_and_extract(git_url: &str, commit: &str, dest: &Path) -> anyhow::Result
 
     if ship_dir.join("ship.jsonc").exists() {
         // Ship-native: copy only .ship/.
-        copy_dir_recursive(&ship_dir, &legacy_package_ship_dir(dest)).context("copying .ship/ from clone")?;
+        copy_dir_recursive(&ship_dir, &legacy_package_ship_dir(dest))
+            .context("copying .ship/ from clone")?;
     } else if root_manifest.exists() {
         // Root-manifest: copy everything except .git/.
         copy_dir_recursive_excluding(&clone_dir, dest, &[".git"])
@@ -530,14 +527,18 @@ mod tests {
     fn path_stays_in_dest_accepts_normal_paths() {
         assert!(path_stays_in_dest(std::path::Path::new("a/b/c.txt")));
         assert!(path_stays_in_dest(std::path::Path::new("a.txt")));
-        assert!(path_stays_in_dest(std::path::Path::new("deeply/nested/dir/file")));
+        assert!(path_stays_in_dest(std::path::Path::new(
+            "deeply/nested/dir/file"
+        )));
     }
 
     #[test]
     fn path_stays_in_dest_rejects_parent_traversal() {
         // The original ZIP-SLIP class: `..` components escape dest.
         assert!(!path_stays_in_dest(std::path::Path::new("../escaped.txt")));
-        assert!(!path_stays_in_dest(std::path::Path::new("a/../../etc/passwd")));
+        assert!(!path_stays_in_dest(std::path::Path::new(
+            "a/../../etc/passwd"
+        )));
         assert!(!path_stays_in_dest(std::path::Path::new("a/b/../..")));
     }
 

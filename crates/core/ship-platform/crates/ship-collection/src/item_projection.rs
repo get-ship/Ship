@@ -17,13 +17,13 @@
 //! inside the SAME SQLite transaction as the event append — no atomicity is lost
 //! by moving this projection from L0 to L1 via the factory seam.
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use serde_json::Value;
 use sqlx::SqliteConnection;
 
 use ship_substrate::db::block_on;
-use ship_substrate::{is_safe_ident, ColumnKind};
 use ship_substrate::projections::Projection;
+use ship_substrate::{ColumnKind, is_safe_ident};
 use ship_types::envelope::EventEnvelope;
 
 use crate::events::{
@@ -46,7 +46,13 @@ impl Projection for CollectionItemProjection {
     }
 
     fn event_types(&self) -> &[&str] {
-        &[CREATED, SCHEMA_CHANGED, ITEM_CREATED, ITEM_UPDATED, ITEM_DELETED]
+        &[
+            CREATED,
+            SCHEMA_CHANGED,
+            ITEM_CREATED,
+            ITEM_UPDATED,
+            ITEM_DELETED,
+        ]
     }
 
     fn apply(&self, event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<()> {
@@ -81,7 +87,14 @@ impl Projection for CollectionItemProjection {
             }
             ITEM_UPDATED => {
                 let p: CollectionItemUpdated = serde_json::from_str(&event.payload_json)?;
-                update_item(conn, &space_id, &p.collection_id, &p.item_id, &p.data, &p.updated_at)
+                update_item(
+                    conn,
+                    &space_id,
+                    &p.collection_id,
+                    &p.item_id,
+                    &p.data,
+                    &p.updated_at,
+                )
             }
             ITEM_DELETED => {
                 let p: CollectionItemDeleted = serde_json::from_str(&event.payload_json)?;
@@ -283,7 +296,11 @@ fn delete_item(
     let table = collection_table(collection_id)?;
     let sql = format!("DELETE FROM `{table}` WHERE id = ? AND space_id = ?");
     block_on(async {
-        sqlx::query(&sql).bind(item_id).bind(space_id).execute(&mut *conn).await
+        sqlx::query(&sql)
+            .bind(item_id)
+            .bind(space_id)
+            .execute(&mut *conn)
+            .await
     })?;
     Ok(())
 }
@@ -332,7 +349,13 @@ fn column_sql_type(kind: ColumnKind) -> &'static str {
 fn scalar_text(v: &Value) -> String {
     match v {
         Value::String(s) => s.clone(),
-        Value::Bool(b) => if *b { "1".to_string() } else { "0".to_string() },
+        Value::Bool(b) => {
+            if *b {
+                "1".to_string()
+            } else {
+                "0".to_string()
+            }
+        }
         Value::Number(n) => n.to_string(),
         Value::Null => String::new(),
         other => other.to_string(),

@@ -18,11 +18,19 @@ forbid_changed:
 "#;
     let g: GateSpec = serde_yaml::from_str(yaml).expect("canonical shape parses");
     assert_eq!(g.require_changed.len(), 1);
-    assert_eq!(g.require_changed[0].match_patterns,
-        vec!["**/*.rs".to_string(), "**/*.toml".to_string()]);
-    assert_eq!(g.require_changed[0].not_match, vec!["**/tests/**".to_string()]);
+    assert_eq!(
+        g.require_changed[0].match_patterns,
+        vec!["**/*.rs".to_string(), "**/*.toml".to_string()]
+    );
+    assert_eq!(
+        g.require_changed[0].not_match,
+        vec!["**/tests/**".to_string()]
+    );
     assert_eq!(g.require_changed[0].min, 2);
-    assert_eq!(g.forbid_changed[0].match_patterns, vec![".artifacts/**".to_string()]);
+    assert_eq!(
+        g.forbid_changed[0].match_patterns,
+        vec![".artifacts/**".to_string()]
+    );
 }
 
 #[test]
@@ -32,7 +40,9 @@ require_changed:
   match: ["**/*.rs"]
   min: 1
 "#;
-    let err = serde_yaml::from_str::<GateSpec>(yaml).unwrap_err().to_string();
+    let err = serde_yaml::from_str::<GateSpec>(yaml)
+        .unwrap_err()
+        .to_string();
     assert!(
         err.contains("array") && err.contains("contract freeze"),
         "error must point at canonical syntax + freeze rationale: {err}"
@@ -46,7 +56,9 @@ require_changed:
   - match: "**/*.rs|**/*.toml"
     min: 1
 "#;
-    let err = serde_yaml::from_str::<GateSpec>(yaml).unwrap_err().to_string();
+    let err = serde_yaml::from_str::<GateSpec>(yaml)
+        .unwrap_err()
+        .to_string();
     assert!(
         err.contains("list of glob strings") || err.contains("contract freeze"),
         "string match value must be rejected with canonical-syntax pointer: {err}"
@@ -63,6 +75,11 @@ require_changed:
   - match: ["**/*.rs|**/*.toml"]
     min: 1
 "#;
-    let err = serde_yaml::from_str::<GateSpec>(yaml).unwrap_err().to_string();
-    assert!(err.contains("contains '|'"), "pipe inside list entry must be flagged: {err}");
+    let err = serde_yaml::from_str::<GateSpec>(yaml)
+        .unwrap_err()
+        .to_string();
+    assert!(
+        err.contains("contains '|'"),
+        "pipe inside list entry must be flagged: {err}"
+    );
 }

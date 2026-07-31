@@ -20,7 +20,7 @@
 //!    stay equal. That closes the loop this file's `--check` opens: a
 //!    stack shape change that isn't regenerated here fails CI; a
 //!    regeneration that isn't reflected in the harvest struct fails
-//!    `cargo test -p ship-resolver`.
+//!    `cargo test -p space-resolver`.
 //!
 //! `defineRule` is EXCLUDED from stack-derived fingerprinting.
 //! `decision-morning-answers.md` §2 rules the rules declare-form down to

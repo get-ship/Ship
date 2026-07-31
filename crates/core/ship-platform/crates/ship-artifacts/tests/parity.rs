@@ -16,7 +16,7 @@ use ship_artifacts::gc::collect_expired;
 use ship_artifacts::service::ArtifactService;
 use ship_artifacts::types::ArtifactScope;
 use ship_substrate::data::DataService;
-use ship_substrate::events::new_isolated_for_test;
+use ship_substrate::events::new_isolated_for_test_with;
 use ship_substrate::home::ShipHome;
 use ship_substrate::{KernelLog, Row, SingleBackendDataStore, SpaceContext, SpaceId};
 
@@ -34,10 +34,9 @@ const SCOPE_SPACE: &str = "proj1";
 fn make_kernel(tmp: &tempfile::TempDir) -> Arc<KernelLog> {
     // Ensure ArtifactProjection is in the extra-projections factory before
     // any SqliteEventStore (and its default_bus) is constructed.
-    common::install_artifact_projection();
     let ship_dir = tmp.path().join(".ship");
     std::fs::create_dir_all(&ship_dir).unwrap();
-    let router = new_isolated_for_test(ship_dir).unwrap();
+    let router = new_isolated_for_test_with(ship_dir, common::artifact_projection_factory()).unwrap();
     Arc::new(KernelLog::new(router))
 }
 

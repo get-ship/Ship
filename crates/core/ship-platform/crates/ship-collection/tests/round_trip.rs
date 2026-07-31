@@ -8,10 +8,9 @@
 //! process; this test pins an isolated router via `new_isolated_for_test` so
 //! each invocation owns its kernel — see the helper below.)
 //!
-//! 1. `install_extra_projections_factory` with `CollectionItemProjection` BEFORE
-//!    any `SqliteEventStore` is constructed (the projection registers itself
-//!    on the per-scope bus, materializing the `collection_<id>` tables in the
-//!    same SQLite transaction as the event append — see ADR D6/D7).
+//! 1. Pass `CollectionItemProjection` via `new_isolated_for_test_with` so the
+//!    kernel's per-scope bus materializes `collection_<id>` tables in the
+//!    same SQLite transaction as the event append — see ADR D6/D7.
 //! 2. Build the per-scope `SpaceContext` rooted at `<tmp>/.ship/spaces/<id>/`,
 //!    the SAME file the kernel router writes Space-scoped events into — so
 //!    the `CollectionItemProjection`'s same-TX writes are visible to the
@@ -44,25 +43,23 @@ const COLL: &str = "rt_notes";
 
 /// Build a fresh per-test fixture rooted at `tmp.path()`. Returns the kernel
 /// handle and a `SpaceContext` whose `KernelLog` was bound to the SAME
-/// process-global router — required so a later `ReactiveRegistry::watch` on
+/// injected router — required so a later `ReactiveRegistry::watch` on
 /// `kernel` sees the events `CollectionService::create_item` emits through the
-/// ctx. (`SpaceContext::for_space` and `init_kernel_router` resolve to the
-/// same router given the same `ship_dir`; we call them explicitly so the test
-/// holds one `KernelLog` over the one router.)
+/// ctx. The test holds one `KernelLog` over one isolated router.
 fn make_kernel_and_ctx(
     tmp: &tempfile::TempDir,
 ) -> (Arc<ship_substrate::ports::KernelLog>, Arc<SpaceContext>) {
-    // Install the collection projection BEFORE the SpaceContext (and the
-    // KernelLog/PartitionedSink it holds) is constructed. The factory seam is
-    // the only legal way to plug an L1 projection into the per-scope bus.
-    common::install_collection_projection();
-    // Use the per-test ISOLATED router — `init_kernel_router` populates a
-    // process-global OnceLock that other parallel tests may already have set
-    // to a now-dropped tempdir; the isolated builder sidesteps the race and
-    // mirrors what `tests/behavior.rs::make_kernel` does.
+    // Pass the collection projection into the isolated router via the
+    // factory seam (constructor DI — the only legal way to plug an L1
+    // projection into the per-scope bus). Isolated builder keeps each
+    // test's router off any shared ambient state.
     let ship_dir = tmp.path().join(".ship");
     std::fs::create_dir_all(&ship_dir).unwrap();
-    let router = ship_substrate::events::new_isolated_for_test(ship_dir.clone()).unwrap();
+    let router = ship_substrate::events::new_isolated_for_test_with(
+        ship_dir.clone(),
+        common::collection_projection_factory(),
+    )
+    .unwrap();
     let kernel = Arc::new(ship_substrate::ports::KernelLog::new(router));
     // The SpaceContext must bind its `DataService` to the SAME per-scope
     // `spaces/<id>/space.db` the kernel routes `collection.*` (Space-scoped)
@@ -70,7 +67,7 @@ fn make_kernel_and_ctx(
     // visible to the ctx's reads. We mirror the shipd
     // `build_space_db_context_arc` pattern — open `space_db_path` explicitly
     // and wrap with `SingleBackendDataStore` rather than `for_space` (which
-    // would re-init the global router and miss our isolated kernel).
+    // would open a fresh store and miss our isolated kernel).
     // I-2: register the fabricated "rt" space id so `PartitionedSink::
     // route()` doesn't refuse this suite's Space-scoped `collection.*` events.
     ship_substrate::testutil::register_space(&ship_dir, "rt").unwrap();
@@ -187,7 +184,10 @@ async fn round_trip_no_daemon_no_ports() {
         .expect("create_item gamma");
 
     let alpha = svc.get_item(COLL, &first.id).await.expect("get_item alpha");
-    assert_eq!(alpha.data.get("title").and_then(|v| v.as_str()), Some("alpha"));
+    assert_eq!(
+        alpha.data.get("title").and_then(|v| v.as_str()),
+        Some("alpha")
+    );
     // `rank` is stored as REAL via the projection. Accept any numeric form
     // (integer, float, or text-encoded) so this test stays robust if the
     // column type changes.
@@ -200,7 +200,12 @@ async fn round_trip_no_daemon_no_ports() {
             _ => None,
         })
         .unwrap_or(-1);
-    assert_eq!(rank, 10, "alpha rank should be 10, got {:?}", alpha.data.get("rank"));
+    assert_eq!(
+        rank,
+        10,
+        "alpha rank should be 10, got {:?}",
+        alpha.data.get("rank")
+    );
 
     // ── query_items_ast (WHERE rank <= 50 ORDER BY rank ASC) ───────────────
     let ast = build_inline_query_ast();
@@ -281,10 +286,7 @@ async fn round_trip_no_daemon_no_ports() {
         PatchOp::Set,
         "snapshot frame must be Set, not Patch"
     );
-    assert_eq!(
-        frame1.patches[0].path, "",
-        "snapshot frame must be at root"
-    );
+    assert_eq!(frame1.patches[0].path, "", "snapshot frame must be at root");
 
     // Trigger a patch by adding a new item.
     svc.create_item(

@@ -12,7 +12,7 @@ use tokio::sync::Mutex;
 use ship_substrate::events::{EventEnvelope, EventScope, KernelRouter};
 use crate::engine::HookEngine;
 use crate::filter;
-use ship_config::resolve_hooks_max_depth;
+use crate::engine::DEFAULT_HOOKS_MAX_DEPTH;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -26,28 +26,28 @@ pub(super) fn tmp_ship_dir() -> (TempDir, std::path::PathBuf) {
     (tmp, ship_dir)
 }
 pub(super) fn test_kernel(ship_dir: &Path) -> Arc<Mutex<KernelRouter>> {
-    // Register the CollectionItemProjection for the test bus — the
+    // CollectionItemProjection rides the bus via constructor DI — the
     // canonical trigger insert path is event-sourced and the projection
     // materializes the `collection_*` table the read path queries.
-    ship_substrate::projections::install_extra_projections_factory(Box::new(|| {
+    let factory: ship_substrate::projections::ProjectionFactory = Arc::new(|| {
         vec![Box::new(
             ship_collection::item_projection::CollectionItemProjection,
         )]
-    }));
+    });
     // I-2: register the fixed `TEST_SPACE` fixture id so `PartitionedSink::
     // route()` doesn't refuse this suite's Space-scoped trigger/collection
     // events.
     ship_substrate::testutil::register_space(ship_dir, TEST_SPACE).unwrap();
-    let kr = KernelRouter::new(ship_dir.to_path_buf()).unwrap();
+    let kr = KernelRouter::with_extra_projections(ship_dir.to_path_buf(), factory).unwrap();
     Arc::new(Mutex::new(kr))
 }
 
-/// Parse a `stack_model::TriggerDef` from its JSON authoring shape (the
+/// Parse a `crate::TriggerDef` from its JSON authoring shape (the
 /// `defineTrigger` declare-form's serialized form — `id`/`trigger`/`source`/
 /// `actions`). Replaces the old `write_hook` JSONC-file helper post
 /// format-migration Wave 4 phase A: triggers are descriptor values now, not
 /// files.
-pub(super) fn trigger_def(json: &str) -> stack_model::TriggerDef {
+pub(super) fn trigger_def(json: &str) -> crate::TriggerDef {
     serde_json::from_str(json).unwrap_or_else(|e| panic!("invalid trigger def json: {e}\n{json}"))
 }
 
@@ -82,32 +82,32 @@ fn run_failed_envelope() -> EventEnvelope {
     .with_scope(EventScope::Space, Some(TEST_SPACE))
 }
 
-fn tasks_collection_def(id: &str) -> stack_model::CollectionDef {
-    stack_model::CollectionDef {
+fn tasks_collection_def(id: &str) -> ship_collection::CollectionDef {
+    ship_collection::CollectionDef {
         id: id.to_string(),
         name: None,
         fields: vec![
-            stack_model::types::CollectionFieldDef {
+            ship_collection::CollectionFieldDef {
                 name: "title".to_string(),
-                field_type: stack_model::types::CollectionFieldType::String,
+                field_type: ship_collection::CollectionFieldType::String,
                 required: false,
                 values: vec![],
                 default: None,
                 filterable: None,
                 sortable: None,
             },
-            stack_model::types::CollectionFieldDef {
+            ship_collection::CollectionFieldDef {
                 name: "body".to_string(),
-                field_type: stack_model::types::CollectionFieldType::Markdown,
+                field_type: ship_collection::CollectionFieldType::Markdown,
                 required: false,
                 values: vec![],
                 default: None,
                 filterable: None,
                 sortable: None,
             },
-            stack_model::types::CollectionFieldDef {
+            ship_collection::CollectionFieldDef {
                 name: "status".to_string(),
-                field_type: stack_model::types::CollectionFieldType::String,
+                field_type: ship_collection::CollectionFieldType::String,
                 required: false,
                 values: vec![],
                 default: None,
@@ -169,7 +169,7 @@ async fn triggers_engine_dispatch_matching_hook_fires() {
 }
 
 // `triggers_engine_dispatch_filter_excludes_non_matching_payload` (the
-// descriptor-driven filter-exclusion case) is retired: `stack_model::TriggerDef`
+// descriptor-driven filter-exclusion case) is retired: `crate::TriggerDef`
 // has no TS shape for the dot-path payload filter yet (def.rs's
 // `convert_trigger_match` always emits `filter: None`), so there is no
 // descriptor input left to build it from. `filter::matches`'s own dot-path
@@ -344,7 +344,7 @@ async fn triggers_engine_dispatch_recursion_guard_blocks_deep_hooks() {
 
     let mut envelope = run_failed_envelope();
     let mut payload: Value = serde_json::from_str(&envelope.payload_json).unwrap();
-    payload["_hook_depth"] = Value::from(resolve_hooks_max_depth());
+    payload["_hook_depth"] = Value::from(DEFAULT_HOOKS_MAX_DEPTH);
     envelope.payload_json = payload.to_string();
 
     let before = recent_hook_events(&ship_dir);

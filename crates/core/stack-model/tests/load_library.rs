@@ -7,7 +7,7 @@
 //! All four nouns arrive via the corresponding `define*` declare-forms in
 //! the space's `stack.config.ts`, harvested by the resolver's TS eval and
 //! merged into `ExtensionLibrary` (see
-//! `crates/core/ship-resolver/src/lib_tests.rs::every_declare_form_round_trips_through_resolve_compose_descriptor`
+//! `crates/core/space-resolver/src/lib_tests.rs::every_declare_form_round_trips_through_resolve_compose_descriptor`
 //! for the full descriptor test). The leaf returns all four vectors
 //! empty — the TS-resolver merge is the single source of truth.
 //! Permissions / hooks are unchanged: read from `.ship/permissions.jsonc` and

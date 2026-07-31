@@ -19,9 +19,9 @@ path = "src/main.rs"
 
 [dependencies]
 agent-def = { path = "../../crates/core/ship-platform/crates/agent-def" }
-ship-resolver = { path = "../../crates/core/ship-resolver" }
+space-resolver = { path = "../../crates/core/space-resolver" }
 ship-substrate = { path = "../../crates/core/ship-substrate" }
-journal-sqlite = { path = "../../crates/core/ship-substrate/crates/journal-sqlite" }
+journal-sqlite = { git = "https://github.com/get-ship/ship-exec.git", rev = "ee39e5273ce8829d90043626a01f564e660dd477" }
 ship-platform = { path = "../../crates/core/ship-platform" }
 bridge = { git = "https://github.com/get-ship/fleet.git", rev = "6967f155ca795c19c44a145701c138b2d079c89c", default-features = false, features = ["runtime"], optional = true }
 process-supervisor = { git = "https://github.com/get-ship/ship-exec.git", rev = "ee39e5273ce8829d90043626a01f564e660dd477" }
@@ -33,14 +33,13 @@ ship-files = { path = "../../crates/core/ship-platform/crates/ship-files" }
 ship-store = { path = "../../crates/core/ship-platform/crates/ship-store" }
 ship-triggers = { path = "../../crates/core/ship-platform/crates/ship-triggers" }
 ship-ui = { path = "../../crates/core/ship-platform/crates/ship-ui" }
-ship-isolation = { path = "../../crates/core/ship-platform/crates/ship-isolation", default-features = false }
+ship-isolation = { git = "https://github.com/get-ship/ship-exec.git", rev = "ee39e5273ce8829d90043626a01f564e660dd477", default-features = false }
 host-adapter = { git = "https://github.com/get-ship/ship-exec.git", rev = "ee39e5273ce8829d90043626a01f564e660dd477" }
-ship-pipeline-runtime = { path = "../../crates/ship-pipeline-runtime" }
+pipeline-defs = { path = "../../crates/core/ship-substrate/crates/pipeline-defs" }
 # Dispatch composition root (supervisor split — `shipd::dispatch`):
-#   ship-substrate    — process/executor lifecycle emit helpers
-#                      (`ship_substrate::events::emit::*`) used by
-#                      ShipdPlatform + orphan cleanup (L0 mechanism, lives in
-#                      `ship_substrate` directly).
+#   ship-agents       — process/executor lifecycle emit helpers
+#                      (`ship_agents::emit::*`) used by ShipdPlatform +
+#                      orphan cleanup; dispatch_gate for AgentPorts.
 #   ship-auth-types  — DaemonSession + session-token mint in ShipdPlatform.
 ship-auth-types = { path = "../../crates/core/ship-substrate/crates/ship-auth-types" }
 ship-types = { path = "../../crates/core/ship-substrate/crates/ship-types" }
@@ -48,14 +47,21 @@ ship-analytics = { path = "../../crates/core/ship-platform/crates/ship-analytics
 ship-search = { path = "../../crates/core/ship-platform/crates/ship-search" }
 ship-collection = { path = "../../crates/core/ship-platform/crates/ship-collection" }
 ship-cloud = { path = "../../crates/core/ship-cloud" }
-ship-git = { path = "../../crates/core/ship-git", optional = true }
+# Always-on: GitService (ship.internal.v1) mounts on shipd HTTP (j-02 step 2).
+# Dispatch adapters still use it under `--features bridge`.
+# Home: ship-exec (j-04). Path-patched via workspace [patch] until rev pin.
+ship-git = { git = "https://github.com/get-ship/ship-exec.git", rev = "ee39e5273ce8829d90043626a01f564e660dd477" }
+# GitService trait + message types (ship.internal.v1) live in ship-proto.
+ship-proto = { git = "https://github.com/get-ship/ship-contracts.git", branch = "feat/next" }
 ship-artifacts = { path = "../../crates/core/ship-platform/crates/ship-artifacts" }
 ship-space = { path = "../../crates/core/ship-platform/crates/ship-space" }
-ship-device = { path = "../../crates/core/ship-platform/crates/ship-device" }
-ship-config = { path = "../../crates/core/ship-platform/crates/ship-config" }
+ship-device = { git = "https://github.com/get-ship/ship-exec.git", rev = "ee39e5273ce8829d90043626a01f564e660dd477" }
+ship-settings = { path = "../../crates/core/ship-platform/crates/ship-settings" }
 ship-account = { path = "../../crates/core/ship-platform/crates/ship-account" }
 agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "6967f155ca795c19c44a145701c138b2d079c89c" }
 stack-model = { path = "../../crates/core/stack-model" }
+# HarnessService (ship.internal.v1) — list_harnesses + compile (j-02s4a; was helmd).
+harness-config-compiler = { git = "https://github.com/get-ship/fleet.git", rev = "6967f155ca795c19c44a145701c138b2d079c89c" }
 # `.ts` agent-config eval — evaluates `.ship/agents/<id>.ts` (defineAgent) in a
 # locked-down ship-js isolate. Pulls V8 (deno_core), which is WHY the eval is
 # confined to this ingest layer and never reaches the V8-free config/compiler
@@ -64,6 +70,8 @@ build-info = { path = "../../crates/build-info" }
 ship-ops-rpc = { path = "../../crates/core/ship-ops-rpc" }
 ship-reactive = { path = "../../crates/core/ship-platform/crates/ship-reactive" }
 connectrpc = { version = "0.4", features = ["axum", "client"] }
+# Named by GitService status enum mappings (`::buffa::EnumValue::from`).
+buffa = { version = "0.5", features = ["json"] }
 http = "1"
 # deck* + sui-compiler crates live in the external sui repo post-carve.
 # Path-dep smell: this build only works if sui is checked out at a
@@ -111,6 +119,10 @@ futures = "0.3"
 tower = { version = "0.5", features = ["timeout", "util"] }
 # Native harness (embeddable). Path dep until engines monorepo publish.
 yoke = { git = "https://github.com/get-ship/fleet.git", rev = "6967f155ca795c19c44a145701c138b2d079c89c" }
+# ship.yoke.v1 Connect client types — fleet's published contract crate (j-08).
+# Path until yoke-proto lands on a pinned fleet rev; same TEMPORARY pattern as
+# ship-exec path patches. Operator follow-up: switch to git rev + drop path.
+yoke-proto = { path = "../../../fleet/crates/yoke-proto" }
 # Durable journal used by in-process yoke embed (apps/shipd/src/yoke/embed).
 durable-execution = { git = "https://github.com/get-ship/ship-exec.git", rev = "ee39e5273ce8829d90043626a01f564e660dd477" }
 tower-http = { version = "0.6", features = ["catch-panic", "limit", "timeout"] }
@@ -131,7 +143,6 @@ default = []
 # Turn off with --no-default-features to get a harness-free shipd build.
 bridge = [
     "dep:bridge",
-    "dep:ship-git",
     "ship-agents/bridge",
     "ship-platform/bridge",
 ]
@@ -157,7 +168,6 @@ fixtures = ["ship-platform/fixtures"]
 
 [dev-dependencies]
 tempfile = { workspace = true }
-ctor = "0.2"
 http-body-util = "0.1"
 tower = { version = "0.5", features = ["util"] }
 chrono = { workspace = true }

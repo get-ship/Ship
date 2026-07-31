@@ -1,0 +1,7 @@
+{
+  "name": "authority",
+  "path": "/authority",
+  "title": "Authority",
+  "layout": "default",
+  "auth": "public"
+}

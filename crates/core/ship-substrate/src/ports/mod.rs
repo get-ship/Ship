@@ -16,11 +16,11 @@ pub mod step_executor;
 pub use blobstore::{
     AccountId, BlobError, BlobHash, BlobScope, BlobStore, ByteStream, LocalFsBlobStore,
 };
-pub use fs_cap::{FsBroker, FsCap, FsError, FsMode, FsRoot, LocalFsBroker};
 pub use data_store::{
-    is_safe_ident, ColumnKind, ColumnSpec, CountQuery, DataStore, DataStoreError, FilterOp,
-    Predicate, PrimaryKey, Query, QueryResult, Row, Sort, TableSchema,
+    ColumnKind, ColumnSpec, CountQuery, DataStore, DataStoreError, FilterOp, Predicate, PrimaryKey,
+    Query, QueryResult, Row, Sort, TableSchema, is_safe_ident,
 };
+pub use fs_cap::{FsBroker, FsCap, FsError, FsMode, FsRoot, LocalFsBroker};
 pub use kernel_log::{Cursor, KernelLog};
 pub use single_backend::SingleBackendDataStore;
 pub use space_context::{SpaceContext, SpaceId};

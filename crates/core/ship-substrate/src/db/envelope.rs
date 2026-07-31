@@ -81,8 +81,7 @@ pub fn envelope_from_row(
     let created_at = created_at_str
         .parse::<DateTime<Utc>>()
         .or_else(|_| {
-            chrono::DateTime::parse_from_rfc3339(&created_at_str)
-                .map(|dt| dt.with_timezone(&Utc))
+            chrono::DateTime::parse_from_rfc3339(&created_at_str).map(|dt| dt.with_timezone(&Utc))
         })
         .map_err(|e| anyhow::anyhow!("invalid created_at '{}': {}", created_at_str, e))?;
 
@@ -123,5 +122,9 @@ pub fn envelope_from_row(
         author_account_id,
         author_device_id,
         signature,
+        // Reserved wire fields — not stored in the events table yet.
+        sig: None,
+        writer: None,
+        causality: None,
     })
 }

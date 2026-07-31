@@ -63,7 +63,10 @@ pub struct Caller {
 /// browser cookie, and the local peer-uid no longer confer operator. The SDK
 /// token is capped at `Authority::Sdk` and is NEVER operator (#207).
 pub fn caller_from_auth(auth: &AuthContext) -> Caller {
-    Caller { is_operator: auth.is_operator(), elevated_services: auth.grants.clone() }
+    Caller {
+        is_operator: auth.is_operator(),
+        elevated_services: auth.grants.clone(),
+    }
 }
 
 /// The decision. Pure — no I/O, no auth lookups. `service` is the op's domain
@@ -113,8 +116,14 @@ mod tests {
     #[test]
     fn unknown_blast_string_fails_closed_to_most_restrictive() {
         // Fail closed to the highest tier — a misdeclared op is operator-only.
-        assert_eq!(BlastRadius::from_descriptor("nonsense"), BlastRadius::C3Critical);
-        assert_eq!(BlastRadius::from_descriptor("C1_WORKSPACE"), BlastRadius::C1Space);
+        assert_eq!(
+            BlastRadius::from_descriptor("nonsense"),
+            BlastRadius::C3Critical
+        );
+        assert_eq!(
+            BlastRadius::from_descriptor("C1_WORKSPACE"),
+            BlastRadius::C1Space
+        );
         assert_eq!(BlastRadius::from_descriptor("C0_SAFE"), BlastRadius::C0Read);
         // Ordering: the gate's `blast <= ceiling` relies on this.
         assert!(BlastRadius::C0Read < BlastRadius::C1Space);
@@ -130,8 +139,14 @@ mod tests {
     #[test]
     fn operator_clears_every_tier() {
         let op = caller(true, &[]);
-        assert_eq!(decide(BlastRadius::C3Critical, "account", &op), Decision::Allow);
-        assert_eq!(decide(BlastRadius::C2Elevated, "pipelines", &op), Decision::Allow);
+        assert_eq!(
+            decide(BlastRadius::C3Critical, "account", &op),
+            Decision::Allow
+        );
+        assert_eq!(
+            decide(BlastRadius::C2Elevated, "pipelines", &op),
+            Decision::Allow
+        );
     }
 
     #[test]
@@ -139,12 +154,27 @@ mod tests {
         // The operational baseline: any agent reads + workspace-writes in any
         // service, out of the box, with no elevated services.
         let worker = caller(false, &[]);
-        assert_eq!(decide(BlastRadius::C0Read, "settings", &worker), Decision::Allow);
-        assert_eq!(decide(BlastRadius::C1Space, "git", &worker), Decision::Allow);
-        assert_eq!(decide(BlastRadius::C1Space, "pipelines", &worker), Decision::Allow);
+        assert_eq!(
+            decide(BlastRadius::C0Read, "settings", &worker),
+            Decision::Allow
+        );
+        assert_eq!(
+            decide(BlastRadius::C1Space, "git", &worker),
+            Decision::Allow
+        );
+        assert_eq!(
+            decide(BlastRadius::C1Space, "pipelines", &worker),
+            Decision::Allow
+        );
         // C2 needs elevation in that service; C3 is operator-only.
-        assert!(matches!(decide(BlastRadius::C2Elevated, "pipelines", &worker), Decision::Deny(_)));
-        assert!(matches!(decide(BlastRadius::C3Critical, "account", &worker), Decision::Deny(_)));
+        assert!(matches!(
+            decide(BlastRadius::C2Elevated, "pipelines", &worker),
+            Decision::Deny(_)
+        ));
+        assert!(matches!(
+            decide(BlastRadius::C3Critical, "account", &worker),
+            Decision::Deny(_)
+        ));
     }
 
     #[test]
@@ -171,10 +201,19 @@ mod tests {
         assert!(!caller.is_operator, "a space window is never the operator");
         // C2 in an elevated service (e.g. `agents`) is allowed — the space
         // operates at C2.
-        assert_eq!(decide(BlastRadius::C2Elevated, "agents", &caller), Decision::Allow);
+        assert_eq!(
+            decide(BlastRadius::C2Elevated, "agents", &caller),
+            Decision::Allow
+        );
         // C3 is denied no matter the service — the space can never touch it.
-        assert!(matches!(decide(BlastRadius::C3Critical, "account", &caller), Decision::Deny(_)));
-        assert!(matches!(decide(BlastRadius::C3Critical, "agents", &caller), Decision::Deny(_)));
+        assert!(matches!(
+            decide(BlastRadius::C3Critical, "account", &caller),
+            Decision::Deny(_)
+        ));
+        assert!(matches!(
+            decide(BlastRadius::C3Critical, "agents", &caller),
+            Decision::Deny(_)
+        ));
     }
 
     #[test]
@@ -195,7 +234,10 @@ mod tests {
             "the CLI transport must NOT confer operator at the gate (S6)"
         );
 
-        let cred = AuthContext { operator_cred: true, ..bare_cli };
+        let cred = AuthContext {
+            operator_cred: true,
+            ..bare_cli
+        };
         assert!(
             caller_from_auth(&cred).is_operator,
             "a verified operator cred clears the gate at every tier"
@@ -212,12 +254,24 @@ mod tests {
         // A commander elevated in `pipelines` can run that service's C2 ops
         // (dispatch) but not C2 elsewhere — per-service scoping.
         let commander = caller(false, &["pipelines"]);
-        assert_eq!(decide(BlastRadius::C2Elevated, "pipelines", &commander), Decision::Allow);
-        assert!(matches!(decide(BlastRadius::C2Elevated, "settings", &commander), Decision::Deny(_)));
+        assert_eq!(
+            decide(BlastRadius::C2Elevated, "pipelines", &commander),
+            Decision::Allow
+        );
+        assert!(matches!(
+            decide(BlastRadius::C2Elevated, "settings", &commander),
+            Decision::Deny(_)
+        ));
         // C1 everywhere still holds (baseline); C3 still operator-only even in
         // an elevated service.
-        assert_eq!(decide(BlastRadius::C1Space, "settings", &commander), Decision::Allow);
-        assert!(matches!(decide(BlastRadius::C3Critical, "pipelines", &commander), Decision::Deny(_)));
+        assert_eq!(
+            decide(BlastRadius::C1Space, "settings", &commander),
+            Decision::Allow
+        );
+        assert!(matches!(
+            decide(BlastRadius::C3Critical, "pipelines", &commander),
+            Decision::Deny(_)
+        ));
     }
 
     /// Where a command IS on a per-domain proto service, the proto-sourced
@@ -230,7 +284,9 @@ mod tests {
         use ship_ops_rpc::policy::policy_for;
         let mut checked = 0;
         for cmd in ship_ops_rpc::catalog::COMMANDS {
-            let Some(pol) = policy_for(cmd.name) else { continue };
+            let Some(pol) = policy_for(cmd.name) else {
+                continue;
+            };
             assert_eq!(
                 pol.blast,
                 BlastRadius::from_descriptor(cmd.blast_radius),
@@ -244,7 +300,10 @@ mod tests {
             );
             checked += 1;
         }
-        assert!(checked > 0, "expected at least some commands on proto services");
+        assert!(
+            checked > 0,
+            "expected at least some commands on proto services"
+        );
     }
 
     /// SECURITY (#314): every C2 command that DOES carry a proto policy resolves
@@ -295,7 +354,11 @@ mod tests {
         // declared blast tier — the gate's op-name lookup returns Some.
         let dispatch = policy_for("agents.dispatch")
             .expect("agents.dispatch must resolve via op_name(AgentsService, Dispatch)");
-        assert_eq!(dispatch.blast, BlastRadius::C2Elevated, "agents.dispatch is C2");
+        assert_eq!(
+            dispatch.blast,
+            BlastRadius::C2Elevated,
+            "agents.dispatch is C2"
+        );
         let steer = policy_for("agents.steer")
             .expect("agents.steer must resolve via op_name(AgentsService, Steer)");
         assert_eq!(steer.blast, BlastRadius::C2Elevated, "agents.steer is C2");

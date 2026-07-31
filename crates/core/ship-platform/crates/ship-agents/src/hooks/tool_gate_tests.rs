@@ -118,13 +118,19 @@ fn bash_tar_ship_data_denied() {
 
 #[test]
 fn bash_cp_ship_machine_denied() {
-    let d = check(&bash_payload("cp ~/.ship/machine/daemon/token /tmp/t"), &ctx());
+    let d = check(
+        &bash_payload("cp ~/.ship/machine/daemon/token /tmp/t"),
+        &ctx(),
+    );
     assert!(matches!(d, Decision::Deny(_)));
 }
 
 #[test]
 fn bash_redirect_to_ship_data_denied() {
-    let d = check(&bash_payload("echo corrupt > ~/.ship/data/events.db"), &ctx());
+    let d = check(
+        &bash_payload("echo corrupt > ~/.ship/data/events.db"),
+        &ctx(),
+    );
     assert!(matches!(d, Decision::Deny(_)));
 }
 
@@ -139,13 +145,19 @@ fn bash_base64_read_machine_denied() {
 
 #[test]
 fn bash_chmod_ship_machine_denied() {
-    let d = check(&bash_payload("chmod 0777 ~/.ship/machine/daemon/token"), &ctx());
+    let d = check(
+        &bash_payload("chmod 0777 ~/.ship/machine/daemon/token"),
+        &ctx(),
+    );
     assert!(matches!(d, Decision::Deny(_)));
 }
 
 #[test]
 fn bash_curl_localhost_daemon_denied() {
-    let d = check(&bash_payload("curl http://localhost:9876/api/v1/whoami"), &ctx());
+    let d = check(
+        &bash_payload("curl http://localhost:9876/api/v1/whoami"),
+        &ctx(),
+    );
     assert!(matches!(d, Decision::Deny(_)));
 }
 
@@ -169,7 +181,10 @@ fn bash_wget_external_url_allowed() {
 
 #[test]
 fn bash_sudo_prefix_does_not_hide_violation() {
-    let d = check(&bash_payload("sudo cp ~/.ship/data/events.db /tmp/x"), &ctx());
+    let d = check(
+        &bash_payload("sudo cp ~/.ship/data/events.db /tmp/x"),
+        &ctx(),
+    );
     assert!(matches!(d, Decision::Deny(_)));
 }
 

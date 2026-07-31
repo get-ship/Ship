@@ -97,14 +97,21 @@ mod tests {
         let tmp = tempdir().unwrap();
         let root = tmp.path().join("proj");
         fs::create_dir_all(&root).unwrap();
-        fs::write(root.join(crate::project::STACK_CONFIG_FILENAME), "export default {};\n").unwrap();
+        fs::write(
+            root.join(crate::project::STACK_CONFIG_FILENAME),
+            "export default {};\n",
+        )
+        .unwrap();
         fs::create_dir_all(root.join("src")).unwrap();
 
         let canonical = fs::canonicalize(&root).unwrap();
         seed_space_row("identity-id-abc", &canonical.to_string_lossy());
 
         let got = resolve_active_space(&root.join("src")).expect("opened → Some");
-        assert_eq!(got, "identity-id-abc", "id must come from the spaces projection");
+        assert_eq!(
+            got, "identity-id-abc",
+            "id must come from the spaces projection"
+        );
         assert!(
             !root.join("ship.jsonc").exists(),
             "resolution must never write identity into the tree"
@@ -119,7 +126,11 @@ mod tests {
         let tmp = tempdir().unwrap();
         let root = tmp.path().join("proj");
         fs::create_dir_all(&root).unwrap();
-        fs::write(root.join(crate::project::STACK_CONFIG_FILENAME), "export default {};\n").unwrap();
+        fs::write(
+            root.join(crate::project::STACK_CONFIG_FILENAME),
+            "export default {};\n",
+        )
+        .unwrap();
         let jsonc = r#"{"id": "tree-id-must-be-dead"}"#;
         fs::write(root.join("ship.jsonc"), jsonc).unwrap();
 
@@ -146,7 +157,11 @@ mod tests {
         let tmp = tempdir().unwrap();
         let root = tmp.path().join("proj");
         fs::create_dir_all(&root).unwrap();
-        fs::write(root.join(crate::project::STACK_CONFIG_FILENAME), "export default {};\n").unwrap();
+        fs::write(
+            root.join(crate::project::STACK_CONFIG_FILENAME),
+            "export default {};\n",
+        )
+        .unwrap();
         fs::create_dir_all(root.join("src")).unwrap();
 
         let canonical = fs::canonicalize(&root).unwrap();

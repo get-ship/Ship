@@ -17,8 +17,8 @@ release = []
 [dependencies]
 ship-substrate = { path = "../../../ship-substrate" }
 ship-types = { path = "../../../ship-substrate/crates/ship-types" }
-content-scan = { path = "../../../ship-substrate/crates/content-scan" }
 ship-collection = { path = "../ship-collection" }
+ship-ui = { path = "../ship-ui" }
 # `ship-gateway-client` is the typed Connect-RPC surface for the cloud
 # gateway; the install pipeline drives `RegistryService.{ResolveVersion,
 # FetchBundle}` through it (the bundle bytes download from the signed

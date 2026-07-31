@@ -5,39 +5,31 @@ use std::time::{Duration, Instant};
 
 use crate::db::envelope::{EVENT_COLS as COLS, envelope_from_row, insert_event_row};
 use crate::db::{block_on, open_db_at};
-use ship_types::envelope::EventEnvelope;
 use crate::events::EventFilter;
-use crate::projections::{ActorProjection, EventBus};
-use ship_kernel::EventSink;
+use crate::projections::{ActorProjection, EventBus, Projection, ProjectionFactory};
+use ship_kernel::EventPersist;
+use ship_types::envelope::EventEnvelope;
+use ship_types::Stamped;
 
 pub trait EventStore: Send + Sync {
-    fn append(&self, event: &EventEnvelope) -> Result<()>;
+    fn append(&self, event: &Stamped) -> Result<()>;
     fn get(&self, id: &str) -> Result<Option<EventEnvelope>>;
     fn query(&self, filter: &EventFilter) -> Result<Vec<EventEnvelope>>;
     fn query_aggregate(&self, entity_id: &str) -> Result<Vec<EventEnvelope>>;
 }
 
-/// Build the default projection bus (ActorProjection
-/// that the L0 substrate ships with no domain coupling). Every
-/// `SqliteEventStore` carries this bus, and `append` dispatches matching
-/// events to it in the same transaction as the row insert.
+/// Build the default projection bus: L0 `ActorProjection` plus any extra
+/// projections the composition root supplied. Every `SqliteEventStore`
+/// carries this bus, and `append` dispatches matching events to it in the
+/// same transaction as the row insert.
 ///
-/// CollectionItemProjection (formerly CollectionProjection) moved to
-/// ship-collection at L1 (keystone A, 2026-06-10). It is wired in via
-/// ship-platform's `install_extra_projections_factory` call so same-TX
-/// semantics are preserved.
-fn default_bus() -> Arc<EventBus> {
+/// L1 domain projections (collection, artifacts, auth, analytics, …) are
+/// never ambient — callers pass them via [`SqliteEventStore::with_extra_projections`]
+/// or the factory held by `PartitionedSink` / `KernelRouter`.
+fn default_bus(extra: impl IntoIterator<Item = Box<dyn Projection>>) -> Arc<EventBus> {
     let mut bus = EventBus::new();
     bus.register(Box::new(ActorProjection::new()));
-    // ArtifactProjection (artifact METADATA; blobs stay on the blob plane)
-    // moved to ship-artifacts (L1, keystone-A de-bucket 2026-06-10) — the
-    // daemon installs it via `install_extra_projections_factory`, same
-    // same-transaction bus as everything here.
-    // AnalyticsProjection lives in the `ship-analytics` crate. The
-    // daemon registers it at startup via
-    // `install_extra_projections_factory` (see apps/shipd/src/lib.rs);
-    // substrate stays free of downstream-consumer dependencies.
-    for projection in crate::projections::extra_projections() {
+    for projection in extra {
         bus.register(projection);
     }
     Arc::new(bus)
@@ -60,12 +52,35 @@ impl SqliteEventStore {
     /// `platform.db`. Per-scope production paths come from [`crate::db::runtime_db_path`]
     /// / [`crate::db::account_db_path`] / [`crate::db::space_db_path`]; use
     /// [`Self::new_for_scope`] to resolve one from a `ship_dir` + `EventScope`.
+    ///
+    /// Bus carries only the L0 `ActorProjection`. For domain projections use
+    /// [`Self::with_extra_projections`] or [`Self::with_projection_factory`].
     pub fn new_at_db_path(db_path: &Path) -> Result<Self> {
+        Self::with_extra_projections(db_path, std::iter::empty())
+    }
+
+    /// Construct a store at `db_path` with explicit extra projections on the bus.
+    ///
+    /// The L0 `ActorProjection` is always registered; `extra` is layered on top.
+    /// Prefer this (or [`Self::with_projection_factory`]) at composition roots
+    /// and in domain off-kernel openers that need their own projections.
+    pub fn with_extra_projections(
+        db_path: &Path,
+        extra: impl IntoIterator<Item = Box<dyn Projection>>,
+    ) -> Result<Self> {
         crate::db::ensure_events_db_at_path(db_path)?;
         Ok(Self {
             db_path: db_path.to_path_buf(),
-            bus: default_bus(),
+            bus: default_bus(extra),
         })
+    }
+
+    /// Construct a store at `db_path` using a [`ProjectionFactory`].
+    ///
+    /// Invokes the factory once for this store so each scope db gets its own
+    /// projection instances. Used by `PartitionedSink` on cache miss.
+    pub fn with_projection_factory(db_path: &Path, factory: &ProjectionFactory) -> Result<Self> {
+        Self::with_extra_projections(db_path, factory())
     }
 
     /// The concrete db file this store reads/writes. Used by `PartitionedSink`
@@ -99,15 +114,21 @@ impl SqliteEventStore {
         event: &EventEnvelope,
         binding: &ship_types::ScopeBinding,
     ) -> Result<EventEnvelope> {
-        let mut stamped = event.clone();
-        crate::events::apply_stamp_chokepoint(
-            &mut stamped,
+        let mut draft = event.clone();
+        // Infer ship-home from the store's db path so Space registry
+        // membership is checked off-kernel the same way kernel emit does.
+        // Exotic/test paths that don't match runtime/account/space layout
+        // skip the registry check (PartitionedSink still enforces on kernel route).
+        let ship_dir = ship_dir_from_db_path(&self.db_path);
+        let stamped = crate::events::apply_stamp_chokepoint_at(
+            &mut draft,
             binding,
             &crate::events::off_kernel_ctx(binding.clone()),
+            ship_dir.as_deref(),
         )
         .map_err(|e| anyhow::anyhow!("{e}"))?;
         self.append(&stamped)?;
-        Ok(stamped)
+        Ok(stamped.into_envelope())
     }
 
     /// Create an event store bound to a single scope's db (Phase 4d).
@@ -131,29 +152,38 @@ impl SqliteEventStore {
         scope: ship_types::event_registry::EventScope,
         scope_key: Option<&str>,
     ) -> Result<Self> {
+        Self::new_for_scope_with(ship_dir, scope, scope_key, std::iter::empty())
+    }
+
+    /// Like [`Self::new_for_scope`] but registers `extra` projections on the bus.
+    pub fn new_for_scope_with(
+        ship_dir: &Path,
+        scope: ship_types::event_registry::EventScope,
+        scope_key: Option<&str>,
+        extra: impl IntoIterator<Item = Box<dyn Projection>>,
+    ) -> Result<Self> {
         use ship_types::event_registry::EventScope;
         let db_path = match scope {
             EventScope::Runtime => crate::db::runtime_db_path(ship_dir),
             EventScope::Account => crate::db::account_db_path(ship_dir),
             EventScope::Space => {
                 let key = scope_key.ok_or_else(|| {
-                    anyhow::anyhow!(
-                        "new_for_scope: Space store requires a space_id scope_key"
-                    )
+                    anyhow::anyhow!("new_for_scope: Space store requires a space_id scope_key")
                 })?;
                 crate::db::space_db_path(ship_dir, key)
             }
         };
-        Self::new_at_db_path(&db_path)
+        Self::with_extra_projections(&db_path, extra)
     }
 
     /// Construct a store at `db_path` with an explicit projection bus.
     ///
-    /// Test-only seam: the production constructors always wire `default_bus()`,
-    /// which cannot be perturbed to make a handler fail. The transaction-
-    /// atomicity proof needs a store whose bus contains a deliberately-failing
-    /// projection so it can assert that `append` rolls the event row back when
-    /// dispatch errors. No production path constructs a store this way.
+    /// Test-only seam: the production constructors wire `default_bus` with
+    /// whatever extras the caller supplied, which cannot be perturbed to make
+    /// a handler fail. The transaction-atomicity proof needs a store whose
+    /// bus contains a deliberately-failing projection so it can assert that
+    /// `append` rolls the event row back when dispatch errors. No production
+    /// path constructs a store this way.
     #[cfg(test)]
     pub(crate) fn new_with_bus(db_path: &Path, bus: Arc<EventBus>) -> Result<Self> {
         crate::db::ensure_events_db_at_path(db_path)?;
@@ -167,12 +197,13 @@ impl SqliteEventStore {
     /// COMMIT). Never partially commits: a failure at any step rolls back,
     /// so re-invoking this on retry re-runs the whole transaction rather than
     /// resuming a partial one.
-    fn append_once(&self, event: &EventEnvelope) -> Result<()> {
+    fn append_once(&self, event: &Stamped) -> Result<()> {
+        let env = event.as_envelope();
         let mut conn = open_db_at(&self.db_path)?;
 
         block_on(async { sqlx::query("BEGIN IMMEDIATE").execute(&mut conn).await })?;
 
-        if let Err(e) = insert_event_row(event, &mut conn) {
+        if let Err(e) = insert_event_row(env, &mut conn) {
             // Census §2: a ROLLBACK failure here is NOT the same as the
             // original event-insert failure, but it deserves an error-level
             // breadcrumb — the kernel has now been told the transaction is
@@ -193,7 +224,7 @@ impl SqliteEventStore {
             return Err(e);
         }
 
-        if let Err(e) = self.bus.dispatch(event, &mut conn) {
+        if let Err(e) = self.bus.dispatch(env, &mut conn) {
             if let Err(rollback_err) =
                 block_on(async { sqlx::query("ROLLBACK").execute(&mut conn).await })
             {
@@ -264,10 +295,28 @@ fn query_one_db(path: &Path, filter: &EventFilter) -> Result<Vec<EventEnvelope>>
     crate::persistence::build_event_query(path, filter)
 }
 
+/// Recover ship-home from a per-scope db path so off-kernel
+/// `append_enforced` can run the strict space-registry check.
+///
+/// - `…/runtime.db` / `…/account.db` → parent dir
+/// - `…/spaces/<id>/space.db` → grandparent of parent (ship-home)
+fn ship_dir_from_db_path(db_path: &Path) -> Option<std::path::PathBuf> {
+    let name = db_path.file_name()?.to_str()?;
+    match name {
+        "runtime.db" | "account.db" => db_path.parent().map(|p| p.to_path_buf()),
+        "space.db" => db_path
+            .parent() // spaces/<id>
+            .and_then(|p| p.parent()) // spaces
+            .and_then(|p| p.parent()) // ship-home
+            .map(|p| p.to_path_buf()),
+        _ => None,
+    }
+}
+
 impl EventStore for SqliteEventStore {
-    /// Persist an event row and apply registered projections in a single
+    /// Persist a stamped event row and apply registered projections in a single
     /// transaction. This is the canonical event write path; `kernel.emit`
-    /// reaches it via `EventSink::persist`.
+    /// reaches it via `EventPersist::persist`.
     ///
     /// Atomicity: the event row and any matching projection writes commit
     /// together, or roll back together. A projection-dispatch error fails the
@@ -276,7 +325,7 @@ impl EventStore for SqliteEventStore {
     /// derived state was skipped. The error is returned to the caller (the
     /// kernel emit path then rejects, and never delivers to mailboxes). See
     /// `EventBus::dispatch` for the first-error-wins handler semantics.
-    fn append(&self, event: &EventEnvelope) -> Result<()> {
+    fn append(&self, event: &Stamped) -> Result<()> {
         let start = Instant::now();
         let mut attempt = 0u32;
         loop {
@@ -325,16 +374,15 @@ impl EventStore for SqliteEventStore {
             ..Default::default()
         })
     }
-
 }
 
-impl EventSink for SqliteEventStore {
-    /// Persist an event to the SQLite events table.
+impl EventPersist for SqliteEventStore {
+    /// Persist a stamped event to the SQLite events table.
     ///
     /// Delegates to the same append path used by `EventStore::append`, but
-    /// satisfies the `ship_kernel::EventSink` trait so `ship_kernel::KernelRouter`
+    /// satisfies the `ship_kernel::EventPersist` trait so `ship_kernel::KernelRouter`
     /// can use `SqliteEventStore` as its persistence back-end.
-    fn persist(&self, event: &EventEnvelope) -> anyhow::Result<()> {
+    fn persist(&self, event: &Stamped) -> anyhow::Result<()> {
         self.append(event)
     }
 }
@@ -342,31 +390,40 @@ impl EventSink for SqliteEventStore {
 #[cfg(test)]
 mod event_sink_tests {
     use super::*;
-    use ship_kernel::EventSink;
+    use ship_kernel::EventPersist;
     use tempfile::tempdir;
+
+    fn stamped(event_type: &str, entity: &str) -> Stamped {
+        Stamped::unchecked(
+            EventEnvelope::new(event_type, entity, &serde_json::json!({})).unwrap(),
+        )
+    }
 
     #[test]
     fn sqlite_event_store_persist_writes_to_events_table() {
         let tmp = tempdir().unwrap();
         let store =
             SqliteEventStore::new_at_db_path(&crate::db::runtime_db_path(tmp.path())).unwrap();
-        let event = EventEnvelope::new("test.sink", "entity-1", &serde_json::json!({})).unwrap();
+        let event = stamped("test.sink", "entity-1");
+        let id = event.id.clone();
 
         store.persist(&event).unwrap();
 
-        let retrieved = store.get(&event.id).unwrap().expect("event must be in DB after persist");
-        assert_eq!(retrieved.id, event.id);
+        let retrieved = store
+            .get(&id)
+            .unwrap()
+            .expect("event must be in DB after persist");
+        assert_eq!(retrieved.id, id);
         assert_eq!(retrieved.event_type, "test.sink");
     }
 
     #[test]
-    fn sqlite_event_store_implements_event_sink_trait() {
+    fn sqlite_event_store_implements_event_persist_trait() {
         let tmp = tempdir().unwrap();
         let store =
             SqliteEventStore::new_at_db_path(&crate::db::runtime_db_path(tmp.path())).unwrap();
-        // Verify the type can be used as Arc<dyn EventSink>
-        let sink: std::sync::Arc<dyn EventSink> = std::sync::Arc::new(store);
-        let event = EventEnvelope::new("test.trait", "entity-2", &serde_json::json!({})).unwrap();
+        let sink: std::sync::Arc<dyn EventPersist> = std::sync::Arc::new(store);
+        let event = stamped("test.trait", "entity-2");
         sink.persist(&event).unwrap();
     }
 
@@ -396,4 +453,3 @@ mod event_sink_tests {
         );
     }
 }
-

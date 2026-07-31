@@ -228,7 +228,7 @@ mod tests {
     /// ship-substrate when the registration moved (keystone-A Phase A),
     /// and re-pinned in job/transient-events when the kernel started
     /// honoring `Retention` (Durable = persist + deliver, Ephemeral =
-    /// deliver only). The `ship-config` watcher now emits a transient
+    /// deliver only). The `ship-settings` watcher now emits a transient
     /// `config.file_changed` for every config file; the agent-def
     /// domain consumer maps the `agents` subset into a durable
     /// `agent.def.updated` (the read model the read-only agent-def

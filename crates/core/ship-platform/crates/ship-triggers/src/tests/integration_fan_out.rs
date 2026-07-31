@@ -79,7 +79,7 @@ async fn triggers_fan_out_two_triggers_same_event_both_fire() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn triggers_fan_out_three_triggers_same_event_all_fire() {
     let (_tmp, ship_dir) = tmp_ship_dir();
-    let defs: Vec<stack_model::TriggerDef> = ["hook-1", "hook-2", "hook-3"]
+    let defs: Vec<crate::TriggerDef> = ["hook-1", "hook-2", "hook-3"]
         .iter()
         .map(|name| {
             trigger_def(&format!(

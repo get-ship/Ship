@@ -1,0 +1,45 @@
+// apps/spaces/deck.jsonc — the space scaffold defines the space scaffold.
+//
+// Per-app serve config (the `AppServeConfig` shape deck consumes). Loaded by
+// shipd via the app-registration port; deck-config owns the schema + parser.
+//
+// Post deck-jsonc-simplify cutover, the file only carries the
+// non-conventional bits. `name`/`route`/`source`/`render` moved to
+// host-owned binds (apps.jsonc + convention):
+//
+//   - name   → derived from the directory basename (`apps/spaces` ⇒ `spaces`)
+//   - route  → declared in apps.jsonc (`apps/shipd/apps.jsonc`) —
+//              `route: "/space/{id}"` lives there, not here. The app does
+//              not decide where it mounts.
+//   - source → always `<root>/.deck` (the bundler's out_dir)
+//   - render → defaults to csr
+//
+// What the file CAN carry (the only non-conventional pieces):
+//
+//   injectGlobals? { string: string }  window.<k>=<v>; `$<param>` tokens
+//                                     substituted from the route's URL
+//                                     path captures declared in
+//                                     apps.jsonc. For the space
+//                                     scaffold's `route: "/space/{id}"`,
+//                                     `DECK_APP_ID: $id` resolves to
+//                                     `window.DECK_APP_ID="<id>";` in
+//                                     the served index.html.
+//
+//   entry? { clientsModule, exposeNames }   host-owned entry bootstrap the
+//                                     bundler emits as `entry.gen.ts`: it
+//                                     imports the data tables from
+//                                     `routes.gen`, builds the named
+//                                     `clients` map off `clientsModule`'s
+//                                     exports, and calls `mountRouter`. Without
+//                                     it the entry falls back to
+//                                     `routes.gen.ts` (routes registered, but
+//                                     nothing mounts). `exposeNames` become the
+//                                     keys exposed to every view's
+//                                     `ctx.<name>`.
+{
+  "injectGlobals": { "DECK_APP_ID": "$id" },
+  "entry": {
+    "clientsModule": "./src/lib/client.ts",
+    "exposeNames": ["ship", "ops"]
+  }
+}

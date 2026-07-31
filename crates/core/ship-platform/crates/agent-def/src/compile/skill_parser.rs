@@ -12,7 +12,7 @@
 //! Post Wave 5 + dot-ship close-out: there is no on-disk skill walk in
 //! this crate. Skills arrive via `defineSkill` declare-forms in
 //! `stack.config.ts` and land in `ExtensionLibrary::skills` through
-//! `ship_resolver::merge_ts_declarations` (one layer up). The
+//! `space_resolver::merge_ts_declarations` (one layer up). The
 //! `space.skill_paths` ship.jsonc field died with the cutover; the
 //! option moved to `defineConfig({ skills: { paths } })` in each
 //! extension's `stack.config.ts` (per-extension-project manifest; the
@@ -29,8 +29,8 @@
 //! overrides (the SkillService call path is out of scope for this
 //! slice — see the spec's SPEC CHANGE rule 4 for the deferral note).
 
-use anyhow::Result;
 use agent_schema::Skill;
+use anyhow::Result;
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -69,7 +69,7 @@ fn collect_embedded_files_unused() {}
 // project-side skills arrive via `defineSkill` declare-forms in the
 // space's `stack.config.ts` and land in
 // `ExtensionLibrary::skills` through
-// `ship_resolver::merge_ts_declarations`. The embedded SDK
+// `space_resolver::merge_ts_declarations`. The embedded SDK
 // capability-skills path stays (the future ship-sdk-skills dep wires
 // it back in — see the `embedded_capability_skills` doc comment above
 // for the deferred `include_dir!` / `ship-sdk-skills` migration).
@@ -86,12 +86,12 @@ pub use stack_model::skill_parser::parse_skill;
 // with Wave 5. The skill bodies now arrive via `defineSkill`
 // declare-forms in the space's `stack.config.ts` and land in
 // `ExtensionLibrary::skills` through
-// `ship_resolver::merge_ts_declarations`. The `SkillService` CRUD
+// `space_resolver::merge_ts_declarations`. The `SkillService` CRUD
 // surface in `ship-agents` still writes `SKILL.md` files (the
 // authoring path the Studio/db-scope gate owns; Phase-6's question) —
 // the read side that compiled those files into the agent-def pipeline
 // is gone. The `SkillService::list_*_skills` callers (read-side
-// listing UI) read their own `ship_config::skill` storage, not this
+// listing UI) read their own `ship_settings::skill` storage, not this
 // fn.
 
 // ── Vars loading ─────────────────────────────────────────────────────────────

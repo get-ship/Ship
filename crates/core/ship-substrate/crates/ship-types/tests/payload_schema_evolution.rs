@@ -119,8 +119,14 @@ fn agent_def_updated_carries_no_content() {
     assert_eq!(obj.len(), 2, "Format-2 notification has exactly two fields");
     assert!(obj.contains_key("path"));
     assert!(obj.contains_key("content_hash"));
-    assert!(!obj.contains_key("content"), "notification must NOT carry file content");
-    assert!(!obj.contains_key("body"), "notification must NOT carry file content");
+    assert!(
+        !obj.contains_key("content"),
+        "notification must NOT carry file content"
+    );
+    assert!(
+        !obj.contains_key("body"),
+        "notification must NOT carry file content"
+    );
 }
 
 #[test]
@@ -182,7 +188,6 @@ fn rule_deleted_v1_round_trips() {
     let p: RuleDeleted = parse(r#"{"file_name": "0001-rust.md"}"#, "RuleDeleted");
     assert_eq!(p.file_name, "0001-rust.md");
 }
-
 
 #[test]
 fn permissions_updated_v1_round_trips() {

@@ -38,13 +38,8 @@ pub fn compute_tree_hash(root: &Path) -> anyhow::Result<String> {
         if !dir.is_dir() {
             continue;
         }
-        for entry in walkdir::WalkDir::new(&dir)
-            .sort_by_file_name()
-            .into_iter()
-        {
-            let entry = entry.with_context(|| {
-                format!("walking package tree {}", dir.display())
-            })?;
+        for entry in walkdir::WalkDir::new(&dir).sort_by_file_name().into_iter() {
+            let entry = entry.with_context(|| format!("walking package tree {}", dir.display()))?;
             if !entry.file_type().is_file() {
                 continue;
             }
@@ -85,7 +80,10 @@ pub fn compute_tree_hash(root: &Path) -> anyhow::Result<String> {
         accumulator.push_str(file_hash);
     }
 
-    Ok(format!("sha256:{}", hex::encode_sha256(accumulator.as_bytes())))
+    Ok(format!(
+        "sha256:{}",
+        hex::encode_sha256(accumulator.as_bytes())
+    ))
 }
 
 /// Compute SHA-256 hash of a single file.

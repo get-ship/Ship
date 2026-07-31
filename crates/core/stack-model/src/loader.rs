@@ -1,7 +1,7 @@
 //! `.ship/` → [`ExtensionLibrary`] loader. Leaf, substrate-free.
 //!
 //! This is the LEAF loader — the same surface `agent-def::compile::loader`
-//! served, minus every dep on `ship-substrate` / `ship-config` / `ship-store`.
+//! served, minus every dep on `ship-substrate` / `ship-settings` / `ship-store`.
 //! helmd depends on the compiler crate over this exact contract, so the leaf
 //! must NOT pull substrate back in (the leaf-clean invariant `cargo tree`
 //! proves; see `apps/helmd/Cargo.toml`).
@@ -19,7 +19,7 @@
 //! mcp / rules / skills / agents used to be read from this leaf. They now
 //! arrive via `defineMcpServer` / `defineRule` / `defineSkill` / `defineAgent`
 //! declare-forms in the space's `stack.config.ts`, harvested by the
-//! Phase-2 resolver (`ship_resolver::merge_ts_declarations`). The leaf returns
+//! Phase-2 resolver (`space_resolver::merge_ts_declarations`). The leaf returns
 //! them empty so the TS-resolver merge is the single source of truth — see
 //! `census-format-migration.md` Section 4 row 3 + Wave 5.
 //!
@@ -41,7 +41,7 @@ use crate::resolve::ExtensionLibrary;
 // rule definitions arrive via `defineMcpServer` / `defineRule`
 // declare-forms in the space's `stack.config.ts` and land in
 // `ExtensionLibrary::mcp_servers` / `ExtensionLibrary::rules` through
-// `ship_resolver::merge_ts_declarations` — see
+// `space_resolver::merge_ts_declarations` — see
 // `census-format-migration.md` Section 4 row 3.)
 //
 // (`.ship/agents/*.jsonc` and `.ship/skills/<id>/SKILL.md` are no
@@ -60,7 +60,7 @@ use crate::resolve::ExtensionLibrary;
 // via `defineConfig({ agents: { permissions: { presets: { ... } } } })`
 // in `stack.config.ts` and land in
 // `ExtensionLibrary::permissions_presets` through
-// `ship_resolver::merge_ts_declarations`. The leaf's `load_hooks` +
+// `space_resolver::merge_ts_declarations`. The leaf's `load_hooks` +
 // `load_permissions` (presence-only stub) die with this slice — see
 // `killmap-dot-ship-closeout.md` rows A3 + A4.)
 
@@ -73,7 +73,7 @@ use crate::resolve::ExtensionLibrary;
 /// permissions, permissions_presets) arrives via the space's
 /// `stack.config.ts` declare-forms (`defineMcpServer`, `defineRule`,
 /// `defineSkill`, `defineAgent`, `defineConfig({ agents: { mcp, permissions } })`)
-/// and lands through `ship_resolver::merge_ts_declarations`. The leaf
+/// and lands through `space_resolver::merge_ts_declarations`. The leaf
 /// returns the disk-side bulk empty (only `skill_paths` keeps its
 /// post-W5 single default entry — the metadata the resolver's
 /// `walk_skills_dir` reads when no `defineConfig.skills_dir` override
@@ -90,7 +90,7 @@ pub fn load_library(ship_dir: &Path) -> Result<ExtensionLibrary> {
     // (TS declare-form harvest + hooks-dir walk). `ship_dir` stays in
     // the signature so the leaf's contract ("load from this .ship/")
     // is preserved at the call site; callers that need the disk
-    // surface for these nouns must go through `ship_resolver`.
+    // surface for these nouns must go through `space_resolver`.
     let _ = ship_dir;
     Ok(ExtensionLibrary {
         mcp_servers: Vec::new(),
@@ -106,7 +106,7 @@ pub fn load_library(ship_dir: &Path) -> Result<ExtensionLibrary> {
 // migration Wave 4 phase A, rule definitions arrive via `defineRule`
 // declare-forms in the space's `stack.config.ts` and land in
 // `ExtensionLibrary::rules` through
-// `ship_resolver::merge_ts_declarations` — see
+// `space_resolver::merge_ts_declarations` — see
 // `census-format-migration.md` Section 4 row 3. The compile path
 // consumes the resulting `Vec<Rule>` from `library` without ever
 // touching the source files, so the leaf's rules walk dies with the
@@ -128,7 +128,7 @@ pub const DEFAULT_SPACE_SKILL_PATH: &str = "skills/";
 // skill + agent definitions arrive via `defineSkill` / `defineAgent`
 // declare-forms in the space's `stack.config.ts` and land in
 // `ExtensionLibrary::skills` / `ExtensionLibrary::agent_profiles`
-// through `ship_resolver::merge_ts_declarations` — see
+// through `space_resolver::merge_ts_declarations` — see
 // `census-format-migration.md` Section 4 row 3 (last paragraph).
 // The leaf's `load_skills` + `load_agent_profiles` walks die with
 // this wave; the leaf has no disk-authoring fallback for these

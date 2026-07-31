@@ -6,7 +6,7 @@ use tokio::sync::Mutex;
 
 use super::session::{
     drop_session, generate_session_token, is_session_token, mint_session, operator_session,
-    session_registry, set_session_registry, space_window_session, DaemonSession, SessionRegistry,
+    space_window_session, DaemonSession, SessionRegistry,
 };
 
 fn session_bound_to(pid: Option<u32>) -> DaemonSession {
@@ -103,20 +103,6 @@ async fn mint_session_registers_bound_token() {
     assert_eq!(session.grants, vec!["agents".to_string()]);
     assert!(session.ephemeral);
     assert!(session.expires_at_unix.is_some());
-}
-
-#[tokio::test]
-async fn global_registry_set_then_mint_visible() {
-    // Order-independent across the test binary: whoever wins the
-    // OnceLock::set, `session_registry()` returns *a* registry; minting
-    // into that handle and reading it back must hold.
-    let reg: SessionRegistry = Arc::new(Mutex::new(std::collections::HashMap::new()));
-    set_session_registry(reg.clone());
-    let installed = session_registry().expect("a registry is installed");
-    let token = mint_session(&installed, "a".into(), vec![], None)
-        .await
-        .unwrap();
-    assert!(installed.lock().await.contains_key(&token));
 }
 
 #[tokio::test]

@@ -38,7 +38,8 @@ pub(super) async fn spa_nav_middleware(
             if let Some(primary) = apps.iter().find(|a| a.route == "/") {
                 return read_index_html(
                     primary,
-                    mode.map(|m| m.0).unwrap_or(deck_core::DaemonMode::Development),
+                    mode.map(|m| m.0)
+                        .unwrap_or(deck_core::DaemonMode::Development),
                 );
             }
         }
@@ -50,10 +51,7 @@ pub(super) async fn spa_nav_middleware(
 /// Used by the SPA-nav middleware to hydrate a deep-link without going
 /// through the first-run check; same file `serve_index` would return
 /// once provisioned.
-fn read_index_html(
-    app: &AppServeConfig,
-    mode: deck_core::DaemonMode,
-) -> Response {
+fn read_index_html(app: &AppServeConfig, mode: deck_core::DaemonMode) -> Response {
     // The per-app source is a repo-relative path (e.g. `apps/hub/.deck`).
     // We read from the project root; deck-core's `read_source_asset`
     // already does this. For test isolation the middleware keeps the
@@ -67,9 +65,8 @@ fn read_index_html(
     // there. For now `current_dir` matches the dev loop's contract;
     // a future refactor will pass the workspace PathBuf as a
     // top-level Extension (like the apps + DataPort pattern).
-    let Ok(body) = std::fs::read_to_string(
-        std::env::current_dir().unwrap_or_default().join(&path),
-    ) else {
+    let Ok(body) = std::fs::read_to_string(std::env::current_dir().unwrap_or_default().join(&path))
+    else {
         return (
             axum::http::StatusCode::NOT_FOUND,
             format!("primary app `{}` index not found at {path}", app.name),

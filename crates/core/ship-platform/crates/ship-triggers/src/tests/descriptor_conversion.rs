@@ -5,7 +5,7 @@
 /// concerns are gone (format-migration Wave 4 phase A), but the validation
 /// it ran at load time — unknown-event rejection, cron expression parsing,
 /// template_file existence, source triggers bypassing the event registry —
-/// still applies to `stack_model::TriggerDef` → `HookDef` conversion and is
+/// still applies to `crate::TriggerDef` → `HookDef` conversion and is
 /// covered here directly.
 use crate::def::{HookActionType, HookDef};
 

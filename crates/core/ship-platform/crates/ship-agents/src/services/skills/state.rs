@@ -8,8 +8,8 @@
 //! `?scope=user` forces the user root. Vars are delegated to the runtime
 //! `skill_vars` module (KV-backed).
 
-use ship_files::files::{FilesService, Scope};
 use serde::Serialize;
+use ship_files::files::{FilesService, Scope};
 use std::path::{Path, PathBuf};
 
 use crate::services::errors::{ServiceEntity, ServiceError};
@@ -46,7 +46,10 @@ pub enum ScopeTag {
 
 impl From<Scope> for ScopeTag {
     fn from(s: Scope) -> Self {
-        match s { Scope::Project => Self::Project, Scope::User => Self::User }
+        match s {
+            Scope::Project => Self::Project,
+            Scope::User => Self::User,
+        }
     }
 }
 
@@ -75,8 +78,13 @@ pub struct SkillDetail {
 
 /// Validate against the schema regex: `^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$`.
 pub fn validate_id(id: &str) -> Result<(), Error> {
-    if id.is_empty() { return Err(Error::BadId(id.to_string())); }
-    if !id.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-') {
+    if id.is_empty() {
+        return Err(Error::BadId(id.to_string()));
+    }
+    if !id
+        .chars()
+        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+    {
         return Err(Error::BadId(id.to_string()));
     }
     let first = id.chars().next().unwrap();
@@ -90,7 +98,9 @@ pub fn validate_id(id: &str) -> Result<(), Error> {
 /// Reject absolute paths, leading slashes, and `..` segments. `FilesService`
 /// re-checks too, but we want nicer errors before we reach it.
 fn validate_file_path(p: &str) -> Result<(), Error> {
-    if p.is_empty() || p.starts_with('/') { return Err(Error::BadPath(p.into())); }
+    if p.is_empty() || p.starts_with('/') {
+        return Err(Error::BadPath(p.into()));
+    }
     for seg in p.split('/') {
         if seg.is_empty() || seg == ".." || seg == "." {
             return Err(Error::BadPath(p.into()));
@@ -99,8 +109,12 @@ fn validate_file_path(p: &str) -> Result<(), Error> {
     Ok(())
 }
 
-fn skill_dir_rel(id: &str) -> PathBuf { PathBuf::from(format!("skills/{id}")) }
-fn skill_md_rel(id: &str) -> PathBuf { PathBuf::from(format!("skills/{id}/SKILL.md")) }
+fn skill_dir_rel(id: &str) -> PathBuf {
+    PathBuf::from(format!("skills/{id}"))
+}
+fn skill_md_rel(id: &str) -> PathBuf {
+    PathBuf::from(format!("skills/{id}/SKILL.md"))
+}
 fn skill_file_rel(id: &str, path: &str) -> PathBuf {
     PathBuf::from(format!("skills/{id}/{path}"))
 }
@@ -108,14 +122,12 @@ fn skill_file_rel(id: &str, path: &str) -> PathBuf {
 // ── Scope resolution ──────────────────────────────────────────────────
 
 pub fn find(files: &FilesService, id: &str) -> Option<Scope> {
-    [Scope::Project, Scope::User].into_iter().find(|&scope| files.exists(scope, &skill_md_rel(id)))
+    [Scope::Project, Scope::User]
+        .into_iter()
+        .find(|&scope| files.exists(scope, &skill_md_rel(id)))
 }
 
-fn resolve_scope(
-    files: &FilesService,
-    id: &str,
-    explicit: Option<Scope>,
-) -> Result<Scope, Error> {
+fn resolve_scope(files: &FilesService, id: &str, explicit: Option<Scope>) -> Result<Scope, Error> {
     match explicit {
         Some(s) => {
             if !files.exists(s, &skill_md_rel(id)) {
@@ -148,7 +160,9 @@ pub fn parse_skill_md(raw: &str) -> (serde_json::Value, String) {
     let body = after.trim_start_matches('\n').to_string();
     for line in fm.lines() {
         let line = line.trim();
-        if line.is_empty() || line.starts_with('#') { continue; }
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
         if let Some((k, v)) = line.split_once(':') {
             let key = k.trim().to_string();
             let val = v.trim();
@@ -187,7 +201,11 @@ pub fn serialize_frontmatter(fm: &serde_json::Value) -> String {
                 serde_json::Value::Array(items) => {
                     let parts: Vec<String> = items
                         .iter()
-                        .map(|x| x.as_str().map(String::from).unwrap_or_else(|| x.to_string()))
+                        .map(|x| {
+                            x.as_str()
+                                .map(String::from)
+                                .unwrap_or_else(|| x.to_string())
+                        })
                         .collect();
                     out.push_str(&format!("{k}: [{}]\n", parts.join(", ")));
                 }
@@ -207,13 +225,23 @@ pub fn list(files: &FilesService) -> Vec<IndexEntry> {
     let mut out: Vec<IndexEntry> = Vec::new();
     let mut seen = std::collections::HashSet::<String>::new();
     for scope in [Scope::Project, Scope::User] {
-        let Ok(entries) = files.list_dir(scope, Path::new("skills")) else { continue };
+        let Ok(entries) = files.list_dir(scope, Path::new("skills")) else {
+            continue;
+        };
         for p in entries {
-            if !p.is_dir() { continue; }
-            let Some(id) = p.file_name().and_then(|s| s.to_str()) else { continue };
+            if !p.is_dir() {
+                continue;
+            }
+            let Some(id) = p.file_name().and_then(|s| s.to_str()) else {
+                continue;
+            };
             let skill_md = p.join("SKILL.md");
-            if !skill_md.is_file() { continue; }
-            if !seen.insert(id.to_string()) { continue; }
+            if !skill_md.is_file() {
+                continue;
+            }
+            if !seen.insert(id.to_string()) {
+                continue;
+            }
             let raw = std::fs::read_to_string(&skill_md).unwrap_or_default();
             let (fm, _) = parse_skill_md(&raw);
             let name = fm
@@ -238,11 +266,7 @@ pub fn list(files: &FilesService) -> Vec<IndexEntry> {
     out
 }
 
-pub fn load(
-    files: &FilesService,
-    id: &str,
-    explicit: Option<Scope>,
-) -> Result<SkillDetail, Error> {
+pub fn load(files: &FilesService, id: &str, explicit: Option<Scope>) -> Result<SkillDetail, Error> {
     validate_id(id)?;
     let scope = resolve_scope(files, id, explicit)?;
     let raw = files.read_string(scope, &skill_md_rel(id))?;
@@ -260,13 +284,17 @@ pub fn load(
 
 fn walk_rel(root: &Path, dir: &Path) -> Vec<String> {
     let mut out = Vec::new();
-    let Ok(entries) = std::fs::read_dir(dir) else { return out };
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return out;
+    };
     let mut sorted: Vec<_> = entries.flatten().collect();
     sorted.sort_by_key(|e| e.file_name());
     for e in sorted {
         let p = e.path();
         let name = e.file_name().to_string_lossy().to_string();
-        if name.starts_with('.') { continue; }
+        if name.starts_with('.') {
+            continue;
+        }
         if p.is_dir() {
             out.extend(walk_rel(root, &p));
         } else if let Ok(rel) = p.strip_prefix(root) {
@@ -363,11 +391,7 @@ pub fn create(
     Ok(())
 }
 
-pub fn delete(
-    files: &FilesService,
-    id: &str,
-    explicit: Option<Scope>,
-) -> Result<Scope, Error> {
+pub fn delete(files: &FilesService, id: &str, explicit: Option<Scope>) -> Result<Scope, Error> {
     validate_id(id)?;
     let scope = resolve_scope(files, id, explicit)?;
     files.trash(scope, &skill_dir_rel(id))?;
@@ -382,7 +406,9 @@ pub fn rename(
 ) -> Result<Scope, Error> {
     validate_id(id)?;
     validate_id(new_id)?;
-    if id == new_id { return Ok(explicit.unwrap_or(Scope::Project)); }
+    if id == new_id {
+        return Ok(explicit.unwrap_or(Scope::Project));
+    }
     let scope = resolve_scope(files, id, explicit)?;
     if files.exists(scope, &skill_md_rel(new_id)) {
         return Err(Error::AlreadyExists(new_id.into()));
@@ -412,14 +438,11 @@ pub fn duplicate(
     Ok(scope)
 }
 
-pub fn move_scope(
-    files: &FilesService,
-    id: &str,
-    from: Scope,
-    to: Scope,
-) -> Result<(), Error> {
+pub fn move_scope(files: &FilesService, id: &str, from: Scope, to: Scope) -> Result<(), Error> {
     validate_id(id)?;
-    if from == to { return Ok(()); }
+    if from == to {
+        return Ok(());
+    }
     if !files.exists(from, &skill_md_rel(id)) {
         return Err(Error::NotFound(id.into()));
     }

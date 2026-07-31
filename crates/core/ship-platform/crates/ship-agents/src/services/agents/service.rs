@@ -8,8 +8,8 @@ use std::sync::Arc;
 
 use serde::Serialize;
 
-use ship_files::files::{FilesService, Scope};
 use super::state;
+use ship_files::files::{FilesService, Scope};
 
 /// Body shape returned by `AgentsService::get`.
 #[derive(Debug, Clone, Serialize)]
@@ -58,19 +58,9 @@ pub trait AgentsService: Send + Sync + 'static {
     ) -> Result<Scope, state::Error>;
     fn delete(&self, id: &str, scope: Option<Scope>) -> Result<Scope, state::Error>;
     fn create(&self, args: CreateArgs) -> Result<Scope, state::Error>;
-    fn rename(
-        &self,
-        id: &str,
-        new_id: &str,
-        scope: Option<Scope>,
-    ) -> Result<Scope, state::Error>;
+    fn rename(&self, id: &str, new_id: &str, scope: Option<Scope>) -> Result<Scope, state::Error>;
     fn duplicate(&self, args: DuplicateArgs) -> Result<Scope, state::Error>;
-    fn move_scope(
-        &self,
-        id: &str,
-        from: Scope,
-        to: Scope,
-    ) -> Result<(), state::Error>;
+    fn move_scope(&self, id: &str, from: Scope, to: Scope) -> Result<(), state::Error>;
 }
 
 pub struct AgentsServiceImpl {
@@ -206,12 +196,7 @@ impl AgentsService for AgentsServiceImpl {
         Ok(target)
     }
 
-    fn rename(
-        &self,
-        id: &str,
-        new_id: &str,
-        scope: Option<Scope>,
-    ) -> Result<Scope, state::Error> {
+    fn rename(&self, id: &str, new_id: &str, scope: Option<Scope>) -> Result<Scope, state::Error> {
         state::rename(&self.files(), id, new_id, scope)
     }
 
@@ -221,20 +206,14 @@ impl AgentsService for AgentsServiceImpl {
         // roll-up does not reflect writes, so cloning a TS-declared agent
         // the operator just mutated would fail. Reads that serve writes
         // ride `load_doc_jsonc`, not the composed `state::load_doc`.
-        let (from_scope, doc) =
-            state::load_doc_jsonc(&svc, &args.source_id, args.source_scope)?;
+        let (from_scope, doc) = state::load_doc_jsonc(&svc, &args.source_id, args.source_scope)?;
         let to = args.to_scope.unwrap_or(from_scope);
         let doc = force_agent_id(doc, &args.new_id);
         state::write_doc(&svc, &args.new_id, to, &doc, false)?;
         Ok(to)
     }
 
-    fn move_scope(
-        &self,
-        id: &str,
-        from: Scope,
-        to: Scope,
-    ) -> Result<(), state::Error> {
+    fn move_scope(&self, id: &str, from: Scope, to: Scope) -> Result<(), state::Error> {
         state::move_scope(&self.files(), id, from, to)
     }
 }
@@ -316,7 +295,11 @@ defineAgent({
 
         // List returns the TS-declared agent.
         let items = svc.list();
-        assert_eq!(items.len(), 1, "expected one composed agent, got: {items:#?}");
+        assert_eq!(
+            items.len(),
+            1,
+            "expected one composed agent, got: {items:#?}"
+        );
         assert_eq!(items[0].id, "rust-lane");
 
         // Get returns the same agent with its doc and resolved scope.
@@ -470,7 +453,11 @@ import { defineAgent } from "ship";
         // Now PUT a flat replacement — must be rejected.
         let flat = serde_json::json!({ "id": "alpha", "name": "Flat" });
         let err = svc
-            .put(PutArgs { id: "alpha".into(), doc: flat, scope: None })
+            .put(PutArgs {
+                id: "alpha".into(),
+                doc: flat,
+                scope: None,
+            })
             .unwrap_err();
         let msg = err.to_string();
         assert!(

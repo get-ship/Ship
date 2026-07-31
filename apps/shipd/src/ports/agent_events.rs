@@ -37,4 +37,3 @@ impl AgentDispatchPort for AgentDispatchAdapter {
         bridge::helpers::worktrees_dir().ok()
     }
 }
-

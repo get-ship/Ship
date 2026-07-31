@@ -2,18 +2,20 @@
 //! compile the agent's harness-native config into it.
 //!
 //! Ship-side wiring behind the `AgentPlatform::compile_agent_config` port;
-//! the roll-up (`ship_resolver`) and the compile engine (`agent_def::compile`)
+//! the roll-up (`space_resolver`) and the compile engine (`agent_def::compile`)
 //! are both ship concepts, so this glue lives here, not in fleet's bridge.
 
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use anyhow::Result;
+use ship_substrate::ports::KernelLog;
 
 /// Compile `agent_id`'s harness config into `worktree_path`.
 ///
 /// Rolls up the worktree's full composed world — cache tier + the
 /// operator-enabled library tier + the space's own source, precedence-law
-/// composed — the same `ship_resolver::roll_up` shipd's boot index ingests,
+/// composed — the same `space_resolver::roll_up` shipd's boot index ingests,
 /// so a dispatch-compiled agent sees what the index sees. `roll_up` is async
 /// (V8 TS eval); `roll_up_registered_blocking` bridges the sync trait boundary.
 ///
@@ -22,9 +24,16 @@ use anyhow::Result;
 /// the operator's user-scope default. The agent profile's
 /// `harness_settings.claude.effortLevel` passthrough still wins on conflict
 /// (merged LAST into the settings patch).
-pub fn compile_agent_config(worktree_path: &Path, agent_id: &str) -> Result<()> {
+///
+/// `kernel` is the daemon's shared event log for `compile.completed` emission;
+/// pass `None` on pure-file compile paths that skip the emit.
+pub fn compile_agent_config(
+    worktree_path: &Path,
+    agent_id: &str,
+    kernel: Option<Arc<KernelLog>>,
+) -> Result<()> {
     let member_roots = member_roots_for_worktree(worktree_path);
-    let composed = ship_resolver::roll_up_members_blocking(&member_roots, None)
+    let composed = space_resolver::roll_up_members_blocking(&member_roots, None)
         .map_err(|e| anyhow::anyhow!("roll-up failed for agent '{agent_id}': {e}"))?;
 
     let summary = agent_def::compile::compile_project_from_library(
@@ -37,6 +46,7 @@ pub fn compile_agent_config(worktree_path: &Path, agent_id: &str) -> Result<()> 
             plugins_installed: vec![],
             dry_run: false,
             default_effort: Some("medium".to_string()),
+            kernel,
         },
         composed.library,
     )
@@ -67,14 +77,14 @@ fn member_roots_for_worktree(worktree: &Path) -> Vec<PathBuf> {
     let gitfile = worktree.join(".git");
     if !gitfile.is_file() {
         // Not a linked worktree — a plain root composes as itself.
-        return ship_resolver::resolve_member_roots(worktree);
+        return space_resolver::resolve_member_roots(worktree);
     }
     let Some(origin) = origin_repo_root(&gitfile) else {
         return vec![worktree.to_path_buf()];
     };
     let origin = std::fs::canonicalize(&origin).unwrap_or(origin);
     let wt = std::fs::canonicalize(worktree).unwrap_or_else(|_| worktree.to_path_buf());
-    let mut roots = ship_resolver::resolve_member_roots(&origin);
+    let mut roots = space_resolver::resolve_member_roots(&origin);
     for r in roots.iter_mut() {
         let canon = std::fs::canonicalize(&*r).unwrap_or_else(|_| r.clone());
         if canon == origin {
@@ -122,25 +132,22 @@ mod tests {
         std::fs::create_dir_all(&worktree).expect("mkdir worktree");
         let ship_dir = worktree.join(".ship");
         std::fs::create_dir_all(&ship_dir).expect("mkdir .ship");
-        std::fs::write(
-            ship_dir.join("ship.jsonc"),
-            r#"{ "active_agent": "demo" }"#,
-        )
-        .expect("write ship.jsonc");
+        std::fs::write(ship_dir.join("ship.jsonc"), r#"{ "active_agent": "demo" }"#)
+            .expect("write ship.jsonc");
         std::fs::create_dir_all(ship_dir.join("agents")).expect("mkdir agents");
         std::fs::write(
             ship_dir.join("agents/demo.jsonc"),
             r#"{ "agent": { "id": "demo", "name": "Demo" }, "target_agents": ["claude"] }"#,
         )
         .expect("write demo agent");
-        if compile_agent_config(&worktree, "demo").is_err() {
+        if compile_agent_config(&worktree, "demo", None).is_err() {
             // Roll-up needs a sui runtime that may not be present in
             // the test environment — skip; the unit test pins the
             // patch behavior.
             return;
         }
-        let settings = std::fs::read_to_string(worktree.join(".claude/settings.json"))
-            .expect("settings.json");
+        let settings =
+            std::fs::read_to_string(worktree.join(".claude/settings.json")).expect("settings.json");
         let v: serde_json::Value = serde_json::from_str(&settings).expect("parse settings");
         assert_eq!(
             v.get("effortLevel").and_then(|s| s.as_str()),

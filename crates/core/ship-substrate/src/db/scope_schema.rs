@@ -361,11 +361,7 @@ pub fn static_tables(scope: EventScope) -> &'static [&'static str] {
             "space_stacks",
             "canonical_sessions",
         ],
-        EventScope::Account => &[
-            "auth_sessions",
-            "daemon_owner",
-            "provisioned_grants",
-        ],
+        EventScope::Account => &["auth_sessions", "daemon_owner", "provisioned_grants"],
         EventScope::Space => &["project_compile_state"],
     }
 }
@@ -391,7 +387,9 @@ mod tests {
         .fetch_all(&mut conn)
         .await
         .unwrap();
-        rows.into_iter().map(|r| r.get::<String, _>("name")).collect()
+        rows.into_iter()
+            .map(|r| r.get::<String, _>("name"))
+            .collect()
     }
 
     fn base() -> Vec<String> {
@@ -414,11 +412,23 @@ mod tests {
             "space_stacks",
             "canonical_sessions",
         ] {
-            assert!(tables.contains(&expected.to_string()), "runtime missing {expected}; got {tables:?}");
+            assert!(
+                tables.contains(&expected.to_string()),
+                "runtime missing {expected}; got {tables:?}"
+            );
         }
         // Account/Space tables must NOT leak into runtime.db.
-        for forbidden in ["auth_sessions", "daemon_owner", "provisioned_grants", "project_compile_state", "kv_state"] {
-            assert!(!tables.contains(&forbidden.to_string()), "{forbidden} must not be in runtime.db");
+        for forbidden in [
+            "auth_sessions",
+            "daemon_owner",
+            "provisioned_grants",
+            "project_compile_state",
+            "kv_state",
+        ] {
+            assert!(
+                !tables.contains(&forbidden.to_string()),
+                "{forbidden} must not be in runtime.db"
+            );
         }
     }
 
@@ -429,7 +439,10 @@ mod tests {
         let mut want = base();
         want.extend(["auth_sessions", "daemon_owner", "provisioned_grants"].map(String::from));
         want.sort();
-        assert_eq!(tables, want, "account.db = base + auth_sessions/daemon_owner/provisioned_grants only");
+        assert_eq!(
+            tables, want,
+            "account.db = base + auth_sessions/daemon_owner/provisioned_grants only"
+        );
     }
 
     #[tokio::test]
@@ -446,9 +459,12 @@ mod tests {
     async fn no_table_is_in_two_scopes() {
         // Each projection table belongs to exactly one scope (base excepted) —
         // catches a copy-paste leak across the per-scope DDL sets.
-        let runtime: std::collections::HashSet<_> = tables_for(EventScope::Runtime).await.into_iter().collect();
-        let account: std::collections::HashSet<_> = tables_for(EventScope::Account).await.into_iter().collect();
-        let space: std::collections::HashSet<_> = tables_for(EventScope::Space).await.into_iter().collect();
+        let runtime: std::collections::HashSet<_> =
+            tables_for(EventScope::Runtime).await.into_iter().collect();
+        let account: std::collections::HashSet<_> =
+            tables_for(EventScope::Account).await.into_iter().collect();
+        let space: std::collections::HashSet<_> =
+            tables_for(EventScope::Space).await.into_iter().collect();
         let base: std::collections::HashSet<_> = base().into_iter().collect();
         let r = &runtime - &base;
         let a = &account - &base;
@@ -490,10 +506,8 @@ mod tests {
                 .into_iter()
                 .filter(|t| t != "events" && t != "cursors")
                 .collect();
-            let listed: std::collections::HashSet<String> = static_tables(scope)
-                .iter()
-                .map(|s| s.to_string())
-                .collect();
+            let listed: std::collections::HashSet<String> =
+                static_tables(scope).iter().map(|s| s.to_string()).collect();
             assert_eq!(
                 ddl_tables, listed,
                 "static_tables({scope:?}) must match the DDL-declared user tables",

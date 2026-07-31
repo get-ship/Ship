@@ -24,7 +24,8 @@ mod tests {
         let ctx = auth.to_emit_context(CallerKind::Mcp);
         assert_eq!(ctx.caller_kind, CallerKind::Mcp);
         assert_eq!(
-            ctx.binding.key_for(ship_types::event_registry::EventScope::Space),
+            ctx.binding
+                .key_for(ship_types::event_registry::EventScope::Space),
             None,
             "no resolved space → keyed None (no home-space fallback)"
         );

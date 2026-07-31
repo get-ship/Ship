@@ -18,6 +18,7 @@ use std::time::{Duration, Instant};
 use crate::db::{self, block_on};
 use crate::persistence::event_store::{EventStore, SqliteEventStore};
 use ship_types::envelope::EventEnvelope;
+use ship_types::Stamped;
 use ship_types::event_types as ev;
 
 fn actor_created_event(id: &str) -> EventEnvelope {
@@ -32,17 +33,32 @@ fn actor_created_event(id: &str) -> EventEnvelope {
 
 fn actor_row_count(path: &std::path::Path) -> i64 {
     let mut conn = db::open_db_at(path).unwrap();
-    block_on(async { sqlx::query_scalar("SELECT COUNT(*) FROM actors").fetch_one(&mut conn).await }).unwrap()
+    block_on(async {
+        sqlx::query_scalar("SELECT COUNT(*) FROM actors")
+            .fetch_one(&mut conn)
+            .await
+    })
+    .unwrap()
 }
 
 fn event_row_count(path: &std::path::Path) -> i64 {
     let mut conn = db::open_db_at(path).unwrap();
-    block_on(async { sqlx::query_scalar("SELECT COUNT(*) FROM events").fetch_one(&mut conn).await }).unwrap()
+    block_on(async {
+        sqlx::query_scalar("SELECT COUNT(*) FROM events")
+            .fetch_one(&mut conn)
+            .await
+    })
+    .unwrap()
 }
 
 fn distinct_actor_ids(path: &std::path::Path) -> i64 {
     let mut conn = db::open_db_at(path).unwrap();
-    block_on(async { sqlx::query_scalar("SELECT COUNT(DISTINCT id) FROM actors").fetch_one(&mut conn).await }).unwrap()
+    block_on(async {
+        sqlx::query_scalar("SELECT COUNT(DISTINCT id) FROM actors")
+            .fetch_one(&mut conn)
+            .await
+    })
+    .unwrap()
 }
 
 /// Same-table-contents-before-and-after-rebuild is the master invariant
@@ -65,7 +81,10 @@ fn assert_master_invariant(path: &std::path::Path) {
             .await
     })
     .unwrap();
-    assert_eq!(before, after, "master invariant violated after concurrent writers");
+    assert_eq!(
+        before, after,
+        "master invariant violated after concurrent writers"
+    );
 }
 
 /// Drive `N` concurrent thread appends against one scope db; return
@@ -79,7 +98,7 @@ fn drive_concurrent_appends(db_path: &std::path::Path, n: usize) -> (usize, usiz
         handles.push(std::thread::spawn(move || {
             let id = format!("torture-conc-{i}");
             let ev = actor_created_event(&id);
-            store.append(&ev)
+            store.append(&Stamped::unchecked(ev.clone()))
         }));
     }
 
@@ -108,14 +127,30 @@ fn hundreds_of_concurrent_thread_appends_never_corrupt_or_orphan() {
     const N: usize = 300;
     let (ok, err, elapsed) = drive_concurrent_appends(&db_path, N);
 
-    assert_eq!(ok + err, N, "every spawned append thread must resolve (no thread lost, no hang)");
+    assert_eq!(
+        ok + err,
+        N,
+        "every spawned append thread must resolve (no thread lost, no hang)"
+    );
     assert!(
         elapsed < Duration::from_secs(90),
         "no permanent lock / deadlock: {N} concurrent appends took {elapsed:?}"
     );
-    assert_eq!(event_row_count(&db_path) as usize, ok, "every OK append has exactly one event row — no orphans among the successes");
-    assert_eq!(actor_row_count(&db_path) as usize, ok, "every committed event folded exactly once");
-    assert_eq!(distinct_actor_ids(&db_path) as usize, ok, "no corrupted/duplicated actor ids");
+    assert_eq!(
+        event_row_count(&db_path) as usize,
+        ok,
+        "every OK append has exactly one event row — no orphans among the successes"
+    );
+    assert_eq!(
+        actor_row_count(&db_path) as usize,
+        ok,
+        "every committed event folded exactly once"
+    );
+    assert_eq!(
+        distinct_actor_ids(&db_path) as usize,
+        ok,
+        "no corrupted/duplicated actor ids"
+    );
 
     assert_master_invariant(&db_path);
 }
@@ -139,6 +174,9 @@ fn hundreds_of_concurrent_thread_appends_lose_nothing_under_full_system_load() {
     let db_path = db::runtime_db_path(tmp.path());
     const N: usize = 300;
     let (ok, err, _elapsed) = drive_concurrent_appends(&db_path, N);
-    assert_eq!(err, 0, "no append should fail under contention (bounded retry absorbs transient busy/locked) — {err} of {N} failed");
+    assert_eq!(
+        err, 0,
+        "no append should fail under contention (bounded retry absorbs transient busy/locked) — {err} of {N} failed"
+    );
     assert_eq!(ok, N, "no lost appends");
 }

@@ -48,12 +48,12 @@
 //! `apps.jsonc` or serve-chain changes; only the resolver gains a new variant.
 //!
 //! `base_dir` is configurable per launch (env var `SHIP_APPS_BASE_DIR` or
-//! `ShipAppRegistry::with_base_dir`). In dev, `base_dir` points at the
-//! ship-apps workspace so the resolver finds `node_modules/@ship/hub` (the
-//! workspace symlink the `ship-apps` `package.json` self-declares). In prod
-//! the base_dir points at the host's installed `node_modules/`. The default
-//! is `<project_root>/node_modules` — i.e. a top-level `node_modules` next
-//! to `apps/shipd/apps.jsonc`.
+//! `ShipAppRegistry::with_base_dir`). In dev, `base_dir` points at the ship
+//! workspace root so the resolver finds `node_modules/@ship/hub` (the
+//! workspace symlink the ship root `package.json` self-declares — j-12).
+//! In prod the base_dir points at the host's installed `node_modules/`.
+//! The default is `<project_root>/node_modules` — i.e. a top-level
+//! `node_modules` next to `apps/shipd/apps.jsonc`.
 //!
 //! ## `<resolved-package-dir>/deck.jsonc` — the app's NON-conventional config
 //!
@@ -68,8 +68,8 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, anyhow, bail};
-use deck::config::strip_jsonc_comments;
 use deck::AppServeConfig;
+use deck::config::strip_jsonc_comments;
 use deck_core::AppRegistry;
 use serde::Deserialize;
 
@@ -84,12 +84,12 @@ use serde::Deserialize;
 #[derive(Debug, Clone)]
 pub enum AppSource {
     /// `node_modules`-style resolution from a configurable base directory.
-    /// Dev: `base_dir = /path/to/ship-apps` and the package is found at
+    /// Dev: `base_dir = /path/to/ship` and the package is found at
     /// `<base_dir>/node_modules/<package>`. Scoped packages (`@ship/hub`)
     /// resolve to `<base_dir>/node_modules/@ship/hub`.
     NodeModules {
         /// Directory containing the `node_modules/` to search. In dev this
-        /// is the ship-apps workspace root; in prod it's the host's
+        /// is the ship workspace root; in prod it's the host's
         /// `node_modules/` parent.
         base_dir: PathBuf,
         /// Package specifier — `spaces` (unscoped) or `@ship/hub` (scoped).
@@ -125,9 +125,7 @@ impl AppSource {
     /// pluggable resolver, not for current use.
     pub fn resolve_dir(&self) -> Result<PathBuf> {
         match self {
-            AppSource::NodeModules { base_dir, package } => {
-                resolve_node_modules(base_dir, package)
-            }
+            AppSource::NodeModules { base_dir, package } => resolve_node_modules(base_dir, package),
             AppSource::Cdn { .. } => Err(anyhow!(
                 "AppSource::Cdn is not implemented yet (Phase 2); use NodeModules"
             )),
@@ -218,7 +216,7 @@ struct AppEntry {
 /// resolution.
 pub struct ShipAppRegistry {
     /// Directory containing the `node_modules/` the resolver searches.
-    /// In dev: the ship-apps workspace root. In prod: a host-managed
+    /// In dev: the ship workspace root (j-12). In prod: a host-managed
     /// `node_modules/` parent. Configurable per launch so dev / staging /
     /// prod can resolve different package sources without code changes.
     base_dir: PathBuf,
@@ -259,11 +257,7 @@ impl ShipAppRegistry {
 
 impl AppRegistry for ShipAppRegistry {
     fn serve_configs(&self) -> Vec<AppServeConfig> {
-        match load_serve_configs(
-            &self.base_dir,
-            &self.apps_config,
-            &self.package_dirs,
-        ) {
+        match load_serve_configs(&self.base_dir, &self.apps_config, &self.package_dirs) {
             Ok(apps) => {
                 tracing::info!(
                     path = %self.apps_config.display(),
@@ -374,7 +368,10 @@ fn load_serve_configs(
             .as_deref()
             .map(|s| s.trim_start_matches('/'))
             .unwrap_or(".deck");
-        let source = package_dir.join(source_suffix).to_string_lossy().to_string();
+        let source = package_dir
+            .join(source_suffix)
+            .to_string_lossy()
+            .to_string();
         // Load the per-app `deck.jsonc` — OPTIONAL. Absent file
         // produces the conventional defaults; the host fills in the
         // orchestration bind below.
@@ -409,8 +406,7 @@ fn load_serve_configs(
 /// `AppServeConfig::default()`; the host binds name/route/source
 /// outside this helper.
 fn load_app_deck(path: &Path) -> Result<AppServeConfig> {
-    let raw =
-        std::fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
+    let raw = std::fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
     AppServeConfig::parse_deck_jsonc(&raw).with_context(|| format!("parse {}", path.display()))
 }
 
@@ -432,7 +428,10 @@ mod tests {
             // Unscoped: `node_modules/<name>`. Scoped: `node_modules/@scope/name`.
             let pkg_dir = if let Some(scope_rest) = pkg.strip_prefix('@') {
                 if let Some((scope, name)) = scope_rest.split_once('/') {
-                    dir.path().join("node_modules").join(format!("@{scope}")).join(name)
+                    dir.path()
+                        .join("node_modules")
+                        .join(format!("@{scope}"))
+                        .join(name)
                 } else {
                     panic!("bad scoped package in test fixture: {pkg}");
                 }
@@ -484,9 +483,16 @@ mod tests {
         let apps = load(dir.path());
         assert_eq!(apps.len(), 1);
         // Host-derived (package dir basename + apps.jsonc + convention).
-        assert_eq!(apps[0].name, "hub", "name derived from package dir basename");
+        assert_eq!(
+            apps[0].name, "hub",
+            "name derived from package dir basename"
+        );
         assert_eq!(apps[0].route, "/", "route from apps.jsonc");
-        assert!(apps[0].source.ends_with("/hub/.deck"), "source = convention <abs-pkg-dir>/.deck: {}", apps[0].source);
+        assert!(
+            apps[0].source.ends_with("/hub/.deck"),
+            "source = convention <abs-pkg-dir>/.deck: {}",
+            apps[0].source
+        );
         // Conventional defaults (no file ⇒ Default).
         assert_eq!(apps[0].render, RenderMode::Csr);
         assert!(apps[0].inject_globals.is_empty());
@@ -507,10 +513,16 @@ mod tests {
         let apps = load(dir.path());
         assert_eq!(apps.len(), 1);
         assert_eq!(apps[0].name, "spaces");
-        assert_eq!(apps[0].route, "/space/{id}", "route from apps.jsonc, not the file");
+        assert_eq!(
+            apps[0].route, "/space/{id}",
+            "route from apps.jsonc, not the file"
+        );
         assert!(apps[0].source.ends_with("/spaces/.deck"));
         assert_eq!(
-            apps[0].inject_globals.get("DECK_APP_ID").map(String::as_str),
+            apps[0]
+                .inject_globals
+                .get("DECK_APP_ID")
+                .map(String::as_str),
             Some("$id"),
         );
         assert!(apps[0].entry.is_none());
@@ -524,7 +536,8 @@ mod tests {
     /// carry.
     #[test]
     fn legacy_per_app_deck_fields_are_dropped_silently() {
-        let legacy_hub_deck = r#"{ "name": "hub", "route": "/legacy", "source": "legacy/path", "render": "csr" }"#;
+        let legacy_hub_deck =
+            r#"{ "name": "hub", "route": "/legacy", "source": "legacy/path", "render": "csr" }"#;
         let apps_jsonc = r#"{
             "apps": [ { "name": "hub", "package": "@ship/hub", "route": "/" } ]
         }"#;
@@ -566,7 +579,10 @@ mod tests {
         assert_eq!(apps[1].name, "spaces");
         assert_eq!(apps[1].route, "/space/{id}");
         assert_eq!(
-            apps[1].inject_globals.get("DECK_APP_ID").map(String::as_str),
+            apps[1]
+                .inject_globals
+                .get("DECK_APP_ID")
+                .map(String::as_str),
             Some("$id")
         );
     }
@@ -586,7 +602,14 @@ mod tests {
         let want = AppServeConfig {
             name: "hub".to_string(),
             route: "/".to_string(),
-            source: dir.path().join("node_modules").join("@ship").join("hub").join(".deck").to_string_lossy().to_string(),
+            source: dir
+                .path()
+                .join("node_modules")
+                .join("@ship")
+                .join("hub")
+                .join(".deck")
+                .to_string_lossy()
+                .to_string(),
             inject_globals: std::collections::BTreeMap::new(),
             render: RenderMode::Csr,
             entry: Some(deck::config::EntryBootstrap {
@@ -609,7 +632,10 @@ mod tests {
         let apps = load(dir.path());
         assert_eq!(apps.len(), 1);
         assert_eq!(apps[0].route, "/", "comment-stripped route from apps.jsonc");
-        assert!(apps[0].entry.is_some(), "comment-stripped entry from deck.jsonc");
+        assert!(
+            apps[0].entry.is_some(),
+            "comment-stripped entry from deck.jsonc"
+        );
     }
 
     /// The registry is usable through the `AppRegistry` trait object —
@@ -619,7 +645,8 @@ mod tests {
         let apps_jsonc = r#"{
             "apps": [ { "name": "hub", "package": "@ship/hub", "route": "/" } ]
         }"#;
-        let hub_deck = r#"{ "entry": { "clientsModule": "./src/lib/client.ts", "exposeNames": ["ship"] } }"#;
+        let hub_deck =
+            r#"{ "entry": { "clientsModule": "./src/lib/client.ts", "exposeNames": ["ship"] } }"#;
         let dir = scaffold(apps_jsonc, &[("@ship/hub", Some(hub_deck))]);
         let reg: Box<dyn AppRegistry> = Box::new(ShipAppRegistry::new(
             dir.path().to_path_buf(),
@@ -636,7 +663,8 @@ mod tests {
         let apps_jsonc = r#"{
             "apps": [ { "name": "not-hub", "package": "@ship/hub", "route": "/" } ]
         }"#;
-        let hub_deck = r#"{ "entry": { "clientsModule": "./src/lib/client.ts", "exposeNames": ["ship"] } }"#;
+        let hub_deck =
+            r#"{ "entry": { "clientsModule": "./src/lib/client.ts", "exposeNames": ["ship"] } }"#;
         let dir = scaffold(apps_jsonc, &[("@ship/hub", Some(hub_deck))]);
         let apps = load(dir.path());
         assert_eq!(apps.len(), 1);
@@ -652,7 +680,10 @@ mod tests {
     fn resolve_node_modules_scoped_package() {
         let dir = scaffold("{}", &[("@ship/hub", None)]);
         let resolved = resolve_node_modules(dir.path(), "@ship/hub").unwrap();
-        assert_eq!(resolved, dir.path().join("node_modules").join("@ship").join("hub"));
+        assert_eq!(
+            resolved,
+            dir.path().join("node_modules").join("@ship").join("hub")
+        );
         assert!(resolved.is_dir());
     }
 
@@ -703,7 +734,11 @@ mod tests {
         let dir = scaffold(apps_jsonc, &[("@ship/hub", None)]);
         let apps = load(dir.path());
         assert_eq!(apps.len(), 1);
-        assert!(apps[0].source.ends_with("/hub/dist"), "explicit source wins over convention: {}", apps[0].source);
+        assert!(
+            apps[0].source.ends_with("/hub/dist"),
+            "explicit source wins over convention: {}",
+            apps[0].source
+        );
     }
 
     /// `AppSource::Cdn` is declared but not constructable today —

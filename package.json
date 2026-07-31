@@ -3,7 +3,10 @@
   "private": true,
   "workspaces": {
     "packages": [
-      "apps/host"
+      "apps/host",
+      "apps/hub",
+      "apps/spaces",
+      "packages/components/ship/*"
     ],
     "catalog": {
       "hono": "4.10.8",
@@ -18,7 +21,26 @@
     "react-dom": "^19.0.0",
     "@ship/sui-runtime": "link:../sui/packages/sui/runtime",
     "@ship/sui-dom": "link:../sui/packages/sui/dom",
-    "@ship/sui-compiler-wasm": "link:../sui/packages/sui/compiler-wasm"
+    "@ship/sui-compiler-wasm": "link:../sui/packages/sui/compiler-wasm",
+    "@ship/tokens": "link:../worktrees/orch/packages/sail/tokens",
+    "@ship/deck-host": "link:../worktrees/orch/packages/deck/host",
+    "@ship/deck-router": "link:../worktrees/orch/packages/deck/router",
+    "@ship/sdk": "^0.2.0",
+    "@ship/sdk-client": "^0.1.0",
+    "@ship/test-setup": "link:../worktrees/orch/packages/sail/test-setup",
+    "@ship/sail-runtime": "link:../worktrees/orch/packages/sail/runtime",
+    "@ship/sail-dom": "link:../worktrees/orch/packages/sail/dom",
+    "@ship/sail-primitives": "link:../worktrees/orch/packages/components/sail/primitives",
+    "@ship/sail-charts": "link:../worktrees/orch/packages/components/sail/charts",
+    "@ship/sail-chat-elements": "link:../worktrees/orch/packages/components/sail/chat-elements",
+    "@ship/sail-canvas": "link:../worktrees/orch/packages/components/sail/canvas",
+    "@ship/sail-media": "link:../worktrees/orch/packages/components/sail/media",
+    "@ship/sail-mermaid": "link:../worktrees/orch/packages/components/sail/mermaid",
+    "@ship/sail-viewer": "link:../worktrees/orch/packages/components/sail/viewer",
+    "@ship/sail-compiler-wasm": "link:../worktrees/orch/packages/sail/compiler-wasm",
+    "@ship/sail-lsp-browser": "link:../worktrees/orch/packages/deck/lsp-browser",
+    "@ship/sail-code-editor": "link:../worktrees/orch/packages/components/sail/code-editor",
+    "@ship/arcade-engine": "file:../ship-apps/packages/arcade-engine"
   },
   "trustedDependencies": [
     "better-sqlite3",
@@ -29,6 +51,8 @@
   ],
   "scripts": {
     "build": "cargo build -p ship-cli -p shipd",
+    "build:apps": "bun run --filter hub build && bun run --filter spaces build",
+    "typecheck:components": "node scripts/typecheck-components.mjs",
     "lint": "vp lint",
     "lint:fix": "vp lint --fix",
     "test:contract": "cargo test -p ship-contract-tests",
@@ -41,5 +65,10 @@
     "vite-plus": "^0.1.11",
     "vite-tsconfig-paths": "6.0.3",
     "vitest": "^4.1.5"
+  },
+  "//": "Self-references so workspace packages hoist into top-level node_modules/ \u2014 shipd AppSource resolves <base>/node_modules/@ship/hub etc.",
+  "dependencies": {
+    "@ship/hub": "workspace:*",
+    "spaces": "workspace:*"
   }
 }

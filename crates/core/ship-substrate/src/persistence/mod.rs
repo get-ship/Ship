@@ -4,18 +4,19 @@ pub mod partitioned_sink;
 #[cfg(test)]
 mod append_enforce_tests;
 #[cfg(test)]
-mod partitioned_sink_tests;
-#[cfg(test)]
 mod partition_property_tests;
 #[cfg(test)]
-mod tx_atomicity_tests;
+mod partitioned_sink_tests;
 #[cfg(test)]
 mod torture_atomicity_tests;
 #[cfg(test)]
 mod torture_concurrency_tests;
+#[cfg(test)]
+mod tx_atomicity_tests;
 
 pub use event_store::{EventStore, SqliteEventStore};
 pub use partitioned_sink::PartitionedSink;
+pub use ship_types::Stamped;
 
 use anyhow::Result;
 use sqlx::QueryBuilder;

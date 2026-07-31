@@ -2,7 +2,7 @@
 pub use ship_types::envelope::EventEnvelope;
 pub use ship_types::event_registry::EventScope;
 pub use ship_types::payload::*;
-pub use ship_types::{CallerKind, EmitContext, ActorConfig};
+pub use ship_types::{ActorConfig, CallerKind, EmitContext};
 pub mod types {
     pub use ship_types::payload::*;
     pub mod event_types {
@@ -14,13 +14,14 @@ pub mod types {
     // ship-types (`registry_names_are_unique`), the L0 registration count is
     // ratcheted in `events::tests::l0_registry_shrinks_under_keystone_a`, and
     // the full-linkage vocabulary pin lives in shipd `tests/event_vocabulary.rs`.
-
 }
 
 // Re-exports from ship-kernel
-pub use ship_kernel::EventSink;
+pub use ship_kernel::EventPersist;
 pub use ship_kernel::KernelError as PureKernelError;
 pub use ship_kernel::Mailbox;
+// Type-state proof for stamped envelopes (persistence layer)
+pub use ship_types::Stamped;
 
 // Persistence (re-exported from crate::persistence)
 pub use crate::persistence::{EventStore, SqliteEventStore};
@@ -37,42 +38,46 @@ pub mod daemon;
 pub mod emit;
 pub mod executor;
 pub mod filter;
-pub mod global_kernel_router;
-pub mod payload_registry;
-pub mod pipeline;
-pub mod payload_schema;
-pub mod process;
 pub mod kernel_lifecycle;
 pub mod kernel_router;
+pub mod payload_registry;
+pub mod payload_schema;
+pub mod pipeline;
+pub mod process;
 pub mod validator;
 
 pub use filter::EventFilter;
-pub use kernel_router::KernelRouter;
-pub use payload_schema::{apply_stamp_chokepoint, off_kernel_ctx, PayloadSchemaValidator, StampError};
-pub use validator::{
-    ElevatedValidator, EventValidator, KERNEL_NAMESPACES,
-    NamespaceValidator, PLATFORM_ONLY_NAMESPACES, RESERVED_NAMESPACES,
-    ReservedNamespaceValidator, ValidationError, is_kernel_event,
+pub use kernel_router::{
+    KernelRouter, SharedKernelRouter, init_kernel_router, init_kernel_router_with,
+    new_isolated_for_test, new_isolated_for_test_with,
 };
-pub use global_kernel_router::{init_kernel_router, kernel_router, new_isolated_for_test};
+pub use payload_schema::{
+    PayloadSchemaValidator, StampError, apply_stamp_chokepoint, apply_stamp_chokepoint_at,
+    off_kernel_ctx, validate_scope_registered,
+};
+pub use validator::{
+    ElevatedValidator, EventValidator, KERNEL_NAMESPACES, NamespaceValidator,
+    PLATFORM_ONLY_NAMESPACES, RESERVED_NAMESPACES, ReservedNamespaceValidator, ValidationError,
+    is_kernel_event,
+};
 
 // Test modules
+#[cfg(test)]
+mod cli_routing_tests;
+#[cfg(test)]
+mod cross_actor_tests;
+#[cfg(test)]
+mod kernel_router_enforce_tests;
+#[cfg(test)]
+mod kernel_router_tests;
+#[cfg(test)]
+mod lifecycle_tests;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
 mod tests_actor;
 #[cfg(test)]
-mod kernel_router_tests;
-#[cfg(test)]
-mod kernel_router_enforce_tests;
-#[cfg(test)]
-mod cross_actor_tests;
-#[cfg(test)]
-mod cli_routing_tests;
-#[cfg(test)]
 mod validator_tests;
-#[cfg(test)]
-mod lifecycle_tests;
 
 use anyhow::Result;
 use chrono::{DateTime, Utc};
@@ -95,9 +100,6 @@ pub fn read_recent_events(limit: usize) -> Result<Vec<EventEnvelope>> {
 ///
 /// Used by the sync client to find events that haven't been pushed yet.
 /// If `elevated_only` is true, only returns elevated events (platform-scope).
-pub fn query_events_since(
-    cursor: Option<&str>,
-    elevated_only: bool,
-) -> Result<Vec<EventEnvelope>> {
+pub fn query_events_since(cursor: Option<&str>, elevated_only: bool) -> Result<Vec<EventEnvelope>> {
     crate::db::events::query_events_since(cursor, elevated_only)
 }

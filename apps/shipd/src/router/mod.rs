@@ -13,10 +13,10 @@ mod webhook_ext;
 use axum::Router;
 use std::sync::Arc;
 
-use deck::config::DeckConfig;
-use crate::{auth, ship_runtime};
 use crate::auth::attest;
 use crate::transport::cors;
+use crate::{auth, ship_runtime};
+use deck::config::DeckConfig;
 
 use health::{handle_panic, health_check};
 use middleware::{build_header_middleware, spa_nav_middleware};
@@ -85,9 +85,10 @@ pub fn build_router(
                 auth::server_attest(attest_verifier.clone(), attest_sessions.clone(), body)
             }),
         )
-        .route("/api/health", axum::routing::get(move || {
-            health_check(health_rt)
-        }))
+        .route(
+            "/api/health",
+            axum::routing::get(move || health_check(health_rt)),
+        )
         // Drift-detection endpoint (/_deck/meta), the shared CSS/theme assets,
         // first-run `/` + `/setup`, the per-tag source viewer, and the root
         // public-asset catch-all are all owned by `deck::router()` now —
@@ -95,23 +96,30 @@ pub fn build_router(
         // daemon routes here.
         // Bind the runtime state here so the resulting `Router<()>` merges
         // cleanly with the root assembly below.
-        .with_state(rt.clone());
-    #[cfg(feature = "bridge")]
+        .with_state(rt.clone())
+        // ship.internal.v1.GitService — leaf over ship-git (j-02 step 2).
+        // ship.internal.v1.HarnessService — leaf over compiler (j-02s4a).
+        // Unauthed localhost leaves, same posture as the former helmd mounts:
+        // helm SPA + server-side clients dial without a session token.
+        .merge(crate::rpc::ops::git_wire::axum_router())
+        .merge(crate::rpc::ops::harness_wire::axum_router());
     let auth_registry = session_registry;
     // Hook ingress lives at flat `/hooks/*` (authed, but OFF `/api/v1`):
     // consumed by generated git-hook shell scripts that POST via curl and
     // can't speak Connect, so it's a permanent ingress holdout. Kept out of
     // `/api/v1` so that namespace can shrink to just the auth-bootstrap.
-    let authenticated_routes = Router::new();
-    #[cfg(feature = "bridge")]
-    let authenticated_routes = authenticated_routes
+    // Ops Connect surface always mounts (data wires + agents reads). Multiplex
+    // stays available unconditionally; bridge-only wires (code/terminal) are
+    // gated inside `rpc::ops::router` itself.
+    let authenticated_routes = Router::new()
         // applied here, so auth wraps it): it reads the populated AuthContext and
         // stamps the resolved `agent_schema::Authority` into the request, so
         // crate-owned Connect wires (ship-account) gate on the shared authority
         // without coupling to shipd's AuthContext (S6 operator-cred gate).
         .merge(
-            crate::rpc::ops::router(rt.clone())
-                .layer(axum::middleware::from_fn(auth::project_authority_middleware)),
+            crate::rpc::ops::router(rt.clone()).layer(axum::middleware::from_fn(
+                auth::project_authority_middleware,
+            )),
         )
         // Multiplex transport (deck-axum) — same auth-gated group as the
         // Connect ops above: the live-data reads are gated behind
@@ -222,7 +230,9 @@ pub fn build_router(
         // JSON / Form extractors still enforce axum's `DefaultBodyLimit`
         // (2 MB) on their own — this layer only sets the outer ceiling.
         // Catch handler panics → 500 instead of connection abort.
-        .layer(tower_http::catch_panic::CatchPanicLayer::custom(handle_panic))
+        .layer(tower_http::catch_panic::CatchPanicLayer::custom(
+            handle_panic,
+        ))
 }
 
 #[cfg(test)]
@@ -249,8 +259,7 @@ mod merge_tests {
         // `/_deck/views/{name}/` prefix with deck's catch-all. (The
         // `/_deck/mutation/{name}` tombstone now lives in `deck::router()`, so
         // it must NOT be re-declared here or the merge would conflict.)
-        let kept: Router = Router::new()
-            .route("/_deck/views/{name}/sse", get(noop));
+        let kept: Router = Router::new().route("/_deck/views/{name}/sse", get(noop));
 
         // Merging deck's surface (catch-all + /space + /_deck/view/{name} + bundles)
         // with the kept routes must not panic, and the union must build into
@@ -273,17 +282,16 @@ mod merge_tests {
         }
         // Real server routes/prefixes → must reach their handlers, never shadowed.
         for p in [
-            "/",                            // serve_index (first-run branch)
-            "/setup",                       // serve_setup
+            "/",      // serve_index (first-run branch)
+            "/setup", // serve_setup
             "/api/health",
             "/api/assets/view-tokens.css",
             "/_deck/views/git",
             "/_deck/runtime.js",
             "/shell/_assets/x.js",
             "/space/abc",
-
             "/hooks/session-start",
-            "/favicon.ico",                 // dotted asset
+            "/favicon.ico",                         // dotted asset
             "/ship.ops.v1.AgentsService/Summaries", // Connect RPC (dotted)
         ] {
             assert!(!is_client_nav(p), "{p} must NOT be treated as client nav");

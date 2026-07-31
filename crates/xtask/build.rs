@@ -12,7 +12,7 @@
 //      [patch] to the sibling repo), so a fresh machine needs no env var.
 //
 // The same shape is used in every proto-binding consumer (ship-ops-rpc,
-// ship-gateway-client, ship-config, tests/contract) so resolution stays
+// ship-gateway-client, ship-settings, tests/contract) so resolution stays
 // symmetric. The fixtures dir is registered for rerun-if-changed so a fixture
 // edit re-bakes PROTO_ROOT without a manual re-export.
 

@@ -15,7 +15,7 @@
 
 use std::path::Path;
 
-use super::bundle_sig::{verify_bundle_attestation, BundleClaim, BundleVerifyError, TrustedKey};
+use super::bundle_sig::{BundleClaim, BundleVerifyError, TrustedKey, verify_bundle_attestation};
 use super::hash::compute_tree_hash;
 
 #[derive(Debug)]
@@ -106,7 +106,10 @@ mod tests {
     const TEST_PUB_X: &str = "mZAmshQk4uLsAab8Rhqqt9kJGbP9F6hZZ39eyfUncAQ";
 
     fn trusted() -> Vec<TrustedKey> {
-        vec![TrustedKey { kid: TEST_KID.to_string(), x_base64url: TEST_PUB_X.to_string() }]
+        vec![TrustedKey {
+            kid: TEST_KID.to_string(),
+            x_base64url: TEST_PUB_X.to_string(),
+        }]
     }
 
     /// Build an in-memory gzip tarball with one file, returning the bytes.
@@ -118,7 +121,9 @@ mod tests {
             header.set_size(body.len() as u64);
             header.set_mode(0o644);
             header.set_cksum();
-            builder.append_data(&mut header, "views/x/page.sui", body).unwrap();
+            builder
+                .append_data(&mut header, "views/x/page.sui", body)
+                .unwrap();
             builder.finish().unwrap();
         }
         let mut gz = Vec::new();
@@ -164,7 +169,10 @@ mod tests {
         let claim = extract_and_verify_bundle(&bundle, &jwt, &trusted(), dest.path())
             .expect("verified bundle");
         assert_eq!(claim.path, "ship/apps/notes");
-        assert!(dest.path().join("views/x/page.sui").is_file(), "tree extracted + kept");
+        assert!(
+            dest.path().join("views/x/page.sui").is_file(),
+            "tree extracted + kept"
+        );
     }
 
     #[test]
@@ -178,7 +186,10 @@ mod tests {
 
         let err = extract_and_verify_bundle(&tampered, &jwt, &trusted(), dest.path())
             .expect_err("tampered bundle rejected");
-        assert!(matches!(err, InstallBundleError::Verify(BundleVerifyError::HashMismatch)));
+        assert!(matches!(
+            err,
+            InstallBundleError::Verify(BundleVerifyError::HashMismatch)
+        ));
         assert!(
             std::fs::read_dir(dest.path()).unwrap().next().is_none(),
             "unverified content wiped — nothing left to cache"
@@ -200,7 +211,9 @@ mod tests {
             header.set_mode(0o644);
             header.set_cksum();
             let tiny = b"x";
-            builder.append_data(&mut header, "big.bin", &tiny[..]).unwrap();
+            builder
+                .append_data(&mut header, "big.bin", &tiny[..])
+                .unwrap();
             builder.finish().unwrap();
         }
         let mut gz = Vec::new();

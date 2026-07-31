@@ -7,7 +7,6 @@
 //! (runtime.db), minted only by ship-space's `registry::add` and read via
 //! [`resolve_active_space`].
 
-
 // Stack-root discovery now lives in the compiler-free
 // `ship-paths` leaf so leaf crates can resolve project dirs without the
 // substrate frontier. Re-exported here so `ship_substrate::project::*` and
@@ -18,9 +17,9 @@ mod global;
 mod paths;
 mod space;
 
+pub use global::get_global_dir;
+pub use paths::{agents_ns, mcp_config_path, project_skills_dir, skills_dir, user_skills_dir};
 pub use ship_paths::project::{
     STACK_CONFIG_FILENAME, get_stack_root, resolve_stack_root, stack_root_from_path,
 };
-pub use global::get_global_dir;
-pub use paths::{agents_ns, mcp_config_path, project_skills_dir, skills_dir, user_skills_dir};
 pub use space::resolve_active_space;

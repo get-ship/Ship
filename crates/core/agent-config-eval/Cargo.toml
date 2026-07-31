@@ -11,6 +11,10 @@ description = "Evaluate a ship.ts agent config (authored with defineAgent) in a 
 # engine — here ship supplies them and the engine stays type-free).
 agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "6967f155ca795c19c44a145701c138b2d079c89c" }
 stack-model = { path = "../stack-model" }
+ship-collection = { path = "../ship-platform/crates/ship-collection" }
+ship-pipelines = { path = "../ship-substrate/crates/ship-pipelines" }
+ship-triggers = { path = "../ship-platform/crates/ship-triggers" }
+ship-ui = { path = "../ship-platform/crates/ship-ui" }
 # The standalone JS engine (shared ship-exec repo, rev-pinned with fleet's
 # yoke so there is one ship-js source for everyone). `deno` pulls the V8
 # runtime; the closed-world eval lives behind it.

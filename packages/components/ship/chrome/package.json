@@ -1,0 +1,29 @@
+{
+  "name": "@ship/chrome",
+  "version": "0.1.0",
+  "description": "Ship Chrome pack \u2014 the RUNTIME-COUPLED ship-* shell-chrome components: command bar + command palette (SDK search/sessions/agents/chat), activity bar, status bar, dock + dock app, home dock, rail, and the filled nav-top (subscribes to ship.account.state() and wires the SDK-free @ship/sail-primitives <sui-account-menu>). Controllers reach for the SDK/router/live data and emit the shell intents (ship-mode-change, ship-submit, ship-select, ship-context-change, ship-launch). Purely-presentational shells (<ship-app-chrome>, the <sui-tree>-composing <ship-file-tree>) live in @ship/shared (runtime-free); the host owns wiring to the daemon.",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "customElements": "dist/custom-elements.json",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@ship/sdk": "^0.1.0",
+    "@ship/sdk-client": "^0.1.0",
+    "@ship/sail-dom": "*",
+    "@ship/sail-runtime": "*",
+    "@ship/sail-primitives": "*",
+    "@ship/deck-router": "*"
+  },
+  "devDependencies": {
+    "@ship/test-setup": "^0.1.0",
+    "happy-dom": "^20.9.0",
+    "vitest": "^4.1.5"
+  }
+}

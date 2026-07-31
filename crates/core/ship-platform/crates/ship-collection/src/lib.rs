@@ -21,8 +21,10 @@ pub mod item_projection;
 pub mod patch;
 pub mod projection;
 pub mod schema;
+pub mod schema_def;
 pub mod service;
 pub mod types;
 pub mod wire;
 
+pub use schema_def::{CollectionDef, CollectionFieldDef, CollectionFieldType};
 pub use wire::CollectionWire;

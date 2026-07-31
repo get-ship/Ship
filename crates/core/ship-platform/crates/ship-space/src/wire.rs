@@ -7,7 +7,7 @@
 //!   parent — set once at mount time. Per-request the wire rebuilds a
 //!   `SpaceService` carrying the request's ctx + these handles.
 //!
-//! It implements the generated `ship_ops_rpc::SpaceService` trait so shipd
+//! It implements the generated `ship_proto::ship::ops::v1::SpaceService` trait so shipd
 //! can mount it via `SpaceServiceExt::register`.
 //!
 //! Space-event coverage:
@@ -37,10 +37,7 @@ use ship_reactive::{ReactiveRegistry, ResolverSpec, WatchKey};
 use ship_substrate::events::EventFilter;
 use ship_substrate::ports::{KernelLog, SpaceContext};
 
-use ship_ops_rpc::{
-    InstalledList, InstallStackResult, Space, SpaceInfo, SpaceList, SpaceService as SpaceServiceTrait,
-    SpaceSnapshotResult, UnregisterStackResult, WatchEvent,
-};
+use ship_proto::ship::ops::v1::{InstalledList, InstallStackResult, Space, SpaceInfo, SpaceList, SpaceService as SpaceServiceTrait, SpaceSnapshotResult, UnregisterStackResult, WatchEvent};
 
 use crate::service::SpaceService;
 use crate::types::SpaceRecord;
@@ -101,7 +98,7 @@ where
     async fn list(
         &self,
         ctx: RequestContext,
-        _request: ship_ops_rpc::OwnedSpaceListReqView,
+        _request: ship_proto::ship::ops::v1::OwnedSpaceListReqView,
     ) -> ServiceResult<SpaceList> {
         let svc = self.make_svc(&ctx)?;
         let spaces = svc.list().map_err(ConnectError::from)?;
@@ -114,7 +111,7 @@ where
     async fn info(
         &self,
         ctx: RequestContext,
-        _request: ship_ops_rpc::OwnedSpaceInfoReqView,
+        _request: ship_proto::ship::ops::v1::OwnedSpaceInfoReqView,
     ) -> ServiceResult<SpaceInfo> {
         let svc = self.make_svc(&ctx)?;
         let composed = svc.info().map_err(ConnectError::from)?;
@@ -131,7 +128,7 @@ where
     async fn create(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedCreateSpaceReqView,
+        request: ship_proto::ship::ops::v1::OwnedCreateSpaceReqView,
     ) -> ServiceResult<Space> {
         (self.gate)(&ctx, "space.create")?;
         let svc = self.make_svc(&ctx)?;
@@ -151,17 +148,17 @@ where
     async fn open(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedOpenSpaceReqView,
+        request: ship_proto::ship::ops::v1::OwnedOpenSpaceReqView,
     ) -> ServiceResult<Space> {
         (self.gate)(&ctx, "space.open")?;
         let svc = self.make_svc(&ctx)?;
         let owned = request.to_owned_message();
         let record = match owned.r#ref {
-            Some(ship_ops_rpc::__buffa::oneof::open_space_req::Ref::Path(path)) => svc
+            Some(ship_proto::ship::ops::v1::__buffa::oneof::open_space_req::Ref::Path(path)) => svc
                 .open_by_path(std::path::Path::new(&path))
                 .await
                 .map_err(ConnectError::from)?,
-            Some(ship_ops_rpc::__buffa::oneof::open_space_req::Ref::SpaceId(id)) => {
+            Some(ship_proto::ship::ops::v1::__buffa::oneof::open_space_req::Ref::SpaceId(id)) => {
                 svc.open_by_id(&id).await.map_err(ConnectError::from)?
             }
             None => {
@@ -176,15 +173,15 @@ where
     async fn register_stack(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedRegisterStackReqView,
-    ) -> ServiceResult<ship_ops_rpc::StackRegistration> {
+        request: ship_proto::ship::ops::v1::OwnedRegisterStackReqView,
+    ) -> ServiceResult<ship_proto::ship::ops::v1::StackRegistration> {
         let svc = self.make_svc(&ctx)?;
         let root = std::path::Path::new(request.root_path);
         let reg = svc
             .register_stack(request.space_id, root)
             .await
             .map_err(ConnectError::from)?;
-        Ok(Response::new(ship_ops_rpc::StackRegistration {
+        Ok(Response::new(ship_proto::ship::ops::v1::StackRegistration {
             space_id: request.space_id.to_string(),
             root_path: reg.root_path,
             registered_at: reg.registered_at,
@@ -195,14 +192,14 @@ where
     async fn list_stacks(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedListStacksReqView,
-    ) -> ServiceResult<ship_ops_rpc::StackList> {
+        request: ship_proto::ship::ops::v1::OwnedListStacksReqView,
+    ) -> ServiceResult<ship_proto::ship::ops::v1::StackList> {
         let svc = self.make_svc(&ctx)?;
         let rows = svc.list_stacks(request.space_id).map_err(ConnectError::from)?;
-        Ok(Response::new(ship_ops_rpc::StackList {
+        Ok(Response::new(ship_proto::ship::ops::v1::StackList {
             stacks: rows
                 .into_iter()
-                .map(|r| ship_ops_rpc::StackRegistration {
+                .map(|r| ship_proto::ship::ops::v1::StackRegistration {
                     space_id: r.space_id,
                     root_path: r.root_path,
                     registered_at: r.registered_at,
@@ -222,7 +219,7 @@ where
     async fn snapshot(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedSpaceSnapshotReqView,
+        request: ship_proto::ship::ops::v1::OwnedSpaceSnapshotReqView,
     ) -> ServiceResult<SpaceSnapshotResult> {
         let svc = self.make_svc(&ctx)?;
         let target = std::path::PathBuf::from(request.target_dir);
@@ -247,7 +244,7 @@ where
     async fn install_stack(
         &self,
         _ctx: RequestContext,
-        _request: ship_ops_rpc::OwnedInstallStackReqView,
+        _request: ship_proto::ship::ops::v1::OwnedInstallStackReqView,
     ) -> ServiceResult<InstallStackResult> {
         Err(ConnectError::unimplemented(
             "InstallStack: there is no install act; content is the computed roll-up over \
@@ -260,7 +257,7 @@ where
     async fn unregister_stack(
         &self,
         _ctx: RequestContext,
-        _request: ship_ops_rpc::OwnedUnregisterStackReqView,
+        _request: ship_proto::ship::ops::v1::OwnedUnregisterStackReqView,
     ) -> ServiceResult<UnregisterStackResult> {
         Err(ConnectError::unimplemented(
             "UnregisterStack: there is no install/library tier to unregister from",
@@ -272,7 +269,7 @@ where
     async fn list_installed(
         &self,
         _ctx: RequestContext,
-        _request: ship_ops_rpc::OwnedListInstalledReqView,
+        _request: ship_proto::ship::ops::v1::OwnedListInstalledReqView,
     ) -> ServiceResult<InstalledList> {
         Err(ConnectError::unimplemented(
             "ListInstalled: there is no stored library tier; use ListStacks for members",
@@ -282,18 +279,18 @@ where
     async fn watch(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedSpaceWatchReqView,
+        request: ship_proto::ship::ops::v1::OwnedSpaceWatchReqView,
     ) -> ServiceResult<ServiceStream<WatchEvent>> {
         let ctx_arc = self.make_svc(&ctx)?.ctx.clone();
         let space_id = ctx_arc.space_id().to_string();
         let owned = request.to_owned_message();
 
         let (scope, prefix) = match owned.scope {
-            Some(ship_ops_rpc::__buffa::oneof::space_watch_req::Scope::Registry(_)) => {
+            Some(ship_proto::ship::ops::v1::__buffa::oneof::space_watch_req::Scope::Registry(_)) => {
                 // Stream the `spaces` Runtime-scoped projection's events.
                 ("registry".to_string(), "space.")
             }
-            Some(ship_ops_rpc::__buffa::oneof::space_watch_req::Scope::Space(id)) => {
+            Some(ship_proto::ship::ops::v1::__buffa::oneof::space_watch_req::Scope::Space(id)) => {
                 // Per-space stream — `settings.changed` (Space scope) for that
                 // space. The legacy `space.setting.` prefix was repointed in S4
                 // to the unified `settings.changed` event.
@@ -354,8 +351,8 @@ async fn registry_snapshot(ctx: Arc<SpaceContext>) -> serde_json::Value {
     json!({ "spaces": spaces_json })
 }
 
-fn patch_op_to_proto(op: &ship_reactive::PatchOp) -> ship_ops_rpc::PatchOp {
-    use ship_ops_rpc::PatchOp as P;
+fn patch_op_to_proto(op: &ship_reactive::PatchOp) -> ship_proto::ship::ops::v1::PatchOp {
+    use ship_proto::ship::ops::v1::PatchOp as P;
     use ship_reactive::PatchOp::*;
     match op {
         Set => P::PATCH_OP_SET,
@@ -373,7 +370,7 @@ fn patch_op_to_proto(op: &ship_reactive::PatchOp) -> ship_ops_rpc::PatchOp {
 /// Map a reactive `PatchFrame` to the proto `WatchEvent`. Mirrors
 /// ship-collection's `patch.rs::patch_frame_to_proto` (same reactive types).
 pub(crate) fn patch_frame_to_proto(frame: ship_reactive::PatchFrame) -> WatchEvent {
-    use ship_ops_rpc::{Patch as ProtoPatch, PatchFrame as ProtoFrame};
+    use ship_proto::ship::ops::v1::{Patch as ProtoPatch, PatchFrame as ProtoFrame};
     let patches: Vec<ProtoPatch> = frame
         .patches
         .into_iter()
@@ -387,7 +384,7 @@ pub(crate) fn patch_frame_to_proto(frame: ship_reactive::PatchFrame) -> WatchEve
         })
         .collect();
     WatchEvent {
-        body: Some(ship_ops_rpc::__buffa::oneof::watch_event::Body::Patches(Box::new(
+        body: Some(ship_proto::ship::ops::v1::__buffa::oneof::watch_event::Body::Patches(Box::new(
             ProtoFrame {
                 patches,
                 ..Default::default()

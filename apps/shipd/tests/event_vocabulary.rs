@@ -13,8 +13,8 @@ use std::collections::BTreeSet;
 // into this test binary's link even though no symbol below names it.
 use shipd as _;
 
-use ship_types::event_registry::{self, EventScope, Retention};
 use agent_schema::canonical_session::event_types::{ALL_CANONICAL_OP, ALL_CANONICAL_SESSION};
+use ship_types::event_registry::{self, EventScope, Retention};
 
 /// Pinned count of the COMPLETE registry. The conscious-update forcing
 /// function the old `ALL.len()` test provided, now counting registrations
@@ -81,7 +81,10 @@ fn every_registered_validator_rejects_garbage() {
         );
         checked += 1;
     }
-    assert!(checked >= 80, "expected the full linked registry, got {checked}");
+    assert!(
+        checked >= 80,
+        "expected the full linked registry, got {checked}"
+    );
 }
 
 /// The domain-owned closed family lists are fully registered at full linkage.
@@ -124,9 +127,7 @@ fn space_ephemeral_events_are_a_pinned_shrinking_set() {
     // key off the persisted row, so the event must be Durable. See
     // `.artifacts/transient-events-design.md` for the rationale.
     let mut actual: Vec<&str> = event_registry::registry()
-        .filter(|d| {
-            d.primary_scope() == EventScope::Space && d.retention == Retention::Ephemeral
-        })
+        .filter(|d| d.primary_scope() == EventScope::Space && d.retention == Retention::Ephemeral)
         .map(|d| d.name)
         .collect();
     actual.sort_unstable();

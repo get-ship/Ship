@@ -44,5 +44,5 @@ pub use scopes::{
     DaemonSession, SessionRegistry, account_store, drop_session, generate_session_token,
     hex_encode, hydrate_sessions, is_session_token, mint_session, operator_session,
     persist_session, provision_grants, remove_persisted_session, resolve_grants,
-    resolve_grants_at, session_registry, set_session_registry, space_window_session,
+    resolve_grants_at, space_window_session,
 };

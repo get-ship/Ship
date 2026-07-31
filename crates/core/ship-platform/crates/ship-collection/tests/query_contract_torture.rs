@@ -24,7 +24,10 @@ fn simple_from(table: &str) -> serde_json::Value {
 fn assert_rejected(ast: &serde_json::Value, why: &str) {
     let bytes = serde_json::to_vec(ast).unwrap();
     let result = translate_ast(&bytes, None, 50);
-    assert!(result.is_err(), "{why}: expected Unsupported, got {result:?}");
+    assert!(
+        result.is_err(),
+        "{why}: expected Unsupported, got {result:?}"
+    );
 }
 
 // ── happy path sanity (whitelisted shapes translate) ──────────────────────
@@ -111,22 +114,34 @@ fn valid_in_predicate_translates() {
 
 #[test]
 fn delete_query_node_rejected() {
-    assert_rejected(&json!({ "kind": "DeleteQueryNode", "from": simple_from("tasks") }), "DeleteQueryNode");
+    assert_rejected(
+        &json!({ "kind": "DeleteQueryNode", "from": simple_from("tasks") }),
+        "DeleteQueryNode",
+    );
 }
 
 #[test]
 fn update_query_node_rejected() {
-    assert_rejected(&json!({ "kind": "UpdateQueryNode", "table": simple_from("tasks") }), "UpdateQueryNode");
+    assert_rejected(
+        &json!({ "kind": "UpdateQueryNode", "table": simple_from("tasks") }),
+        "UpdateQueryNode",
+    );
 }
 
 #[test]
 fn insert_query_node_rejected() {
-    assert_rejected(&json!({ "kind": "InsertQueryNode", "into": simple_from("tasks") }), "InsertQueryNode");
+    assert_rejected(
+        &json!({ "kind": "InsertQueryNode", "into": simple_from("tasks") }),
+        "InsertQueryNode",
+    );
 }
 
 #[test]
 fn raw_top_level_node_rejected() {
-    assert_rejected(&json!({ "kind": "RawNode", "sql": "SELECT 1" }), "top-level RawNode");
+    assert_rejected(
+        &json!({ "kind": "RawNode", "sql": "SELECT 1" }),
+        "top-level RawNode",
+    );
 }
 
 // ── forbidden nodes buried anywhere in the tree ───────────────────────────
@@ -466,7 +481,11 @@ fn in_list_with_injection_payloads_carries_them_as_opaque_values() {
 fn limit_is_clamped_not_trusted_verbatim() {
     let ast = json!({ "kind": "SelectQueryNode", "from": simple_from("tasks") });
     let q = translate_ast(&serde_json::to_vec(&ast).unwrap(), None, u32::MAX).unwrap();
-    assert!(q.limit <= 500, "limit must be clamped to the server-side max, got {}", q.limit);
+    assert!(
+        q.limit <= 500,
+        "limit must be clamped to the server-side max, got {}",
+        q.limit
+    );
 }
 
 #[test]

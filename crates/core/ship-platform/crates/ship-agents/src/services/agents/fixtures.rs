@@ -14,19 +14,17 @@
 use serde_json::Value;
 
 use super::create::{
-    builtin_permission_presets, builtin_templates, build_create_ctx,
-    AgentsCreateCtx,
+    AgentsCreateCtx, build_create_ctx, builtin_permission_presets, builtin_templates,
 };
-use super::settings_view::{build_tiers, AgentSettingsCtx};
+use super::settings_view::{AgentSettingsCtx, build_tiers};
 use super::state::{IndexEntry, ScopeTag};
 use super::view_state::{
     AgentCatalogs, AgentDetail, AgentSummary, AgentsSummariesResponse, CatalogEntry, Permissions,
-    ToolPatternEntry, SOURCE_GLOBAL, SOURCE_PROJECT,
+    SOURCE_GLOBAL, SOURCE_PROJECT, ToolPatternEntry,
 };
 use super::wire::{AgentWireCtx, WireEdge, WireNode};
 use super::wire_types::{
-    AgentGetResponse, AgentIndexResponse, AgentTemplatesResponse,
-    PermissionPresetsResponse,
+    AgentGetResponse, AgentIndexResponse, AgentTemplatesResponse, PermissionPresetsResponse,
 };
 
 impl AgentSummary {
@@ -36,7 +34,8 @@ impl AgentSummary {
         AgentSummary {
             id: "code-reviewer".to_string(),
             name: "Code Reviewer".to_string(),
-            description: "Reviews diffs for security, correctness, and architecture drift.".to_string(),
+            description: "Reviews diffs for security, correctness, and architecture drift."
+                .to_string(),
             skills_count: 3,
             mcp_count: 1,
             rules_count: 2,
@@ -56,7 +55,8 @@ impl AgentsSummariesResponse {
                 AgentSummary {
                     id: "rust-lane".to_string(),
                     name: "Rust Lane".to_string(),
-                    description: "Full Rust implementation lane — compiler, runtime, MCP server.".to_string(),
+                    description: "Full Rust implementation lane — compiler, runtime, MCP server."
+                        .to_string(),
                     skills_count: 2,
                     mcp_count: 1,
                     rules_count: 4,
@@ -84,7 +84,10 @@ impl AgentsSummariesResponse {
 
 impl IndexEntry {
     pub fn example() -> Self {
-        IndexEntry { id: "code-reviewer".to_string(), scope: ScopeTag::Project }
+        IndexEntry {
+            id: "code-reviewer".to_string(),
+            scope: ScopeTag::Project,
+        }
     }
 }
 
@@ -93,7 +96,10 @@ impl AgentIndexResponse {
         AgentIndexResponse {
             items: vec![
                 IndexEntry::example(),
-                IndexEntry { id: "shipwright".to_string(), scope: ScopeTag::User },
+                IndexEntry {
+                    id: "shipwright".to_string(),
+                    scope: ScopeTag::User,
+                },
             ],
         }
     }
@@ -103,7 +109,11 @@ impl Permissions {
     pub fn example() -> Self {
         Permissions {
             preset: "ship-standard".to_string(),
-            tools_allow: vec!["Read".to_string(), "Edit".to_string(), "Bash(git *)".to_string()],
+            tools_allow: vec![
+                "Read".to_string(),
+                "Edit".to_string(),
+                "Bash(git *)".to_string(),
+            ],
             tools_ask: vec!["Bash(rm -rf *)".to_string()],
             tools_deny: vec![],
         }
@@ -115,7 +125,8 @@ impl AgentDetail {
         AgentDetail {
             id: "code-reviewer".to_string(),
             name: "Code Reviewer".to_string(),
-            description: "Reviews diffs for security, correctness, and architecture drift.".to_string(),
+            description: "Reviews diffs for security, correctness, and architecture drift."
+                .to_string(),
             letter: "C".to_string(),
             icon: Some("shield-check".to_string()),
             version: Some("1.0.0".to_string()),
@@ -155,9 +166,21 @@ impl AgentCatalogs {
     pub fn example() -> Self {
         AgentCatalogs {
             skills: vec![CatalogEntry::example()],
-            mcp: vec![CatalogEntry { id: "ship".to_string(), name: "Ship".to_string(), description: None }],
-            rules: vec![CatalogEntry { id: "no-placeholders".to_string(), name: "no-placeholders".to_string(), description: None }],
-            presets: vec![CatalogEntry { id: "ship-standard".to_string(), name: "ship-standard".to_string(), description: Some("Human confirms risky actions.".to_string()) }],
+            mcp: vec![CatalogEntry {
+                id: "ship".to_string(),
+                name: "Ship".to_string(),
+                description: None,
+            }],
+            rules: vec![CatalogEntry {
+                id: "no-placeholders".to_string(),
+                name: "no-placeholders".to_string(),
+                description: None,
+            }],
+            presets: vec![CatalogEntry {
+                id: "ship-standard".to_string(),
+                name: "ship-standard".to_string(),
+                description: Some("Human confirms risky actions.".to_string()),
+            }],
             tool_patterns: vec![ToolPatternEntry::example()],
         }
     }
@@ -181,10 +204,31 @@ impl AgentWireCtx {
         AgentWireCtx {
             agent: AgentDetail::example(),
             nodes: vec![
-                WireNode { kind: "agent", id: "code-reviewer".to_string(), title: "Code Reviewer".to_string(), sub: "agent".to_string(), x: 400.0, y: 240.0, w: 160.0 },
-                WireNode { kind: "skill", id: "diff-review".to_string(), title: "Diff Review".to_string(), sub: "skill".to_string(), x: 120.0, y: 120.0, w: 140.0 },
+                WireNode {
+                    kind: "agent",
+                    id: "code-reviewer".to_string(),
+                    title: "Code Reviewer".to_string(),
+                    sub: "agent".to_string(),
+                    x: 400.0,
+                    y: 240.0,
+                    w: 160.0,
+                },
+                WireNode {
+                    kind: "skill",
+                    id: "diff-review".to_string(),
+                    title: "Diff Review".to_string(),
+                    sub: "skill".to_string(),
+                    x: 120.0,
+                    y: 120.0,
+                    w: 140.0,
+                },
             ],
-            edges: vec![WireEdge { kind: "skill", id: "diff-review".to_string(), path_d: "M400,240 C260,180 200,140 120,120".to_string(), dashed: false }],
+            edges: vec![WireEdge {
+                kind: "skill",
+                id: "diff-review".to_string(),
+                path_d: "M400,240 C260,180 200,140 120,120".to_string(),
+                dashed: false,
+            }],
             catalogs: AgentCatalogs::example(),
         }
     }
@@ -202,16 +246,19 @@ impl AgentSettingsCtx {
 
 impl AgentTemplatesResponse {
     pub fn example() -> Self {
-        AgentTemplatesResponse { items: builtin_templates() }
+        AgentTemplatesResponse {
+            items: builtin_templates(),
+        }
     }
 }
 
 impl PermissionPresetsResponse {
     pub fn example() -> Self {
-        PermissionPresetsResponse { items: builtin_permission_presets() }
+        PermissionPresetsResponse {
+            items: builtin_permission_presets(),
+        }
     }
 }
-
 
 impl AgentsCreateCtx {
     pub fn example() -> Self {
@@ -234,7 +281,10 @@ pub fn examples() -> Vec<(&'static str, Value)> {
         ("agents.wire", v(AgentWireCtx::example())),
         ("agents.settings", v(AgentSettingsCtx::example())),
         ("agents.templates", v(AgentTemplatesResponse::example())),
-        ("agents.permission_presets", v(PermissionPresetsResponse::example())),
+        (
+            "agents.permission_presets",
+            v(PermissionPresetsResponse::example()),
+        ),
         // agents.harnesses moved to ship.code.v1.CodeService.Harnesses
         // (mount split 2026-07-10) — see code_wire::harnesses for the
         // live wire handler and the fixture in
@@ -254,7 +304,10 @@ mod tests {
         let examples = examples();
         assert_eq!(examples.len(), 10, "one example per agents data op");
         for (op, value) in &examples {
-            assert!(value.is_object() || value.is_array(), "{op} example is structured");
+            assert!(
+                value.is_object() || value.is_array(),
+                "{op} example is structured"
+            );
         }
     }
     #[test]

@@ -23,9 +23,9 @@ use serde_json::json;
 use ship_collection::projection::SchemaRegistry;
 use ship_collection::service::CollectionService;
 use ship_substrate::data::DataService;
-use ship_substrate::events::new_isolated_for_test;
-use ship_substrate::{KernelLog, Query, SingleBackendDataStore, SpaceContext, SpaceId};
+use ship_substrate::events::new_isolated_for_test_with;
 use ship_substrate::testutil::init_project_minimal;
+use ship_substrate::{KernelLog, Query, SingleBackendDataStore, SpaceContext, SpaceId};
 
 mod common;
 
@@ -34,11 +34,14 @@ const COLL: &str = "claim";
 /// Build a `CollectionService` whose data store reads from the SAME per-scope
 /// `space.db` the projection writes into. Mirrors `projection.rs::make_service`.
 fn make_service(ship_dir: &std::path::Path, space_id: &str) -> CollectionService {
-    common::install_collection_projection();
     // I-2: register the fabricated `space_id` so `PartitionedSink::route()`
     // doesn't refuse this suite's Space-scoped `collection.*` events.
     ship_substrate::testutil::register_space(ship_dir, space_id).unwrap();
-    let router = new_isolated_for_test(ship_dir.to_path_buf()).unwrap();
+    let router = new_isolated_for_test_with(
+        ship_dir.to_path_buf(),
+        common::collection_projection_factory(),
+    )
+    .unwrap();
     let kernel = Arc::new(KernelLog::new(router));
 
     let space_db = ship_substrate::db::space_db_path(ship_dir, space_id);
@@ -46,7 +49,10 @@ fn make_service(ship_dir: &std::path::Path, space_id: &str) -> CollectionService
     let store = Arc::new(SingleBackendDataStore::new(svc, space_id));
     let ctx = Arc::new(SpaceContext::new(SpaceId::new(space_id), store, kernel));
 
-    CollectionService { ctx, schemas: Arc::new(SchemaRegistry::new()) }
+    CollectionService {
+        ctx,
+        schemas: Arc::new(SchemaRegistry::new()),
+    }
 }
 
 /// The Helm claim shape, expressed in the JSON schema format the
@@ -84,9 +90,10 @@ fn numeric_column(value: Option<&serde_json::Value>) -> Option<i64> {
     value.and_then(|v| match v {
         // serde_json's `as_i64` returns None when the number is internally
         // f64 (even for integer values); use `as_f64` and round-trip.
-        serde_json::Value::Number(n) => n
-            .as_i64()
-            .or_else(|| n.as_f64().and_then(|f| if f.is_finite() { Some(f as i64) } else { None })),
+        serde_json::Value::Number(n) => n.as_i64().or_else(|| {
+            n.as_f64()
+                .and_then(|f| if f.is_finite() { Some(f as i64) } else { None })
+        }),
         serde_json::Value::String(s) => s.parse::<i64>().ok(),
         _ => None,
     })
@@ -132,7 +139,11 @@ async fn claim_round_trip_with_nested_reconciliation() {
     let q = Query::new("collection_claim");
     let (items, _) = svc.query_items_by_query(q).await.unwrap();
 
-    assert_eq!(items.len(), 1, "projection must materialize exactly one row");
+    assert_eq!(
+        items.len(),
+        1,
+        "projection must materialize exactly one row"
+    );
     let row = &items[0];
     assert_eq!(row.id, item.id, "row id must match the generated item id");
     assert_eq!(row.collection, COLL);
@@ -140,13 +151,22 @@ async fn claim_round_trip_with_nested_reconciliation() {
     // 4. Typed scalars — every declared typed column survived the round-trip.
     assert_eq!(row.data.get("kind").and_then(|v| v.as_str()), Some("bug"));
     assert_eq!(row.data.get("by").and_then(|v| v.as_str()), Some("agent"));
-    assert_eq!(row.data.get("target").and_then(|v| v.as_str()), Some("/codebase"));
-    assert_eq!(row.data.get("version").and_then(|v| v.as_str()), Some("main"));
+    assert_eq!(
+        row.data.get("target").and_then(|v| v.as_str()),
+        Some("/codebase")
+    );
+    assert_eq!(
+        row.data.get("version").and_then(|v| v.as_str()),
+        Some("main")
+    );
     assert_eq!(
         row.data.get("body").and_then(|v| v.as_str()),
         Some("ship-collection claim schema diverges from Helm data shape")
     );
-    assert_eq!(row.data.get("status").and_then(|v| v.as_str()), Some("reconciled"));
+    assert_eq!(
+        row.data.get("status").and_then(|v| v.as_str()),
+        Some("reconciled")
+    );
     assert_eq!(
         numeric_column(row.data.get("claimed_at")),
         Some(claimed_at),
@@ -230,15 +250,15 @@ async fn claim_round_trip_with_archived_at_and_unreconciled() {
     assert_eq!(items.len(), 1);
     let row = &items[0];
 
-    assert_eq!(row.data.get("status").and_then(|v| v.as_str()), Some("archived"));
+    assert_eq!(
+        row.data.get("status").and_then(|v| v.as_str()),
+        Some("archived")
+    );
     assert_eq!(
         row.data.get("archived_at").and_then(|v| v.as_str()),
         Some("2026-06-30T13:30:00Z")
     );
-    assert_eq!(
-        numeric_column(row.data.get("claimed_at")),
-        Some(claimed_at)
-    );
+    assert_eq!(numeric_column(row.data.get("claimed_at")), Some(claimed_at));
 
     // No reconciliation on this claim — the field is omitted from the
     // item JSON, but the projection's `ensure_table_for_data` adds a

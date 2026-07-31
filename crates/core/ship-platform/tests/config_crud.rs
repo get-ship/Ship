@@ -1,5 +1,5 @@
-// A2: `McpServerConfig` now lives in `ship_config::crud` (the deleted
-// `ship_config::project::McpServerConfig` legacy view was a wider shape
+// A2: `McpServerConfig` now lives in `ship_settings::crud` (the deleted
+// `ship_settings::project::McpServerConfig` legacy view was a wider shape
 // carrying display fields; the runtime CRUD layer keeps those for the
 // slice-2c service RPC surface, the resolved-descriptor view drops them).
 //
@@ -8,9 +8,8 @@
 // were expanded with `..Default::default()` to tolerate the new fields
 // without enumerating them.
 
-use ship_platform::config::{
-    McpServerConfig, McpServerType,
-    add_mcp_server, list_mcp_servers, remove_mcp_server,
+use ship_settings::crud::{
+    McpServerConfig, McpServerType, add_mcp_server, list_mcp_servers, remove_mcp_server,
 };
 use ship_platform::testutil::init_project;
 use std::collections::HashMap;

@@ -78,28 +78,32 @@ pub async fn auth_middleware(
     // 1. Cookie check — browser sessions.
     if let Some(cookie_header) = req.headers().get("cookie").and_then(|v| v.to_str().ok())
         && let Some(session_id) = super::session::parse_session_cookie(cookie_header)
-            && super::session::is_browser_session_id(&session_id) {
-                match super::session::lookup_browser_session(&session_registry, &session_id).await {
-                    Some(session) => {
-                        let auth = AuthContext {
-                            caller_kind: CallerKind::Cli,
-                            agent_id: None,
-                            space_id: session.space_id.clone(),
-                            session_id: None,
-                            grants: session.grants.clone(),
-                            // A browser cookie is NOT a pid-attested operator
-                            // cred — it grants no elevation (S6).
-                            operator_cred: false,
-                        };
-                        req.extensions_mut().insert(auth);
-                        return next.run(req).await;
-                    }
-                    None => {
-                        return (StatusCode::UNAUTHORIZED, "invalid or expired session cookie")
-                            .into_response();
-                    }
-                }
+        && super::session::is_browser_session_id(&session_id)
+    {
+        match super::session::lookup_browser_session(&session_registry, &session_id).await {
+            Some(session) => {
+                let auth = AuthContext {
+                    caller_kind: CallerKind::Cli,
+                    agent_id: None,
+                    space_id: session.space_id.clone(),
+                    session_id: None,
+                    grants: session.grants.clone(),
+                    // A browser cookie is NOT a pid-attested operator
+                    // cred — it grants no elevation (S6).
+                    operator_cred: false,
+                };
+                req.extensions_mut().insert(auth);
+                return next.run(req).await;
             }
+            None => {
+                return (
+                    StatusCode::UNAUTHORIZED,
+                    "invalid or expired session cookie",
+                )
+                    .into_response();
+            }
+        }
+    }
 
     let header_token = req
         .headers()
@@ -129,7 +133,10 @@ pub async fn auth_middleware(
     let token = match header_token {
         Some(t) => t,
         None => {
-            return (StatusCode::UNAUTHORIZED, "missing or malformed Authorization header")
+            return (
+                StatusCode::UNAUTHORIZED,
+                "missing or malformed Authorization header",
+            )
                 .into_response();
         }
     };
@@ -183,9 +190,7 @@ pub async fn auth_middleware(
                 req.extensions_mut().insert(auth);
                 next.run(req).await
             }
-            None => {
-                (StatusCode::UNAUTHORIZED, "invalid session token").into_response()
-            }
+            None => (StatusCode::UNAUTHORIZED, "invalid session token").into_response(),
         };
     }
 
@@ -207,7 +212,7 @@ fn header_string(req: &Request<Body>, name: &str) -> Option<String> {
 /// extensions, so crate-owned Connect wires (e.g. `ship-account`) can gate on
 /// the shared `agent_schema::Authority` without depending on shipd's
 /// `AuthContext`. Mirrors how `rpc::settings` passes `is_operator` into
-/// `ship-config`: the authority is resolved in shipd (the SOLE minter) and
+/// `ship-settings`: the authority is resolved in shipd (the SOLE minter) and
 /// handed across the crate boundary as the shared type. Runs INSIDE
 /// `auth_middleware` (which has already populated `AuthContext`); a request with
 /// no `AuthContext` inserts nothing, and the wire fails closed (unauthenticated).

@@ -4,7 +4,7 @@
 //! inverse against the same `agents_service.json` file.
 
 use serde_json::Value;
-use ship_ops_rpc::{DispatchResult, GrantResult, SteerResult, StopResult};
+use ship_proto::ship::ops::v1::{DispatchResult, GrantResult, SteerResult, StopResult};
 
 const AGENT: &str = include_str!(concat!(env!("PROTO_ROOT"), "/fixtures/agents_service.json"));
 

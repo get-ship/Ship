@@ -12,26 +12,20 @@
 // `use … as _` is the idiomatic Rust force-link for inventory-only deps.
 use ship_cloud as _;
 
-/// Test-load initializer — runs once when the lib test binary loads.
-/// Registers ship-platform's default projection set + supervisor hook so
-/// any `SqliteEventStore` constructed inside a unit test sees the full
-/// bus. Idempotent. Production path uses an explicit
-/// `ship_platform::install_defaults()` call from `ship_runtime::new()`
-/// (see apps/shipd/src/ship_runtime/init.rs).
-#[cfg(test)]
-#[ctor::ctor]
-fn install_test_platform_defaults() {
-    ship_platform::install_defaults();
-}
+// Projection factories are no longer ambient. Production boot passes
+// `ship_platform::platform_projection_factory()` into kernel / rebuild
+// constructors (see `ship_runtime::init`). Unit tests that need domain
+// projections open stores via `with_projection_factory` / `new_for_scope_with`.
 
 pub mod auth;
+pub mod task_health;
 // wire: shared response envelope types. Stays at the crate root — it is the
 // bottom of the module DAG (auth AND routes consume it; see
 // `scripts/lint/check-module-dag.sh`), so it has no single parent module.
-pub mod wire;
-pub mod transport;
 mod daemon;
 pub mod router;
+pub mod transport;
+pub mod wire;
 // rpc: per-domain Connect wire impls + the ops router composition root.
 pub mod rpc;
 // ports: shipd-side implementations of L1 crate ports (DataPort, view tools,
@@ -48,8 +42,8 @@ pub mod dispatch;
 // deleted in the multiplex transport move to deck-axum (#276); the per-window
 // registry now lives in `deck_core::window_registry` and the wire is mounted
 // in `apps/shipd/src/router/mod.rs`.)
-pub mod views;
 pub mod ship_runtime;
+pub mod views;
 // (former `supervisor` integration tests deleted with the engine cut, 2026-07-10
 // — the per-run pipeline projection + the engine-emitted integration coverage
 // are gone; bare-agent integration coverage lives in ship-agents' own tests).

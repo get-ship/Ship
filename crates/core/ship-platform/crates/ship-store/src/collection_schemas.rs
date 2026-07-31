@@ -3,7 +3,7 @@
 //! `.ship/collections/*.jsonc` and `hydrate_registry` called it on
 //! boot). Post-W4: collection definitions arrive via
 //! `defineCollection` declare-forms in the space's `stack.config.ts` and
-//! land in `ExtensionLibrary::collections` (a `Vec<stack_model::CollectionDef>`).
+//! land in `ExtensionLibrary::collections` (a `Vec<ship_collection::CollectionDef>`).
 //! This module maps the descriptor's collection definitions onto the
 //! runtime `SchemaRegistry`'s `SchemaDoc` shape and registers them.
 //!
@@ -15,7 +15,7 @@
 use indexmap::IndexMap;
 use ship_collection::types::{FieldDef, FieldKind, SchemaDoc};
 
-/// Convert a descriptor's [`stack_model::CollectionDef`] into a runtime
+/// Convert a descriptor's [`ship_collection::CollectionDef`] into a runtime
 /// `SchemaDoc` suitable for the `SchemaRegistry`.
 ///
 /// Maps each `CollectionFieldDef` to a `FieldDef` (kind from
@@ -24,18 +24,18 @@ use ship_collection::types::{FieldDef, FieldKind, SchemaDoc};
 /// registry concerns, so they don't survive the conversion). The
 /// `id` is the same on both sides; `name` (descriptor) → `title`
 /// (registry, optional).
-pub fn collection_def_to_schema_doc(def: &stack_model::CollectionDef) -> SchemaDoc {
+pub fn collection_def_to_schema_doc(def: &ship_collection::CollectionDef) -> SchemaDoc {
     let mut fields: IndexMap<String, FieldDef> = IndexMap::new();
     for f in &def.fields {
         let kind = match f.field_type {
-            stack_model::types::CollectionFieldType::String => FieldKind::String,
-            stack_model::types::CollectionFieldType::Enum => FieldKind::Enum,
-            stack_model::types::CollectionFieldType::Markdown => FieldKind::Markdown,
-            stack_model::types::CollectionFieldType::Date => FieldKind::Date,
-            stack_model::types::CollectionFieldType::Number => FieldKind::Number,
-            stack_model::types::CollectionFieldType::Boolean => FieldKind::Boolean,
-            stack_model::types::CollectionFieldType::Array => FieldKind::Array,
-            stack_model::types::CollectionFieldType::Object => FieldKind::Object,
+            ship_collection::CollectionFieldType::String => FieldKind::String,
+            ship_collection::CollectionFieldType::Enum => FieldKind::Enum,
+            ship_collection::CollectionFieldType::Markdown => FieldKind::Markdown,
+            ship_collection::CollectionFieldType::Date => FieldKind::Date,
+            ship_collection::CollectionFieldType::Number => FieldKind::Number,
+            ship_collection::CollectionFieldType::Boolean => FieldKind::Boolean,
+            ship_collection::CollectionFieldType::Array => FieldKind::Array,
+            ship_collection::CollectionFieldType::Object => FieldKind::Object,
         };
         let values = if f.values.is_empty() {
             None
@@ -65,7 +65,7 @@ pub fn collection_def_to_schema_doc(def: &stack_model::CollectionDef) -> SchemaD
 /// `insert`.
 pub fn hydrate_registry(
     registry: &ship_collection::projection::SchemaRegistry,
-    collections: &[stack_model::CollectionDef],
+    collections: &[ship_collection::CollectionDef],
 ) {
     for def in collections {
         if ship_collection::types::RESERVED_IDS.contains(&def.id.as_str()) {
@@ -79,7 +79,7 @@ pub fn hydrate_registry(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use stack_model::types::{CollectionDef, CollectionFieldDef, CollectionFieldType};
+    use ship_collection::{CollectionDef, CollectionFieldDef, CollectionFieldType};
 
     #[test]
     fn collection_def_maps_into_schema_doc() {

@@ -344,7 +344,10 @@ mod tests {
         req.invocation = InvocationMode::Print;
         req.keepalive = true;
         let err = validate_code_dispatch_request(&req).unwrap_err();
-        assert!(err.contains("print is incompatible with keepalive"), "got: {err}");
+        assert!(
+            err.contains("print is incompatible with keepalive"),
+            "got: {err}"
+        );
     }
 
     #[test]

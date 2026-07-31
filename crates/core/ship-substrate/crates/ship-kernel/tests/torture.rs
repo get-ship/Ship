@@ -5,9 +5,10 @@
 
 use std::sync::Arc;
 
-use ship_kernel::testing::MockSink;
+use ship_kernel::testing::MockPersist;
 use ship_kernel::{ActorConfig, KernelRouter};
 use ship_types::envelope::EventEnvelope;
+use ship_types::Stamped;
 
 fn config(ns: &str) -> ActorConfig {
     ActorConfig {
@@ -19,15 +20,17 @@ fn config(ns: &str) -> ActorConfig {
     }
 }
 
-fn ev(event_type: &str) -> EventEnvelope {
-    EventEnvelope::new(event_type, "entity-1", &serde_json::json!({})).unwrap()
+fn ev(event_type: &str) -> Stamped {
+    Stamped::unchecked(
+        EventEnvelope::new(event_type, "entity-1", &serde_json::json!({})).unwrap(),
+    )
 }
 
 // ── Scenario 1: no actor leak under churn ───────────────────────────────────
 
 #[test]
 fn no_actor_leak_under_bulk_spawn_and_drop() {
-    let sink = Arc::new(MockSink::new());
+    let sink = Arc::new(MockPersist::new());
     let mut router = KernelRouter::new(sink);
     let baseline = router.actor_count();
 
@@ -51,7 +54,7 @@ fn no_actor_leak_under_bulk_spawn_and_drop() {
 
 #[test]
 fn no_actor_leak_under_rapid_subscribe_drop_cycles() {
-    let sink = Arc::new(MockSink::new());
+    let sink = Arc::new(MockPersist::new());
     let mut router = KernelRouter::new(sink);
     let baseline = router.actor_count();
 
@@ -77,7 +80,7 @@ fn no_actor_leak_under_rapid_subscribe_drop_cycles() {
 
 #[tokio::test]
 async fn slow_consumer_overflow_does_not_starve_others_or_wedge_kernel() {
-    let sink = Arc::new(MockSink::new());
+    let sink = Arc::new(MockPersist::new());
     let mut router = KernelRouter::new(sink);
 
     let mut slow_mb = router.spawn_actor("slow", config("config")).unwrap();
@@ -114,7 +117,7 @@ async fn slow_consumer_overflow_does_not_starve_others_or_wedge_kernel() {
 
 #[tokio::test]
 async fn fanout_scale_bounded_actor_count_and_full_delivery() {
-    let sink = Arc::new(MockSink::new());
+    let sink = Arc::new(MockPersist::new());
     let mut router = KernelRouter::new(sink);
 
     const N: usize = 200;

@@ -4,9 +4,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use ship_substrate::task_health::HealthRegistry;
+use crate::task_health::HealthRegistry;
 
-use super::{ShipRuntime, RuntimeConfig, SharedKernel};
+use super::{RuntimeConfig, SharedKernel, ShipRuntime};
 
 impl ShipRuntime {
     /// Build a ShipRuntime for tests — synchronous, takes a pre-initialized
@@ -45,7 +45,7 @@ impl ShipRuntime {
             ),
         );
         let pipelines =
-            ship_pipeline_runtime::pipelines::service::PipelinesServiceImpl::arc(ship_dir.clone());
+            pipeline_defs::pipelines::service::PipelinesServiceImpl::arc(ship_dir.clone());
         // Test fixture binds a concrete space (`test-space`) — there is no daemon
         // home space / `global` partition to fall back onto (S2). Production boot
         // leaves these `None` in space-less mode.
@@ -100,5 +100,4 @@ impl ShipRuntime {
             live_resolvers: Arc::new(crate::ship_runtime::live_resolvers::build()),
         }
     }
-
 }

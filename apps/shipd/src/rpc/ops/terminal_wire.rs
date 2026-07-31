@@ -9,15 +9,15 @@
 //! from the descriptor at startup) — the wire does not re-enforce it.
 
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
-use ship_ops_rpc::{
-    BytesChunk, JsonResponse, ListTerminalsResponse, OwnedGetTerminalRequestView,
-    OwnedListTerminalsRequestView, OwnedResizeTerminalRequestView, OwnedSendInputRequestView,
-    OwnedSessionEventsRequestView, OwnedSessionStreamRequestView,
-    OwnedSpawnTerminalRequestView, OwnedStopTerminalRequestView, ResizeTerminalResponse,
-    SendInputResponse, StopTerminalResponse, TerminalSession, TerminalService, TerminalServiceExt,
-};
 use ship_agents::services::sessions::registry::SessionRecord;
 use ship_agents::services::sessions::types::SessionStatus;
+use ship_proto::ship::ops::v1::{
+    BytesChunk, JsonResponse, ListTerminalsResponse, OwnedGetTerminalRequestView,
+    OwnedListTerminalsRequestView, OwnedResizeTerminalRequestView, OwnedSendInputRequestView,
+    OwnedSessionEventsRequestView, OwnedSessionStreamRequestView, OwnedSpawnTerminalRequestView,
+    OwnedStopTerminalRequestView, ResizeTerminalResponse, SendInputResponse, StopTerminalResponse,
+    TerminalService, TerminalServiceExt, TerminalSession,
+};
 
 use crate::ship_runtime::ApiState;
 
@@ -59,14 +59,17 @@ impl TerminalService for TerminalWire {
         let work_dir = resolve_work_dir(&self.state, &request.work_dir);
 
         match kind.as_str() {
-            "shell" => match ship_agents::services::sessions::terminal_session_spawner::spawn_shell(
-                self.state.live_sessions(),
-                work_dir,
-                self.state.ship_dir().join("logs").join("sessions"),
-            ) {
-                Ok(entry) => Ok(Response::new(meta_to_wire(&entry.meta_snapshot()))),
-                Err(e) => Err(ConnectError::internal(format!("spawn_shell: {e}"))),
-            },
+            "shell" => {
+                match ship_agents::services::sessions::terminal_session_spawner::spawn_shell(
+                    self.state.live_sessions(),
+                    work_dir,
+                    self.state.ship_dir().join("logs").join("sessions"),
+                    self.state.kernel().clone(),
+                ) {
+                    Ok(entry) => Ok(Response::new(meta_to_wire(&entry.meta_snapshot()))),
+                    Err(e) => Err(ConnectError::internal(format!("spawn_shell: {e}"))),
+                }
+            }
             "agent" => Err(ConnectError::invalid_argument(
                 "agent spawn requires agent_id + harness — not yet exposed on the wire \
                  (see Phase 4 / SpawnAgent op); only 'shell' is supported today",
@@ -85,7 +88,10 @@ impl TerminalService for TerminalWire {
         request: OwnedStopTerminalRequestView,
     ) -> ServiceResult<StopTerminalResponse> {
         let id = request.session_id.to_string();
-        if ship_agents::services::sessions::terminal_session_spawner::stop(self.state.live_sessions(), &id) {
+        if ship_agents::services::sessions::terminal_session_spawner::stop(
+            self.state.live_sessions(),
+            &id,
+        ) {
             return Ok(Response::new(StopTerminalResponse::default()));
         }
         Err(ConnectError::not_found(format!("session '{id}' not found")))
@@ -277,7 +283,12 @@ fn meta_to_wire(m: &SessionRecord) -> TerminalSession {
 }
 
 fn kind_str(m: &SessionRecord) -> String {
-    if m.agent_id.is_some() { "agent" } else { "shell" }.to_string()
+    if m.agent_id.is_some() {
+        "agent"
+    } else {
+        "shell"
+    }
+    .to_string()
 }
 
 fn status_str(s: SessionStatus) -> String {

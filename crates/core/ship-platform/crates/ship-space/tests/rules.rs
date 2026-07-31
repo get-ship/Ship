@@ -1,7 +1,7 @@
 //! Behavioral proofs for `ship_space::rules::list_space_rules`.
 //!
 //! Storage: the per-space `settings_overlay` partition — the read-model
-//! surfaced by `ship_config::overlay`. Writes here go through the same
+//! surfaced by `ship_settings::overlay`. Writes here go through the same
 //! substrate path the canonical SettingsService writers use, so the proof
 //! exercises the full overlay round-trip (ensure_table → insert → read →
 //! parse), not a private shortcut.
@@ -22,7 +22,7 @@
 
 use std::sync::Arc;
 
-use ship_config::overlay;
+use ship_settings::overlay;
 use ship_space::rules::{RULES_KEY_PREFIX, SpaceRule, list_space_rules};
 use ship_substrate::data::DataService;
 use ship_substrate::ports::SingleBackendDataStore;

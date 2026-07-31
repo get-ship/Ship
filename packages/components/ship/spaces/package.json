@@ -1,0 +1,26 @@
+{
+  "name": "@ship/spaces",
+  "version": "0.1.0",
+  "description": "Ship Spaces pack \u2014 ship-* components for the SHELL side of the space registry (switcher, registry list, add dialog, active badge). Presentational: they render registered spaces and emit operator intent (ship-activate, ship-add, ship-cancel); the host owns the SpaceService.List/Activate/Add surface.",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "customElements": "dist/custom-elements.json",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@ship/sail-dom": "*",
+    "@ship/sail-runtime": "*",
+    "@ship/sail-primitives": "*"
+  },
+  "devDependencies": {
+    "@ship/test-setup": "^0.1.0",
+    "happy-dom": "^20.9.0",
+    "vitest": "^4.1.5"
+  }
+}

@@ -12,7 +12,11 @@ use anyhow::Result;
 use async_trait::async_trait;
 use bridge::dispatch_ports::{IsolationStrategy, SessionContext};
 use ship_git::write::{self, WorktreeOutcome};
+use ship_substrate::events::KernelRouter;
+use ship_substrate::ports::KernelLog;
 use std::path::PathBuf;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 use bridge::helpers::{repo_dir, worktrees_dir};
 use ship_agents::services::agents::compile_dispatch::compile_agent_config;
@@ -25,7 +29,20 @@ use ship_agents::services::agents::compile_dispatch::compile_agent_config;
 static WORKTREE_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 /// Isolation strategy that creates git worktrees and compiles agent configs.
-pub(crate) struct GitWorktreeIsolation;
+///
+/// Holds the daemon's shared event log so dispatch-time compile emits
+/// `compile.completed` on the same kernel as the rest of the runtime.
+pub(crate) struct GitWorktreeIsolation {
+    kernel: Arc<KernelLog>,
+}
+
+impl GitWorktreeIsolation {
+    pub(crate) fn new(kernel: Arc<Mutex<KernelRouter>>) -> Self {
+        Self {
+            kernel: Arc::new(KernelLog::new(kernel)),
+        }
+    }
+}
 
 #[async_trait]
 impl IsolationStrategy for GitWorktreeIsolation {
@@ -45,13 +62,8 @@ impl IsolationStrategy for GitWorktreeIsolation {
             // in-call; never persisted.
             let repo_root = job.repo_path.clone().unwrap_or_else(repo_dir);
             let base_ref = job.base_ref.as_deref().unwrap_or("");
-            let outcome = write::create_worktree(
-                &repo_root,
-                &worktree_path,
-                &job.branch,
-                base_ref,
-                true,
-            );
+            let outcome =
+                write::create_worktree(&repo_root, &worktree_path, &job.branch, base_ref, true);
             if let WorktreeOutcome::Failed { error, .. } = outcome {
                 return Err(anyhow::anyhow!(
                     "git worktree add failed for '{}': {error}",
@@ -70,19 +82,17 @@ impl IsolationStrategy for GitWorktreeIsolation {
             // gate reads to detect a dispatched context (vs interactive).
             // A silent miss leaves the agent gated as interactive with no
             // record why — propagate so the dispatch aborts loudly.
-            anyhow::anyhow!(
-                "write .dispatched marker (slug={}) failed: {}",
-                job.slug,
-                e
-            )
+            anyhow::anyhow!("write .dispatched marker (slug={}) failed: {}", job.slug, e)
         })?;
         // Per-step "phase spec" writer was retired with the engine cut
         // (2026-07-10): code-mode steps author their own artifacts. The
         // bare agent-session dispatch leaves only the worktree + .dispatched
         // marker as the dispatch evidence.
-        // Run steps (pure shell) carry no agent — there's nothing to
+        // Run steps (pure shell) carry no agent — there's nothing to compile.
+        // Agent dispatches inject the daemon KernelLog so compile.completed
+        // lands on the shared event log (not a process-global lookup).
         if !job.agent.is_empty() {
-            compile_agent_config(&worktree_path, &job.agent)?;
+            compile_agent_config(&worktree_path, &job.agent, Some(self.kernel.clone()))?;
         }
         Ok(worktree_path)
     }
@@ -91,7 +101,10 @@ impl IsolationStrategy for GitWorktreeIsolation {
         let worktree_path = worktrees_dir()?.join(&job.slug);
         if worktree_path.exists() {
             write::remove_worktree(&repo_dir(), &worktree_path, true).map_err(|e| {
-                anyhow::anyhow!("git worktree remove failed for '{}': {e}", worktree_path.display())
+                anyhow::anyhow!(
+                    "git worktree remove failed for '{}': {e}",
+                    worktree_path.display()
+                )
             })?;
         }
         write::delete_branch(&repo_dir(), &job.branch, false)
@@ -99,4 +112,3 @@ impl IsolationStrategy for GitWorktreeIsolation {
         Ok(())
     }
 }
-

@@ -22,8 +22,10 @@ impl TestDaemon {
         let bin = env!("CARGO_BIN_EXE_shipd");
         let child = Command::new(bin)
             .args([
-                "--port", &port.to_string(),
-                "--host", "127.0.0.1",
+                "--port",
+                &port.to_string(),
+                "--host",
+                "127.0.0.1",
                 "--unsafe-skip-auth",
             ])
             .current_dir(global_dir.path())
@@ -67,7 +69,11 @@ impl TestDaemon {
             tokio::time::sleep(Duration::from_millis(50)).await;
         }
 
-        Self { port, _global_dir: global_dir, child: Some(child) }
+        Self {
+            port,
+            _global_dir: global_dir,
+            child: Some(child),
+        }
     }
 
     fn url(&self, path: &str) -> String {
@@ -84,7 +90,6 @@ impl TestDaemon {
         reqwest::Client::new()
     }
 }
-
 
 impl Drop for TestDaemon {
     fn drop(&mut self) {
@@ -155,10 +160,14 @@ async fn cors_rejects_bad_origin() {
 #[tokio::test]
 async fn unknown_route_returns_404() {
     let d = TestDaemon::start().await;
-    let res = d.authed().get(d.url("/api/nonexistent")).send().await.unwrap();
+    let res = d
+        .authed()
+        .get(d.url("/api/nonexistent"))
+        .send()
+        .await
+        .unwrap();
     assert_eq!(res.status(), 404);
 }
-
 
 #[tokio::test]
 async fn invoke_unknown_skill_404s() {

@@ -1,0 +1,42 @@
+// apps/hub/deck.jsonc — the hub defines the hub.
+//
+// Per-app serve config (the `AppServeConfig` shape deck consumes). Loaded by
+// shipd via the app-registration port; deck-config owns the schema + parser.
+//
+// Post deck-jsonc-simplify cutover, the file only carries the
+// non-conventional bits. `name`/`route`/`source`/`render` moved to
+// host-owned binds (apps.jsonc + convention):
+//
+//   - name   → derived from the directory basename (`apps/hub` ⇒ `hub`)
+//   - route  → declared in apps.jsonc (`apps/shipd/apps.jsonc`)
+//   - source → always `<root>/.deck` (the bundler's out_dir)
+//   - render → defaults to csr (the implicit posture every app served in)
+//
+// Framework clients (`@ship/sdk-client` etc.) are NO LONGER host-declared
+// here — they are provider-declared in their own `package.json#deckFramework`
+// and discovered by walking the app's resolved dependency graph (see
+// `crates/deck/deck-bundler/src/app.rs::discover_deck_frameworks` in the sibling
+// sui repo — relative path under the umbrella). The
+// framework never hardcodes any ship path; every singleton owner names
+// itself.
+//
+// What the file CAN carry (the only non-conventional pieces):
+//
+//   entry? { clientsModule, exposeNames }   host-owned entry bootstrap
+//                                            the bundler emits as
+//                                            `entry.gen.ts`: imports the
+//                                            data tables from
+//                                            `routes.gen`, constructs
+//                                            the named `clients` map off
+//                                            `clientsModule`'s exports,
+//                                            and calls `mountRouter`.
+//                                            `exposeNames` becomes the
+//                                            keys the runtime exposes to
+//                                            every view's
+//                                            `ctx.<name>`.
+{
+  "entry": {
+    "clientsModule": "./src/lib/client.ts",
+    "exposeNames": ["ship", "ops"]
+  }
+}

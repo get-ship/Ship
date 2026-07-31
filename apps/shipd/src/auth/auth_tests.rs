@@ -8,11 +8,11 @@
 //! `--unsafe-skip-auth`, and requests without any of these
 //! credentials are rejected with 401.
 
+use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use axum::middleware;
 use axum::response::IntoResponse;
-use axum::Router;
 use http_body_util::BodyExt;
 use std::sync::Arc;
 use tower::ServiceExt;
@@ -21,9 +21,8 @@ use crate::auth::{self, AuthContext, SessionRegistry};
 
 /// Build a minimal router with the auth middleware and a 200-OK handler.
 fn test_router() -> Router {
-    let registry: SessionRegistry = Arc::new(tokio::sync::Mutex::new(
-        std::collections::HashMap::new(),
-    ));
+    let registry: SessionRegistry =
+        Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new()));
     Router::new()
         .route("/test", axum::routing::get(ok_handler))
         .layer(middleware::from_fn(move |req, next| {
@@ -53,7 +52,14 @@ use ship_auth::scopes::{operator_session, space_window_session};
 /// Handler that reports whether the resolved caller is operator-class — the S6
 /// end-to-end probe (the operator cred is the SOLE elevation source).
 async fn operator_probe(axum::Extension(auth): axum::Extension<AuthContext>) -> impl IntoResponse {
-    (StatusCode::OK, if auth.is_operator() { "operator" } else { "not-operator" })
+    (
+        StatusCode::OK,
+        if auth.is_operator() {
+            "operator"
+        } else {
+            "not-operator"
+        },
+    )
 }
 
 /// Router serving `/whoami` (operator probe) behind the real bearer middleware,
@@ -70,10 +76,12 @@ async fn operator_router(
         .layer(middleware::from_fn(move |req, next| {
             auth::auth_middleware(registry.clone(), req, next)
         }))
-        .layer(middleware::from_fn(move |mut req: Request<Body>, next: middleware::Next| async move {
-            req.extensions_mut().insert(PeerPid(peer_pid));
-            next.run(req).await
-        }))
+        .layer(middleware::from_fn(
+            move |mut req: Request<Body>, next: middleware::Next| async move {
+                req.extensions_mut().insert(PeerPid(peer_pid));
+                next.run(req).await
+            },
+        ))
 }
 
 #[tokio::test]
@@ -89,7 +97,10 @@ async fn operator_cred_over_attested_transport_is_operator() {
         .unwrap();
     let (status, body) = send(router, req).await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(body, "operator", "a pid-attested operator cred is operator-class");
+    assert_eq!(
+        body, "operator",
+        "a pid-attested operator cred is operator-class"
+    );
 }
 
 #[tokio::test]
@@ -128,10 +139,12 @@ async fn router_with_pid_bound_session(
             auth::auth_middleware(registry.clone(), req, next)
         }))
         // Outermost: runs first, inserts the kernel pid like the peer-cred layer.
-        .layer(middleware::from_fn(move |mut req: Request<Body>, next: middleware::Next| async move {
-            req.extensions_mut().insert(PeerPid(peer_pid));
-            next.run(req).await
-        }))
+        .layer(middleware::from_fn(
+            move |mut req: Request<Body>, next: middleware::Next| async move {
+                req.extensions_mut().insert(PeerPid(peer_pid));
+                next.run(req).await
+            },
+        ))
 }
 
 #[tokio::test]
@@ -157,7 +170,11 @@ async fn pid_bound_session_rejects_mismatched_process() {
         .body(Body::empty())
         .unwrap();
     let (status, _) = send(router, req).await;
-    assert_eq!(status, StatusCode::FORBIDDEN, "a different process is rejected (stolen token)");
+    assert_eq!(
+        status,
+        StatusCode::FORBIDDEN,
+        "a different process is rejected (stolen token)"
+    );
 }
 
 #[tokio::test]
@@ -171,7 +188,11 @@ async fn pid_bound_session_fails_closed_without_peer_pid() {
         .body(Body::empty())
         .unwrap();
     let (status, _) = send(router, req).await;
-    assert_eq!(status, StatusCode::FORBIDDEN, "a bound token over an unattested transport fails closed");
+    assert_eq!(
+        status,
+        StatusCode::FORBIDDEN,
+        "a bound token over an unattested transport fails closed"
+    );
 }
 
 // ── Unauthenticated requests are rejected ────────────────────────────────
@@ -186,7 +207,11 @@ async fn request_without_token_returns_401() {
         .unwrap();
 
     let (status, _) = send(router, req).await;
-    assert_eq!(status, StatusCode::UNAUTHORIZED, "no token must be rejected");
+    assert_eq!(
+        status,
+        StatusCode::UNAUTHORIZED,
+        "no token must be rejected"
+    );
 }
 
 // ── Cookie-based session auth ────────────────────────────────────────────
@@ -194,9 +219,8 @@ async fn request_without_token_returns_401() {
 use crate::auth::session;
 
 fn router_with_session() -> (Router, SessionRegistry) {
-    let registry: SessionRegistry = Arc::new(tokio::sync::Mutex::new(
-        std::collections::HashMap::new(),
-    ));
+    let registry: SessionRegistry =
+        Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new()));
     let router = Router::new()
         .route("/test", axum::routing::get(ok_handler))
         .layer(middleware::from_fn({
@@ -223,11 +247,8 @@ async fn auth_middleware_accepts_valid_session_cookie() {
 #[tokio::test]
 async fn auth_middleware_rejects_expired_session_cookie() {
     let (router, reg) = router_with_session();
-    let id = session::issue_browser_session_with_ttl(
-        &reg,
-        std::time::Duration::from_millis(1),
-    )
-    .await;
+    let id =
+        session::issue_browser_session_with_ttl(&reg, std::time::Duration::from_millis(1)).await;
     tokio::time::sleep(std::time::Duration::from_millis(5)).await;
     let req = Request::builder()
         .uri("/test")
@@ -254,8 +275,8 @@ async fn query_token_rejected_on_non_raw_paths() {
 
 // ── Session is the sole binding minter (Phase 2 / #196) ───────────────────
 
-use ship_substrate::events::CallerKind;
 use agent_schema::Authority;
+use ship_substrate::events::CallerKind;
 use ship_types::{SpaceId, event_registry::EventScope, local_device_id};
 
 /// T1 — a space-window session mints the correct binding: its OWN space (not a
@@ -276,11 +297,16 @@ fn space_window_session_mints_space_binding() {
     assert_eq!(ctx.binding.space_id(), Some(&SpaceId::new("space-A")));
     assert_eq!(
         *ctx.binding.authority(),
-        Authority::Space { space_id: "space-A".to_string() }
+        Authority::Space {
+            space_id: "space-A".to_string()
+        }
     );
     assert_eq!(ctx.binding.device_id(), &local_device_id());
     assert_eq!(ctx.binding.account_id(), None);
-    assert_eq!(ctx.binding.key_for(EventScope::Space).as_deref(), Some("space-A"));
+    assert_eq!(
+        ctx.binding.key_for(EventScope::Space).as_deref(),
+        Some("space-A")
+    );
 }
 
 /// T2 — operator authority derives SOLELY from a verified operator cred (S6,
@@ -298,7 +324,10 @@ fn operator_authority_requires_a_verified_cred_not_the_cli_transport() {
         grants: vec![],
         operator_cred: true,
     };
-    assert!(operator.is_operator(), "a verified operator cred is operator-class");
+    assert!(
+        operator.is_operator(),
+        "a verified operator cred is operator-class"
+    );
 
     // The CLI transport WITHOUT a verified operator cred grants NO elevation —
     // this is the S6 kill: CLI != operator.
@@ -323,12 +352,21 @@ fn operator_authority_requires_a_verified_cred_not_the_cli_transport() {
         grants: vec![],
         operator_cred: false,
     };
-    assert!(!sdk.is_operator(), "SDK token must NEVER be operator-class (#207)");
+    assert!(
+        !sdk.is_operator(),
+        "SDK token must NEVER be operator-class (#207)"
+    );
     assert_eq!(
         *sdk.to_emit_context(CallerKind::Sdk).binding.authority(),
         Authority::Sdk
     );
     // Intended P2 fail-soft: operator with no session space keys None (no
     // home-space fallback on the emit path).
-    assert_eq!(operator.to_emit_context(CallerKind::Cli).binding.key_for(EventScope::Space), None);
+    assert_eq!(
+        operator
+            .to_emit_context(CallerKind::Cli)
+            .binding
+            .key_for(EventScope::Space),
+        None
+    );
 }

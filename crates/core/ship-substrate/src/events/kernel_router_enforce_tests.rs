@@ -5,15 +5,15 @@
 //! Shared fixtures (`setup`/`ev`/`neutral_config`) are borrowed from the sibling
 //! `kernel_router_tests` module.
 
-use ship_types::envelope::EventEnvelope;
 use crate::events::validator::{CallerKind, EmitContext};
 use crate::persistence::event_store::{EventStore, SqliteEventStore};
+use agent_schema::Authority;
+use ship_types::envelope::EventEnvelope;
 use ship_types::event_registry::EventScope;
 use ship_types::identity::{AccountId, DeviceId, SpaceId};
-use agent_schema::Authority;
 use ship_types::{ScopeBinding, ScopeViolation};
 
-use super::kernel_router_tests::{ev, setup, neutral_config};
+use super::kernel_router_tests::{ev, neutral_config, setup};
 
 /// A session binding bound to `space`, carrying device + account identity.
 fn space_binding(space: &str) -> ScopeBinding {
@@ -65,7 +65,10 @@ fn read_back_scope(
     if !path.exists() {
         return None;
     }
-    SqliteEventStore::new_at_db_path(&path).unwrap().get(id).unwrap()
+    SqliteEventStore::new_at_db_path(&path)
+        .unwrap()
+        .get(id)
+        .unwrap()
 }
 
 /// Convenience: read a Space event back from space "space-A"'s db.
@@ -112,8 +115,14 @@ async fn emit_rejects_cross_space_and_does_not_persist() {
         "unexpected error: {err}"
     );
 
-    assert!(read_back(&tmp, &id).is_none(), "rejected event must not persist");
-    assert!(mb.try_recv().is_err(), "rejected event must not be delivered");
+    assert!(
+        read_back(&tmp, &id).is_none(),
+        "rejected event must not persist"
+    );
+    assert!(
+        mb.try_recv().is_err(),
+        "rejected event must not be delivered"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -129,7 +138,10 @@ async fn emit_rejects_space_event_from_space_unbound_binding() {
         err.to_string().contains("space-unbound"),
         "unexpected error: {err}"
     );
-    assert!(read_back(&tmp, &id).is_none(), "rejected event must not persist");
+    assert!(
+        read_back(&tmp, &id).is_none(),
+        "rejected event must not persist"
+    );
 }
 
 // ── Allowed-set (Model C) — these run in ship-substrate so the inventory

@@ -20,5 +20,5 @@ pub use project::ProjectRoot;
 // compiler-free `ship-paths` leaf; re-exported so `ship_substrate::ShipHome`,
 // `ship_substrate::home::ShipHome`, and internal `crate::ShipHome` consumers
 // keep resolving unchanged.
-pub use ship_paths::{Db, ShipHome};
 pub use device_id::read_or_generate_device_id;
+pub use ship_paths::{Db, ShipHome};

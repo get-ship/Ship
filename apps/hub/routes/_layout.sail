@@ -1,0 +1,49 @@
+<!--
+  Hub root layout — every route under `apps/hub/routes/` is wrapped in
+  <ship-app-chrome>, the chrome that assembles the top nav and the
+  route outlet.
+
+  The bundler (`crates/deck/deck-bundler/src/routes.rs::discover_layouts`)
+  discovers this file as a ROOT layout — sibling of `routes/page.sui`,
+  prefix `/`. The runtime's longest-prefix match in
+  `packages/deck/route/src/layouts.ts::matchPrefix` treats prefix `/` as
+  "every pathname", so the chrome wraps the index route AND every
+  nested route (longest-prefix wins, so a future `routes/studio/
+  _layout.sui` would compose with this one — `ship-app-chrome`
+  outermost, the studio chrome innermost).
+
+  Slot convention: the runtime's
+  `mountRouter` → `buildMountTarget` inserts a `<div slot="route">` as
+  the innermost element of the chrome chain (see
+  `packages/deck/route/src/mount-router.ts:170-182`). That div is
+  projected into this layout's `<slot name="route" />` by
+  `resolveSlots` at mount time. The chrome component
+  (`<ship-app-chrome>`, in `@ship/chrome`) is the one that owns the
+  slot — `_layout.sui` is just the assembly view of the chrome.
+
+  Error handling: the route outlet is wrapped in `<error-boundary>`
+  so a controller `mount()` throw renders the shared `<ship-error-state>`
+  fallback IN-CHROME instead of a blank page or a bare text node. The
+  `<template slot="fallback">` marker is inert until the boundary swaps
+  to its error branch; when it does, the boundary clones the template
+  contents into a live wrapper element so the slot renders. Both tags
+  auto-register via deck's per-tag resolver (no global import needed):
+  the moment either appears in this template the bundler emits an
+  `@sui-tag/<name>` registration import. The nav is declared ONCE here,
+  not per-page. Pages compose only the page body; the chrome owns the
+  wrapper.
+-->
+<ship-app-chrome>
+  <ship-command-palette slot="command-bar" id="ship-command-palette"></ship-command-palette>
+  <error-boundary data-test="hub-route-boundary">
+    <template slot="fallback">
+      <ship-error-state
+        variant="error"
+        href="/"
+        action-label="Go home"
+        data-test="hub-route-error"
+      ></ship-error-state>
+    </template>
+    <slot name="route" />
+  </error-boundary>
+</ship-app-chrome>

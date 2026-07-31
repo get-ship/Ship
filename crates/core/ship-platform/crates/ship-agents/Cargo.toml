@@ -8,6 +8,7 @@ description = "Agent domain (L1) — agent-session dispatch, agent-domain policy
 [dependencies]
 # RPC wire layer (ConnectRPC trait impls for rules/mcp/permissions/skills/agents)
 ship-ops-rpc = { path = "../../../ship-ops-rpc" }
+ship-proto = { git = "https://github.com/get-ship/ship-contracts.git", branch = "feat/next" }
 ship-reactive = { path = "../ship-reactive" }
 connectrpc = { version = "0.4", features = ["axum"] }
 async-stream = "0.3"
@@ -15,9 +16,12 @@ buffa = "0.5"
 # L0 substrate
 ship-substrate = { path = "../../../ship-substrate" }
 # L0 git capability — git2-backed; baseline SHA capture on the bridge path.
-ship-git = { path = "../../../ship-git", optional = true }
-ship-device = { path = "../ship-device", optional = true }
-ship-isolation = { path = "../ship-isolation", optional = true }
+# Home: ship-exec (j-04). Path-patched via workspace [patch] until rev pin.
+ship-git = { git = "https://github.com/get-ship/ship-exec.git", rev = "ee39e5273ce8829d90043626a01f564e660dd477", optional = true }
+ship-device = { git = "https://github.com/get-ship/ship-exec.git", rev = "ee39e5273ce8829d90043626a01f564e660dd477", optional = true }
+ship-isolation = { git = "https://github.com/get-ship/ship-exec.git", rev = "ee39e5273ce8829d90043626a01f564e660dd477", optional = true }
+# process-supervisor — KernelSupervisorSink adapter (session spawners).
+process-supervisor = { git = "https://github.com/get-ship/ship-exec.git", rev = "ee39e5273ce8829d90043626a01f564e660dd477", optional = true }
 # Fleet runtime composition surface — always present; provides process-supervisor,
 # isolation-port, and harness-driver types that ship-agents/session registry use.
 bridge = { git = "https://github.com/get-ship/fleet.git", rev = "6967f155ca795c19c44a145701c138b2d079c89c", default-features = false, features = ["runtime"] }
@@ -25,7 +29,7 @@ ship-types = { path = "../../../ship-substrate/crates/ship-types" }
 ship-kernel = { path = "../../../ship-substrate/crates/ship-kernel" }
 # L1 crates (carved siblings, no cycle)
 agent-def = { path = "../agent-def" }
-ship-config = { path = "../ship-config" }
+ship-settings = { path = "../ship-settings" }
 ship-files = { path = "../ship-files" }
 ship-store = { path = "../ship-store" }
 # Agent-run assembly deps (supervisor split — `runtime::executors`):
@@ -37,7 +41,7 @@ agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "6967f155c
 stack-model = { path = "../../../stack-model", features = ["specta"] }
 # compiler crate (the engine; services/compile is only the wrapper)
 # No longer a direct dep: bridge re-exports what dispatch needs.
-ship-resolver = { path = "../../../ship-resolver" }
+space-resolver = { path = "../../../space-resolver" }
 
 ulid = { workspace = true }
 
@@ -73,7 +77,7 @@ specta = []
 # bridge: enable the third-party-harness dispatch path (coding agents). Adds
 # ship-git/ship-device/ship-isolation and agent-def's compile surface. The
 # fleet `bridge` runtime crate itself is an unconditional dep.
-bridge = ["dep:ship-git", "dep:ship-device", "dep:ship-isolation", "agent-def/bridge"]
+bridge = ["dep:ship-git", "dep:ship-device", "dep:ship-isolation", "dep:process-supervisor", "agent-def/bridge"]
 
 [lints]
 workspace = true

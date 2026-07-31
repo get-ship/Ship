@@ -29,9 +29,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use connectrpc::{ConnectError, RequestContext, Router as ConnectRouter, ServiceResult};
-use ship_ops_rpc::ship::code::v1::{
-    CodeDispatchRequest, CodeService as CodeServiceTrait, CodeServiceExt,
-    ListHarnessesResponse, OwnedCodeDispatchRequestView, OwnedListHarnessesRequestView,
+use ship_proto::ship::code::v1::{
+    CodeDispatchRequest, CodeService as CodeServiceTrait, CodeServiceExt, ListHarnessesResponse,
+    OwnedCodeDispatchRequestView, OwnedListHarnessesRequestView,
 };
 use ship_substrate::ports::KernelLog;
 
@@ -76,7 +76,7 @@ pub struct CodeWire {
     /// the watch + read surface.
     kernel: Arc<KernelLog>,
     dispatch_port: Arc<dyn AgentDispatchPort>,
-    def_index: Option<Arc<ship_config::agents_index::AgentDefIndex>>,
+    def_index: Option<Arc<ship_settings::agents_index::AgentDefIndex>>,
 }
 
 impl CodeWire {
@@ -105,10 +105,9 @@ pub struct CodeWireConfig {
     /// path consults the index for the "agent exists" wire-boundary
     /// check; `None` for the no-index posture (helmd's lean mount) —
     /// the path falls back to `agent_id_exists` which resolves through
-    /// `ship_resolver::roll_up_registered_blocking`.
-    pub def_index: Option<Arc<ship_config::agents_index::AgentDefIndex>>,
+    /// `space_resolver::roll_up_registered_blocking`.
+    pub def_index: Option<Arc<ship_settings::agents_index::AgentDefIndex>>,
 }
-
 
 // ── Trait implementation ──────────────────────────────────────────────────────
 
@@ -118,7 +117,7 @@ impl CodeServiceTrait for CodeWire {
         &self,
         ctx: RequestContext,
         request: OwnedCodeDispatchRequestView,
-    ) -> ServiceResult<ship_ops_rpc::ship::code::v1::CodeDispatchResult> {
+    ) -> ServiceResult<ship_proto::ship::code::v1::CodeDispatchResult> {
         // The gate is enforced by the mount call site — shipd uses the
         // shared `agents.dispatch` blast-radius for both ops; helmd's
         // unconditional testbed mount omits the gate. We re-check at
@@ -177,7 +176,7 @@ impl CodeServiceTrait for CodeWire {
                 DispatchCoreError::Internal(m) => ConnectError::internal(m),
             })?;
         Ok(connectrpc::Response::new(
-            ship_ops_rpc::ship::code::v1::CodeDispatchResult {
+            ship_proto::ship::code::v1::CodeDispatchResult {
                 session_id: outcome.session_id,
                 slug: outcome.slug,
                 branch: outcome.branch,
@@ -211,7 +210,6 @@ impl CodeServiceTrait for CodeWire {
         }))
     }
 }
-
 
 /// Mount `CodeService` onto `router`. The single mount point per
 /// install: shipd gates it behind `#[cfg(feature = "bridge")]` at

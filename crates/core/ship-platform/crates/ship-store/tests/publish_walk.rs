@@ -177,7 +177,10 @@ fn root_triggers_marker_is_refused_even_when_empty() {
     fs::create_dir_all(dir.path().join("triggers")).unwrap();
 
     let error = validate_publishable_stack(dir.path()).expect_err("triggers dir must be refused");
-    assert!(error.to_string().contains("triggers are not publishable"), "{error:#}");
+    assert!(
+        error.to_string().contains("triggers are not publishable"),
+        "{error:#}"
+    );
 }
 
 #[test]

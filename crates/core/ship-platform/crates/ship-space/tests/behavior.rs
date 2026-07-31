@@ -1,10 +1,9 @@
 //! Behavioral proofs for ship-space.
 //!
 //! All tests use temp-dir ports — no network, no real daemon. The
-//! `SpacesProjection` is installed once per test-binary via the
-//! `install_spaces_projection()` helper below; this ensures the event-fold
-//! writes to the `spaces` SQL table so the async reads (which now go
-//! through `spaces` + `db::spaces`) see each newly opened space.
+//! `SpacesProjection` is passed into kernel construction via a local
+//! factory so the event-fold writes to the `spaces` SQL table and async
+//! reads (through `spaces` + `db::spaces`) see each newly opened space.
 //!
 //! The 2026-07-09 cut: `info::compose`, `Active` / `active_id` / the
 //! `space_active` pointer are GONE. The registry is now just `spaces`
@@ -19,28 +18,10 @@ use std::time::Duration;
 use ship_space::identity;
 use ship_space::service::SpaceService;
 use ship_substrate::data::DataService;
-use ship_substrate::events::new_isolated_for_test;
+use ship_substrate::events::new_isolated_for_test_with;
 use ship_substrate::home::ShipHome;
 use ship_substrate::ports::{DataStore, KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
-
-// ── Projection install ────────────────────────────────────────────────────────
-
-/// Install the `SpacesProjection` into the global extra-projections factory
-/// once per test binary. Safe to call from each test: the `Once` guard makes
-/// subsequent calls no-ops. Without this the event-fold path (which populates
-/// the `spaces` SQL table) does not run inside the isolated kernel, and all
-/// registry reads return empty / not-found.
-fn install_spaces_projection() {
-    static ONCE: std::sync::Once = std::sync::Once::new();
-    ONCE.call_once(|| {
-        ship_substrate::projections::install_extra_projections_factory(Box::new(|| {
-            vec![
-                Box::new(ship_space::SpacesProjection),
-                Box::new(ship_space::SpaceStacksProjection),
-            ]
-        }));
-    });
-}
+use ship_substrate::projections::ProjectionFactory;
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 //
@@ -49,11 +30,19 @@ fn install_spaces_projection() {
 // `opened_at` from the emitted `space.opened` event. Tests open bare
 // directories.
 
+fn spaces_projection_factory() -> ProjectionFactory {
+    Arc::new(|| {
+        vec![
+            Box::new(ship_space::SpacesProjection),
+            Box::new(ship_space::SpaceStacksProjection),
+        ]
+    })
+}
+
 fn make_kernel(tmp: &tempfile::TempDir) -> Arc<KernelLog> {
-    install_spaces_projection();
     let ship_dir = tmp.path().join(".ship");
     std::fs::create_dir_all(&ship_dir).unwrap();
-    let router = new_isolated_for_test(ship_dir).unwrap();
+    let router = new_isolated_for_test_with(ship_dir, spaces_projection_factory()).unwrap();
     Arc::new(KernelLog::new(router))
 }
 
@@ -248,10 +237,9 @@ async fn re_open_emits_space_seen() {
 // (projection reader) share the same runtime.db.
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn resolve_active_space_reads_the_spaces_projection() {
-    install_spaces_projection();
     let global = ship_substrate::project::get_global_dir().unwrap();
     std::fs::create_dir_all(&global).unwrap();
-    let router = new_isolated_for_test(global).unwrap();
+    let router = new_isolated_for_test_with(global, spaces_projection_factory()).unwrap();
     let kernel = Arc::new(KernelLog::new(router));
 
     let tmp = tempfile::tempdir().unwrap();

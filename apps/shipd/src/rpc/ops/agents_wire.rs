@@ -21,10 +21,10 @@ use connectrpc::{ConnectError, RequestContext, Router as ConnectRouter};
 use ship_agents::services::agents::dispatch_core::AgentDispatchPort;
 #[cfg(feature = "bridge")]
 use ship_agents::services::agents::host::DispatchHandlePort;
+use ship_agents::services::agents::host::mount_full as host_mount_full;
 use ship_agents::services::agents::host::{AgentsGrantHost, AgentsHost, AgentsWatchHost};
 use ship_agents::services::agents::service::AgentsService;
 use ship_agents::services::rules::wire::GateFn;
-use ship_agents::services::agents::host::mount_full as host_mount_full;
 use ship_reactive::ReactiveRegistry;
 use ship_substrate::events::KernelRouter;
 use ship_substrate::ports::KernelLog;
@@ -34,11 +34,7 @@ use crate::auth::SessionRegistry;
 use crate::ports::agent_events::AgentDispatchAdapter;
 use crate::ship_runtime::ApiState;
 
-pub(super) fn mount(
-    router: ConnectRouter,
-    state: &ApiState,
-    gate: GateFn,
-) -> ConnectRouter {
+pub(super) fn mount(router: ConnectRouter, state: &ApiState, gate: GateFn) -> ConnectRouter {
     // shipd keeps full behavior — identical to the prior single-mount body —
     // so we wire mount_full here, not the lean `mount`.
     host_mount_full(&StateHost(state.clone()), gate, router)
@@ -72,7 +68,7 @@ impl AgentsHost for StateHost {
         self.0.agent_def_kernel().map(|a| a.clone())
     }
 
-    fn agent_def_index(&self) -> Option<Arc<ship_platform::config::AgentDefIndex>> {
+    fn agent_def_index(&self) -> Option<Arc<ship_settings::agents_index::AgentDefIndex>> {
         self.0.agent_def_index().map(|a| a.clone())
     }
 
@@ -80,10 +76,7 @@ impl AgentsHost for StateHost {
         Arc::new(AgentDispatchAdapter::new(self.0.clone()))
     }
 
-    fn extract_approver(
-        &self,
-        ctx: &RequestContext,
-    ) -> Result<Option<String>, ConnectError> {
+    fn extract_approver(&self, ctx: &RequestContext) -> Result<Option<String>, ConnectError> {
         let auth = ctx
             .extensions
             .get::<crate::auth::AuthContext>()
@@ -139,9 +132,8 @@ impl DispatchHandlePort for ShipCodeDispatchHandle {
     fn stop(
         &self,
         slug: &str,
-    ) -> std::pin::Pin<
-        Box<dyn Future<Output = Result<serde_json::Value, ConnectError>> + Send>,
-    > {
+    ) -> std::pin::Pin<Box<dyn Future<Output = Result<serde_json::Value, ConnectError>> + Send>>
+    {
         let registry = self.registry.clone();
         let executor = self.executor.clone();
         let slug = slug.to_string();
@@ -165,9 +157,8 @@ impl DispatchHandlePort for ShipCodeDispatchHandle {
         &self,
         slug: &str,
         message: &str,
-    ) -> std::pin::Pin<
-        Box<dyn Future<Output = Result<serde_json::Value, ConnectError>> + Send>,
-    > {
+    ) -> std::pin::Pin<Box<dyn Future<Output = Result<serde_json::Value, ConnectError>> + Send>>
+    {
         let registry = self.registry.clone();
         let executor = self.executor.clone();
         let slug = slug.to_string();

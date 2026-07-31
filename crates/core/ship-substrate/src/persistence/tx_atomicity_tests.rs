@@ -16,7 +16,7 @@
 
 use std::sync::Arc;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use sqlx::SqliteConnection;
 use tempfile::tempdir;
 
@@ -24,6 +24,7 @@ use super::event_store::{EventStore, SqliteEventStore};
 use crate::db::{self, block_on};
 use crate::projections::{EventBus, Projection};
 use ship_types::envelope::EventEnvelope;
+use ship_types::Stamped;
 
 const FAIL_TYPE: &str = "test.tx-fail";
 
@@ -81,7 +82,7 @@ fn append_rolls_back_event_row_when_projection_handler_fails() {
     let event = EventEnvelope::new(FAIL_TYPE, "entity-fail", &serde_json::json!({})).unwrap();
 
     // 1. append must surface the handler error.
-    let result = store.append(&event);
+    let result = store.append(&Stamped::unchecked(event.clone()));
     assert!(
         result.is_err(),
         "append must return Err when a projection handler fails (got Ok — error was swallowed)"
@@ -110,9 +111,13 @@ fn append_commits_event_row_when_projections_succeed() {
     let store = SqliteEventStore::new_at_db_path(&db_path).unwrap();
 
     let event = EventEnvelope::new("test.ok", "entity-ok", &serde_json::json!({})).unwrap();
-    store.append(&event).unwrap();
+    store.append(&Stamped::unchecked(event.clone())).unwrap();
 
-    assert_eq!(event_row_count(&db_path), 1, "a clean append must commit one row");
+    assert_eq!(
+        event_row_count(&db_path),
+        1,
+        "a clean append must commit one row"
+    );
     assert!(store.get(&event.id).unwrap().is_some());
 }
 
@@ -128,7 +133,8 @@ fn rebuild_surfaces_projection_handler_errors() {
     let mut bus = EventBus::new();
     bus.register(Box::new(FailingProjection));
 
-    let events = vec![EventEnvelope::new(FAIL_TYPE, "entity-fail", &serde_json::json!({})).unwrap()];
+    let events =
+        vec![EventEnvelope::new(FAIL_TYPE, "entity-fail", &serde_json::json!({})).unwrap()];
 
     let result = bus.rebuild(&events, &mut conn);
     assert!(

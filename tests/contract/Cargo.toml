@@ -29,7 +29,7 @@ ship-substrate = { path = "../../crates/core/ship-substrate" }
 agent-def = { path = "../../crates/core/ship-platform/crates/agent-def" }
 ship-space = { path = "../../crates/core/ship-platform/crates/ship-space" }
 ship-cloud = { path = "../../crates/core/ship-cloud" }
-ship-config = { path = "../../crates/core/ship-platform/crates/ship-config" }
+ship-settings = { path = "../../crates/core/ship-platform/crates/ship-settings" }
 ship-account = { path = "../../crates/core/ship-platform/crates/ship-account" }
 ship-collection = { path = "../../crates/core/ship-platform/crates/ship-collection" }
 ship-artifacts = { path = "../../crates/core/ship-platform/crates/ship-artifacts" }

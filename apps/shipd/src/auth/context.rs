@@ -1,8 +1,8 @@
 //! `AuthContext` — the authenticated caller identity injected into request
 //! extensions by the auth middleware, and the SOLE session→binding minter.
 
-use ship_substrate::events::CallerKind;
 use agent_schema::Authority;
+use ship_substrate::events::CallerKind;
 use ship_types::{ScopeBinding, SpaceId, local_device_id};
 
 /// Authenticated caller context injected into request extensions by the

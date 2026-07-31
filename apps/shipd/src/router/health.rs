@@ -45,13 +45,22 @@ struct StoreProbe {
 
 impl StoreProbe {
     fn ok() -> Self {
-        Self { state: "ok", detail: None }
+        Self {
+            state: "ok",
+            detail: None,
+        }
     }
     fn unavailable() -> Self {
-        Self { state: "unavailable", detail: None }
+        Self {
+            state: "unavailable",
+            detail: None,
+        }
     }
     fn err(detail: String) -> Self {
-        Self { state: "error", detail: Some(detail) }
+        Self {
+            state: "error",
+            detail: Some(detail),
+        }
     }
 }
 
@@ -75,20 +84,12 @@ async fn probe_db(path: &Path, label: &'static str) -> StoreProbe {
             let mut svc = match DataService::open_at(&path) {
                 Ok(s) => s,
                 Err(e) => {
-                    return Err(format!(
-                        "open {label} ({path}): {e}",
-                        path = path.display()
-                    ));
+                    return Err(format!("open {label} ({path}): {e}", path = path.display()));
                 }
             };
             svc.query("SELECT 1 AS ok", &[])
                 .map(|_| ())
-                .map_err(|e| {
-                    format!(
-                        "SELECT 1 {label} ({path}): {e}",
-                        path = path.display()
-                    )
-                })
+                .map_err(|e| format!("SELECT 1 {label} ({path}): {e}", path = path.display()))
         }
     })
     .await;
@@ -124,8 +125,7 @@ pub(crate) async fn health_check(rt: Arc<ship_runtime::ShipRuntime>) -> Json<ser
 
     let active_space_probe = match rt.active_space_id() {
         Some(space_id) => {
-            let space_db_path =
-                ship_substrate::db::space_db_path(rt.ship_dir(), &space_id);
+            let space_db_path = ship_substrate::db::space_db_path(rt.ship_dir(), &space_id);
             if space_db_path.exists() {
                 probe_db(&space_db_path, "space.db").await
             } else {

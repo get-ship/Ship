@@ -80,7 +80,7 @@ pub(super) async fn start_agent_stack(rt: &Arc<ShipRuntime>, global_dir: &std::p
         // sessions keep flowing. Non-yoke sessions no-op (harness-driver stack
         // cfg-omitted from `handle_agent_session_started`).
         let _ = global_dir;
-        use ship_substrate::task_health::spawn_monitored;
+        use crate::task_health::spawn_monitored;
         let ports = std::sync::Arc::new(ship_agents::AgentPorts::yoke_only(Some(yoke_run_fn)));
         let kernel_actor = rt.kernel().clone();
         let hr = rt.health_registry();
@@ -104,8 +104,11 @@ pub(super) fn spawn_leak_diag(rt: &Arc<ShipRuntime>) {
     tokio::spawn(async move {
         fn rss_mb() -> f64 {
             let s = std::fs::read_to_string("/proc/self/statm").unwrap_or_default();
-            let pages: u64 =
-                s.split_whitespace().nth(1).and_then(|v| v.parse().ok()).unwrap_or(0);
+            let pages: u64 = s
+                .split_whitespace()
+                .nth(1)
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(0);
             (pages * 4096) as f64 / (1024.0 * 1024.0)
         }
         let mut tick = tokio::time::interval(std::time::Duration::from_secs(5));
@@ -165,7 +168,9 @@ pub(super) async fn detect_prior_crash(rt: &Arc<ShipRuntime>, global_dir: &std::
         return;
     }
 
-    let crashes_dir = ship_substrate::ShipHome::from_env().state_dir().join("crashes");
+    let crashes_dir = ship_substrate::ShipHome::from_env()
+        .state_dir()
+        .join("crashes");
     let mut reports: Vec<String> = std::fs::read_dir(&crashes_dir)
         .into_iter()
         .flatten()
@@ -218,10 +223,7 @@ pub(super) async fn bind_with_retry(
         match tokio::net::TcpListener::bind(&addr).await {
             Ok(l) => break l,
             Err(e) if e.kind() == std::io::ErrorKind::AddrInUse && !user_pinned => {
-                tracing::warn!(
-                    port = bound_port,
-                    "shipd: port busy, trying next"
-                );
+                tracing::warn!(port = bound_port, "shipd: port busy, trying next");
                 bound_port += 1;
                 if bound_port - desired_port >= max_retries {
                     let already_bound_by_pid = pidfile_pid_for_port(desired_port);
@@ -423,7 +425,10 @@ pub(super) async fn drain_and_shutdown(rt: &Arc<ShipRuntime>) {
             &mut registry,
             Arc::clone(&dh.executor),
         );
-        if tokio::time::timeout(SHUTDOWN_DRAIN_TIMEOUT, drain).await.is_err() {
+        if tokio::time::timeout(SHUTDOWN_DRAIN_TIMEOUT, drain)
+            .await
+            .is_err()
+        {
             tracing::warn!(
                 timeout_secs = SHUTDOWN_DRAIN_TIMEOUT.as_secs(),
                 "shipd: agent drain timed out; proceeding with shutdown"

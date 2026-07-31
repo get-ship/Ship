@@ -31,4 +31,3 @@ pub struct SettingChanged {
     /// matching `EventScope::as_str`.
     pub scope: String,
 }
-

@@ -22,7 +22,7 @@ fn check<T: serde::de::DeserializeOwned>(v: &Value) -> Result<()> {
 /// simple name (`MethodPolicy.output_type`). A new method reusing an existing
 /// type is covered automatically; only a new RESPONSE TYPE needs an entry here.
 fn type_validators() -> BTreeMap<&'static str, fn(&Value) -> Result<()>> {
-    use ship_ops_rpc::*;
+    use ship_proto::ship::ops::v1::*;
     macro_rules! v {
         ($t:ty) => {
             (stringify!($t), check::<$t> as fn(&Value) -> Result<()>)
@@ -66,7 +66,7 @@ fn type_validators() -> BTreeMap<&'static str, fn(&Value) -> Result<()>> {
         v!(Space), v!(SpaceList), v!(SpaceInfo),
         v!(UnregisterStackResult), v!(InstallStackResult), v!(InstalledList),
         v!(SpaceSnapshotResult),
-        // settings.* (unified, scope-discriminated SettingsService — ship-config
+        // settings.* (unified, scope-discriminated SettingsService — ship-settings
         // crate): the settings keystone. Replaces the retired ConfigService.
         v!(Setting), v!(SettingList),
         // account.* (typed AccountService — ship-account crate): Ship Cloud

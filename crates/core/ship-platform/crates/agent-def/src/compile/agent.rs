@@ -5,8 +5,8 @@
 //! harness settings, then registers the active profile in `library.agents` so
 //! `resolve()` can filter MCP / skill / rule refs against it.
 
-use anyhow::Result;
 use agent_schema::{PluginEntry, PluginsManifest};
+use anyhow::Result;
 use stack_model::ExtensionLibrary;
 use std::path::Path;
 

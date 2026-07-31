@@ -29,7 +29,11 @@ dependencies = [
  "oxc_transformer",
  "serde",
  "serde_json",
+ "ship-collection",
  "ship-js",
+ "ship-pipelines",
+ "ship-triggers",
+ "ship-ui",
  "stack-model",
  "tokio",
 ]
@@ -51,13 +55,12 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "sha2",
- "ship-config",
  "ship-kernel",
- "ship-platform",
- "ship-resolver",
+ "ship-settings",
  "ship-store",
  "ship-substrate",
  "ship-types",
+ "space-resolver",
  "specta",
  "sqlx",
  "stack-model",
@@ -504,7 +507,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "31b698c5f9a010f6573133b09e0de5408834d0c82f8d7475a89fc1867a71cd90"
 dependencies = [
  "axum-core",
- "axum-macros",
  "base64 0.22.1",
  "bytes",
  "form_urlencoded",
@@ -552,17 +554,6 @@ dependencies = [
  "tower-layer",
  "tower-service",
  "tracing",
-]
-
-[[package]]
-name = "axum-macros"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7aa268c23bfbbd2c4363b9cd302a4f504fb2a9dfe7e3451d66f35dd392e20aca"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.117",
 ]
 
 [[package]]
@@ -766,7 +757,6 @@ checksum = "dc0b364ead1874514c8c2855ab558056ebfeb775653e7ae45ff72f28f8f3166c"
 [[package]]
 name = "bounded-spawn"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/ship-exec.git?rev=ee39e5273ce8829d90043626a01f564e660dd477#ee39e5273ce8829d90043626a01f564e660dd477"
 dependencies = [
  "libc",
  "thiserror 1.0.69",
@@ -805,7 +795,6 @@ dependencies = [
  "process-supervisor",
  "serde",
  "serde_json",
- "ship-proto",
  "sysinfo 0.37.2",
  "thiserror 2.0.18",
  "tokio",
@@ -813,6 +802,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "ulid",
+ "yoke-proto",
 ]
 
 [[package]]
@@ -1378,13 +1368,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d52eff69cd5e647efe296129160853a42795992097e8af39800e1060caeea9b"
 
 [[package]]
-name = "content-scan"
-version = "0.1.0"
-dependencies = [
- "walkdir",
-]
-
-[[package]]
 name = "convert_case"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1607,16 +1590,6 @@ name = "cssparser-macros"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13b588ba4ac1a99f7f2964d24b3d896ddc6bf847ee3855dbd4366f058cfcd331"
-dependencies = [
- "quote",
- "syn 2.0.117",
-]
-
-[[package]]
-name = "ctor"
-version = "0.2.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "32a2785755761f3ddc1492979ce1e48d2c00d09311c39e4466429188f3dd6501"
 dependencies = [
  "quote",
  "syn 2.0.117",
@@ -2232,7 +2205,6 @@ checksum = "92773504d58c093f6de2459af4af33faa518c13451eb8f2b5698ed3d36e7c813"
 [[package]]
 name = "durable-execution"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/ship-exec.git?rev=ee39e5273ce8829d90043626a01f564e660dd477#ee39e5273ce8829d90043626a01f564e660dd477"
 dependencies = [
  "async-trait",
  "futures-util",
@@ -2376,21 +2348,6 @@ dependencies = [
  "cfg-if",
  "home",
  "windows-sys 0.48.0",
-]
-
-[[package]]
-name = "event-core"
-version = "0.1.0"
-source = "git+https://github.com/get-ship/ship-exec.git?rev=ee39e5273ce8829d90043626a01f564e660dd477#ee39e5273ce8829d90043626a01f564e660dd477"
-dependencies = [
- "async-trait",
- "chrono",
- "inventory",
- "serde",
- "serde_json",
- "sha2",
- "thiserror 1.0.69",
- "ulid",
 ]
 
 [[package]]
@@ -3286,7 +3243,6 @@ dependencies = [
 [[package]]
 name = "host-adapter"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/ship-exec.git?rev=ee39e5273ce8829d90043626a01f564e660dd477#ee39e5273ce8829d90043626a01f564e660dd477"
 dependencies = [
  "libc",
 ]
@@ -3758,7 +3714,6 @@ checksum = "a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695"
 [[package]]
 name = "isolation-port"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/ship-exec.git?rev=ee39e5273ce8829d90043626a01f564e660dd477#ee39e5273ce8829d90043626a01f564e660dd477"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3914,9 +3869,7 @@ dependencies = [
  "async-trait",
  "durable-execution",
  "serde_json",
- "ship-substrate",
  "sqlx",
- "tempfile",
  "tokio",
 ]
 
@@ -4468,19 +4421,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nix"
-version = "0.31.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf20d2fde8ff38632c426f1165ed7436270b44f199fc55284c38276f9db47c3d"
-dependencies = [
- "bitflags 2.11.1",
- "cfg-if",
- "cfg_aliases 0.2.1",
- "libc",
- "memoffset",
-]
-
-[[package]]
 name = "nodejs-built-in-modules"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4682,7 +4622,7 @@ version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "680998035259dcfcafe653688bf2aa6d3e2dc05e98be6ab46afb089dc84f1df8"
 dependencies = [
- "proc-macro-crate 2.0.2",
+ "proc-macro-crate 3.5.0",
  "proc-macro2",
  "quote",
  "syn 2.0.117",
@@ -5812,9 +5752,10 @@ name = "path-layout"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "serde",
+ "serde_json",
  "sha2",
  "ship-paths",
- "stack-model",
  "tracing",
  "walkdir",
 ]
@@ -5940,6 +5881,30 @@ name = "pin-project-lite"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a89322df9ebe1c1578d689c92318e070967d1042b512afbe49518723f4e6d5cd"
+
+[[package]]
+name = "pipeline-defs"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "connectrpc",
+ "json-patch 4.2.0",
+ "minijinja",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "ship-files",
+ "ship-pipelines",
+ "ship-proto",
+ "ship-substrate",
+ "stack-model",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+]
 
 [[package]]
 name = "piper"
@@ -6071,7 +6036,7 @@ dependencies = [
  "lazy_static",
  "libc",
  "log",
- "nix 0.28.0",
+ "nix",
  "serial2",
  "shared_library",
  "shell-words",
@@ -6228,12 +6193,10 @@ dependencies = [
 [[package]]
 name = "process-supervisor"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/ship-exec.git?rev=ee39e5273ce8829d90043626a01f564e660dd477#ee39e5273ce8829d90043626a01f564e660dd477"
 dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
- "event-core",
  "host-adapter",
  "isolation-port",
  "libc",
@@ -7880,6 +7843,7 @@ dependencies = [
  "sha2",
  "ship-gateway-client",
  "ship-ops-rpc",
+ "ship-proto",
  "ship-substrate",
  "ship-types",
  "specta",
@@ -7908,12 +7872,12 @@ dependencies = [
  "json-patch 4.2.0",
  "libc",
  "parking_lot",
+ "process-supervisor",
  "semver",
  "serde",
  "serde_json",
  "shell-words",
  "ship-auth",
- "ship-config",
  "ship-device",
  "ship-files",
  "ship-git",
@@ -7921,11 +7885,13 @@ dependencies = [
  "ship-kernel",
  "ship-ops-rpc",
  "ship-platform",
+ "ship-proto",
  "ship-reactive",
- "ship-resolver",
+ "ship-settings",
  "ship-store",
  "ship-substrate",
  "ship-types",
+ "space-resolver",
  "specta",
  "sqlx",
  "stack-model",
@@ -7948,6 +7914,7 @@ dependencies = [
  "serde",
  "serde_json",
  "ship-ops-rpc",
+ "ship-proto",
  "ship-substrate",
  "ship-types",
  "sqlx",
@@ -7969,6 +7936,7 @@ dependencies = [
  "serde",
  "serde_json",
  "ship-ops-rpc",
+ "ship-proto",
  "ship-reactive",
  "ship-substrate",
  "ship-types",
@@ -8047,41 +8015,12 @@ dependencies = [
  "serde",
  "serde_json",
  "ship-ops-rpc",
- "ship-reactive",
- "ship-substrate",
- "ship-types",
- "sqlx",
- "tempfile",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "ship-config"
-version = "0.1.0"
-dependencies = [
- "agent-config-eval",
- "agent-def",
- "agent-schema",
- "anyhow",
- "async-stream",
- "async-trait",
- "buffa",
- "chrono",
- "connectrpc",
- "fs-watch",
- "futures-util",
- "home",
- "serde",
- "serde_json",
- "ship-ops-rpc",
  "ship-proto",
  "ship-reactive",
  "ship-substrate",
  "ship-types",
+ "specta",
  "sqlx",
- "stack-model",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
@@ -8100,9 +8039,9 @@ dependencies = [
  "ship-auth",
  "ship-cloud",
  "ship-collection",
- "ship-config",
  "ship-ops-rpc",
  "ship-proto",
+ "ship-settings",
  "ship-space",
  "ship-substrate",
  "ship-types",
@@ -8115,17 +8054,12 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
- "connectrpc",
  "isolation-port",
  "nanoid",
  "serde",
  "serde_json",
  "ship-isolation",
- "ship-ops-rpc",
- "ship-substrate",
- "ship-types",
- "tempfile",
- "thiserror 2.0.18",
+ "thiserror 1.0.69",
  "tokio",
  "tracing",
 ]
@@ -8167,8 +8101,6 @@ dependencies = [
  "git2",
  "serde",
  "serde_json",
- "ship-paths",
- "tempfile",
  "tracing",
 ]
 
@@ -8201,16 +8133,12 @@ dependencies = [
  "http",
  "hyper-util",
  "isolation-port",
- "libc",
  "nanoid",
  "process-supervisor",
- "reqwest 0.12.28",
  "serde",
  "serde_json",
- "ship-ops-rpc",
  "ship-sidecar-proto",
- "ship-substrate",
- "thiserror 2.0.18",
+ "thiserror 1.0.69",
  "tokio",
  "tower",
  "tracing",
@@ -8248,8 +8176,6 @@ dependencies = [
  "buffa",
  "buffa-descriptor",
  "connectrpc",
- "http",
- "http-body",
  "serde",
  "serde_json",
  "ship-proto",
@@ -8265,35 +8191,6 @@ dependencies = [
  "serde",
  "ship-types",
  "tempfile",
-]
-
-[[package]]
-name = "ship-pipeline-runtime"
-version = "0.1.0"
-dependencies = [
- "agent-driver",
- "anyhow",
- "async-trait",
- "chrono",
- "connectrpc",
- "json-patch 4.2.0",
- "minijinja",
- "serde",
- "serde_json",
- "serde_yaml",
- "ship-agents",
- "ship-auth",
- "ship-files",
- "ship-ops-rpc",
- "ship-pipelines",
- "ship-platform",
- "ship-substrate",
- "ship-types",
- "stack-model",
- "tempfile",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
 ]
 
 [[package]]
@@ -8348,20 +8245,20 @@ dependencies = [
  "ship-auth-types",
  "ship-cloud",
  "ship-collection",
- "ship-config",
  "ship-device",
  "ship-files",
  "ship-gateway-client",
  "ship-isolation",
  "ship-kernel",
  "ship-platform",
- "ship-resolver",
+ "ship-settings",
  "ship-space",
  "ship-store",
  "ship-substrate",
  "ship-triggers",
  "ship-types",
  "ship-ui",
+ "space-resolver",
  "specta",
  "sqlx",
  "stack-model",
@@ -8406,26 +8303,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ship-resolver"
-version = "0.1.0"
-dependencies = [
- "agent-config-eval",
- "agent-schema",
- "anyhow",
- "serde",
- "serde_json",
- "sha2",
- "ship-js",
- "ship-store",
- "ship-substrate",
- "ship-types",
- "stack-model",
- "tempfile",
- "tokio",
- "tracing",
-]
-
-[[package]]
 name = "ship-search"
 version = "0.1.0"
 dependencies = [
@@ -8438,26 +8315,38 @@ dependencies = [
  "serde",
  "serde_json",
  "ship-ops-rpc",
+ "ship-proto",
  "tokio",
 ]
 
 [[package]]
-name = "ship-sidecar"
+name = "ship-settings"
 version = "0.1.0"
 dependencies = [
+ "agent-config-eval",
+ "agent-def",
+ "agent-schema",
  "anyhow",
- "axum",
+ "async-stream",
+ "async-trait",
  "buffa",
+ "chrono",
  "connectrpc",
+ "fs-watch",
  "futures-util",
- "http",
- "libc",
- "nanoid",
- "portable-pty",
- "ship-isolation",
+ "home",
+ "serde",
+ "serde_json",
+ "ship-ops-rpc",
+ "ship-proto",
+ "ship-reactive",
+ "ship-substrate",
+ "ship-types",
+ "sqlx",
+ "stack-model",
+ "tempfile",
+ "thiserror 2.0.18",
  "tokio",
- "tokio-stream",
- "tokio-vsock",
  "tracing",
 ]
 
@@ -8467,10 +8356,11 @@ version = "0.1.0"
 dependencies = [
  "buffa",
  "connectrpc",
+ "connectrpc-build",
  "http",
  "http-body",
+ "protoc-bin-vendored",
  "serde",
- "ship-proto",
 ]
 
 [[package]]
@@ -8490,9 +8380,10 @@ dependencies = [
  "serde_json",
  "ship-artifacts",
  "ship-collection",
- "ship-config",
  "ship-ops-rpc",
+ "ship-proto",
  "ship-reactive",
+ "ship-settings",
  "ship-store",
  "ship-substrate",
  "ship-types",
@@ -8513,7 +8404,6 @@ dependencies = [
  "async-trait",
  "base64 0.22.1",
  "bundle-limits",
- "content-scan",
  "flate2",
  "home",
  "indexmap 2.14.0",
@@ -8528,6 +8418,7 @@ dependencies = [
  "ship-gateway-client",
  "ship-substrate",
  "ship-types",
+ "ship-ui",
  "stack-model",
  "tar",
  "tempfile",
@@ -8549,7 +8440,6 @@ dependencies = [
  "bytes",
  "chrono",
  "config-doc",
- "event-core",
  "fs-cap",
  "fs-util",
  "futures-util",
@@ -8557,8 +8447,8 @@ dependencies = [
  "indexmap 2.14.0",
  "inventory",
  "libc",
+ "nanoid",
  "path-layout",
- "process-supervisor",
  "proptest",
  "serde",
  "serde_json",
@@ -8570,12 +8460,11 @@ dependencies = [
  "ship-types",
  "specta",
  "sqlx",
- "stack-model",
- "task-health",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
+ "trybuild",
  "ulid",
  "walkdir",
 ]
@@ -8595,11 +8484,11 @@ dependencies = [
  "serde",
  "serde_json",
  "ship-collection",
- "ship-config",
+ "ship-settings",
  "ship-store",
  "ship-substrate",
  "ship-types",
- "stack-model",
+ "specta",
  "tempfile",
  "tokio",
  "tracing",
@@ -8610,8 +8499,9 @@ name = "ship-types"
 version = "0.1.0"
 dependencies = [
  "agent-schema",
+ "async-trait",
  "chrono",
- "event-core",
+ "inventory",
  "serde",
  "serde_json",
  "sha2",
@@ -8634,6 +8524,7 @@ dependencies = [
  "ship-artifacts",
  "ship-collection",
  "ship-ops-rpc",
+ "ship-proto",
  "ship-substrate",
  "ship-types",
  "specta",
@@ -8663,8 +8554,8 @@ dependencies = [
  "serde",
  "serde_json",
  "ship-agents",
- "ship-ops-rpc",
  "ship-platform",
+ "ship-proto",
  "ship-substrate",
  "ship-types",
  "shipd",
@@ -8689,11 +8580,11 @@ dependencies = [
  "base64 0.22.1",
  "bounded-spawn",
  "bridge",
+ "buffa",
  "build-info",
  "chrono",
  "connectrpc",
  "cookie",
- "ctor 0.2.9",
  "deck",
  "deck-core",
  "deck-ssr",
@@ -8701,12 +8592,14 @@ dependencies = [
  "futures",
  "getrandom 0.2.17",
  "git2",
+ "harness-config-compiler",
  "host-adapter",
  "http",
  "http-body-util",
  "journal-sqlite",
  "json-patch 4.2.0",
  "libc",
+ "pipeline-defs",
  "process-supervisor",
  "reqwest 0.12.28",
  "rig-core",
@@ -8720,24 +8613,24 @@ dependencies = [
  "ship-auth-types",
  "ship-cloud",
  "ship-collection",
- "ship-config",
  "ship-device",
  "ship-files",
  "ship-git",
  "ship-isolation",
  "ship-kernel",
  "ship-ops-rpc",
- "ship-pipeline-runtime",
  "ship-platform",
+ "ship-proto",
  "ship-reactive",
- "ship-resolver",
  "ship-search",
+ "ship-settings",
  "ship-space",
  "ship-store",
  "ship-substrate",
  "ship-triggers",
  "ship-types",
  "ship-ui",
+ "space-resolver",
  "specta",
  "stack-model",
  "syn 2.0.117",
@@ -8752,6 +8645,7 @@ dependencies = [
  "tracing-appender",
  "tracing-subscriber",
  "yoke 0.1.0",
+ "yoke-proto",
 ]
 
 [[package]]
@@ -8927,6 +8821,29 @@ dependencies = [
  "serde_json",
  "unicode-id-start",
  "url",
+]
+
+[[package]]
+name = "space-resolver"
+version = "0.1.0"
+dependencies = [
+ "agent-config-eval",
+ "agent-schema",
+ "anyhow",
+ "serde",
+ "serde_json",
+ "sha2",
+ "ship-collection",
+ "ship-js",
+ "ship-pipelines",
+ "ship-store",
+ "ship-substrate",
+ "ship-triggers",
+ "ship-ui",
+ "stack-model",
+ "tempfile",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -9198,6 +9115,10 @@ dependencies = [
  "semver",
  "serde",
  "serde_json",
+ "ship-collection",
+ "ship-pipelines",
+ "ship-triggers",
+ "ship-ui",
  "specta",
  "tempfile",
  "toml 0.8.2",
@@ -9585,13 +9506,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 
 [[package]]
-name = "task-health"
-version = "0.1.0"
-dependencies = [
- "serde",
- "tokio",
- "tracing",
-]
+name = "target-triple"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c3a6bfce3d99adfa72d24750a61f782f3036a81e7f86d8841ee1326deaebd171"
 
 [[package]]
 name = "tauri"
@@ -9889,7 +9807,7 @@ dependencies = [
  "anyhow",
  "brotli",
  "cargo_metadata",
- "ctor 0.8.0",
+ "ctor",
  "dom_query",
  "dunce",
  "glob",
@@ -10246,19 +10164,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tokio-vsock"
-version = "0.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b319ef9394889dab2e1b4f0085b45ba11d0c79dc9d1a9d1afc057d009d0f1c7"
-dependencies = [
- "bytes",
- "futures",
- "libc",
- "tokio",
- "vsock",
-]
-
-[[package]]
 name = "toml"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10567,6 +10472,21 @@ name = "try-lock"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
+
+[[package]]
+name = "trybuild"
+version = "1.0.118"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "06649c6f63d86604ba0c8950d5a1829fc9a17afd70fc6629f481d75b6a624c78"
+dependencies = [
+ "glob",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "target-triple",
+ "termcolor",
+ "toml 1.1.2+spec-1.1.0",
+]
 
 [[package]]
 name = "ts-rs"
@@ -10930,16 +10850,6 @@ name = "vsimd"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5c3082ca00d5a5ef149bb8b555a72ae84c9c59f7250f013ac822ac2e49b19c64"
-
-[[package]]
-name = "vsock"
-version = "0.5.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6ba782755fc073877e567c2253c0be48e4aa9a254c232d36d3985dfae0bd5205"
-dependencies = [
- "libc",
- "nix 0.31.3",
-]
 
 [[package]]
 name = "vswhom"
@@ -11327,7 +11237,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -12111,13 +12021,13 @@ dependencies = [
  "oxc_ast 0.133.0",
  "oxc_parser 0.133.0",
  "oxc_span 0.133.0",
+ "pipeline-defs",
  "regex",
  "serde",
  "serde_json",
  "ship-account",
  "ship-agents",
  "ship-ops-rpc",
- "ship-pipeline-runtime",
  "ship-platform",
  "ship-proto",
  "ship-substrate",
@@ -12179,6 +12089,19 @@ dependencies = [
  "quote",
  "syn 2.0.117",
  "synstructure",
+]
+
+[[package]]
+name = "yoke-proto"
+version = "0.1.0"
+dependencies = [
+ "buffa",
+ "connectrpc",
+ "connectrpc-build",
+ "http",
+ "http-body",
+ "protoc-bin-vendored",
+ "serde",
 ]
 
 [[package]]

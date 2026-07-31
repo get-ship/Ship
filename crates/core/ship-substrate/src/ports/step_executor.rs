@@ -45,12 +45,8 @@ pub enum StepExecutorError {
 impl From<bounded_spawn::BoundedError> for StepExecutorError {
     fn from(e: bounded_spawn::BoundedError) -> Self {
         match e {
-            bounded_spawn::BoundedError::TimedOut(d) => {
-                StepExecutorError::TimedOut(d.as_secs())
-            }
-            bounded_spawn::BoundedError::OomCapped(mb) => {
-                StepExecutorError::MemoryCapped(mb)
-            }
+            bounded_spawn::BoundedError::TimedOut(d) => StepExecutorError::TimedOut(d.as_secs()),
+            bounded_spawn::BoundedError::OomCapped(mb) => StepExecutorError::MemoryCapped(mb),
             bounded_spawn::BoundedError::Io(e) => StepExecutorError::Io(e),
         }
     }

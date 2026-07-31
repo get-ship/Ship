@@ -3,9 +3,7 @@
 //! `set` is inferred server-side from the key; the client does not decide it.
 
 use anyhow::{anyhow, Context, Result};
-use ship_ops_rpc::{
-    GetSettingReq, ListSettingsReq, SetSettingReq, SettingScope, SettingsServiceClient,
-};
+use ship_proto::ship::ops::v1::{GetSettingReq, ListSettingsReq, SetSettingReq, SettingScope, SettingsServiceClient};
 
 use crate::uds_transport::{client_config, connect_transport_or_autostart};
 

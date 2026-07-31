@@ -64,6 +64,8 @@ pub fn set_local_device_id(id: DeviceId) -> bool {
 /// by `set_local_device_id` at daemon boot, or the `"local-device"`
 /// fallback when no install has happened yet.
 pub fn local_device_id() -> DeviceId {
-    LOCAL_DEVICE_ID.get().cloned().unwrap_or_else(|| DeviceId::new("local-device"))
+    LOCAL_DEVICE_ID
+        .get()
+        .cloned()
+        .unwrap_or_else(|| DeviceId::new("local-device"))
 }
-

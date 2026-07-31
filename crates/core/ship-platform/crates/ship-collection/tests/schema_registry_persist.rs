@@ -10,21 +10,24 @@ use std::sync::Arc;
 
 use ship_collection::projection::{SchemaRegistry, hydrate_from_store};
 use ship_collection::service::CollectionService;
-use ship_substrate::data::DataService;
-use ship_substrate::events::new_isolated_for_test;
 use ship_substrate::KernelLog;
-use ship_substrate::{SingleBackendDataStore, SpaceContext, SpaceId};
+use ship_substrate::data::DataService;
+use ship_substrate::events::new_isolated_for_test_with;
 use ship_substrate::testutil::init_project_minimal;
+use ship_substrate::{SingleBackendDataStore, SpaceContext, SpaceId};
 use tempfile::tempdir;
 
 mod common;
 
 fn make_service(ship_dir: &std::path::Path, space_id: &str) -> CollectionService {
-    common::install_collection_projection();
     // I-2: register the fabricated `space_id` so `PartitionedSink::route()`
     // doesn't refuse this suite's Space-scoped `collection.*` events.
     ship_substrate::testutil::register_space(ship_dir, space_id).unwrap();
-    let router = new_isolated_for_test(ship_dir.to_path_buf()).unwrap();
+    let router = new_isolated_for_test_with(
+        ship_dir.to_path_buf(),
+        common::collection_projection_factory(),
+    )
+    .unwrap();
     let kernel = Arc::new(KernelLog::new(router));
     let db_path = ship_substrate::db::space_db_path(ship_dir, space_id);
     let data_svc = DataService::open_at(&db_path).unwrap();
@@ -57,17 +60,21 @@ async fn api_created_schema_survives_restart() {
             "done":  { "type": "boolean" }
         }
     }"#;
-    svc1
-        .create_schema("tasks", schema_json)
+    svc1.create_schema("tasks", schema_json)
         .await
         .expect("create schema");
-    assert!(svc1.schemas.get("tasks").is_some(), "in-memory registry sees the new schema");
+    assert!(
+        svc1.schemas.get("tasks").is_some(),
+        "in-memory registry sees the new schema"
+    );
 
     // ── Phase 2: fresh daemon session — a NEW SchemaRegistry against the
     // SAME space.db, simulating daemon restart. Built-in + file-overlay
     // hydration alone would NOT restore `tasks` because no .ship file
     // declares it. With `hydrate_from_store`, the durable row comes back.
-    let router2 = new_isolated_for_test(ship_dir.clone()).unwrap();
+    let router2 =
+        new_isolated_for_test_with(ship_dir.clone(), common::collection_projection_factory())
+            .unwrap();
     let kernel2 = Arc::new(KernelLog::new(router2));
     let db_path = ship_substrate::db::space_db_path(&ship_dir, "space-restart-test");
     let data_svc2 = DataService::open_at(&db_path).unwrap();
@@ -79,13 +86,14 @@ async fn api_created_schema_survives_restart() {
         .await
         .expect("hydrate_from_store reads _schema_registry");
 
-    let restored = registry_after_restart
-        .get("tasks")
-        .expect("tasks schema must hydrate from _schema_registry on restart (claim c-2026-07-02T01-40-33)");
+    let restored = registry_after_restart.get("tasks").expect(
+        "tasks schema must hydrate from _schema_registry on restart (claim c-2026-07-02T01-40-33)",
+    );
     assert_eq!(restored.id, "tasks");
 
     assert!(
         restored.title.as_deref() == Some("Tasks"),
-        "hydrated doc carries its title: got {:?}", restored.title
+        "hydrated doc carries its title: got {:?}",
+        restored.title
     );
 }

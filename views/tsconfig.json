@@ -1,0 +1,37 @@
+{
+  // apps/hub/views/tsconfig.json — typecheck config for the view controllers.
+  //
+  // These are SUI views (controller.ts + page.sail + style.css) seeded from
+  // Ship/views/. They are NOT wired as hub routes yet; they live here as
+  // view/store surface seeds.
+  //
+  // page.sail.d.ts stubs: each view ships a stub `page.sail.d.ts` with
+  //   `export type Scope = any`
+  // so TypeScript can resolve `import type { Scope } from './page.sail'`.
+  // When deck-cli runs a build pass it will overwrite these stubs with the
+  // compiler-generated precise types from .ship/sui-out/, and the `s: any`
+  // annotations in on:/use: blocks can be removed or replaced with MutableState<Scope>.
+  //
+  // Package resolution: moduleResolution=bundler walks up to
+  // apps/hub/node_modules/@ship/{sui-runtime,sdk-client} — no explicit
+  // paths needed.
+  //
+  // exclude: **/node_modules suppresses the pre-existing type error in
+  // @ship/sdk-client@0.1.0/src/account.ts (a registry package bug, not
+  // a view issue; identical error appears in the hub's own tsc baseline).
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "allowArbitraryExtensions": true,
+    "noEmit": true
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["**/node_modules", "**/.deck", "**/.bun"]
+}

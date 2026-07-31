@@ -76,8 +76,7 @@ fn unpack_stack_round_trips_content_and_header() {
             ("agents/reviewer.ts", "agent\n"),
         ],
     );
-    let (bytes, expected) =
-        pack_stack(source.path(), fixture_header()).expect("pack tree");
+    let (bytes, expected) = pack_stack(source.path(), fixture_header()).expect("pack tree");
     let dest = tempfile::tempdir().unwrap();
 
     let actual = unpack_stack(&bytes, dest.path()).expect("unpack tree");
@@ -101,8 +100,7 @@ fn unpack_stack_rejects_content_tampering() {
         source.path(),
         &[("stack.config.ts", "export default {};\n")],
     );
-    let (bytes, _) =
-        pack_stack(source.path(), fixture_header()).expect("pack tree");
+    let (bytes, _) = pack_stack(source.path(), fixture_header()).expect("pack tree");
 
     let decoder = flate2::read::GzDecoder::new(bytes.as_slice());
     let mut archive = tar::Archive::new(decoder);
@@ -112,8 +110,7 @@ fn unpack_stack_rejects_content_tampering() {
     let (tampered, _) = pack_raw_tree(extracted.path());
 
     let dest = tempfile::tempdir().unwrap();
-    let error =
-        unpack_stack(&tampered, dest.path()).expect_err("tampering must fail");
+    let error = unpack_stack(&tampered, dest.path()).expect_err("tampering must fail");
     assert!(
         error.to_string().contains("tree hash mismatch"),
         "{error:#}"
@@ -159,12 +156,10 @@ fn pack_stack_never_packs_build_output_or_dependencies() {
     ] {
         let full = src.path().join(junk);
         fs::create_dir_all(full.parent().unwrap()).expect("create junk parent");
-        fs::write(&full, "BUILD ARTIFACT — must never be packed")
-            .expect("write junk");
+        fs::write(&full, "BUILD ARTIFACT — must never be packed").expect("write junk");
     }
 
-    let (bytes, _header) =
-        pack_stack(src.path(), fixture_header()).expect("pack");
+    let (bytes, _header) = pack_stack(src.path(), fixture_header()).expect("pack");
     let dest = tempfile::tempdir().expect("dest tempdir");
     let out = dest.path().join("unpacked");
     unpack_stack(&bytes, &out).expect("unpack");
@@ -208,8 +203,8 @@ fn pack_stack_refuses_a_tree_over_the_size_ceiling() {
     f.set_len(257 * 1024 * 1024).expect("size the blob");
     drop(f);
 
-    let err = pack_stack(src.path(), fixture_header())
-        .expect_err("oversized stack must be refused");
+    let err =
+        pack_stack(src.path(), fixture_header()).expect_err("oversized stack must be refused");
     // Walk the error chain — the per-file cap surfaces inside
     // `compute_tree_hash`, which is wrapped by `pack_stack`'s
     // `.context("hashing stack tree")`, so the named bound lives in
@@ -255,8 +250,7 @@ fn pack_stack_omits_non_allow_list_top_level_entries() {
     fs::create_dir_all(src.path().join("scripts")).unwrap();
     fs::write(src.path().join("scripts/build.sh"), "#!/bin/sh\n").unwrap();
 
-    let (bytes, _) =
-        pack_stack(src.path(), fixture_header()).expect("pack");
+    let (bytes, _) = pack_stack(src.path(), fixture_header()).expect("pack");
     let dest = tempfile::tempdir().expect("dest");
     let out = dest.path().join("unpacked");
     unpack_stack(&bytes, &out).expect("unpack");

@@ -8,10 +8,12 @@
 //! work dir, no agent/harness) and the sidecar [`TerminalSessionMeta`].
 
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use anyhow::Result;
+use bridge::{ProcessKind, ProcessProfile, TransportKind, spawn_process};
 use chrono::Utc;
-use bridge::{spawn_process, ProcessKind, ProcessProfile, TransportKind};
+use tokio::sync::Mutex;
 
 use super::registry::{Entry, Registry, SessionRecord};
 use super::types::SessionStatus;
@@ -20,6 +22,7 @@ pub fn spawn_shell(
     registry: &Registry,
     work_dir: PathBuf,
     log_dir: PathBuf,
+    kernel: Arc<Mutex<ship_substrate::events::KernelRouter>>,
 ) -> Result<Entry> {
     let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/bash".to_string());
 
@@ -39,7 +42,7 @@ pub fn spawn_shell(
         subscribe_namespaces: vec![],
     };
 
-    let handle = spawn_process(profile, ship_substrate::supervisor_sink::supervisor_context()?)?;
+    let handle = spawn_process(profile, crate::supervisor_sink::supervisor_context(kernel)?)?;
     let now = Utc::now();
     let meta = SessionRecord {
         id: handle.actor_id.clone(),

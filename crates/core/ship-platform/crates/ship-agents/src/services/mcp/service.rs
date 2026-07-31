@@ -10,8 +10,8 @@ use std::sync::Arc;
 
 use serde::Serialize;
 
-use ship_files::files::{FilesService, Scope};
 use super::state;
+use ship_files::files::{FilesService, Scope};
 
 /// Body shape returned by `McpService::get`.
 #[derive(Debug, Clone, Serialize)]

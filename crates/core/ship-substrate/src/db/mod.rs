@@ -12,21 +12,22 @@
 pub mod actor_events;
 pub mod cursors;
 pub mod daemon_settings;
-pub mod spaces;
 pub mod envelope;
 pub mod events;
-pub mod heal;
-pub mod integrity;
-pub mod kv_schema;
-pub mod retention;
-pub mod scope_schema;
 #[cfg(test)]
 mod events_tests;
-#[cfg(test)]
-mod tests_envelope;
+pub mod heal;
+pub mod integrity;
+pub mod scope_heal;
+pub mod kv_schema;
 #[cfg(test)]
 mod property_tests;
 pub mod rebuild;
+pub mod retention;
+pub mod scope_schema;
+pub mod spaces;
+#[cfg(test)]
+mod tests_envelope;
 
 #[cfg(test)]
 mod tests_db_paths;
@@ -65,7 +66,10 @@ pub fn event_log_summary(ship_dir: &Path) -> EventLogSummary {
     // this boot health line reports its count.
     let path = runtime_db_path(ship_dir);
     let Ok(mut conn) = open_db_at(&path) else {
-        return EventLogSummary { event_count: -1, latest_event_id: None };
+        return EventLogSummary {
+            event_count: -1,
+            latest_event_id: None,
+        };
     };
     let count: i64 = block_on(async {
         sqlx::query_scalar("SELECT COUNT(*) FROM events")
@@ -79,7 +83,10 @@ pub fn event_log_summary(ship_dir: &Path) -> EventLogSummary {
             .await
     })
     .unwrap_or(None);
-    EventLogSummary { event_count: count, latest_event_id: latest }
+    EventLogSummary {
+        event_count: count,
+        latest_event_id: latest,
+    }
 }
 
 /// The one canonical DB-path resolver. Every path-returning helper in this
@@ -180,10 +187,26 @@ fn ensure_kv_db_at_path(path: &Path) -> Result<()> {
     // adds is unnecessary overhead in WAL. Set explicitly because sqlite's
     // version-dependent default for WAL is unstable (census §2 finding:
     // unconfigured = sqlite version-dependent default).
-    block_on(async { sqlx::query("PRAGMA synchronous = NORMAL").execute(&mut conn).await })?;
-    block_on(async { sqlx::query("PRAGMA journal_mode = WAL").execute(&mut conn).await })?;
-    block_on(async { sqlx::query("PRAGMA busy_timeout = 5000").execute(&mut conn).await })?;
-    block_on(async { sqlx::query("PRAGMA foreign_keys = ON").execute(&mut conn).await })?;
+    block_on(async {
+        sqlx::query("PRAGMA synchronous = NORMAL")
+            .execute(&mut conn)
+            .await
+    })?;
+    block_on(async {
+        sqlx::query("PRAGMA journal_mode = WAL")
+            .execute(&mut conn)
+            .await
+    })?;
+    block_on(async {
+        sqlx::query("PRAGMA busy_timeout = 5000")
+            .execute(&mut conn)
+            .await
+    })?;
+    block_on(async {
+        sqlx::query("PRAGMA foreign_keys = ON")
+            .execute(&mut conn)
+            .await
+    })?;
 
     // Idempotent DDL-on-open, same mechanism as the per-scope event dbs
     // (`scope_schema`): no `_sqlx_migrations` version log, nothing to drift.
@@ -217,10 +240,26 @@ fn ensure_db_at_path(path: &std::path::Path) -> Result<()> {
     // NORMAL (not FULL) is WAL-appropriate (see ensure_kv_db_at_path for the
     // full rationale). Set explicitly to avoid the sqlite version-dependent
     // default per census §2.
-    block_on(async { sqlx::query("PRAGMA synchronous = NORMAL").execute(&mut conn).await })?;
-    block_on(async { sqlx::query("PRAGMA journal_mode = WAL").execute(&mut conn).await })?;
-    block_on(async { sqlx::query("PRAGMA busy_timeout = 5000").execute(&mut conn).await })?;
-    block_on(async { sqlx::query("PRAGMA foreign_keys = ON").execute(&mut conn).await })?;
+    block_on(async {
+        sqlx::query("PRAGMA synchronous = NORMAL")
+            .execute(&mut conn)
+            .await
+    })?;
+    block_on(async {
+        sqlx::query("PRAGMA journal_mode = WAL")
+            .execute(&mut conn)
+            .await
+    })?;
+    block_on(async {
+        sqlx::query("PRAGMA busy_timeout = 5000")
+            .execute(&mut conn)
+            .await
+    })?;
+    block_on(async {
+        sqlx::query("PRAGMA foreign_keys = ON")
+            .execute(&mut conn)
+            .await
+    })?;
 
     // Apply the per-scope schema. `scope_schema` is the single source of truth:
     // the universal base (events log + cursors) for every db, plus the runtime
@@ -313,7 +352,11 @@ fn connect(path: &Path) -> Result<SqliteConnection> {
     // the file header like `journal_mode`); re-issue on every fresh connect
     // so a connection opened via the `open_*_db` paths enforces FK constraints
     // (census §2 finding: only set at creation-time).
-    block_on(async { sqlx::query("PRAGMA foreign_keys = ON").execute(&mut conn).await })?;
+    block_on(async {
+        sqlx::query("PRAGMA foreign_keys = ON")
+            .execute(&mut conn)
+            .await
+    })?;
     Ok(conn)
 }
 
@@ -370,4 +413,3 @@ where
         .map_err(|e| anyhow!("Failed to create runtime: {e}"))?;
     rt.block_on(future)
 }
-

@@ -20,11 +20,7 @@ use std::sync::Arc;
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
 use agent_schema::Authority;
 
-use ship_ops_rpc::{
-    AccountService as AccountWireTrait, AccountState as ProtoState, LoginCompleted, LoginStarted,
-    LogoutResult, Me, OwnedLoginCompleteRequestView, OwnedLoginRequestView, OwnedLogoutRequestView,
-    OwnedStateRequestView,
-};
+use ship_proto::ship::ops::v1::{AccountService as AccountWireTrait, AccountState as ProtoState, LoginCompleted, LoginStarted, LogoutResult, Me, OwnedLoginCompleteRequestView, OwnedLoginRequestView, OwnedLogoutRequestView, OwnedStateRequestView};
 
 use crate::service::AccountService;
 use crate::types::{AccountState, MeView};
@@ -67,7 +63,7 @@ fn me_to_proto(me: MeView) -> Me {
 }
 
 fn state_to_proto(state: AccountState) -> ProtoState {
-    use ship_ops_rpc::account_state::Status;
+    use ship_proto::ship::ops::v1::account_state::Status;
     match state {
         AccountState::LoggedOut => ProtoState {
             status: buffa::EnumValue::Known(Status::LOGGED_OUT),

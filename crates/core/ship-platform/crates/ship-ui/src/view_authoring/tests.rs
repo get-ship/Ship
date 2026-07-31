@@ -16,37 +16,19 @@ use crate::view_authoring::snapshot::{
     snapshot_view,
 };
 
-/// Register the domain projections needed by the snapshot service.
-///
-/// Both `ArtifactProjection` (artifact metadata) and `CollectionItemProjection`
-/// (collection row materialisation) moved from the L0 substrate to their
-/// respective L1 crates at keystone-A (2026-06-10).  In production
-/// `ship_platform::install_defaults()` wires them into the default bus; in
-/// tests that don't pull in the full platform we install them here manually,
-/// mirroring what ship-artifacts/ship-collection do in their own test helpers.
-///
-/// Must be called before any `KernelRouter` is constructed so the factories
-/// are present when `SqliteEventStore::default_bus` reads `extra_projections`.
-fn install_projections() {
-    use std::sync::Once;
-    static ONCE: Once = Once::new();
-    ONCE.call_once(|| {
-        ship_substrate::projections::install_extra_projections_factory(Box::new(|| {
-            vec![
-                Box::new(ship_artifacts::metadata_projection::ArtifactProjection)
-                    as Box<dyn ship_substrate::projections::Projection>,
-                Box::new(ship_collection::item_projection::CollectionItemProjection)
-                    as Box<dyn ship_substrate::projections::Projection>,
-            ]
-        }));
-    });
+/// Domain projections the snapshot service needs on the bus.
+fn snapshot_projections() -> ship_substrate::projections::ProjectionFactory {
+    Arc::new(|| {
+        vec![
+            Box::new(ship_artifacts::metadata_projection::ArtifactProjection)
+                as Box<dyn ship_substrate::projections::Projection>,
+            Box::new(ship_collection::item_projection::CollectionItemProjection)
+                as Box<dyn ship_substrate::projections::Projection>,
+        ]
+    })
 }
 
 async fn fixture() -> (tempfile::TempDir, Arc<SpaceContext>, ArtifactService) {
-    // Install domain projections before constructing the kernel so that
-    // SqliteEventStore::default_bus picks them up when it opens each scope db.
-    install_projections();
-
     let tmp = tempfile::tempdir().unwrap();
     let ship_dir = tmp.path().join(".ship");
     std::fs::create_dir_all(&ship_dir).unwrap();
@@ -61,7 +43,11 @@ async fn fixture() -> (tempfile::TempDir, Arc<SpaceContext>, ArtifactService) {
     )
     .unwrap();
     let kernel = Arc::new(Mutex::new(
-        ship_substrate::events::KernelRouter::new(ship_dir.clone()).unwrap(),
+        ship_substrate::events::KernelRouter::with_extra_projections(
+            ship_dir.clone(),
+            snapshot_projections(),
+        )
+        .unwrap(),
     ));
     let store = Arc::new(SingleBackendDataStore::new(data_svc, "global"));
     let kernel_log = Arc::new(KernelLog::new(kernel));

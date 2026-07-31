@@ -23,7 +23,7 @@ pub use permissions::PermissionPreset;
 // `load_skills` (the agent-def disk-authoring loader) retired with
 // Wave 5 — project skills arrive via `defineSkill` declare-forms in
 // the space's `stack.config.ts` and land in `ExtensionLibrary::skills`
-// through `ship_resolver::merge_ts_declarations`. The `SkillService`
+// through `space_resolver::merge_ts_declarations`. The `SkillService`
 // CRUD surface in `ship-agents` still writes `SKILL.md` files (the
 // authoring path the Studio/db-scope gate owns; Phase-6's question) —
 // the read side that compiled those files into the agent-def pipeline
@@ -87,6 +87,10 @@ pub struct CompileOptions {
     /// passthrough still wins on conflict (it's merged LAST into the
     /// settings patch).
     pub default_effort: Option<String>,
+    /// Explicit event-log handle used to emit `compile.completed`.
+    /// Composition roots inject the daemon's shared `KernelLog`; when
+    /// `None` the emit is skipped (dry-run / pure-file compile paths).
+    pub kernel: Option<std::sync::Arc<ship_substrate::ports::KernelLog>>,
 }
 impl Default for CompileOptions {
     fn default() -> Self {
@@ -99,6 +103,7 @@ impl Default for CompileOptions {
             plugins_installed: Vec::new(),
             dry_run: false,
             default_effort: None,
+            kernel: None,
         }
     }
 }
@@ -128,13 +133,13 @@ pub fn compile_project(opts: &CompileOptions) -> Result<CompileSummary> {
     //    did — the W2 regression test pinned that). The `library` the
     //    downstream compile consumes is the COMPOSED result, not the
     //    leaf's single-source read.
-    let composed = ship_resolver::roll_up_registered_blocking(&opts.space_root, None)
+    let composed = space_resolver::roll_up_registered_blocking(&opts.space_root, None)
         .context("compile_project: roll_up failed")?;
     compile_project_from_library(opts, composed.library)
 }
 
 /// Compile from an already-composed [`stack_model::ExtensionLibrary`] — the
-/// Phase-3 roll-up path (`ship_resolver::roll_up` / `stack_model::compose_space`)
+/// Phase-3 roll-up path (`space_resolver::roll_up` / `stack_model::compose_space`)
 /// already merged the cache tier, the operator-enabled library tier, and the
 /// space's own source under the precedence law, so the `#122` flat merge
 /// ([`resolve_dep_agents`]) is skipped here — running it again would
@@ -250,6 +255,7 @@ fn compile_from_library(
             opts.active_agent.as_deref(),
             &harnesses,
             &opts.plugins_installed,
+            opts.kernel.as_ref(),
         );
     }
 
@@ -267,9 +273,18 @@ fn emit_compile_completed(
     active_agent: Option<&str>,
     harnesses: &[String],
     plugins_installed: &[String],
+    kernel: Option<&std::sync::Arc<ship_substrate::ports::KernelLog>>,
 ) {
     use ship_substrate::events::EventEnvelope;
     use ship_substrate::events::types::{CompileCompleted, event_types::COMPILE_COMPLETED};
+
+    let Some(kernel) = kernel else {
+        tracing::debug!(
+            stack_root = %stack_root.display(),
+            "compile: no KernelLog injected — compile.completed not recorded"
+        );
+        return;
+    };
 
     // The space id comes from the `projects` pointer. An unregistered project
     // records no compile state (space-less) — the daemon registers its
@@ -310,10 +325,12 @@ fn emit_compile_completed(
         ),
         session_id: None,
     };
-    let kernel = ship_substrate::events::kernel_router()
-        .expect("kernel must be initialized before compile.completed emits");
+    let kernel = kernel.clone();
     if let Err(e) = ship_substrate::db::block_on_anyhow(async move {
-        kernel.lock().await.emit(envelope, &ctx).await
+        kernel
+            .emit(envelope, &ctx)
+            .await
+            .map_err(|e| anyhow::anyhow!("{e}"))
     }) {
         tracing::warn!("compile: cannot emit compile.completed: {e}");
     }

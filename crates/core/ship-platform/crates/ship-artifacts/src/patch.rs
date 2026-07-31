@@ -3,9 +3,7 @@
 use std::sync::Arc;
 use std::collections::BTreeMap;
 
-use ship_ops_rpc::{
-    Patch as ProtoPatch, PatchFrame as ProtoPatchFrame, PatchOp as ProtoPatchOp, WatchEvent,
-};
+use ship_proto::ship::ops::v1::{Patch as ProtoPatch, PatchFrame as ProtoPatchFrame, PatchOp as ProtoPatchOp, WatchEvent};
 use ship_substrate::ports::SpaceContext;
 
 use crate::projection::{TABLE, ensure_artifacts_table, row_to_record};
@@ -44,7 +42,7 @@ pub(crate) fn patch_frame_to_proto(frame: ship_reactive::PatchFrame) -> WatchEve
         .collect();
     let proto_frame = ProtoPatchFrame { patches, ..Default::default() };
     WatchEvent {
-        body: Some(ship_ops_rpc::__buffa::oneof::watch_event::Body::Patches(Box::new(proto_frame))),
+        body: Some(ship_proto::ship::ops::v1::__buffa::oneof::watch_event::Body::Patches(Box::new(proto_frame))),
         ..Default::default()
     }
 }

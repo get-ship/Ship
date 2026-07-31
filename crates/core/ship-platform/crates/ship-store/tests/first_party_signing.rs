@@ -128,8 +128,7 @@ fn first_party_round_trip_pack_sign_verify_unpack() {
     // The verified content extracts cleanly via `unpack_stack` — same header
     // shape round-trips, and the on-disk files match the source fixture.
     let dest = tempfile::tempdir().unwrap();
-    let extracted =
-        unpack_stack(&signed.bytes, dest.path()).expect("unpack verified bundle");
+    let extracted = unpack_stack(&signed.bytes, dest.path()).expect("unpack verified bundle");
     assert_eq!(extracted, signed.header);
     assert_eq!(
         fs::read_to_string(dest.path().join("agents/reviewer.ts")).unwrap(),
@@ -237,8 +236,8 @@ fn first_party_signed_bundle_rejects_tampered_content_with_hash_mismatch() {
             serde_json::to_vec_pretty(&original_header).unwrap(),
         )
         .unwrap();
-        let (bytes, _) = pack_stack(extract_dir.path(), original_header)
-            .expect("re-pack tampered tree");
+        let (bytes, _) =
+            pack_stack(extract_dir.path(), original_header).expect("re-pack tampered tree");
         // pack_stack overwrites header.hash with the new tree hash; the
         // attestation's claim still binds the ORIGINAL hash.
         bytes
@@ -251,8 +250,7 @@ fn first_party_signed_bundle_rejects_tampered_content_with_hash_mismatch() {
     let gz = flate2::read::GzDecoder::new(tampered_bytes.as_slice());
     let mut archive = tar::Archive::new(gz);
     archive.unpack(re.path()).expect("re-extract tampered");
-    let tampered_tree_hash =
-        ship_store::compute_tree_hash(re.path()).expect("recompute hash");
+    let tampered_tree_hash = ship_store::compute_tree_hash(re.path()).expect("recompute hash");
     assert_ne!(
         tampered_tree_hash, original_hash,
         "tampered content must produce a different tree hash than the signed one"

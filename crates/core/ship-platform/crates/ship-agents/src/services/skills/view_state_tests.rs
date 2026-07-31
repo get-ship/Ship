@@ -61,7 +61,11 @@ fn load_skill_reads_body_and_vars() {
         "# hi\nbody",
     );
     std::fs::write(
-        space_root.join("skills").join("x").join("assets").join("vars.json"),
+        space_root
+            .join("skills")
+            .join("x")
+            .join("assets")
+            .join("vars.json"),
         r#"{"foo": {"type":"string"}, "bar": {"type":"bool"}}"#,
     )
     .unwrap();
@@ -105,11 +109,7 @@ fn merges_project_and_global_scopes() {
     let project_root = project_tmp.path();
     let project_space = project_root;
     std::fs::create_dir_all(project_space.join("skills")).unwrap();
-    std::fs::write(
-        project_root.join("stack.config.ts"),
-        "export default {};\n",
-    )
-    .unwrap();
+    std::fs::write(project_root.join("stack.config.ts"), "export default {};\n").unwrap();
     write_skill(
         &project_space.join("skills"),
         "p-only",
@@ -142,7 +142,10 @@ fn merges_project_and_global_scopes() {
     let p_only = out.iter().find(|s| s.id == "p-only").unwrap();
     assert_eq!(p_only.source, SOURCE_PROJECT);
     let shared = out.iter().find(|s| s.id == "shared").unwrap();
-    assert_eq!(shared.source, SOURCE_PROJECT, "project wins on id collision");
+    assert_eq!(
+        shared.source, SOURCE_PROJECT,
+        "project wins on id collision"
+    );
 
     assert_eq!(detail.description, "project version");
     assert_eq!(detail.source, SOURCE_PROJECT);
@@ -196,7 +199,6 @@ fn scan_skill_dir_skips_entries_missing_skill_md() {
     assert_eq!(out.len(), 1);
     assert_eq!(out[0].id, "good");
 }
-
 
 #[test]
 fn list_skills_public_discovers_our_tmp_skill() {

@@ -52,7 +52,10 @@ struct RecordingHandler {
 impl RecordingHandler {
     fn new(name: &str) -> (Self, Arc<std::sync::Mutex<Vec<String>>>) {
         let calls = Arc::new(std::sync::Mutex::new(Vec::new()));
-        let handler = Self { name: name.to_string(), calls: calls.clone() };
+        let handler = Self {
+            name: name.to_string(),
+            calls: calls.clone(),
+        };
         (handler, calls)
     }
 }

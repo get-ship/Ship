@@ -1,6 +1,6 @@
 //! Hook definition types — the trigger engine's internal shape. Post
 //! format-migration Wave 4 phase A, populated from the descriptor's
-//! `Vec<stack_model::TriggerDef>` (the `defineTrigger` declare-form in
+//! `Vec<crate::schema::TriggerDef>` (the `defineTrigger` declare-form in
 //! `stack.config.ts`) via [`HookDef::try_from_def`] — not from
 //! `.ship/triggers/*.jsonc` files (census-format-migration.md §4 row 3).
 
@@ -200,7 +200,7 @@ impl HookActionType {
 
 // ── Descriptor conversion (format-migration Wave 4 phase A) ─────────────────
 //
-// `stack_model::TriggerDef` is the `defineTrigger` declare-form's Rust shape
+// `crate::schema::TriggerDef` is the `defineTrigger` declare-form's Rust shape
 // (census-format-migration.md Wave 3); `try_from_def` maps it onto this
 // module's `HookDef`, applying the same validation the retired JSONC loader
 // ran at load time (unknown-event rejection, source shape checks, cron
@@ -210,7 +210,7 @@ impl HookDef {
     /// Convert one descriptor trigger into the engine's internal shape.
     /// `ship_dir` resolves a `collection.insert` action's `template_file`
     /// (relative paths are checked for existence, same as the old loader).
-    pub fn try_from_def(def: &stack_model::TriggerDef, ship_dir: &std::path::Path) -> Result<Self, String> {
+    pub fn try_from_def(def: &crate::schema::TriggerDef, ship_dir: &std::path::Path) -> Result<Self, String> {
         if def.id.trim().is_empty() {
             return Err("trigger id is required".to_string());
         }
@@ -225,13 +225,13 @@ impl HookDef {
     }
 }
 
-/// `stack_model::TriggerEventMatch.event` is a required string in the TS-facing
+/// `schema::TriggerEventMatch.event` is a required string in the TS-facing
 /// shape — there is no way to author a source-only trigger (cron/file/webhook,
 /// no `event`) from `stack.config.ts` today. That's a real gap in Wave 1/3's
 /// shape, not something this cutover can fix; when a `source` is present it
 /// wins and `event` is dropped, so a descriptor author who sets both gets
 /// source-triggered behavior rather than a hard validation error.
-fn convert_trigger_match(def: &stack_model::TriggerDef) -> Result<HookTrigger, String> {
+fn convert_trigger_match(def: &crate::schema::TriggerDef) -> Result<HookTrigger, String> {
     if let Some(source_def) = &def.source {
         return Ok(HookTrigger {
             event: None,
@@ -254,9 +254,9 @@ fn convert_trigger_match(def: &stack_model::TriggerDef) -> Result<HookTrigger, S
     })
 }
 
-fn convert_source(s: &stack_model::TriggerSourceDef) -> Result<TriggerSourceDef, String> {
+fn convert_source(s: &crate::schema::TriggerSourceDef) -> Result<TriggerSourceDef, String> {
     match s {
-        stack_model::TriggerSourceDef::Webhook { path, secret } => {
+        crate::schema::TriggerSourceDef::Webhook { path, secret } => {
             if !path.starts_with("/webhooks/") {
                 return Err(format!(
                     "webhook source path must start with '/webhooks/', got '{path}'"
@@ -267,7 +267,7 @@ fn convert_source(s: &stack_model::TriggerSourceDef) -> Result<TriggerSourceDef,
                 secret: secret.clone(),
             }))
         }
-        stack_model::TriggerSourceDef::File { glob } => {
+        crate::schema::TriggerSourceDef::File { glob } => {
             if glob.trim().is_empty() {
                 return Err("file source: 'glob' is required".to_string());
             }
@@ -277,7 +277,7 @@ fn convert_source(s: &stack_model::TriggerSourceDef) -> Result<TriggerSourceDef,
                 debounce_ms: default_debounce_ms(),
             }))
         }
-        stack_model::TriggerSourceDef::Cron { schedule } => {
+        crate::schema::TriggerSourceDef::Cron { schedule } => {
             if schedule.trim().is_empty() {
                 return Err("cron source: 'schedule' is required".to_string());
             }
@@ -291,7 +291,7 @@ fn convert_source(s: &stack_model::TriggerSourceDef) -> Result<TriggerSourceDef,
     }
 }
 
-fn convert_action(a: &stack_model::TriggerAction) -> Result<HookAction, String> {
+fn convert_action(a: &crate::schema::TriggerAction) -> Result<HookAction, String> {
     let mut payload = a.payload.clone();
     let when = payload
         .remove("when")

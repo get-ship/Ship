@@ -6,12 +6,12 @@
 //! with a per-scope router; call sites see no change.
 
 use std::sync::Arc;
-use tokio::sync::{broadcast, Mutex};
+use tokio::sync::{Mutex, broadcast};
 
-use ship_types::envelope::EventEnvelope;
 use crate::errors::KernelError;
-use crate::events::{EventFilter, KernelRouter};
 use crate::events::validator::EmitContext;
+use crate::events::{EventFilter, KernelRouter};
+use ship_types::envelope::EventEnvelope;
 
 /// Cursor — opaque position marker in the event log (the event's ULID id).
 ///
@@ -64,9 +64,10 @@ impl KernelLog {
         let id = envelope.id.clone();
         {
             let router = self.router.lock().await;
-            router.emit(envelope.clone(), ctx).await.map_err(|e| {
-                KernelError::Persistence(anyhow::anyhow!("{e}"))
-            })?;
+            router
+                .emit(envelope.clone(), ctx)
+                .await
+                .map_err(|e| KernelError::Persistence(anyhow::anyhow!("{e}")))?;
         }
         let _ = self.tx.send(envelope);
         *self.cursor.lock().unwrap() = Some(id.clone());
@@ -90,10 +91,7 @@ impl KernelLog {
 
     /// Subscribe to a filtered stream. Events that don't match `filter` are
     /// dropped before reaching the returned receiver.
-    pub fn subscribe_filtered(
-        &self,
-        filter: EventFilter,
-    ) -> broadcast::Receiver<EventEnvelope> {
+    pub fn subscribe_filtered(&self, filter: EventFilter) -> broadcast::Receiver<EventEnvelope> {
         let (ftx, frx) = broadcast::channel(64);
         let mut src = self.tx.subscribe();
         tokio::spawn(async move {
@@ -131,7 +129,11 @@ impl KernelLog {
         if let Some(dir) = self.base_dir.get() {
             return Some(dir.clone());
         }
-        let dir = self.router.try_lock().ok().map(|r| r.base_dir().to_path_buf())?;
+        let dir = self
+            .router
+            .try_lock()
+            .ok()
+            .map(|r| r.base_dir().to_path_buf())?;
         let _ = self.base_dir.set(dir.clone());
         Some(dir)
     }
@@ -145,29 +147,47 @@ impl KernelLog {
 
 fn matches_filter(env: &EventEnvelope, filter: &EventFilter) -> bool {
     if let Some(ref eid) = filter.entity_id {
-        if env.entity_id != *eid { return false; }
+        if env.entity_id != *eid {
+            return false;
+        }
     }
     if let Some(ref et) = filter.event_type {
-        if env.event_type != *et { return false; }
+        if env.event_type != *et {
+            return false;
+        }
     }
     if let Some(ref scope) = filter.scope {
-        if env.scope.as_str() != scope.as_str() { return false; }
+        if env.scope.as_str() != scope.as_str() {
+            return false;
+        }
     }
     if let Some(ref key) = filter.scope_key {
-        if env.scope_key.as_deref() != Some(key.as_str()) { return false; }
+        if env.scope_key.as_deref() != Some(key.as_str()) {
+            return false;
+        }
     }
     if let Some(ref sess) = filter.session_id {
-        if env.session_id.as_deref() != Some(sess.as_str()) { return false; }
+        if env.session_id.as_deref() != Some(sess.as_str()) {
+            return false;
+        }
     }
     if let Some(ref aid) = filter.actor_id {
-        if env.actor_id.as_deref() != Some(aid.as_str()) { return false; }
+        if env.actor_id.as_deref() != Some(aid.as_str()) {
+            return false;
+        }
     }
     if let Some(ref paid) = filter.parent_actor_id {
-        if env.parent_actor_id.as_deref() != Some(paid.as_str()) { return false; }
+        if env.parent_actor_id.as_deref() != Some(paid.as_str()) {
+            return false;
+        }
     }
-    if filter.elevated_only && !env.elevated { return false; }
+    if filter.elevated_only && !env.elevated {
+        return false;
+    }
     if let Some(since) = filter.since {
-        if env.created_at < since { return false; }
+        if env.created_at < since {
+            return false;
+        }
     }
     true
 }

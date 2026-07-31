@@ -28,7 +28,7 @@ pub struct AttestResponse {
 /// (`getship.dev`) while keys live at the gateway host (`api.getship.dev`).
 fn configured_attestation_config() -> AttestationConfig {
     let read = |key: &str, default: &str| -> String {
-        ship_platform::config::get_setting(key)
+        ship_settings::settings::get_setting(key)
             .ok()
             .flatten()
             .and_then(|v| v.as_str().map(String::from))
@@ -116,7 +116,10 @@ pub async fn server_attest(
         is_operator_cred: false,
     };
     crate::auth::scopes::persist_session(&session);
-    session_registry.lock().await.insert(session_token.clone(), session);
+    session_registry
+        .lock()
+        .await
+        .insert(session_token.clone(), session);
 
     (
         axum::http::StatusCode::OK,

@@ -51,10 +51,7 @@ const MAX_STACK_BYTES: u64 = 256 * 1024 * 1024;
 /// canonical tree hash computed from the allow-listed content. The
 /// manifest (`stack.config.ts`) is required at the stack root; absent
 /// manifest is a hard error.
-pub fn pack_stack(
-    root: &Path,
-    header: ArchiveHeader,
-) -> anyhow::Result<(Vec<u8>, ArchiveHeader)> {
+pub fn pack_stack(root: &Path, header: ArchiveHeader) -> anyhow::Result<(Vec<u8>, ArchiveHeader)> {
     let mut header = header;
     header.hash = compute_tree_hash(root).context("hashing stack tree")?;
     let header_bytes = serde_json::to_vec_pretty(&header).context("serializing ship.json")?;
@@ -111,7 +108,6 @@ pub fn pack_stack(
 /// The destination must be empty. The extracted tree is re-hashed and must
 /// match the header before success is returned.
 pub fn unpack_stack(bytes: &[u8], dest: &Path) -> anyhow::Result<ArchiveHeader> {
-
     if dest.exists()
         && fs::read_dir(dest)
             .context("reading archive destination")?
@@ -174,8 +170,8 @@ fn collect_entries(root: &Path) -> anyhow::Result<Vec<PathBuf>> {
             .follow_links(false)
             .into_iter()
         {
-            let entry = entry
-                .with_context(|| format!("walking stack domain dir {}", dir.display()))?;
+            let entry =
+                entry.with_context(|| format!("walking stack domain dir {}", dir.display()))?;
             if entry.file_type().is_symlink() {
                 bail!(
                     "stack archive cannot contain symlink {}",
@@ -200,7 +196,6 @@ fn collect_entries(root: &Path) -> anyhow::Result<Vec<PathBuf>> {
     entries.dedup();
     Ok(entries)
 }
-
 
 fn append_dir(builder: &mut tar::Builder<&mut Vec<u8>>, path: &Path) -> anyhow::Result<()> {
     let mut header = tar::Header::new_gnu();

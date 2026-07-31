@@ -1,8 +1,8 @@
 use crate::db::{block_on, open_db_at};
-use ship_types::envelope::EventEnvelope;
 use crate::events::filter::EventFilter;
 use crate::events::kernel_router::{ActorConfig, KernelRouter};
 use crate::events::validator::{CallerKind, EmitContext};
+use ship_types::envelope::EventEnvelope;
 use tempfile::tempdir;
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -50,10 +50,7 @@ async fn kernel_emits_rejects_write_outside_namespace() {
     router.spawn_actor("neutral", neutral_config()).unwrap();
     let mut ev_session = ev("session.started");
     ev_session.actor_id = Some("neutral".into());
-    let err = router
-        .emit(ev_session, &mcp_ctx)
-        .await
-        .unwrap_err();
+    let err = router.emit(ev_session, &mcp_ctx).await.unwrap_err();
     assert!(
         err.to_string().contains("not permitted"),
         "unexpected error: {err}"
@@ -100,9 +97,7 @@ fn kernel_query_rejects_namespace_violation() {
         event_type: Some("actor.created".into()),
         ..Default::default()
     };
-    let err = router
-        .query_actor_events("neutral", &filter)
-        .unwrap_err();
+    let err = router.query_actor_events("neutral", &filter).unwrap_err();
     assert!(
         err.to_string().contains("read namespace violation"),
         "unexpected error: {err}"
@@ -250,8 +245,12 @@ async fn route_delivers_to_multiple_subscribers() {
         see_directed_events: false,
     };
 
-    let mut mb1 = router.spawn_actor("watcher-1", sub_cfg("watcher-1")).unwrap();
-    let mut mb2 = router.spawn_actor("watcher-2", sub_cfg("watcher-2")).unwrap();
+    let mut mb1 = router
+        .spawn_actor("watcher-1", sub_cfg("watcher-1"))
+        .unwrap();
+    let mut mb2 = router
+        .spawn_actor("watcher-2", sub_cfg("watcher-2"))
+        .unwrap();
 
     let event = ev("neutral.canvas_updated");
     router.emit(event.clone(), &runtime_ctx()).await.unwrap();
@@ -276,12 +275,10 @@ async fn kernel_store_receives_system_events() {
     // Verify via raw SQL — kernel store has the event.
     let mut conn = open_db_at(&router.kernel_store_path()).unwrap();
     let count: i64 = block_on(async {
-        sqlx::query_scalar(
-            "SELECT COUNT(*) FROM events WHERE id = ?",
-        )
-        .bind(&event.id)
-        .fetch_one(&mut conn)
-        .await
+        sqlx::query_scalar("SELECT COUNT(*) FROM events WHERE id = ?")
+            .bind(&event.id)
+            .fetch_one(&mut conn)
+            .await
     })
     .unwrap();
     assert_eq!(count, 1, "system event must be in kernel store");
@@ -337,7 +334,9 @@ async fn refine_actor_preserves_mailbox_through_wrapper() {
     let mut event = ev("other.hello");
     event.target_actor_id = Some("neutral".into());
     router.emit(event, &runtime_ctx()).await.unwrap();
-    let recv = mb.try_recv().expect("mailbox should receive directed event");
+    let recv = mb
+        .try_recv()
+        .expect("mailbox should receive directed event");
     assert_eq!(recv.event_type, "other.hello");
 }
 

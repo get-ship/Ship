@@ -8,23 +8,24 @@
 
 use std::sync::Arc;
 
+use agent_schema::Authority;
+use agent_schema::canonical_session::event_types as session_events;
 use agent_schema::dispatch_intent::DispatchRequestedPayload;
 use durable_execution::{Journal, JournalStore, execute};
+use journal_sqlite::SqliteJournalStore;
+use ship_substrate::events::{CallerKind, EmitContext, EventEnvelope};
+use ship_types::ScopeBinding;
 use yoke::dispatch::GatewayDispatch;
 use yoke::provider::{Byok, CredentialSource};
 use yoke::{
-    AuthContext as YokeAuth, BuiltModel, Cancel, HeadlessApprover, ScriptExecutor, YokeProgram,
+    AuthContext as YokeAuth, BuiltModel, Cancel, HeadlessApprover, ScriptExecutor,
     SessionCancelled, SessionCompleted, SessionEventHandler, SessionEventSink, SessionFailed,
-    SessionStarted, SessionSuspended, Steer, ToolCtx, TurnEnded, TurnStarted, build_model,
+    SessionStarted, SessionSuspended, Steer, ToolCtx, TurnEnded, TurnStarted, YokeProgram,
+    build_model,
 };
-use journal_sqlite::SqliteJournalStore;
-use ship_substrate::events::{CallerKind, EmitContext, EventEnvelope};
-use agent_schema::canonical_session::event_types as session_events;
-use agent_schema::Authority;
-use ship_types::ScopeBinding;
 
-use crate::yoke::gateway::ShipdGateway;
 use crate::ship_runtime::SharedKernel;
+use crate::yoke::gateway::ShipdGateway;
 
 // ── ShipdKernelSink ───────────────────────────────────────────────────────────
 
@@ -171,7 +172,9 @@ pub async fn dispatch_yoke_session(
     // committed Stage-2 constructing InMemoryJournalStore per call — no
     // cross-restart persistence despite the design.) The runtime db carries
     // the durable_journals table via migration 202606100001.
-    let store = match SqliteJournalStore::open(&ship_substrate::db::runtime_db_path(&ship_dir)).await {
+    let store = match SqliteJournalStore::open(&ship_substrate::db::runtime_db_path(&ship_dir))
+        .await
+    {
         Ok(s) => s,
         Err(e) => {
             tracing::error!(error = %e, "yoke: cannot open the journal store; session will not be durable");
@@ -224,7 +227,10 @@ pub async fn dispatch_yoke_session(
                     "yoke-embed: build_model failed: {e:#}",
                 );
                 // Return a Failed status so the session is logged but no panic.
-                (durable_execution::RunStatus::Failed(e.to_string()), Journal::new())
+                (
+                    durable_execution::RunStatus::Failed(e.to_string()),
+                    Journal::new(),
+                )
             }
         }
     };
@@ -247,20 +253,19 @@ pub async fn dispatch_yoke_session(
     );
 }
 
-
 // ── Smoke tests ───────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
 
+    use rig::test_utils::{MockCompletionModel, MockTurn};
+    use serde_json::json;
     use yoke::{
         AuthContext as YokeAuth, BlastRadius, Cancel, Capability, Disposition, Harness,
         HeadlessApprover, Identity, RecordingSessionEventHandler, ScriptExecutor, SessionEventSink,
         Steer, ToolCtx, run_step,
     };
-    use rig::test_utils::{MockCompletionModel, MockTurn};
-    use serde_json::json;
 
     use crate::yoke::gateway::ShipdGateway;
 
@@ -295,9 +300,7 @@ mod tests {
     }
 
     /// `ToolCtx` wired to a recording sink so tests can assert on emitted events.
-    fn test_ctx_with_mock(
-        session_id: &str,
-    ) -> (ToolCtx, Arc<RecordingSessionEventHandler>) {
+    fn test_ctx_with_mock(session_id: &str) -> (ToolCtx, Arc<RecordingSessionEventHandler>) {
         let (session_sink, rec) = SessionEventSink::recording();
         let ctx = ToolCtx {
             session_sink,
@@ -329,8 +332,9 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn yoke_embed_smoke_c0_read_session_events_and_gate_clear() {
         let harness = crate::test_harness::TestDaemon::new().await;
-        let gw: Arc<dyn yoke::Gateway> =
-            Arc::new(ShipdGateway::new(crate::rpc::ops::router(harness.state.clone())));
+        let gw: Arc<dyn yoke::Gateway> = Arc::new(ShipdGateway::new(crate::rpc::ops::router(
+            harness.state.clone(),
+        )));
 
         // Script: call collections.read once (C0 — gate clears with no grant),
         // then produce text output.
@@ -353,7 +357,11 @@ mod tests {
             .expect("first-light smoke (C0 read) must complete");
 
         // (3) Loop produces the scripted text.
-        assert!(out.text.contains("done"), "loop output must contain 'done': {:?}", out.text);
+        assert!(
+            out.text.contains("done"),
+            "loop output must contain 'done': {:?}",
+            out.text
+        );
 
         // (1) + (2) Session lifecycle events emitted.
         let event_types = mock.names();
@@ -369,7 +377,8 @@ mod tests {
         // (4) C0 read must NOT be denied.
         assert!(
             !out.text.contains("denied"),
-            "C0 read must not be denied by the gate: {:?}", out.text,
+            "C0 read must not be denied by the gate: {:?}",
+            out.text,
         );
     }
 
@@ -384,8 +393,9 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn yoke_embed_smoke_denied_c2_gate_verdict_reaches_model_and_session_events() {
         let harness = crate::test_harness::TestDaemon::new().await;
-        let gw: Arc<dyn yoke::Gateway> =
-            Arc::new(ShipdGateway::new(crate::rpc::ops::router(harness.state.clone())));
+        let gw: Arc<dyn yoke::Gateway> = Arc::new(ShipdGateway::new(crate::rpc::ops::router(
+            harness.state.clone(),
+        )));
 
         // No mcp grant — gate must deny mcp.create (C2 elevated).
         let model = MockCompletionModel::new([
@@ -413,7 +423,8 @@ mod tests {
         // Gate denial surfaces as model-readable data — loop does not error.
         assert!(
             out.text.contains("denied"),
-            "model must see the gate denial in its text: {:?}", out.text,
+            "model must see the gate denial in its text: {:?}",
+            out.text,
         );
 
         // Session lifecycle events fire regardless of gate outcome.
@@ -427,5 +438,4 @@ mod tests {
             "session.completed must fire after the denied run; got: {types:?}",
         );
     }
-
 }

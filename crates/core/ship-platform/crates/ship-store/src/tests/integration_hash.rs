@@ -11,8 +11,7 @@ use crate::hash::{compute_file_hash, compute_tree_hash};
 // ── compute_tree_hash — cross-boundary properties ─────────────────────
 
 #[test]
-fn registry_hash_tree_deterministic_across_two_separate_equal_trees()
--> anyhow::Result<()> {
+fn registry_hash_tree_deterministic_across_two_separate_equal_trees() -> anyhow::Result<()> {
     let dir_a = tempdir()?;
     let dir_b = tempdir()?;
 
@@ -35,8 +34,7 @@ fn registry_hash_tree_deterministic_across_two_separate_equal_trees()
 }
 
 #[test]
-fn registry_hash_tree_changes_when_nested_file_modified()
--> anyhow::Result<()> {
+fn registry_hash_tree_changes_when_nested_file_modified() -> anyhow::Result<()> {
     let dir = tempdir()?;
     fs::create_dir_all(dir.path().join("skills/alpha"))?;
     fs::write(dir.path().join("skills/alpha/SKILL.md"), "v1")?;
@@ -54,8 +52,7 @@ fn registry_hash_tree_changes_when_nested_file_modified()
 }
 
 #[test]
-fn registry_hash_tree_ignores_non_domain_files_and_noisy_top_level_entries()
--> anyhow::Result<()> {
+fn registry_hash_tree_ignores_non_domain_files_and_noisy_top_level_entries() -> anyhow::Result<()> {
     let dir = tempdir()?;
     fs::write(dir.path().join("stack.config.ts"), "export default {};\n")?;
     fs::write(dir.path().join("payload.txt"), "content")?;

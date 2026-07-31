@@ -1,0 +1,39 @@
+[package]
+name = "pipeline-defs"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Pipeline definition CRUD for the pipeline spec tree. Definition file-tree service + Connect wire only; dispatch ports live in shipd."
+
+[dependencies]
+# L0 — events, ports, projections registry, persistence, text utils, dispatch gate.
+ship-substrate = { path = "../.." }
+# L0 data — pure-logic pipeline spec types (no fs/process/tokio).
+ship-pipelines = { path = "../ship-pipelines" }
+# L1 file tree — `FilesService` backing the `PipelinesService` CRUD.
+ship-files = { path = "../../../ship-platform/crates/ship-files" }
+# Connect-RPC generated server traits (`PipelinesService`, request/response
+# types) for the L1 wire layer.
+ship-proto = { git = "https://github.com/get-ship/ship-contracts.git", branch = "feat/next" }
+connectrpc = { version = "0.4", features = ["axum"] }
+
+serde = { workspace = true }
+serde_json = { workspace = true, features = ["preserve_order"] }
+serde_yaml = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+async-trait = { workspace = true }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "time", "sync", "macros", "process", "io-util"] }
+tracing = { workspace = true }
+chrono = { workspace = true }
+tempfile = { workspace = true }
+json-patch = "4"
+minijinja = { workspace = true }
+
+[dev-dependencies]
+stack-model = { path = "../../../stack-model" }
+tokio = { workspace = true, features = ["test-util"] }
+ship-substrate = { path = "../.." }
+
+[lints]
+workspace = true

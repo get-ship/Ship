@@ -5,7 +5,7 @@
 //! paths continue to resolve.
 
 pub use ship_auth::scopes::{
-    drop_session, generate_session_token, hydrate_sessions, is_session_token, mint_session,
-    persist_session, remove_persisted_session, DaemonSession, SessionRegistry,
+    DaemonSession, SessionRegistry, drop_session, generate_session_token, hydrate_sessions,
+    is_session_token, mint_session, persist_session, remove_persisted_session,
 };
 pub use ship_auth::sweeper::spawn_session_sweeper;

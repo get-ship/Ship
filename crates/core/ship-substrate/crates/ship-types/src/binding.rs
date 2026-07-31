@@ -69,6 +69,14 @@ impl ScopeBinding {
         }
     }
 
+    /// TRUSTED INTERNAL ONLY — daemon process with `Authority::Sdk`.
+    ///
+    /// Convenience for off-kernel writers that need a daemon-internal
+    /// binding without taking a direct dependency on `agent_schema`.
+    pub fn daemon_sdk() -> Self {
+        Self::daemon_internal(None, Authority::Sdk)
+    }
+
     pub fn device_id(&self) -> &DeviceId {
         &self.device_id
     }

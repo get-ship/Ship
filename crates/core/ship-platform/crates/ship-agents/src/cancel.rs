@@ -20,9 +20,10 @@
 use std::sync::Arc;
 
 use agent_schema::canonical_session::SessionCancelled;
-use ship_substrate::events::emit::persist_and_route;
-use ship_substrate::events::process::{event_types as process_event_types, ProcessKilledPayload};
 use ship_substrate::events::EventEnvelope;
+use ship_substrate::events::emit::persist_and_route;
+use ship_substrate::events::process::ProcessKilledPayload;
+use ship_types::event_types as process_event_types;
 use tokio::sync::Mutex;
 
 use crate::ports::AgentPorts;
@@ -90,7 +91,10 @@ pub async fn handle_agent_cancelled(kernel: &Kernel, envelope: &EventEnvelope, p
         // dispatch tears the child down after it registers instead of leaking
         // it.
         ports.registry.mark_cancelled(&slug).await;
-        tracing::info!(slug, "agent-session-cancel: no live handle found; tombstoned for in-flight spawn, proceeding to cleanup");
+        tracing::info!(
+            slug,
+            "agent-session-cancel: no live handle found; tombstoned for in-flight spawn, proceeding to cleanup"
+        );
         None
     };
 
@@ -114,7 +118,10 @@ pub async fn handle_agent_cancelled(kernel: &Kernel, envelope: &EventEnvelope, p
             persist_and_route(kernel, env, &slug).await;
         }
         Err(e) => {
-            tracing::warn!(slug, "agent-session-cancel: failed to build process.killed envelope: {e}");
+            tracing::warn!(
+                slug,
+                "agent-session-cancel: failed to build process.killed envelope: {e}"
+            );
         }
     }
 }

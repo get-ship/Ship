@@ -1,6 +1,6 @@
 //! Agent-def domain consumer — the owner of the durable `agent.def.updated`.
 //!
-//! The `ship-config` watcher emits a single, generic, **transient** signal
+//! The `ship-settings` watcher emits a single, generic, **transient** signal
 //! for every changed config file: `config.file_changed` (Runtime +
 //! `Retention::Ephemeral`). The signal carries `{domain, path, content_hash}` —
 //! the watched dir's name, the file's rel path, and a SHA-256 of its bytes
