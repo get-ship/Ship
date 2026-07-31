@@ -4,12 +4,14 @@ name: Bench
 # external bench checkout (see js-bench below) and shared 2-vCPU runners are too
 # noisy for a 15% PR-blocking gate — swap1k swings ±~3 ms (~25%), memory ±~0.6 MB
 # (~17%), first-paint 150–340% cross-framework on single runs
-# (.artifacts/sui-arc/perf-status.md, "Noise floor"). Runs nightly + on demand
-# so a regression surfaces within a day without false-failing PRs.
+# (.artifacts/sui-arc/perf-status.md, "Noise floor").
+#
+# h-03 (2026-07-31): schedule DISABLED. The cron `0 5 * * *` ran daily for
+# months post-sui carve-out and never went green (signals-bench fails: workspace
+# still resolved path deps / crate gone). Re-enable only with an owner, a green
+# baseline, and explicit sanction — see helm DECISIONS.md CI rule.
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '0 5 * * *' # 05:00 UTC nightly
 
 env:
   CARGO_TERM_COLOR: always
