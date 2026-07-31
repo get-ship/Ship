@@ -7,7 +7,7 @@ description = "L1 filesystem helpers — FilesService (scoped JSONC read/write/p
 
 [dependencies]
 ship-substrate = { path = "../../../ship-substrate" }
-agent-driver = { git = "https://github.com/get-ship/fleet.git", rev = "aaec7a7bec2d620fcfc7b3eb44c058d952ff510b" }
+agent-driver = { git = "https://github.com/get-ship/fleet.git", rev = "354bfd591ad71df9f933d8faaa8fae3b9c783378" }
 
 serde = { workspace = true }
 serde_json = { workspace = true }

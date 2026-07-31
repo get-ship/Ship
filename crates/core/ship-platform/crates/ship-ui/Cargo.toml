@@ -14,12 +14,9 @@ ship-artifacts = { path = "../ship-artifacts" }
 connectrpc = { version = "0.4", features = ["axum"] }
 ship-ops-rpc = { path = "../../../ship-ops-rpc" }
 ship-proto = { git = "https://github.com/get-ship/ship-contracts.git", branch = "feat/next" }
-# SUI compiler analysis facade (diagnostics / hover / dependencies).
-# sui-compiler moved to the external sui repo post-carve. Path-dep
-# smell: this build only worked if sui is checked out at a specific
-# local path. Replaced with a version pin (0.1.0-dev) to draw
-# attention to the smell — build is broken on any machine until sui
-# publishes the crate. See .artifacts/handoff-post-cleanup.md.
+# SUI/SAIL compiler analysis facade (diagnostics / hover / dependencies).
+# Crate id on remote sail feat/next is still `sui-compiler` (rename follow-up
+# when sail publishes `sail-compiler`). Git dep on get-ship/sail.
 sui-compiler = { git = "https://github.com/get-ship/sail.git", branch = "feat/next" }
 
 async-trait = { workspace = true }

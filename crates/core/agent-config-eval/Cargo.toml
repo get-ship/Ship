@@ -9,15 +9,15 @@ description = "Evaluate a ship.ts agent config (authored with defineAgent) in a 
 # The AgentProfile type + its schema. This crate produces AgentProfiles; it does
 # NOT re-implement them (the deleted spike's mistake was vendoring these into the
 # engine — here ship supplies them and the engine stays type-free).
-agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "aaec7a7bec2d620fcfc7b3eb44c058d952ff510b" }
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "354bfd591ad71df9f933d8faaa8fae3b9c783378" }
 stack-model = { path = "../stack-model" }
 ship-collection = { path = "../ship-platform/crates/ship-collection" }
 ship-pipelines = { path = "../ship-substrate/crates/ship-pipelines" }
 ship-triggers = { path = "../ship-platform/crates/ship-triggers" }
 ship-ui = { path = "../ship-platform/crates/ship-ui" }
-# The standalone JS engine (shared ship-exec repo, rev-pinned with fleet's
-# yoke so there is one ship-js source for everyone). `deno` pulls the V8
-# runtime; the closed-world eval lives behind it.
+# The standalone JS engine (ship-infra, rev-pinned with fleet's yoke so
+# there is one ship-js source for everyone). `deno` pulls the V8 runtime;
+# the closed-world eval lives behind it.
 ship-js = { git = "https://github.com/get-ship/ship-infra.git", rev = "24de79282f45b05fdcdb07f7daa66c7346bdeb33", features = ["deno"] }
 # oxc — the one-shot TypeScript type-strip (real `.ts` → JS before eval). Already
 # vendored at 0.133.0 in the workspace lock (transitive via rolldown), so these

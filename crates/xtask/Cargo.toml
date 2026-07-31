@@ -20,10 +20,7 @@ ship-ui = { path = "../core/ship-platform/crates/ship-ui" }
 pipeline-defs = { path = "../core/ship-substrate/crates/pipeline-defs" }
 # Event envelope type for the cloud-side TS surface (build_cloud_types).
 ship-types = { path = "../core/ship-substrate/crates/ship-types", features = ["specta"] }
-# `deck` is a thin re-export facade in the external sui repo post-carve.
-# Path-dep smell: build only worked if sui was at a specific local
-# path. Replaced with a version pin (0.1.0-dev) to draw attention
-# to the smell. See .artifacts/handoff-post-cleanup.md.
+# `deck` is a thin re-export facade in the external sail repo (post-carve).
 deck = { git = "https://github.com/get-ship/sail.git", branch = "feat/next", features = ["specta"] }
 # `shipd` is in apps/, not crates/ — used for fixtures only.
 shipd = { path = "../../apps/shipd", features = ["specta"] }

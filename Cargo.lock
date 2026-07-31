@@ -30,7 +30,7 @@ dependencies = [
  "serde",
  "serde_json",
  "ship-collection",
- "ship-js 0.1.0 (git+https://github.com/get-ship/ship-infra.git?rev=24de79282f45b05fdcdb07f7daa66c7346bdeb33)",
+ "ship-js",
  "ship-pipelines",
  "ship-triggers",
  "ship-ui",
@@ -74,7 +74,7 @@ dependencies = [
 [[package]]
 name = "agent-driver"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/fleet.git?rev=aaec7a7bec2d620fcfc7b3eb44c058d952ff510b#aaec7a7bec2d620fcfc7b3eb44c058d952ff510b"
+source = "git+https://github.com/get-ship/fleet.git?rev=354bfd591ad71df9f933d8faaa8fae3b9c783378#354bfd591ad71df9f933d8faaa8fae3b9c783378"
 dependencies = [
  "agent-schema",
  "anyhow",
@@ -88,7 +88,7 @@ dependencies = [
 [[package]]
 name = "agent-schema"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/fleet.git?rev=aaec7a7bec2d620fcfc7b3eb44c058d952ff510b#aaec7a7bec2d620fcfc7b3eb44c058d952ff510b"
+source = "git+https://github.com/get-ship/fleet.git?rev=354bfd591ad71df9f933d8faaa8fae3b9c783378#354bfd591ad71df9f933d8faaa8fae3b9c783378"
 dependencies = [
  "anyhow",
  "minijinja",
@@ -774,16 +774,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bounded-spawn"
-version = "0.1.0"
-source = "git+https://github.com/get-ship/ship-exec.git?rev=ee39e5273ce8829d90043626a01f564e660dd477#ee39e5273ce8829d90043626a01f564e660dd477"
-dependencies = [
- "libc",
- "thiserror 1.0.69",
- "tokio",
-]
-
-[[package]]
 name = "boxed_error"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -796,7 +786,7 @@ dependencies = [
 [[package]]
 name = "bridge"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/fleet.git?rev=aaec7a7bec2d620fcfc7b3eb44c058d952ff510b#aaec7a7bec2d620fcfc7b3eb44c058d952ff510b"
+source = "git+https://github.com/get-ship/fleet.git?rev=354bfd591ad71df9f933d8faaa8fae3b9c783378#354bfd591ad71df9f933d8faaa8fae3b9c783378"
 dependencies = [
  "agent-driver",
  "agent-schema",
@@ -804,16 +794,16 @@ dependencies = [
  "async-stream",
  "async-trait",
  "axum",
- "bounded-spawn 0.1.0 (git+https://github.com/get-ship/ship-exec.git?rev=ee39e5273ce8829d90043626a01f564e660dd477)",
+ "bounded-spawn",
  "chrono",
  "connectrpc",
  "futures-util",
  "harness-config-compiler",
  "harness-drivers",
  "http",
- "isolation-port 0.1.0 (git+https://github.com/get-ship/ship-exec.git?rev=ee39e5273ce8829d90043626a01f564e660dd477)",
+ "isolation-port",
  "libc",
- "process-supervisor 0.1.0 (git+https://github.com/get-ship/ship-exec.git?rev=ee39e5273ce8829d90043626a01f564e660dd477)",
+ "process-supervisor",
  "serde",
  "serde_json",
  "sysinfo 0.37.2",
@@ -1387,25 +1377,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a6ef517f0926dd24a1582492c791b6a4818a4d94e789a334894aa15b0d12f55c"
 
 [[package]]
-name = "const-str"
-version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "18f12cc9948ed9604230cdddc7c86e270f9401ccbe3c2e98a4378c5e7632212f"
-
-[[package]]
 name = "constant_time_eq"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d52eff69cd5e647efe296129160853a42795992097e8af39800e1060caeea9b"
-
-[[package]]
-name = "convert_case"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec182b0ca2f35d8fc196cf3404988fd8b8c739a4d270ff118a398feb0cbec1ca"
-dependencies = [
- "unicode-segmentation",
-]
 
 [[package]]
 name = "convert_case"
@@ -1618,33 +1593,11 @@ version = "0.36.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dae61cf9c0abb83bd659dab65b7e4e38d8236824c85f0f804f173567bda257d2"
 dependencies = [
- "cssparser-macros 0.6.1",
+ "cssparser-macros",
  "dtoa-short",
  "itoa",
  "phf 0.13.1",
  "smallvec",
-]
-
-[[package]]
-name = "cssparser"
-version = "0.37.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c9cdaae01d5ed7882b04d795e7f752f46ff52d2fa3b50a20d28c464510bba98"
-dependencies = [
- "cssparser-macros 0.7.0",
- "dtoa-short",
- "itoa",
- "phf 0.13.1",
- "smallvec",
-]
-
-[[package]]
-name = "cssparser-color"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bbaa233e1dcd9c13a5d3e3a8a2c0f5a727bac380398345dbcb31db4597edc86b"
-dependencies = [
- "cssparser 0.37.0",
 ]
 
 [[package]]
@@ -1652,16 +1605,6 @@ name = "cssparser-macros"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13b588ba4ac1a99f7f2964d24b3d896ddc6bf847ee3855dbd4366f058cfcd331"
-dependencies = [
- "quote",
- "syn 2.0.119",
-]
-
-[[package]]
-name = "cssparser-macros"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "10a2a99df6e410a8ff4245aa2006499ea662245f967cc7c0a38c83ef8eb44dbf"
 dependencies = [
  "quote",
  "syn 2.0.119",
@@ -1761,6 +1704,7 @@ dependencies = [
 [[package]]
 name = "deck"
 version = "0.1.0"
+source = "git+https://github.com/get-ship/sail.git?branch=feat%2Fnext#06cc82e329f48dccbac894256c20c3673505f4e9"
 dependencies = [
  "deck-axum",
  "deck-bundler",
@@ -1773,6 +1717,7 @@ dependencies = [
 [[package]]
 name = "deck-axum"
 version = "0.1.0"
+source = "git+https://github.com/get-ship/sail.git?branch=feat%2Fnext#06cc82e329f48dccbac894256c20c3673505f4e9"
 dependencies = [
  "async-stream",
  "axum",
@@ -1792,6 +1737,7 @@ dependencies = [
 [[package]]
 name = "deck-bundler"
 version = "0.1.0"
+source = "git+https://github.com/get-ship/sail.git?branch=feat%2Fnext#06cc82e329f48dccbac894256c20c3673505f4e9"
 dependencies = [
  "anyhow",
  "deck-config",
@@ -1800,11 +1746,10 @@ dependencies = [
  "notify",
  "rolldown",
  "rolldown_common",
- "rolldown_error",
  "rustc-hash",
- "sail-compiler",
  "serde",
  "serde_json",
+ "sui-compiler",
  "tempfile",
  "thiserror 2.0.19",
  "tokio",
@@ -1814,6 +1759,7 @@ dependencies = [
 [[package]]
 name = "deck-config"
 version = "0.1.0"
+source = "git+https://github.com/get-ship/sail.git?branch=feat%2Fnext#06cc82e329f48dccbac894256c20c3673505f4e9"
 dependencies = [
  "serde",
  "serde_json",
@@ -1823,16 +1769,16 @@ dependencies = [
 [[package]]
 name = "deck-core"
 version = "0.1.0"
+source = "git+https://github.com/get-ship/sail.git?branch=feat%2Fnext#06cc82e329f48dccbac894256c20c3673505f4e9"
 dependencies = [
  "anyhow",
  "deck-config",
  "deck-host",
- "lightningcss",
  "notify",
- "sail-compiler",
  "serde",
  "serde_json",
  "specta",
+ "sui-compiler",
  "tempfile",
  "tracing",
  "ulid",
@@ -1841,27 +1787,29 @@ dependencies = [
 [[package]]
 name = "deck-host"
 version = "0.1.0"
+source = "git+https://github.com/get-ship/sail.git?branch=feat%2Fnext#06cc82e329f48dccbac894256c20c3673505f4e9"
 dependencies = [
- "sail-compiler",
  "serde",
  "serde_json",
  "specta",
+ "sui-compiler",
  "tempfile",
 ]
 
 [[package]]
 name = "deck-ssr"
 version = "0.1.0"
+source = "git+https://github.com/get-ship/sail.git?branch=feat%2Fnext#06cc82e329f48dccbac894256c20c3673505f4e9"
 dependencies = [
  "anyhow",
  "async-trait",
  "deck-core",
  "rolldown",
  "rolldown_common",
- "sail-compiler",
  "serde",
  "serde_json",
- "ship-js 0.1.0 (git+https://github.com/get-ship/ship-infra.git)",
+ "ship-js",
+ "sui-compiler",
  "tokio",
 ]
 
@@ -2203,7 +2151,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "521e380c0c8afb8d9a1e83a1822ee03556fc3e3e7dbc1fd30be14e37f9cb3f89"
 dependencies = [
  "bit-set",
- "cssparser 0.36.0",
+ "cssparser",
  "foldhash 0.2.0",
  "html5ever",
  "precomputed-hash",
@@ -2283,20 +2231,7 @@ dependencies = [
  "futures-util",
  "serde",
  "serde_json",
- "ship-js 0.1.0 (git+https://github.com/get-ship/ship-infra.git?rev=24de79282f45b05fdcdb07f7daa66c7346bdeb33)",
- "thiserror 1.0.69",
-]
-
-[[package]]
-name = "durable-execution"
-version = "0.1.0"
-source = "git+https://github.com/get-ship/ship-exec.git?rev=ee39e5273ce8829d90043626a01f564e660dd477#ee39e5273ce8829d90043626a01f564e660dd477"
-dependencies = [
- "async-trait",
- "futures-util",
- "serde",
- "serde_json",
- "ship-js 0.1.0 (git+https://github.com/get-ship/ship-exec.git?rev=ee39e5273ce8829d90043626a01f564e660dd477)",
+ "ship-js",
  "thiserror 1.0.69",
 ]
 
@@ -2434,21 +2369,6 @@ dependencies = [
  "cfg-if",
  "home",
  "windows-sys 0.48.0",
-]
-
-[[package]]
-name = "event-core"
-version = "0.1.0"
-source = "git+https://github.com/get-ship/ship-exec.git?rev=ee39e5273ce8829d90043626a01f564e660dd477#ee39e5273ce8829d90043626a01f564e660dd477"
-dependencies = [
- "async-trait",
- "chrono",
- "inventory",
- "serde",
- "serde_json",
- "sha2",
- "thiserror 1.0.69",
- "ulid",
 ]
 
 [[package]]
@@ -3117,12 +3037,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "grid"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b40ca9252762c466af32d0b1002e91e4e1bc5398f77455e55474deb466355ff5"
-
-[[package]]
 name = "gtk"
 version = "0.18.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3214,7 +3128,7 @@ dependencies = [
 [[package]]
 name = "harness-config-compiler"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/fleet.git?rev=aaec7a7bec2d620fcfc7b3eb44c058d952ff510b#aaec7a7bec2d620fcfc7b3eb44c058d952ff510b"
+source = "git+https://github.com/get-ship/fleet.git?rev=354bfd591ad71df9f933d8faaa8fae3b9c783378#354bfd591ad71df9f933d8faaa8fae3b9c783378"
 dependencies = [
  "agent-schema",
  "anyhow",
@@ -3231,7 +3145,7 @@ dependencies = [
 [[package]]
 name = "harness-drivers"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/fleet.git?rev=aaec7a7bec2d620fcfc7b3eb44c058d952ff510b#aaec7a7bec2d620fcfc7b3eb44c058d952ff510b"
+source = "git+https://github.com/get-ship/fleet.git?rev=354bfd591ad71df9f933d8faaa8fae3b9c783378#354bfd591ad71df9f933d8faaa8fae3b9c783378"
 dependencies = [
  "agent-driver",
  "anyhow",
@@ -3358,14 +3272,6 @@ dependencies = [
 name = "host-adapter"
 version = "0.1.0"
 source = "git+https://github.com/get-ship/ship-infra.git?rev=24de79282f45b05fdcdb07f7daa66c7346bdeb33#24de79282f45b05fdcdb07f7daa66c7346bdeb33"
-dependencies = [
- "libc",
-]
-
-[[package]]
-name = "host-adapter"
-version = "0.1.0"
-source = "git+https://github.com/get-ship/ship-exec.git?rev=ee39e5273ce8829d90043626a01f564e660dd477#ee39e5273ce8829d90043626a01f564e660dd477"
 dependencies = [
  "libc",
 ]
@@ -3849,29 +3755,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "isolation-port"
-version = "0.1.0"
-source = "git+https://github.com/get-ship/ship-exec.git?rev=ee39e5273ce8829d90043626a01f564e660dd477#ee39e5273ce8829d90043626a01f564e660dd477"
-dependencies = [
- "anyhow",
- "async-trait",
- "nanoid",
- "serde",
- "thiserror 1.0.69",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "itertools"
-version = "0.10.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0fd2260e829bddf4cb6ea802289de2f86d6a7a690192fbe91b3f46e0f2c8473"
-dependencies = [
- "either",
-]
-
-[[package]]
 name = "itertools"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4024,7 +3907,7 @@ source = "git+https://github.com/get-ship/ship-infra.git?rev=24de79282f45b05fdcd
 dependencies = [
  "anyhow",
  "async-trait",
- "durable-execution 0.1.0 (git+https://github.com/get-ship/ship-infra.git?rev=24de79282f45b05fdcdb07f7daa66c7346bdeb33)",
+ "durable-execution",
  "serde_json",
  "sqlx",
  "tokio",
@@ -4317,41 +4200,6 @@ dependencies = [
  "libc",
  "pkg-config",
  "vcpkg",
-]
-
-[[package]]
-name = "lightningcss"
-version = "1.0.0-alpha.72"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d31b760f96e8fdfe1d0c295e4bf76c503d6f15d2d470d53bd8cd1f7aa8c7d934"
-dependencies = [
- "ahash",
- "bitflags 2.13.1",
- "const-str",
- "cssparser 0.37.0",
- "cssparser-color",
- "data-encoding",
- "getrandom 0.3.4",
- "indexmap 2.14.0",
- "itertools 0.10.5",
- "lazy_static",
- "lightningcss-derive",
- "parcel_selectors",
- "pastey",
- "pathdiff",
- "smallvec",
-]
-
-[[package]]
-name = "lightningcss-derive"
-version = "1.0.0-alpha.43"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "84c12744d1279367caed41739ef094c325d53fb0ffcd4f9b84a368796f870252"
-dependencies = [
- "convert_case 0.6.0",
- "proc-macro2",
- "quote",
- "syn 1.0.109",
 ]
 
 [[package]]
@@ -6244,22 +6092,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "parcel_selectors"
-version = "0.28.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d05f71e01edca03d245ab0a9f7ce13a974ceb79baaae8faf2ba0b11de6b90913"
-dependencies = [
- "bitflags 2.13.1",
- "cssparser 0.37.0",
- "log",
- "phf 0.11.3",
- "phf_codegen 0.11.3",
- "precomputed-hash",
- "rustc-hash",
- "smallvec",
-]
-
-[[package]]
 name = "parking"
 version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6293,12 +6125,6 @@ name = "paste"
 version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
-
-[[package]]
-name = "pastey"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "35fb2e5f958ec131621fdd531e9fc186ed768cbe395337403ae56c17a74c68ec"
 
 [[package]]
 name = "path-layout"
@@ -6358,15 +6184,6 @@ dependencies = [
 
 [[package]]
 name = "phf"
-version = "0.11.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1fd6780a80ae0c52cc120a26a1a42c1ae51b247a253e4e06113d23d2c2edd078"
-dependencies = [
- "phf_shared 0.11.3",
-]
-
-[[package]]
-name = "phf"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c1562dc717473dbaa4c1f85a36410e03c047b2e7df7f45ee938fbef64ae7fadf"
@@ -6389,32 +6206,12 @@ dependencies = [
 
 [[package]]
 name = "phf_codegen"
-version = "0.11.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aef8048c789fa5e851558d709946d6d79a8ff88c0440c587967f8e94bfb1216a"
-dependencies = [
- "phf_generator 0.11.3",
- "phf_shared 0.11.3",
-]
-
-[[package]]
-name = "phf_codegen"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49aa7f9d80421bca176ca8dbfebe668cc7a2684708594ec9f3c0db0805d5d6e1"
 dependencies = [
  "phf_generator 0.13.1",
  "phf_shared 0.13.1",
-]
-
-[[package]]
-name = "phf_generator"
-version = "0.11.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c80231409c20246a13fddb31776fb942c38553c51e871f8cbd687a4cfb5843d"
-dependencies = [
- "phf_shared 0.11.3",
- "rand 0.8.7",
 ]
 
 [[package]]
@@ -6461,15 +6258,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.119",
-]
-
-[[package]]
-name = "phf_shared"
-version = "0.11.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "67eabc2ef2a60eb7faa00097bd1ffdb5bd28e62bf39990626a582201b7a754e5"
-dependencies = [
- "siphasher",
 ]
 
 [[package]]
@@ -6831,26 +6619,8 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
- "host-adapter 0.1.0 (git+https://github.com/get-ship/ship-infra.git?rev=24de79282f45b05fdcdb07f7daa66c7346bdeb33)",
- "isolation-port 0.1.0 (git+https://github.com/get-ship/ship-infra.git?rev=24de79282f45b05fdcdb07f7daa66c7346bdeb33)",
- "libc",
- "portable-pty",
- "tokio",
- "tracing",
- "ulid",
-]
-
-[[package]]
-name = "process-supervisor"
-version = "0.1.0"
-source = "git+https://github.com/get-ship/ship-exec.git?rev=ee39e5273ce8829d90043626a01f564e660dd477#ee39e5273ce8829d90043626a01f564e660dd477"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "event-core",
- "host-adapter 0.1.0 (git+https://github.com/get-ship/ship-exec.git?rev=ee39e5273ce8829d90043626a01f564e660dd477)",
- "isolation-port 0.1.0 (git+https://github.com/get-ship/ship-exec.git?rev=ee39e5273ce8829d90043626a01f564e660dd477)",
+ "host-adapter",
+ "isolation-port",
  "libc",
  "portable-pty",
  "tokio",
@@ -7447,7 +7217,7 @@ version = "0.38.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "643eb495acbd4bd5976164cd068f186d534f741def8d5d052f860266b98d07f8"
 dependencies = [
- "convert_case 0.11.0",
+ "convert_case",
  "deluxe",
  "indoc",
  "proc-macro-crate 3.5.0",
@@ -8072,51 +7842,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
 
 [[package]]
-name = "sail-build-info"
-version = "0.1.0"
-
-[[package]]
-name = "sail-compiler"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "libc",
- "sail-build-info",
- "sail-layout",
- "sail-lint",
- "serde",
- "serde_json",
- "thiserror 2.0.19",
-]
-
-[[package]]
-name = "sail-layout"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "sail-lint",
- "serde",
- "serde_json",
- "taffy",
- "thiserror 2.0.19",
-]
-
-[[package]]
-name = "sail-lint"
-version = "0.1.0"
-dependencies = [
- "oxc_allocator 0.128.0",
- "oxc_ast 0.128.0",
- "oxc_ast_visit 0.128.0",
- "oxc_parser 0.128.0",
- "oxc_span 0.128.0",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "same-file"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8234,12 +7959,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c5d9c0c92a92d33f08817311cf3f2c29a3538a8240e94a6a3c622ce652d7e00c"
 dependencies = [
  "bitflags 2.13.1",
- "cssparser 0.36.0",
+ "cssparser",
  "derive_more",
  "log",
  "new_debug_unreachable",
  "phf 0.13.1",
- "phf_codegen 0.13.1",
+ "phf_codegen",
  "precomputed-hash",
  "rustc-hash",
  "servo_arc",
@@ -8603,7 +8328,7 @@ dependencies = [
  "json-patch 4.2.0",
  "libc",
  "parking_lot",
- "process-supervisor 0.1.0 (git+https://github.com/get-ship/ship-infra.git?rev=24de79282f45b05fdcdb07f7daa66c7346bdeb33)",
+ "process-supervisor",
  "semver",
  "serde",
  "serde_json",
@@ -8704,7 +8429,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "getrandom 0.2.17",
- "host-adapter 0.1.0 (git+https://github.com/get-ship/ship-infra.git?rev=24de79282f45b05fdcdb07f7daa66c7346bdeb33)",
+ "host-adapter",
  "serde",
  "serde_json",
  "ship-types",
@@ -8786,7 +8511,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
- "isolation-port 0.1.0 (git+https://github.com/get-ship/ship-infra.git?rev=24de79282f45b05fdcdb07f7daa66c7346bdeb33)",
+ "isolation-port",
  "nanoid",
  "serde",
  "serde_json",
@@ -8866,9 +8591,9 @@ dependencies = [
  "connectrpc",
  "http",
  "hyper-util",
- "isolation-port 0.1.0 (git+https://github.com/get-ship/ship-infra.git?rev=24de79282f45b05fdcdb07f7daa66c7346bdeb33)",
+ "isolation-port",
  "nanoid",
- "process-supervisor 0.1.0 (git+https://github.com/get-ship/ship-infra.git?rev=24de79282f45b05fdcdb07f7daa66c7346bdeb33)",
+ "process-supervisor",
  "serde",
  "serde_json",
  "ship-sidecar-proto",
@@ -8882,34 +8607,6 @@ dependencies = [
 name = "ship-js"
 version = "0.1.0"
 source = "git+https://github.com/get-ship/ship-infra.git?rev=24de79282f45b05fdcdb07f7daa66c7346bdeb33#24de79282f45b05fdcdb07f7daa66c7346bdeb33"
-dependencies = [
- "anyhow",
- "async-trait",
- "deno_core",
- "deno_error",
- "serde_json",
- "thiserror 1.0.69",
- "tokio",
-]
-
-[[package]]
-name = "ship-js"
-version = "0.1.0"
-source = "git+https://github.com/get-ship/ship-exec.git?rev=ee39e5273ce8829d90043626a01f564e660dd477#ee39e5273ce8829d90043626a01f564e660dd477"
-dependencies = [
- "anyhow",
- "async-trait",
- "deno_core",
- "deno_error",
- "serde_json",
- "thiserror 1.0.69",
- "tokio",
-]
-
-[[package]]
-name = "ship-js"
-version = "0.1.0"
-source = "git+https://github.com/get-ship/ship-infra.git#a8b8b03d800433f6ff05d23427cdf9ff7fa947d2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -9201,7 +8898,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "blobstore",
- "bounded-spawn 0.1.0 (git+https://github.com/get-ship/ship-infra.git?rev=24de79282f45b05fdcdb07f7daa66c7346bdeb33)",
+ "bounded-spawn",
  "bytes",
  "chrono",
  "config-doc",
@@ -9343,7 +9040,7 @@ dependencies = [
  "async-trait",
  "axum",
  "base64 0.22.1",
- "bounded-spawn 0.1.0 (git+https://github.com/get-ship/ship-infra.git?rev=24de79282f45b05fdcdb07f7daa66c7346bdeb33)",
+ "bounded-spawn",
  "bridge",
  "buffa",
  "build-info",
@@ -9353,19 +9050,19 @@ dependencies = [
  "deck",
  "deck-core",
  "deck-ssr",
- "durable-execution 0.1.0 (git+https://github.com/get-ship/ship-infra.git?rev=24de79282f45b05fdcdb07f7daa66c7346bdeb33)",
+ "durable-execution",
  "futures",
  "getrandom 0.2.17",
  "git2",
  "harness-config-compiler",
- "host-adapter 0.1.0 (git+https://github.com/get-ship/ship-infra.git?rev=24de79282f45b05fdcdb07f7daa66c7346bdeb33)",
+ "host-adapter",
  "http",
  "http-body-util",
  "journal-sqlite",
  "json-patch 4.2.0",
  "libc",
  "pipeline-defs",
- "process-supervisor 0.1.0 (git+https://github.com/get-ship/ship-infra.git?rev=24de79282f45b05fdcdb07f7daa66c7346bdeb33)",
+ "process-supervisor",
  "reqwest 0.12.28",
  "rig-core",
  "serde",
@@ -9504,15 +9201,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
 
 [[package]]
-name = "slotmap"
-version = "1.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bdd58c3c93c3d278ca835519292445cb4b0d4dc59ccfdf7ceadaab3f8aeb4038"
-dependencies = [
- "version_check",
-]
-
-[[package]]
 name = "smallvec"
 version = "1.15.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9614,7 +9302,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "ship-collection",
- "ship-js 0.1.0 (git+https://github.com/get-ship/ship-infra.git?rev=24de79282f45b05fdcdb07f7daa66c7346bdeb33)",
+ "ship-js",
  "ship-pipelines",
  "ship-store",
  "ship-substrate",
@@ -10032,12 +9720,12 @@ dependencies = [
 [[package]]
 name = "sui-build-info"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/sail.git?branch=feat%2Fnext#0519f929ae3fa7ee90b073fd7c295105bc28ace8"
+source = "git+https://github.com/get-ship/sail.git?branch=feat%2Fnext#06cc82e329f48dccbac894256c20c3673505f4e9"
 
 [[package]]
 name = "sui-compiler"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/sail.git?branch=feat%2Fnext#0519f929ae3fa7ee90b073fd7c295105bc28ace8"
+source = "git+https://github.com/get-ship/sail.git?branch=feat%2Fnext#06cc82e329f48dccbac894256c20c3673505f4e9"
 dependencies = [
  "anyhow",
  "clap",
@@ -10052,7 +9740,7 @@ dependencies = [
 [[package]]
 name = "sui-lint"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/sail.git?branch=feat%2Fnext#0519f929ae3fa7ee90b073fd7c295105bc28ace8"
+source = "git+https://github.com/get-ship/sail.git?branch=feat%2Fnext#06cc82e329f48dccbac894256c20c3673505f4e9"
 dependencies = [
  "oxc_allocator 0.128.0",
  "oxc_ast 0.128.0",
@@ -10087,7 +9775,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72b64191b275b66ffe2469e8af2c1cfe3bafa67b529ead792a6d0160888b4237"
 dependencies = [
  "proc-macro2",
- "quote",
  "unicode-ident",
 ]
 
@@ -10224,18 +9911,6 @@ dependencies = [
  "pkg-config",
  "toml 0.8.23",
  "version-compare",
-]
-
-[[package]]
-name = "taffy"
-version = "0.12.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "340a09581f29809fc0df82a3955501dc7f2a21f887e5d1c13dbe288fe1c0bef4"
-dependencies = [
- "arrayvec",
- "grid",
- "serde",
- "slotmap",
 ]
 
 [[package]]
@@ -11851,7 +11526,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "075474b12bcb3d2e3d4546580e9de478eeeead668a1761e2a8860c836b7ef297"
 dependencies = [
  "phf 0.13.1",
- "phf_codegen 0.13.1",
+ "phf_codegen",
  "string_cache",
  "string_cache_codegen",
 ]
@@ -12739,16 +12414,16 @@ checksum = "cfe53a6657fd280eaa890a3bc59152892ffa3e30101319d168b781ed6529b049"
 [[package]]
 name = "yoke"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/fleet.git?rev=aaec7a7bec2d620fcfc7b3eb44c058d952ff510b#aaec7a7bec2d620fcfc7b3eb44c058d952ff510b"
+source = "git+https://github.com/get-ship/fleet.git?rev=354bfd591ad71df9f933d8faaa8fae3b9c783378#354bfd591ad71df9f933d8faaa8fae3b9c783378"
 dependencies = [
  "agent-schema",
  "anyhow",
  "async-trait",
- "durable-execution 0.1.0 (git+https://github.com/get-ship/ship-exec.git?rev=ee39e5273ce8829d90043626a01f564e660dd477)",
+ "durable-execution",
  "rig-core",
  "serde",
  "serde_json",
- "ship-js 0.1.0 (git+https://github.com/get-ship/ship-exec.git?rev=ee39e5273ce8829d90043626a01f564e660dd477)",
+ "ship-js",
  "thiserror 2.0.19",
  "tokio",
  "tracing",
@@ -12780,7 +12455,7 @@ dependencies = [
 [[package]]
 name = "yoke-proto"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/fleet.git?rev=aaec7a7bec2d620fcfc7b3eb44c058d952ff510b#aaec7a7bec2d620fcfc7b3eb44c058d952ff510b"
+source = "git+https://github.com/get-ship/fleet.git?rev=354bfd591ad71df9f933d8faaa8fae3b9c783378#354bfd591ad71df9f933d8faaa8fae3b9c783378"
 dependencies = [
  "buffa",
  "connectrpc",

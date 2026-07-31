@@ -6,7 +6,7 @@ publish = false
 description = "Reactive trigger engine — JSONC triggers that match Ship events and dispatch actions (L1). Carved from ship-platform/src/triggers."
 
 [dependencies]
-agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "aaec7a7bec2d620fcfc7b3eb44c058d952ff510b" }
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "354bfd591ad71df9f933d8faaa8fae3b9c783378" }
 ship-substrate = { path = "../../../ship-substrate" }
 fs-watch = { path = "../../../ship-substrate/crates/fs-watch" }
 ship-types = { path = "../../../ship-substrate/crates/ship-types" }

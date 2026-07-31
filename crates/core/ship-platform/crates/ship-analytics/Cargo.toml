@@ -7,7 +7,7 @@ description = "Analytics rollups over hook.* events — per-session duration, pe
 
 [dependencies]
 agent-def = { path = "../agent-def" }
-agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "aaec7a7bec2d620fcfc7b3eb44c058d952ff510b" }
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "354bfd591ad71df9f933d8faaa8fae3b9c783378" }
 ship-substrate = { path = "../../../ship-substrate" }
 ship-types = { path = "../../../ship-substrate/crates/ship-types" }
 ship-ops-rpc = { path = "../../../ship-ops-rpc" }
