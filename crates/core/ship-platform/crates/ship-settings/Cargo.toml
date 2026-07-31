@@ -17,7 +17,7 @@ fs-watch = { path = "../../../ship-substrate/crates/fs-watch" }
 ship-types = { path = "../../../ship-substrate/crates/ship-types" }
 ship-reactive = { path = "../ship-reactive" }
 ship-ops-rpc = { path = "../../../ship-ops-rpc" }
-agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "6967f155ca795c19c44a145701c138b2d079c89c" }
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "aaec7a7bec2d620fcfc7b3eb44c058d952ff510b" }
 stack-model = { path = "../../../stack-model" }
 
 anyhow = { workspace = true }

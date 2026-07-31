@@ -20,7 +20,7 @@ ship-proto = { git = "https://github.com/get-ship/ship-contracts.git", branch = 
 # local path. Replaced with a version pin (0.1.0-dev) to draw
 # attention to the smell — build is broken on any machine until sui
 # publishes the crate. See .artifacts/handoff-post-cleanup.md.
-sui-compiler = { git = "https://github.com/get-ship/sui.git", branch = "feat/next" }
+sui-compiler = { git = "https://github.com/get-ship/sail.git", branch = "feat/next" }
 
 async-trait = { workspace = true }
 chrono = { workspace = true }

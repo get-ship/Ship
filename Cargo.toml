@@ -38,8 +38,8 @@ members = [
     "crates/core/ship-platform/crates/bundle-limits",
     "crates/core/ship-platform/crates/ship-auth",
     # ship-isolation / ship-device / ship-sidecar-proto / ship-sidecar moved to
-    # ship-exec (j-09). ship-git moved to ship-exec (j-04).
-    # Consumers use git deps + [patch] path overrides.
+    # ship-infra (j-09). ship-git moved to ship-infra (j-04).
+    # Consumers use git deps with pinned revs.
     # crates/sui/* + crates/deck/* moved to the external sui repo (phase 2 carve).
     # Consumers that used to depend on them via path-deps now use version
     # pins (see apps/shipd, ship-ui, xtask Cargo.toml) — the build is
@@ -221,26 +221,4 @@ debug = "line-tables-only"
 lto = "thin"
 codegen-units = 1
 strip = "debuginfo"
-
-# TEMPORARY (j-01b/j-01c/j-04/j-09): use local ship-exec (ProcessCreated API +
-# isolation unit + ship-git home). Operator follow-up: pin a real git rev after
-# ship-exec is committed/pushed, then remove this patch.
-[patch."https://github.com/get-ship/ship-exec.git"]
-process-supervisor = { path = "../ship-exec/crates/process-supervisor" }
-bounded-spawn = { path = "../ship-exec/crates/bounded-spawn" }
-isolation-port = { path = "../ship-exec/crates/isolation-port" }
-host-adapter = { path = "../ship-exec/crates/host-adapter" }
-durable-execution = { path = "../ship-exec/crates/durable-execution" }
-ship-js = { path = "../ship-exec/crates/ship-js" }
-ship-isolation = { path = "../ship-exec/crates/ship-isolation" }
-ship-device = { path = "../ship-exec/crates/ship-device" }
-ship-sidecar-proto = { path = "../ship-exec/crates/ship-sidecar-proto" }
-ship-git = { path = "../ship-exec/crates/ship-git" }
-journal-sqlite = { path = "../ship-exec/crates/journal-sqlite" }
-
-# TEMPORARY (j-08): local ship-contracts so ship-proto no longer generates
-# ship.yoke.v1 (moved to fleet/yoke-proto). Drop after feat/next is pushed.
-[patch."https://github.com/get-ship/ship-contracts.git"]
-ship-proto = { path = "../ship-contracts/crates/ship-proto" }
-
 

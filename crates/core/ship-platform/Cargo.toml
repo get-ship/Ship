@@ -11,8 +11,8 @@ agent-def = { path = "crates/agent-def", optional = true }
 ship-substrate = { path = "../ship-substrate" }
 # Device domain — isolation-execution sandbox + window-management service.
 # Import `ship-device` directly; this crate does not re-export it.
-# Home: ship-exec (j-09). Path-patched via workspace [patch] until rev pin.
-ship-device = { git = "https://github.com/get-ship/ship-exec.git", rev = "ee39e5273ce8829d90043626a01f564e660dd477" }
+# Home: ship-infra (j-09).
+ship-device = { git = "https://github.com/get-ship/ship-infra.git", rev = "24de79282f45b05fdcdb07f7daa66c7346bdeb33" }
 ship-analytics = { path = "crates/ship-analytics" }
 # Sibling L1 crates (live under this crate's `crates/` dir). The internal
 # platform consumers (triggers, view_authoring, orchestrator) call into the
@@ -61,7 +61,7 @@ ship-gateway-client = { path = "../ship-gateway-client" }
 # `unstable` feature. reqwest + ship-gateway-client are already direct deps
 # here, so this adds no new transitive HTTP-client footprint.
 ship-cloud = { path = "../ship-cloud" }
-agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "6967f155ca795c19c44a145701c138b2d079c89c", features = ["specta"] }
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "aaec7a7bec2d620fcfc7b3eb44c058d952ff510b", features = ["specta"] }
 stack-model = { path = "../stack-model", features = ["specta"] }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
@@ -127,12 +127,12 @@ bridge = ["ship-agents/bridge", "dep:agent-def", "agent-def/bridge"]
 ship-types = { path = "../ship-substrate/crates/ship-types", features = ["test-support"] }
 ship-substrate = { path = "../ship-substrate", features = ["test-support"] }
 # Conformance tests cross-check isolation enum ids (agent_schema_conformance).
-ship-isolation = { git = "https://github.com/get-ship/ship-exec.git", rev = "ee39e5273ce8829d90043626a01f564e660dd477", default-features = false }
-harness-drivers = { git = "https://github.com/get-ship/fleet.git", rev = "6967f155ca795c19c44a145701c138b2d079c89c" }
+ship-isolation = { git = "https://github.com/get-ship/ship-infra.git", rev = "24de79282f45b05fdcdb07f7daa66c7346bdeb33", default-features = false }
+harness-drivers = { git = "https://github.com/get-ship/fleet.git", rev = "aaec7a7bec2d620fcfc7b3eb44c058d952ff510b" }
 # The compile-spine integration test (tests/spine_smoke.rs) exercises
 # emission end-to-end; dev-deps of a dependency never enter a consumer's
 # graph, so the standard/code seam holds.
-harness-config-compiler = { git = "https://github.com/get-ship/fleet.git", rev = "6967f155ca795c19c44a145701c138b2d079c89c" }
+harness-config-compiler = { git = "https://github.com/get-ship/fleet.git", rev = "aaec7a7bec2d620fcfc7b3eb44c058d952ff510b" }
 tokio = { workspace = true, features = ["test-util"] }
 # Self-dep so integration tests (tests/) see the `testutil` module. cfg(test)
 # does not apply to the lib when building integration-test targets, so without
