@@ -22,9 +22,9 @@ import { renderComponent } from '@ship/test-setup'
 // compiled-js shim resolves the sibling `.sui` and compiles it on demand
 // (primitives' package `exports` only maps `.`, so subpath imports resolve by
 // path, not by package export).
-import '../../../sui/primitives/src/sui-json-view/sui-json-view.compiled.js'
-import '../../../sui/primitives/src/sui-markdown/sui-markdown.compiled.js'
-import '../../../sui/primitives/src/sui-empty-state/sui-empty-state.compiled.js'
+import '../../../sail/primitives/src/sui-json-view/sui-json-view.compiled.js'
+import '../../../sail/primitives/src/sui-markdown/sui-markdown.compiled.js'
+import '../../../sail/primitives/src/sui-empty-state/sui-empty-state.compiled.js'
 // The pdf arm dispatches to `<ship-pdf>` (the @ship/pdf SHIP-tier renderer).
 // Register it the same way the composed primitives are registered — by importing
 // its compiled.js — so the dispatcher resolves a real, defined element.

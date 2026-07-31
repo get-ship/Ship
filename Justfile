@@ -17,7 +17,7 @@ set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
 # override; otherwise the recipes assume the canonical sibling layout
 # (sui/, ship-contracts/ as siblings of ship/).
 #
-# The repo no longer has a hardcoded /home/madvib/dev/Ship/sui default;
+# The repo no longer has a hardcoded /home/madvib/dev/Ship/sail default;
 # these are env-var-only. The operator must set SUI_PATH for any
 # recipe that needs the sui binary (deck-cli, sui-compiler, sui-lsp).
 # Recipes that need sui will fail loudly with 'sui_path() returned
@@ -69,7 +69,7 @@ dev-build-all: _sui-compiler-lib _deck-cli
 # points the bundler at sui's `crates/deck/deck-core/assets/` (where
 # the staged framework bundles live post-carve) so cross-repo invocations
 # find the assets their `bundle_framework: true` step needs. The
-# path is TEMP — gets relativized to `../sui/...` in the layout-reshuffle
+# path is TEMP — gets relativized to `../sail/...` in the layout-reshuffle
 # capstone.
 _build-apps:
     #!/usr/bin/env bash

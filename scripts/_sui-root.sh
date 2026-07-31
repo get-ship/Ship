@@ -64,8 +64,8 @@ else
         SUI_ROOT=$(CDPATH= cd -- "$d/../worktrees/orch" && pwd)
         break
       fi
-      if [ -f "$d/../sui/Cargo.toml" ]; then
-        SUI_ROOT=$(CDPATH= cd -- "$d/../sui" && pwd)
+      if [ -f "$d/../sail/Cargo.toml" ]; then
+        SUI_ROOT=$(CDPATH= cd -- "$d/../sail" && pwd)
         break
       fi
       if [ -f "$d/sui/Cargo.toml" ]; then

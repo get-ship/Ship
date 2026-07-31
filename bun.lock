@@ -80,12 +80,22 @@
       "name": "@ship/arcade",
       "version": "0.1.0",
       "dependencies": {
-        "@ship/arcade-engine": "file:../../../../../ship-apps/packages/arcade-engine",
+        "@ship/arcade-engine": "workspace:*",
         "@ship/sail-dom": "*",
         "@ship/sail-runtime": "*",
       },
       "devDependencies": {
         "@ship/test-setup": "^0.1.0",
+        "vitest": "^4.1.5",
+      },
+    },
+    "packages/components/ship/arcade-engine": {
+      "name": "@ship/arcade-engine",
+      "version": "0.1.0",
+      "dependencies": {
+        "pixi.js": "^8.18.1",
+      },
+      "devDependencies": {
         "vitest": "^4.1.5",
       },
     },
@@ -312,7 +322,6 @@
     "lightningcss",
   ],
   "overrides": {
-    "@ship/arcade-engine": "file:../ship-apps/packages/arcade-engine",
     "@ship/deck-host": "link:../worktrees/orch/packages/deck/host",
     "@ship/deck-router": "link:../worktrees/orch/packages/deck/router",
     "@ship/sail-canvas": "link:../worktrees/orch/packages/components/sail/canvas",
@@ -329,9 +338,9 @@
     "@ship/sail-viewer": "link:../worktrees/orch/packages/components/sail/viewer",
     "@ship/sdk": "^0.2.0",
     "@ship/sdk-client": "^0.1.0",
-    "@ship/sui-compiler-wasm": "link:../sui/packages/sui/compiler-wasm",
-    "@ship/sui-dom": "link:../sui/packages/sui/dom",
-    "@ship/sui-runtime": "link:../sui/packages/sui/runtime",
+    "@ship/sui-compiler-wasm": "link:../sail/packages/sui/compiler-wasm",
+    "@ship/sui-dom": "link:../sail/packages/sui/dom",
+    "@ship/sui-runtime": "link:../sail/packages/sui/runtime",
     "@ship/test-setup": "link:../worktrees/orch/packages/sail/test-setup",
     "@ship/tokens": "link:../worktrees/orch/packages/sail/tokens",
     "react": "^19.0.0",
@@ -632,6 +641,8 @@
 
     "@ship/arcade": ["@ship/arcade@workspace:packages/components/ship/arcade"],
 
+    "@ship/arcade-engine": ["@ship/arcade-engine@workspace:packages/components/ship/arcade-engine"],
+
     "@ship/artifacts": ["@ship/artifacts@workspace:packages/components/ship/artifacts"],
 
     "@ship/authority": ["@ship/authority@workspace:packages/components/ship/authority"],
@@ -678,7 +689,7 @@
 
     "@ship/spaces": ["@ship/spaces@workspace:packages/components/ship/spaces"],
 
-    "@ship/sui-runtime": ["@ship/sui-runtime@link:../sui/packages/sui/runtime", {}],
+    "@ship/sui-runtime": ["@ship/sui-runtime@link:../sail/packages/sui/runtime", {}],
 
     "@ship/test-setup": ["@ship/test-setup@link:../worktrees/orch/packages/sail/test-setup", {}],
 
@@ -1057,8 +1068,6 @@
     "why-is-node-running": ["why-is-node-running@2.3.0", "", { "dependencies": { "siginfo": "^2.0.0", "stackback": "0.0.2" }, "bin": { "why-is-node-running": "cli.js" } }, "sha512-hUrmaWBdVDcxvYqnyh09zunKzROWjbZTiNy8dBEjkS7ehEDQibXJ7XvlmtbwuTclUiIyN+CyXQD4Vmko8fNm8w=="],
 
     "ws": ["ws@8.21.1", "", { "peerDependencies": { "bufferutil": "^4.0.1", "utf-8-validate": ">=5.0.2" }, "optionalPeers": ["bufferutil", "utf-8-validate"] }, "sha512-+0NTnW77fFN/DjQi6k/Sq/Yvk4Sgajw7urW8V+asjXnRgDs9gyGkdb7EzgfhA4goXsRIZKE28fzIXBHEzhuiWw=="],
-
-    "@ship/arcade/@ship/arcade-engine": ["@ship/arcade-engine@file:../ship-apps/packages/arcade-engine", { "dependencies": { "pixi.js": "^8.18.1" }, "devDependencies": { "vitest": "^4.1.5" } }],
 
     "@voidzero-dev/vite-plus-test/es-module-lexer": ["es-module-lexer@1.7.0", "", {}, "sha512-jEQoCwk8hyb2AZziIOLhDqpm5+2ww5uIE6lkO/6jcOCusfk6LhMHpXXfBLXTZ7Ydyt0j4VoUQv6uGNYbdW+kBA=="],
 

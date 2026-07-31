@@ -27,7 +27,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@ship/arcade-engine": "file:../../../../../ship-apps/packages/arcade-engine",
+    "@ship/arcade-engine": "workspace:*",
     "@ship/sail-dom": "*",
     "@ship/sail-runtime": "*"
   },

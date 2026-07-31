@@ -1,0 +1,11 @@
+{
+  "name": "@ship/brand",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "exports": {
+    "./ship-logos": "./public/ship-logos/",
+    "./harness-logos": "./public/harness-logos/",
+    "./ide-logos": "./public/ide-logos/"
+  }
+}

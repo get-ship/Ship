@@ -1,0 +1,207 @@
+---
+/*
+ * Host theme picker for the Astro marketing shell.
+ *
+ * L1 `<theme-picker>` lives in Sail stdlib (`use:themeSelect` + popover).
+ * Marketing is not a Sail tree, so this mirrors the same contract with plain
+ * HTML + `@ship/tokens` applyTheme/persistTheme — no dissolved CE, no shadow.
+ */
+import { THEMES } from '@ship/tokens/themes';
+
+interface Props {
+  class?: string;
+  placement?: 'bottom-end' | 'bottom' | 'top-end';
+}
+
+const { class: className = '', placement = 'bottom-end' } = Astro.props;
+const panelId = `m-theme-panel-${Math.random().toString(36).slice(2, 9)}`;
+---
+<div class:list={['m-theme-picker', className]} data-theme-picker data-placement={placement}>
+  <button
+    type="button"
+    class="m-theme-trigger"
+    popovertarget={panelId}
+    aria-label="Choose theme"
+    title="Choose theme"
+  >
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="16" height="16">
+      <circle cx="13.5" cy="6.5" r="1.5"></circle>
+      <circle cx="17.5" cy="10.5" r="1.5"></circle>
+      <circle cx="8.5" cy="7.5" r="1.5"></circle>
+      <circle cx="6.5" cy="12.5" r="1.5"></circle>
+      <path d="M12 2a10 10 0 0 0 0 20 2 2 0 0 0 2-2v-1a2 2 0 0 1 2-2h1a4 4 0 0 0 4-4 10 10 0 0 0-9-11Z"></path>
+    </svg>
+  </button>
+  <div id={panelId} class="m-theme-panel" popover role="listbox" aria-label="Theme">
+    <div class="m-theme-grid">
+      {THEMES.map((t) => (
+        <button type="button" role="option" class="m-theme-option" value={t.id} data-theme-id={t.id}>
+          <span class="m-theme-swatch" data-theme-preview={t.id} aria-hidden="true">
+            <span class="m-theme-swatch-inner">
+              <span class="m-theme-swatch-bar"></span>
+              <span class="m-theme-swatch-chip"></span>
+            </span>
+          </span>
+          <span class="m-theme-label">{t.label}</span>
+        </button>
+      ))}
+    </div>
+  </div>
+</div>
+
+<script>
+  import { applyTheme, persistTheme, THEMES, isValidTheme, type ThemeId } from '@ship/tokens/themes';
+
+  function wire(root: HTMLElement) {
+    const trigger = root.querySelector<HTMLButtonElement>('.m-theme-trigger');
+    const panel = root.querySelector<HTMLElement>('.m-theme-panel');
+    const options = () => Array.from(root.querySelectorAll<HTMLElement>('[role="option"]'));
+
+    const current = (): ThemeId => {
+      const attr = document.documentElement.dataset.theme;
+      return isValidTheme(attr) ? attr : 'ship-light';
+    };
+
+    const sync = () => {
+      const cur = current();
+      const name = THEMES.find((t) => t.id === cur)?.label ?? cur;
+      if (trigger) {
+        trigger.setAttribute('aria-label', `Theme: ${name}`);
+        trigger.title = `Theme: ${name}`;
+      }
+      for (const o of options()) {
+        const on = (o.getAttribute('value') ?? '') === cur;
+        o.setAttribute('aria-selected', on ? 'true' : 'false');
+      }
+    };
+
+    const select = (v: string) => {
+      if (!isValidTheme(v)) return;
+      applyTheme(v);
+      persistTheme(v);
+      sync();
+      panel?.hidePopover?.();
+      trigger?.focus();
+    };
+
+    root.addEventListener('click', (e) => {
+      const o = (e.target as Element | null)?.closest<HTMLElement>('[role="option"]');
+      if (o && root.contains(o)) select(o.getAttribute('value') ?? '');
+    });
+
+    document.addEventListener('ship:theme:change', sync);
+    sync();
+  }
+
+  document.querySelectorAll<HTMLElement>('[data-theme-picker]').forEach(wire);
+</script>
+
+<style>
+  .m-theme-picker {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+  }
+  .m-theme-trigger {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--foreground);
+    cursor: pointer;
+  }
+  .m-theme-trigger:hover {
+    background: color-mix(in oklch, var(--foreground) 10%, transparent);
+    border-color: color-mix(in oklch, var(--foreground) 14%, transparent);
+  }
+  .m-theme-trigger:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  .m-theme-panel {
+    margin: 0;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md, 10px);
+    background: var(--popover, var(--card));
+    color: var(--popover-foreground, var(--card-foreground));
+    box-shadow: var(--shadow-lg, 0 12px 40px rgba(0, 0, 0, 0.18));
+    max-width: min(360px, calc(100vw - 24px));
+  }
+  .m-theme-panel:popover-open {
+    display: block;
+  }
+  .m-theme-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .m-theme-option {
+    appearance: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    padding: 6px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--muted-foreground);
+    font: inherit;
+    font-size: 11px;
+    text-align: start;
+    cursor: pointer;
+  }
+  .m-theme-option:hover {
+    background: color-mix(in oklch, var(--foreground) 6%, transparent);
+  }
+  .m-theme-option[aria-selected='true'] {
+    border-color: var(--primary);
+    color: var(--foreground);
+    font-weight: 600;
+  }
+  .m-theme-swatch {
+    display: block;
+    width: 100%;
+    height: 52px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--background);
+    border: 1px solid var(--border);
+    box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--foreground) 4%, transparent);
+  }
+  .m-theme-swatch-inner {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 4px;
+    height: 100%;
+    padding: 8px;
+    background: var(--card);
+  }
+  .m-theme-swatch-bar {
+    display: block;
+    height: 6px;
+    width: 62%;
+    border-radius: 999px;
+    background: var(--primary);
+  }
+  .m-theme-swatch-chip {
+    display: block;
+    height: 10px;
+    width: 28%;
+    border-radius: 4px;
+    background: var(--accent);
+    opacity: 0.85;
+  }
+  .m-theme-label {
+    padding-inline: 2px;
+    line-height: 1.2;
+  }
+</style>

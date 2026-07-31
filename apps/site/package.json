@@ -1,0 +1,52 @@
+{
+  "name": "@ship/site",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "deck": {
+    "bundles": [
+      {
+        "name": "sail-marketing",
+        "entry": "src/marketing/marketing-bundle.ts",
+        "externals": [
+          "@ship/sail-runtime",
+          "@ship/sail-dom"
+        ],
+        "lazy": false
+      }
+    ]
+  },
+  "scripts": {
+    "predev": "bun run scripts/copy-sail-assets.ts && bun scripts/build-og-image.mjs",
+    "dev": "astro dev",
+    "prebuild": "bun run scripts/copy-sail-assets.ts && bun scripts/build-og-image.mjs",
+    "build": "astro build",
+    "preview": "astro preview",
+    "deploy": "astro build && wrangler deploy",
+    "typecheck": "astro check"
+  },
+  "dependencies": {
+    "@astrojs/check": "^0.9.4",
+    "@better-auth/stripe": "^1.6.11",
+    "@fontsource-variable/dm-sans": "^5.2.8",
+    "@fontsource-variable/syne": "^5.2.7",
+    "@ship/arcade": "workspace:*",
+    "@ship/arcade-engine": "workspace:*",
+    "@ship/code": "workspace:*",
+    "@ship/sail-charts": "file:../../../worktrees/orch/packages/components/sail/charts",
+    "@ship/sail-compiler-wasm": "file:../../../worktrees/orch/packages/sail/compiler-wasm",
+    "@ship/sail-lsp-browser": "file:../../../worktrees/orch/packages/deck/lsp-browser",
+    "@ship/sail-primitives": "file:../../../worktrees/orch/packages/components/sail/primitives",
+    "@ship/sail-runtime": "file:../../../worktrees/orch/packages/sail/runtime",
+    "@ship/sail-tutorial": "file:../../../worktrees/orch/packages/sail/tutorial",
+    "@ship/tokens": "file:../../../worktrees/orch/packages/sail/tokens",
+    "astro": "^6.1.1",
+    "better-auth": "^1.6.11",
+    "shiki": "^4.0.0"
+  },
+  "devDependencies": {
+    "@astrojs/sitemap": "^3.7.2",
+    "typescript": "~5.8.3",
+    "wrangler": "^4.66.0"
+  }
+}

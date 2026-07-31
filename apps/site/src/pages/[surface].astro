@@ -1,0 +1,34 @@
+---
+/*
+ * [surface].astro — deep links. Each marketing surface (/agents, /pricing,
+ * …) prerenders the same Desktop with that window open, so a direct hit or
+ * a no-JS visitor lands on the right surface. The client router
+ * (scripts/desktop.ts) takes over for in-page transitions, keeping one nav.
+ */
+import BaseLayout from '../layouts/BaseLayout.astro';
+import '../styles/landing-os.css';
+import Desktop from '../components/landing/os/Desktop.astro';
+
+export function getStaticPaths() {
+  return [
+    { params: { surface: 'agents' }, props: { title: 'SHIP — Agents', desc: 'Write it once, run it anywhere. Declare an agent once; Ship compiles it to Claude, Codex, Gemini, or Cursor.' } },
+    { params: { surface: 'orchestration' }, props: { title: 'SHIP — Orchestration', desc: 'Ship work step by step. Pipelines chain agents; triggers fire them on events.' } },
+    { params: { surface: 'data' }, props: { title: 'SHIP — Data', desc: 'A studio for your data — schemaful collections and the files your agents produce, on one event log.' } },
+    { params: { surface: 'observability' }, props: { title: 'SHIP — Observability', desc: 'Watch the mesh live, then scrub back to replay any moment. Every action is an event.' } },
+    { params: { surface: 'spaces' }, props: { title: 'SHIP — Spaces', desc: 'A space holds its own views, agents, and data — isolated, customizable, shared with your team.' } },
+    { params: { surface: 'custom-views' }, props: { title: 'SHIP — Custom Views', desc: 'Apps that look like apps. Standards-based components wired to a reactive SDK.' } },
+    { params: { surface: 'security' }, props: { title: 'SHIP — Security', desc: 'Nothing runs without you. Agents are scoped by default; privileged actions wait for approval.' } },
+    { params: { surface: 'pricing' }, props: { title: 'SHIP — Pricing', desc: 'Free locally. Cloud-side pricing follows the public beta.' } },
+    { params: { surface: 'docs' }, props: { title: 'SHIP — Docs', desc: 'How Ship works — agents, pipelines, Sail views, collections, CLI.' } },
+    { params: { surface: 'arcade' }, props: { title: 'SHIP — Arcade', desc: 'Three small games built with @ship/arcade — open source, real custom elements.' } },
+    { params: { surface: 'download' }, props: { title: 'SHIP — Download', desc: 'Get Ship. Runs on your machine, bring your own model. Free for personal use.' } },
+  ];
+}
+
+const { surface } = Astro.params;
+const { title, desc } = Astro.props;
+---
+
+<BaseLayout title={title} description={desc} bodyClass="os-root">
+  <Desktop initialWindow={surface} />
+</BaseLayout>

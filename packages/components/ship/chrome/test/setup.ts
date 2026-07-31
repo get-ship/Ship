@@ -11,6 +11,6 @@ import { primeLucideIcons } from '@ship/test-setup'
 // Deep relative import: the registry's `primeIconCache` is package-internal
 // (sui-primitives only exports its barrel), so reach the file directly — vite's
 // FS guard is widened to the repo root by suiComponentVitestConfig.
-import { primeIconCache } from '../../../sui/primitives/src/sui-icon/registry'
+import { primeIconCache } from '../../../sail/primitives/src/sui-icon/registry'
 
 primeLucideIcons(primeIconCache)

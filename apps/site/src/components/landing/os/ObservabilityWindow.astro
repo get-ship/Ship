@@ -1,0 +1,401 @@
+---
+// FILE_CAP_OVERRIDE: a feature window whose data, layout, and styles
+// move together. Splitting the mock event-stream from its CSS or the
+// space monitor from its layout duplicates names with no benefit.
+/*
+ * ObservabilityWindow — honest foundational story.
+ *
+ *   Hero        : "see what your agents actually do." Capture-first.
+ *   Event bus   : a stylized event log showing the REAL event types
+ *                 Ship captures (prompts, tool calls, decisions,
+ *                 token usage, pipeline steps).
+ *   Monitor     : per-space cards with running agents + throughput.
+ *   Honest end  : the foundation for governance + improvement —
+ *                 sharing + integrations are coming, but the capture
+ *                 itself is the substrate.
+ */
+import Window from './Window.astro';
+import DownloadCTA from './DownloadCTA.astro';
+const { open = false } = Astro.props;
+
+interface BusEvent {
+  type: string;
+  source: string;
+  detail: string;
+  meta?: string;
+  tone: 'agent' | 'tool' | 'token' | 'pipeline' | 'gate' | 'view';
+}
+
+/* The event types here are the actual emit-sites Ship tracks. No fake
+ * "ARR / NPS" telemetry — every line corresponds to a real captured
+ * thing. */
+const events: BusEvent[] = [
+  { type: 'agent.prompt',    source: 'inbox-triage',  detail: 'classify 47 messages', meta: '142 tokens',          tone: 'agent' },
+  { type: 'tool.call',       source: 'gmail.list',    detail: 'limit: 50, q: in:inbox', meta: '4 ms',              tone: 'tool' },
+  { type: 'tool.result',     source: 'gmail.list',    detail: '47 messages',           meta: '342 KB',             tone: 'tool' },
+  { type: 'token.usage',     source: 'claude-opus-4-7', detail: '1,248 in · 348 out',  meta: '$0.0094',            tone: 'token' },
+  { type: 'agent.decision',  source: 'inbox-triage',  detail: '12 high · 26 noise · 9 personal', tone: 'agent' },
+  { type: 'pipeline.step',   source: 'friday-wrap-up', detail: 'collect-week → draft-recap', meta: '2/4',           tone: 'pipeline' },
+  { type: 'gate.request',    source: 'review-gate',   detail: 'approve send to team@', meta: 'awaiting you',        tone: 'gate' },
+  { type: 'view.update',     source: 'overview.sail',  detail: 'NPS · card (72 → 73)', tone: 'view' },
+  { type: 'tool.call',       source: 'github.search', detail: 'q: is:pr is:merged this week', meta: '12 ms',         tone: 'tool' },
+  { type: 'token.usage',     source: 'gpt-4-turbo',   detail: '802 in · 196 out',     meta: '$0.0064',              tone: 'token' },
+];
+
+interface SpaceState {
+  name: string;
+  agents: number;
+  evMin: number;
+  spark: string;
+  status: 'active' | 'idle';
+}
+const spaces: SpaceState[] = [
+  { name: 'work',       agents: 3, evMin: 64, spark: '22,28,34,42,48,52,58,62,68,74,82,88', status: 'active' },
+  { name: 'personal',   agents: 1, evMin: 12, spark: '4,6,8,7,10,8,12,10,14,12,16,12',      status: 'active' },
+  { name: 'client-a',   agents: 2, evMin: 38, spark: '18,22,28,24,32,38,34,42,38,46,42,38', status: 'active' },
+  { name: 'gameroom',   agents: 0, evMin: 0,  spark: '0,0,0,0,0,0,0,0,0,0,0,0',             status: 'idle' },
+];
+
+const toneLabel: Record<BusEvent['tone'], string> = {
+  agent: 'AGENT', tool: 'TOOL', token: 'TOKENS', pipeline: 'PIPELINE', gate: 'GATE', view: 'VIEW',
+};
+---
+<Window app="observability" title="Observability" meta="event capture" mark="M" accent="mesh" open={open} defer>
+  <div class="win-scroll obs">
+    {/* ── Hero ─────────────────────────────────────────────────────────── */}
+    <section class="hero">
+      <div class="hero-inner">
+        <div class="eyebrow" data-reveal>Observability · event capture</div>
+        <h2 class="hl" data-reveal>
+          See what your agents <span class="hl-accent">actually do.</span>
+        </h2>
+        <p class="hero-sub" data-reveal>
+          Every prompt, every tool call, every decision, every token — captured the moment it happens. The foundation for governing your agents and improving them over time.
+        </p>
+      </div>
+    </section>
+
+    {/* ── Event bus stream ─────────────────────────────────────────────── */}
+    <section class="bus">
+      <header class="band-h" data-reveal>
+        <span class="band-tag">Event capture</span>
+        <h3 class="band-title">Everything is an event.</h3>
+        <p class="band-sub">Every Ship surface — agents, tools, pipelines, views — publishes to one bus. Nothing is instrumentation you have to add; the bus IS the runtime.</p>
+      </header>
+
+      <!-- SCREENSHOT TODO: real Ship shell event bus showing live events -->
+      <div class="bus-stream" data-reveal>
+        <header class="stream-bar">
+          <span class="stream-title">live · last 60s</span>
+          <span class="stream-meta">
+            <span class="dot dot-pulse"></span>
+            <span>234 events / min</span>
+          </span>
+        </header>
+        <ol class="stream">
+          {events.map((e) => (
+            <li class={`ev tone-${e.tone}`}>
+              <span class="ev-type">{toneLabel[e.tone]}</span>
+              <code class="ev-kind">{e.type}</code>
+              <span class="ev-source">{e.source}</span>
+              <span class="ev-detail">{e.detail}</span>
+              {e.meta && <span class="ev-meta">{e.meta}</span>}
+            </li>
+          ))}
+        </ol>
+      </div>
+    </section>
+
+    {/* ── Per-space monitor ────────────────────────────────────────────── */}
+    <section class="monitor">
+      <header class="band-h" data-reveal>
+        <span class="band-tag">Live monitor</span>
+        <h3 class="band-title">Every space, at a glance.</h3>
+        <p class="band-sub">Each space shows its active agents and recent throughput. Click into one to scrub back through the bus and replay any moment.</p>
+      </header>
+
+      <div class="space-row" data-reveal>
+        {spaces.map((s) => (
+          <article class={`space space-${s.status}`}>
+            <header class="sp-head">
+              <span class="sp-name">{s.name}</span>
+              <span class="sp-status">
+                <span class={`dot ${s.status === 'active' ? 'dot-ok' : 'dot-mute'}`}></span>
+                {s.status}
+              </span>
+            </header>
+            <div class="sp-stats">
+              <div class="sp-stat">
+                <span class="sp-num">{s.agents}</span>
+                <span class="sp-lbl">agents</span>
+              </div>
+              <div class="sp-stat">
+                <span class="sp-num">{s.evMin}</span>
+                <span class="sp-lbl">ev / min</span>
+              </div>
+            </div>
+            <div class="sp-spark">
+              {s.status === 'active'
+                ? <sail-sparkline data={s.spark} tone="primary" width="220" height="34" fill label="throughput"></sail-sparkline>
+                : <div class="sp-idle">no activity</div>}
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+
+    {/* ── Honest closing ───────────────────────────────────────────────── */}
+    <section class="closing">
+      <div class="close-card" data-reveal>
+        <span class="close-tag">Where this goes</span>
+        <h3 class="close-h">A foundation, not a destination.</h3>
+        <p class="close-p">
+          Capture is here today. Replay, audit, and per-agent metrics are here. Sharing observations across spaces, integrations into your other tools, and feedback loops that nudge agents to improve — those are on the way. We're starting with the substrate everything else needs.
+        </p>
+        <ul class="close-pills">
+          <li class="pill pill-on">Live capture</li>
+          <li class="pill pill-on">Replay</li>
+          <li class="pill pill-on">Per-agent metrics</li>
+          <li class="pill pill-soon">Sharing · soon</li>
+          <li class="pill pill-soon">Integrations · soon</li>
+          <li class="pill pill-soon">Improvement loops · soon</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="obs-cta">
+      <DownloadCTA message="Stop guessing what your agents did. Watch them." />
+    </section>
+  </div>
+</Window>
+
+<style>
+  .obs { display: block; }
+
+  [data-reveal] {
+    opacity: 0; transform: translateY(28px);
+    transition: opacity 700ms var(--ease-out, ease), transform 700ms var(--ease-spring, cubic-bezier(.32,.72,0,1));
+  }
+  [data-reveal].in { opacity: 1; transform: none; }
+
+  /* ── Hero ── */
+  .hero {
+    min-height: calc(70vh - var(--os-menubar-h, 32px));
+    display: grid; place-items: center;
+    overflow: hidden;
+    isolation: isolate;
+    padding: 0 24px;
+    background:
+      radial-gradient(ellipse 60% 50% at 30% 20%, color-mix(in oklch, var(--w-accent) 24%, transparent), transparent 70%),
+      radial-gradient(ellipse 60% 50% at 80% 60%, color-mix(in oklch, var(--accent) 16%, transparent), transparent 72%);
+  }
+  .hero-inner { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; max-width: 980px; }
+  .eyebrow { font-family: var(--font-mono); font-size: 11px; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase; color: var(--w-accent); }
+  .hl { font-family: var(--font-display); font-weight: 800; font-size: clamp(40px, 6vw, 76px); letter-spacing: -0.035em; line-height: 0.98; margin: 0; color: var(--foreground); }
+  .hl-accent {
+    background: linear-gradient(100deg, var(--w-accent), color-mix(in oklch, var(--w-accent) 50%, var(--accent)));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .hero-sub { margin: 18px 0 0; max-width: 64ch; font-size: 15px; line-height: 1.55; color: color-mix(in oklch, var(--foreground) 72%, var(--background)); }
+
+  /* ── Band header (shared) ── */
+  .band-h {
+    display: flex; flex-direction: column; gap: 8px;
+    padding: 0 32px;
+    margin: 0 auto 24px; max-width: 1200px;
+  }
+  .band-tag {
+    font-family: var(--font-mono); font-size: 10.5px; font-weight: 700;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    padding: 4px 10px; border-radius: 999px; align-self: flex-start;
+    color: var(--w-accent);
+    background: color-mix(in oklch, var(--w-accent) 14%, transparent);
+    border: 1px solid color-mix(in oklch, var(--w-accent) 28%, transparent);
+  }
+  .band-title {
+    margin: 0;
+    font-family: var(--font-display); font-weight: 800;
+    font-size: clamp(26px, 3.6vw, 44px);
+    letter-spacing: -0.025em; line-height: 1.05;
+    color: var(--foreground);
+  }
+  .band-sub {
+    margin: 8px 0 0; max-width: 68ch;
+    font-size: 13.5px; line-height: 1.5;
+    color: color-mix(in oklch, var(--foreground) 70%, var(--background));
+  }
+
+  /* ── Event bus ── */
+  .bus { padding: 60px 0 70px; }
+  .bus-stream {
+    max-width: 1100px; margin: 0 auto;
+    padding: 0 32px;
+  }
+  .stream-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 18px;
+    background: color-mix(in oklch, var(--card) 92%, transparent);
+    border: 1px solid color-mix(in oklch, var(--foreground) 12%, transparent);
+    border-radius: 14px 14px 0 0;
+    border-bottom: 0;
+    font-family: var(--font-mono); font-size: 11px;
+    color: color-mix(in oklch, var(--foreground) 64%, var(--background));
+    letter-spacing: 0.04em;
+  }
+  .stream-title { letter-spacing: 0.14em; text-transform: uppercase; }
+  .stream-meta { display: inline-flex; align-items: center; gap: 8px; color: var(--foreground); font-weight: 600; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .dot-pulse {
+    background: oklch(0.7 0.16 150);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 5px color-mix(in oklch, oklch(0.7 0.16 150) 18%, transparent); } }
+  .dot-ok   { background: oklch(0.7 0.16 150); box-shadow: 0 0 0 3px color-mix(in oklch, oklch(0.7 0.16 150) 22%, transparent); }
+  .dot-mute { background: color-mix(in oklch, var(--foreground) 24%, transparent); }
+
+  .stream {
+    list-style: none; padding: 0; margin: 0;
+    background: color-mix(in oklch, var(--foreground) 4%, var(--card));
+    border: 1px solid color-mix(in oklch, var(--foreground) 12%, transparent);
+    border-radius: 0 0 14px 14px;
+    box-shadow: 0 20px 52px -22px color-mix(in oklch, var(--w-accent) 50%, transparent);
+    overflow: hidden;
+  }
+  .ev {
+    display: grid;
+    grid-template-columns: 84px auto auto 1fr auto;
+    align-items: baseline; gap: 14px;
+    padding: 10px 18px;
+    font-family: var(--font-mono); font-size: 12px;
+    border-top: 1px solid color-mix(in oklch, var(--foreground) 7%, transparent);
+  }
+  .ev:first-child { border-top: 0; }
+  .ev-type {
+    font-size: 9.5px; font-weight: 700;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    padding: 2px 7px; border-radius: 4px;
+    text-align: center;
+  }
+  .tone-agent    .ev-type { background: color-mix(in oklch, var(--w-accent) 18%, transparent); color: var(--w-accent); }
+  .tone-tool     .ev-type { background: color-mix(in oklch, oklch(0.62 0.18 280) 18%, transparent); color: oklch(0.62 0.18 280); }
+  .tone-token    .ev-type { background: color-mix(in oklch, oklch(0.68 0.14 152) 18%, transparent); color: oklch(0.68 0.14 152); }
+  .tone-pipeline .ev-type { background: color-mix(in oklch, oklch(0.7 0.16 50) 18%, transparent); color: oklch(0.7 0.16 50); }
+  .tone-gate     .ev-type { background: color-mix(in oklch, oklch(0.78 0.16 70) 18%, transparent); color: oklch(0.62 0.18 70); }
+  .tone-view     .ev-type { background: color-mix(in oklch, oklch(0.62 0.18 320) 18%, transparent); color: oklch(0.62 0.18 320); }
+  .ev-kind  { color: var(--foreground); font-weight: 700; }
+  .ev-source { color: color-mix(in oklch, var(--foreground) 60%, var(--background)); }
+  .ev-detail { color: color-mix(in oklch, var(--foreground) 78%, var(--background)); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ev-meta {
+    color: color-mix(in oklch, var(--foreground) 56%, var(--background));
+    text-align: right;
+    font-weight: 600;
+  }
+
+  /* ── Per-space monitor ── */
+  .monitor { padding: 30px 0 80px; }
+  .space-row {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    max-width: 1200px; margin: 0 auto;
+    padding: 0 32px;
+  }
+  .space {
+    background: color-mix(in oklch, var(--card) 96%, transparent);
+    border: 1px solid color-mix(in oklch, var(--foreground) 12%, transparent);
+    border-radius: 14px;
+    padding: 16px 18px;
+    display: flex; flex-direction: column; gap: 12px;
+    min-height: 150px;
+  }
+  .space-active { border-color: color-mix(in oklch, var(--w-accent) 35%, transparent); box-shadow: 0 14px 32px -16px color-mix(in oklch, var(--w-accent) 50%, transparent); }
+  .sp-head { display: flex; align-items: baseline; justify-content: space-between; }
+  .sp-name {
+    font-family: var(--font-mono); font-size: 13px; font-weight: 700;
+    color: var(--foreground);
+  }
+  .sp-status {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--font-mono); font-size: 10px;
+    color: color-mix(in oklch, var(--foreground) 60%, var(--background));
+    letter-spacing: 0.06em; text-transform: uppercase;
+  }
+  .sp-stats { display: flex; gap: 18px; }
+  .sp-stat { display: flex; flex-direction: column; gap: 1px; }
+  .sp-num {
+    font-family: var(--font-display); font-size: 22px; font-weight: 800;
+    color: var(--foreground); letter-spacing: -0.015em; line-height: 1;
+  }
+  .sp-lbl {
+    font-family: var(--font-mono); font-size: 9.5px;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: color-mix(in oklch, var(--foreground) 58%, var(--background));
+  }
+  .sp-spark { min-height: 34px; display: flex; align-items: center; }
+  .sp-spark sail-sparkline { width: 100%; max-width: 100%; }
+  .sp-idle {
+    font-family: var(--font-mono); font-size: 10px;
+    color: color-mix(in oklch, var(--foreground) 40%, var(--background));
+    letter-spacing: 0.1em; text-transform: uppercase;
+  }
+
+  /* ── Honest closing ── */
+  .closing { padding: 0 32px 90px; display: grid; place-items: center; }
+  .close-card {
+    max-width: 820px;
+    padding: 28px 32px;
+    background: color-mix(in oklch, var(--w-accent) 8%, var(--card));
+    border: 1px solid color-mix(in oklch, var(--w-accent) 30%, transparent);
+    border-radius: 16px;
+    box-shadow: 0 18px 44px -20px color-mix(in oklch, var(--w-accent) 50%, transparent);
+  }
+  .close-tag {
+    display: inline-flex; align-items: center;
+    font-family: var(--font-mono); font-size: 10.5px; font-weight: 800;
+    letter-spacing: 0.18em; color: var(--w-accent);
+    padding: 4px 12px; border-radius: 999px;
+    background: color-mix(in oklch, var(--w-accent) 20%, transparent);
+    border: 1px solid color-mix(in oklch, var(--w-accent) 40%, transparent);
+    margin-bottom: 12px;
+  }
+  .close-h {
+    margin: 0;
+    font-family: var(--font-display); font-weight: 800;
+    font-size: clamp(22px, 3vw, 32px); letter-spacing: -0.02em;
+    color: var(--foreground);
+  }
+  .close-p {
+    margin: 12px 0 0;
+    font-size: 14px; line-height: 1.55;
+    color: color-mix(in oklch, var(--foreground) 72%, var(--background));
+  }
+  .close-pills {
+    list-style: none; padding: 0; margin: 18px 0 0;
+    display: flex; flex-wrap: wrap; gap: 8px;
+  }
+  .pill {
+    font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+    letter-spacing: 0.06em;
+    padding: 4px 10px; border-radius: 999px;
+  }
+  .pill-on {
+    color: var(--w-accent);
+    background: color-mix(in oklch, var(--w-accent) 16%, transparent);
+    border: 1px solid color-mix(in oklch, var(--w-accent) 36%, transparent);
+  }
+  .pill-soon {
+    color: color-mix(in oklch, var(--foreground) 56%, var(--background));
+    background: color-mix(in oklch, var(--foreground) 6%, transparent);
+    border: 1px solid color-mix(in oklch, var(--foreground) 18%, transparent);
+    font-style: italic;
+  }
+
+  /* ── Mobile ── */
+  @media (max-width: 760px) {
+    .hl { font-size: clamp(32px, 9vw, 48px); }
+    .bus-stream, .space-row { padding: 0 14px; }
+    .space-row { grid-template-columns: 1fr 1fr; }
+    .ev { grid-template-columns: 70px 1fr; padding: 8px 14px; }
+    .ev-source, .ev-meta { display: none; }
+    .close-card { padding: 22px 22px; }
+  }
+</style>

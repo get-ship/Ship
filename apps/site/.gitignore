@@ -1,0 +1,22 @@
+.astro/
+dist/
+node_modules/
+.wrangler/
+*.tsbuildinfo
+
+# SUI bundles copied from crates/deck/deck-server/assets by scripts/copy-sui-assets.ts.
+public/sui-runtime.js
+public/sui-dom.js
+public/sui-sdk-client.js
+public/sui-components.js
+public/sui-marketing.js
+public/sui-arcade.js
+public/ship-code-editor.js
+# view-tokens.css is copied from the daemon's /api/assets/ at build time
+# by copy-sui-assets.ts — a generated re-publish, not committed source.
+public/api/assets/view-tokens.css
+# Content-hashed sibling chunks the lazy-pack bundles dynamic-import
+# (Geometry-XXXX.js etc.) — copied from .deck/ by copy-sui-assets.ts.
+# Committed source under public/ lives in subdirs (tutorial/), never
+# at the root, so a root-level hashed .js is always a generated copy.
+public/*-*.js

@@ -4,7 +4,7 @@ import '../src/ship-error-state/ship-error-state.compiled.js'
 // it must register before the host mounts, otherwise the shadow child renders
 // as an unknown element. The shared pack documents this dependency; tests must
 // mirror the runtime contract.
-import '../../../sui/primitives/src/sui-icon/sui-icon.compiled.js'
+import '../../../sail/primitives/src/sui-icon/sui-icon.compiled.js'
 import { createContainerRegistry, flush, mount } from '@ship/test-setup'
 
 // ship-error-state is RUNTIME-FREE and purely presentational: it has no

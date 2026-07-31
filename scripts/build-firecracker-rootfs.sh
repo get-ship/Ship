@@ -39,7 +39,7 @@ fi
 
 echo "==> static-musl ship-sidecar (ship-exec)"
 # ship-sidecar lives in ship-exec (j-09); sibling checkout required.
-SHIP_EXEC="${SHIP_EXEC:-$(cd ../ship-exec && pwd)}"
+SHIP_EXEC="${SHIP_EXEC:-$(cd ../ship-infra && pwd)}"
 rustup target add x86_64-unknown-linux-musl >/dev/null 2>&1 || true
 CC_x86_64_unknown_linux_musl=musl-gcc \
   cargo build -p ship-sidecar --target x86_64-unknown-linux-musl --manifest-path "$SHIP_EXEC/Cargo.toml"

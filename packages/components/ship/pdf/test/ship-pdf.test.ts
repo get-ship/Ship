@@ -19,7 +19,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { renderComponent } from '@ship/test-setup'
 import { GlobalWorkerOptions } from 'pdfjs-dist'
 // The error-state primitive the template composes for the failure branch.
-import '../../../sui/primitives/src/sui-error-state/sui-error-state.compiled.js'
+import '../../../sail/primitives/src/sui-error-state/sui-error-state.compiled.js'
 import controller from '../src/ship-pdf/ship-pdf.controller'
 import { TINY_PDF_DATA_URI, INVALID_DATA_URI, WORKER_FILE_URL } from './fixtures'
 

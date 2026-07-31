@@ -1,0 +1,415 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+// Garden cabinet glyph — a 7×5 grid of "territory" cells. Each cell's
+// owner is hard-coded to a mock distribution so the SSR'd preview looks
+// like a real mid-game state (player tendrils on the left/center, rival
+// on the right + scattered empties).
+//
+// owner: 'self' | 'opp' | 'empty'
+const GARDEN_CELLS = [
+  's','s','s','s','o','o','o',
+  's','s','s','e','o','o','o',
+  's','s','e','s','o','o','o',
+  's','s','s','e','e','o','o',
+  'e','s','s','s','o','o','e',
+] as const;
+
+const games = [
+  {
+    slug: 'galaga',
+    name: 'Galaga',
+    tag: 'Shooter',
+    desc: 'Defend the formation. Three waves of bees, butterflies, and bosses.',
+    accent: 'var(--warning)',
+    glyph: 'galaga',
+  },
+  {
+    slug: 'garden',
+    name: 'Particle Garden',
+    tag: 'Strategy',
+    desc: 'Drop seeds, watch tendrils spread. Hold more ground than your rival.',
+    accent: 'var(--primary)',
+    glyph: 'garden',
+  },
+  {
+    slug: 'magnetar',
+    name: 'Magnetar',
+    tag: 'Puzzle',
+    desc: 'Slingshot through gravity. Curve around planets to thread the portal.',
+    accent: 'var(--info)',
+    glyph: 'magnetar',
+  },
+];
+---
+
+<BaseLayout title="SHIP Arcade" description="Three small games built on the SHIP arcade primitives.">
+  <main class="arcade-room">
+    <div class="arcade-stack">
+      <header class="arcade-head">
+        <div class="arcade-marquee">
+          <span class="arcade-marquee-dot" aria-hidden="true"></span>
+          <span class="arcade-marquee-text">SHIP Arcade</span>
+          <span class="arcade-marquee-dot" aria-hidden="true"></span>
+        </div>
+        <h1 class="arcade-title">Pick your cabinet</h1>
+        <p class="arcade-sub">
+          Three short games built on <code>@ship/arcade</code> — open source primitives,
+          one tiny game engine, real custom elements. Click to play.
+        </p>
+      </header>
+
+      <div class="arcade-grid">
+        {games.map((g) => (
+          <a class="cabinet" href={`/games/${g.slug}`} style={`--accent: ${g.accent}`}>
+            <span class="cabinet-top">
+              <span class="cabinet-led" aria-hidden="true"></span>
+              <span class="cabinet-tag">{g.tag}</span>
+            </span>
+            <div class="cabinet-screen">
+              <div class={`cabinet-art cabinet-art-${g.glyph}`} aria-hidden="true">
+                {g.glyph === 'garden' && (
+                  <svg class="garden-svg" viewBox="0 0 140 100" xmlns="http://www.w3.org/2000/svg">
+                    {GARDEN_CELLS.map((c, i) => {
+                      const col = i % 7;
+                      const row = Math.floor(i / 7);
+                      const cls = c === 's' ? 'g-self' : c === 'o' ? 'g-opp' : 'g-empty';
+                      return <rect class={cls} x={col * 20 + 1} y={row * 20 + 1} width={18} height={18} rx={3} />
+                    })}
+                  </svg>
+                )}
+              </div>
+            </div>
+            <div class="cabinet-name">{g.name}</div>
+            <p class="cabinet-desc">{g.desc}</p>
+            <span class="cabinet-cta">Play <span aria-hidden="true">→</span></span>
+            <span class="cabinet-bezel cabinet-bezel-l" aria-hidden="true"></span>
+            <span class="cabinet-bezel cabinet-bezel-r" aria-hidden="true"></span>
+          </a>
+        ))}
+      </div>
+
+      <footer class="arcade-credit">
+        <p>
+          Source under <code>packages/arcade-engine</code>, <code>packages/components/ship/arcade</code>,
+          and <code>apps/site/src/games/</code>. Total engine + 8 arcade tags ~ 30 KB; Pixi vendored
+          and shared across games.
+        </p>
+      </footer>
+    </div>
+  </main>
+</BaseLayout>
+
+<style is:global>
+  .arcade-room {
+    min-height: 100vh;
+    padding: 64px 24px;
+    background:
+      radial-gradient(ellipse 600px 400px at 20% 0%, color-mix(in oklch, var(--warning) 14%, transparent), transparent 70%),
+      radial-gradient(ellipse 600px 400px at 80% 100%, color-mix(in oklch, var(--info) 14%, transparent), transparent 70%),
+      var(--background);
+    color: var(--foreground);
+    font-family: var(--font-body, system-ui);
+  }
+  .arcade-stack {
+    max-width: 1180px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+  }
+
+  .arcade-head { text-align: center; }
+  .arcade-marquee {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 14px;
+    margin-bottom: 16px;
+    border-radius: 999px;
+    background: color-mix(in oklch, var(--card) 60%, transparent);
+    border: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: color-mix(in oklch, var(--foreground) 80%, transparent);
+  }
+  .arcade-marquee-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--warning);
+    box-shadow: 0 0 8px color-mix(in oklch, var(--warning) 60%, transparent);
+    animation: arcade-blink 1.4s ease-in-out infinite;
+  }
+  @keyframes arcade-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+  }
+  .arcade-title {
+    margin: 0 0 12px;
+    font-size: clamp(32px, 5vw, 52px);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    font-family: var(--font-display, var(--font-body, system-ui));
+    line-height: 1.05;
+  }
+  .arcade-sub {
+    margin: 0 auto;
+    max-width: 50ch;
+    font-size: 15px;
+    line-height: 1.55;
+    opacity: 0.72;
+  }
+  .arcade-sub code {
+    background: color-mix(in oklch, var(--card) 80%, transparent);
+    border: 1px solid color-mix(in oklch, var(--border) 50%, transparent);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 13px;
+  }
+
+  .arcade-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
+  }
+
+  .cabinet {
+    --accent: var(--primary);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 18px 18px 22px;
+    background: linear-gradient(
+      180deg,
+      color-mix(in oklch, var(--card) 92%, transparent) 0%,
+      color-mix(in oklch, var(--card) 78%, transparent) 100%
+    );
+    border: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
+    border-radius: 18px;
+    text-decoration: none;
+    color: inherit;
+    overflow: hidden;
+    transition: transform 180ms cubic-bezier(0.2, 0.7, 0.2, 1),
+                box-shadow 220ms ease-out,
+                border-color 180ms ease-out;
+    box-shadow:
+      0 1px 0 color-mix(in oklch, var(--foreground) 6%, transparent) inset,
+      0 12px 32px -16px color-mix(in oklch, var(--accent) 30%, transparent);
+  }
+  .cabinet:hover,
+  .cabinet:focus-visible {
+    transform: translateY(-3px);
+    border-color: color-mix(in oklch, var(--accent) 50%, var(--border));
+    box-shadow:
+      0 1px 0 color-mix(in oklch, var(--foreground) 6%, transparent) inset,
+      0 20px 48px -16px color-mix(in oklch, var(--accent) 45%, transparent),
+      0 0 0 1px color-mix(in oklch, var(--accent) 30%, transparent);
+    outline: none;
+  }
+
+  .cabinet-bezel {
+    position: absolute;
+    top: 18px;
+    bottom: 22px;
+    width: 4px;
+    border-radius: 999px;
+    background: color-mix(in oklch, var(--accent) 25%, transparent);
+    opacity: 0.5;
+  }
+  .cabinet-bezel-l { left: 6px; }
+  .cabinet-bezel-r { right: 6px; }
+
+  .cabinet-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: color-mix(in oklch, var(--foreground) 70%, transparent);
+  }
+  .cabinet-led {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 10px color-mix(in oklch, var(--accent) 80%, transparent);
+  }
+  .cabinet-tag {
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: color-mix(in oklch, var(--accent) 14%, transparent);
+    border: 1px solid color-mix(in oklch, var(--accent) 38%, transparent);
+    color: color-mix(in oklch, var(--accent) 80%, var(--foreground));
+  }
+
+  .cabinet-screen {
+    position: relative;
+    aspect-ratio: 4 / 3;
+    border-radius: 12px;
+    overflow: hidden;
+    background:
+      radial-gradient(ellipse at center, color-mix(in oklch, var(--accent) 28%, transparent), transparent 65%),
+      linear-gradient(135deg, #0a0d12 0%, #1a1f29 100%);
+    border: 1px solid color-mix(in oklch, var(--accent) 22%, var(--border));
+    box-shadow:
+      inset 0 0 36px color-mix(in oklch, var(--accent) 18%, transparent),
+      inset 0 0 0 2px color-mix(in oklch, #000 12%, transparent);
+  }
+  /* Subtle scanlines for CRT feel. */
+  .cabinet-screen::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 2px,
+      color-mix(in oklch, #000 22%, transparent) 2px,
+      color-mix(in oklch, #000 22%, transparent) 3px
+    );
+    pointer-events: none;
+    opacity: 0.42;
+  }
+  .cabinet-screen::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, transparent 55%, color-mix(in oklch, #000 60%, transparent) 100%);
+    pointer-events: none;
+  }
+
+  .cabinet-art {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Galaga glyph — a small rocket like the in-game ship */
+  .cabinet-art-galaga::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 36px;
+    height: 50px;
+    transform: translate(-50%, -50%);
+    background:
+      conic-gradient(from -90deg at 50% 30%, var(--accent) 20%, transparent 20%);
+    clip-path: polygon(50% 0%, 80% 40%, 80% 70%, 95% 95%, 60% 80%, 40% 80%, 5% 95%, 20% 70%, 20% 40%);
+    filter: drop-shadow(0 0 12px color-mix(in oklch, var(--accent) 60%, transparent));
+  }
+  .cabinet-art-galaga::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: 25%;
+    width: 10px;
+    height: 18px;
+    transform: translateX(-50%);
+    background: radial-gradient(ellipse at 50% 0%, var(--accent), transparent 70%);
+    opacity: 0.85;
+    border-radius: 50%;
+    filter: blur(2px);
+  }
+
+  /* Garden glyph — a 7×5 territorial grid drawn as inline SVG */
+  .garden-svg {
+    width: 78%;
+    height: auto;
+    filter:
+      drop-shadow(0 0 6px color-mix(in oklch, var(--accent) 32%, transparent))
+      drop-shadow(0 0 10px color-mix(in oklch, var(--destructive) 18%, transparent));
+  }
+  .garden-svg .g-self  { fill: color-mix(in oklch, var(--accent) 90%, transparent); }
+  .garden-svg .g-opp   { fill: color-mix(in oklch, var(--destructive) 88%, transparent); }
+  .garden-svg .g-empty { fill: color-mix(in oklch, var(--foreground) 18%, transparent); }
+
+  /* Magnetar glyph — an orbit */
+  .cabinet-art-magnetar::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--accent);
+    box-shadow:
+      0 0 16px color-mix(in oklch, var(--accent) 70%, transparent),
+      0 0 28px color-mix(in oklch, var(--accent) 40%, transparent);
+  }
+  .cabinet-art-magnetar::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 130px;
+    height: 70px;
+    transform: translate(-50%, -50%) rotate(-18deg);
+    border: 1.5px dashed color-mix(in oklch, var(--accent) 65%, transparent);
+    border-radius: 50%;
+    box-shadow: 0 0 12px color-mix(in oklch, var(--accent) 35%, transparent);
+  }
+
+  .cabinet-name {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    font-family: var(--font-display, var(--font-body, system-ui));
+  }
+  .cabinet-desc {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
+    opacity: 0.74;
+  }
+  .cabinet-cta {
+    margin-top: auto;
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    background: color-mix(in oklch, var(--accent) 18%, transparent);
+    border: 1px solid color-mix(in oklch, var(--accent) 38%, transparent);
+    color: color-mix(in oklch, var(--accent) 85%, var(--foreground));
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    transition: background 160ms ease-out;
+  }
+  .cabinet:hover .cabinet-cta,
+  .cabinet:focus-visible .cabinet-cta {
+    background: color-mix(in oklch, var(--accent) 28%, transparent);
+  }
+
+  .arcade-credit {
+    text-align: center;
+    margin-top: 12px;
+  }
+  .arcade-credit p {
+    margin: 0;
+    font-size: 12px;
+    opacity: 0.6;
+    line-height: 1.6;
+  }
+  .arcade-credit code {
+    background: color-mix(in oklch, var(--card) 80%, transparent);
+    border: 1px solid color-mix(in oklch, var(--border) 50%, transparent);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 11.5px;
+  }
+</style>
+

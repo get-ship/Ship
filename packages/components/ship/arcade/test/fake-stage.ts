@@ -22,8 +22,8 @@
 // the package's exports map only surfaces the `.` barrel, and the barrel
 // re-exports collide/input as TYPES only — so the real factories are reached
 // by path. Keeps collision + input genuine while everything Pixi is faked.
-import { createCollide, type CollideEvent } from '../../../../../../ship-apps/packages/arcade-engine/src/collide.ts'
-import { createInput, type InputBus } from '../../../../../../ship-apps/packages/arcade-engine/src/input.ts'
+import { createCollide, type CollideEvent } from '../../arcade-engine/src/collide.ts'
+import { createInput, type InputBus } from '../../arcade-engine/src/input.ts'
 import type {
   Emitter,
   EmitterSpec,

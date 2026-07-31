@@ -19,10 +19,10 @@ const ORCH = process.env.ORCH ?? process.env.SUI_ROOT ?? resolve(ROOT, '../workt
 const COMPILER = process.env.SAIL_COMPILER ?? process.env.SUI_COMPILER ?? firstExisting([
   resolve(ORCH, 'target/release/sail-compiler'),
   resolve(ORCH, 'target/debug/sail-compiler'),
-  resolve(ROOT, '../sui/target/release/sail-compiler'),
-  resolve(ROOT, '../sui/target/debug/sail-compiler'),
-  resolve(ROOT, '../sui/target/release/sui-compiler'),
-  resolve(ROOT, '../sui/target/debug/sui-compiler'),
+  resolve(ROOT, '../sail/target/release/sail-compiler'),
+  resolve(ROOT, '../sail/target/debug/sail-compiler'),
+  resolve(ROOT, '../sail/target/release/sui-compiler'),
+  resolve(ROOT, '../sail/target/debug/sui-compiler'),
 ])
 if (!COMPILER || !existsSync(COMPILER)) {
   console.error('sail-compiler not found. Set SAIL_COMPILER/SUI_COMPILER, or build it (cargo build -p sail-compiler) in orch/sui.')
