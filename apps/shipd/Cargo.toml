@@ -23,7 +23,7 @@ space-resolver = { path = "../../crates/core/space-resolver" }
 ship-substrate = { path = "../../crates/core/ship-substrate" }
 journal-sqlite = { git = "https://github.com/get-ship/ship-infra.git", rev = "24de79282f45b05fdcdb07f7daa66c7346bdeb33" }
 ship-platform = { path = "../../crates/core/ship-platform" }
-bridge = { git = "https://github.com/get-ship/fleet.git", rev = "354bfd591ad71df9f933d8faaa8fae3b9c783378", default-features = false, features = ["runtime"], optional = true }
+bridge = { git = "https://github.com/get-ship/fleet.git", rev = "03f917d5e51921754c1a6a12a4aa2beb56b4a405", default-features = false, features = ["runtime"], optional = true }
 process-supervisor = { git = "https://github.com/get-ship/ship-infra.git", rev = "24de79282f45b05fdcdb07f7daa66c7346bdeb33" }
 bounded-spawn = { git = "https://github.com/get-ship/ship-infra.git", rev = "24de79282f45b05fdcdb07f7daa66c7346bdeb33" }
 ship-agents = { path = "../../crates/core/ship-platform/crates/ship-agents" }
@@ -58,10 +58,10 @@ ship-space = { path = "../../crates/core/ship-platform/crates/ship-space" }
 ship-device = { git = "https://github.com/get-ship/ship-infra.git", rev = "24de79282f45b05fdcdb07f7daa66c7346bdeb33" }
 ship-settings = { path = "../../crates/core/ship-platform/crates/ship-settings" }
 ship-account = { path = "../../crates/core/ship-platform/crates/ship-account" }
-agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "354bfd591ad71df9f933d8faaa8fae3b9c783378" }
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "03f917d5e51921754c1a6a12a4aa2beb56b4a405" }
 stack-model = { path = "../../crates/core/stack-model" }
 # HarnessService (ship.internal.v1) — list_harnesses + compile (j-02s4a; was helmd).
-harness-config-compiler = { git = "https://github.com/get-ship/fleet.git", rev = "354bfd591ad71df9f933d8faaa8fae3b9c783378" }
+harness-config-compiler = { git = "https://github.com/get-ship/fleet.git", rev = "03f917d5e51921754c1a6a12a4aa2beb56b4a405" }
 # `.ts` agent-config eval — evaluates `.ship/agents/<id>.ts` (defineAgent) in a
 # locked-down ship-js isolate. Pulls V8 (deno_core), which is WHY the eval is
 # confined to this ingest layer and never reaches the V8-free config/compiler
@@ -107,9 +107,9 @@ async-stream = "0.3"
 futures = "0.3"
 tower = { version = "0.5", features = ["timeout", "util"] }
 # Native harness (embeddable). Path dep until engines monorepo publish.
-yoke = { git = "https://github.com/get-ship/fleet.git", rev = "354bfd591ad71df9f933d8faaa8fae3b9c783378" }
+yoke = { git = "https://github.com/get-ship/fleet.git", rev = "03f917d5e51921754c1a6a12a4aa2beb56b4a405" }
 # ship.yoke.v1 Connect client types — fleet's published contract crate (j-08).
-yoke-proto = { git = "https://github.com/get-ship/fleet.git", rev = "354bfd591ad71df9f933d8faaa8fae3b9c783378" }
+yoke-proto = { git = "https://github.com/get-ship/fleet.git", rev = "03f917d5e51921754c1a6a12a4aa2beb56b4a405" }
 # Durable journal used by in-process yoke embed (apps/shipd/src/yoke/embed).
 durable-execution = { git = "https://github.com/get-ship/ship-infra.git", rev = "24de79282f45b05fdcdb07f7daa66c7346bdeb33" }
 tower-http = { version = "0.6", features = ["catch-panic", "limit", "timeout"] }

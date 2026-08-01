@@ -9,7 +9,7 @@ description = "Evaluate a ship.ts agent config (authored with defineAgent) in a 
 # The AgentProfile type + its schema. This crate produces AgentProfiles; it does
 # NOT re-implement them (the deleted spike's mistake was vendoring these into the
 # engine — here ship supplies them and the engine stays type-free).
-agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "354bfd591ad71df9f933d8faaa8fae3b9c783378" }
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "03f917d5e51921754c1a6a12a4aa2beb56b4a405" }
 stack-model = { path = "../stack-model" }
 ship-collection = { path = "../ship-platform/crates/ship-collection" }
 ship-pipelines = { path = "../ship-substrate/crates/ship-pipelines" }

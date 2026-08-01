@@ -24,7 +24,7 @@ ship-isolation = { git = "https://github.com/get-ship/ship-infra.git", rev = "24
 process-supervisor = { git = "https://github.com/get-ship/ship-infra.git", rev = "24de79282f45b05fdcdb07f7daa66c7346bdeb33", optional = true }
 # Fleet runtime composition surface — always present; provides process-supervisor,
 # isolation-port, and harness-driver types that ship-agents/session registry use.
-bridge = { git = "https://github.com/get-ship/fleet.git", rev = "354bfd591ad71df9f933d8faaa8fae3b9c783378", default-features = false, features = ["runtime"] }
+bridge = { git = "https://github.com/get-ship/fleet.git", rev = "03f917d5e51921754c1a6a12a4aa2beb56b4a405", default-features = false, features = ["runtime"] }
 ship-types = { path = "../../../ship-substrate/crates/ship-types" }
 ship-kernel = { path = "../../../ship-substrate/crates/ship-kernel" }
 # L1 crates (carved siblings, no cycle)
@@ -37,7 +37,7 @@ ship-store = { path = "../ship-store" }
 #   ship-auth — per-process scoped token mint/drop on the spawn path.
 ship-auth = { path = "../ship-auth" }
 # compiler crate (the engine; services/compile is only the wrapper)
-agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "354bfd591ad71df9f933d8faaa8fae3b9c783378", features = ["specta"] }
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "03f917d5e51921754c1a6a12a4aa2beb56b4a405", features = ["specta"] }
 stack-model = { path = "../../../stack-model", features = ["specta"] }
 # compiler crate (the engine; services/compile is only the wrapper)
 # No longer a direct dep: bridge re-exports what dispatch needs.

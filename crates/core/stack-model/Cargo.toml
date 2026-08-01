@@ -18,7 +18,7 @@ specta = [
 ]
 
 [dependencies]
-agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "354bfd591ad71df9f933d8faaa8fae3b9c783378" }
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "03f917d5e51921754c1a6a12a4aa2beb56b4a405" }
 # Product-owned noun schemas (stack inversion): ExtensionLibrary fields.
 ship-collection = { path = "../ship-platform/crates/ship-collection" }
 ship-pipelines = { path = "../ship-substrate/crates/ship-pipelines" }
@@ -35,7 +35,7 @@ semver = { workspace = true }
 specta = { workspace = true, features = ["serde_json"], optional = true }
 
 [dev-dependencies]
-agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "354bfd591ad71df9f933d8faaa8fae3b9c783378" }
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "03f917d5e51921754c1a6a12a4aa2beb56b4a405" }
 serde_json = { workspace = true, features = ["preserve_order"] }
 tempfile = { workspace = true }
 

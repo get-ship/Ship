@@ -6,7 +6,7 @@ publish = false
 description = "Shared domain types across the Ship workspace — EventEnvelope, ActorIdentity, Scope, Vector, CallerKind. Zero internal dependencies; every other Ship crate may depend on this."
 
 [dependencies]
-agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "354bfd591ad71df9f933d8faaa8fae3b9c783378" }
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "03f917d5e51921754c1a6a12a4aa2beb56b4a405" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 chrono = { workspace = true }

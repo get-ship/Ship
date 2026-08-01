@@ -17,7 +17,7 @@ description = "Phase-2 space-shape resolver — composes the stack-model leaf (c
 # the on-disk `rules/<id>.md` convention; rules flow through
 # `declarations.rules` (the resolver's TS eval harvests each agent's
 # `rules: { inline }` body into the merged library).
-agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "354bfd591ad71df9f933d8faaa8fae3b9c783378" }
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "03f917d5e51921754c1a6a12a4aa2beb56b4a405" }
 stack-model = { path = "../stack-model" }
 ship-collection = { path = "../ship-platform/crates/ship-collection" }
 ship-pipelines = { path = "../ship-substrate/crates/ship-pipelines" }

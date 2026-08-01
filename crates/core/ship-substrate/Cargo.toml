@@ -12,7 +12,7 @@ unstable = []
 test-support = ["ship-types/test-support"]
 
 [dependencies]
-agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "354bfd591ad71df9f933d8faaa8fae3b9c783378" }
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "03f917d5e51921754c1a6a12a4aa2beb56b4a405" }
 ship-kernel = { path = "crates/ship-kernel" }
 ship-types = { path = "crates/ship-types" }
 ship-paths = { path = "crates/ship-paths" }

@@ -61,7 +61,7 @@ ship-gateway-client = { path = "../ship-gateway-client" }
 # `unstable` feature. reqwest + ship-gateway-client are already direct deps
 # here, so this adds no new transitive HTTP-client footprint.
 ship-cloud = { path = "../ship-cloud" }
-agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "354bfd591ad71df9f933d8faaa8fae3b9c783378", features = ["specta"] }
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "03f917d5e51921754c1a6a12a4aa2beb56b4a405", features = ["specta"] }
 stack-model = { path = "../stack-model", features = ["specta"] }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
@@ -128,11 +128,11 @@ ship-types = { path = "../ship-substrate/crates/ship-types", features = ["test-s
 ship-substrate = { path = "../ship-substrate", features = ["test-support"] }
 # Conformance tests cross-check isolation enum ids (agent_schema_conformance).
 ship-isolation = { git = "https://github.com/get-ship/ship-infra.git", rev = "24de79282f45b05fdcdb07f7daa66c7346bdeb33", default-features = false }
-harness-drivers = { git = "https://github.com/get-ship/fleet.git", rev = "354bfd591ad71df9f933d8faaa8fae3b9c783378" }
+harness-drivers = { git = "https://github.com/get-ship/fleet.git", rev = "03f917d5e51921754c1a6a12a4aa2beb56b4a405" }
 # The compile-spine integration test (tests/spine_smoke.rs) exercises
 # emission end-to-end; dev-deps of a dependency never enter a consumer's
 # graph, so the standard/code seam holds.
-harness-config-compiler = { git = "https://github.com/get-ship/fleet.git", rev = "354bfd591ad71df9f933d8faaa8fae3b9c783378" }
+harness-config-compiler = { git = "https://github.com/get-ship/fleet.git", rev = "03f917d5e51921754c1a6a12a4aa2beb56b4a405" }
 tokio = { workspace = true, features = ["test-util"] }
 # Self-dep so integration tests (tests/) see the `testutil` module. cfg(test)
 # does not apply to the lib when building integration-test targets, so without
