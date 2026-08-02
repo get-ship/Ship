@@ -4,7 +4,7 @@
 // agents are NOT inlined in this file. The manifest is a directory pointer;
 // each noun's source lives in a per-noun dir beside this file:
 //
-//   agents/<id>.ts         → defineAgent(id)    (shipwright)
+//   agents/<id>.jsonc      → AgentProfile       (shipwright; A5 JSONC)
 //   skills/<id>/SKILL.md   → on-disk skill     (authoring + frontend skills)
 //   hooks/<event>.<ext>    → on-disk hook      (1 file)
 //
