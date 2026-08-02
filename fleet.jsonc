@@ -1,5 +1,5 @@
-// Opt into the managed org pack (register once: bridge org register --id ship <ship-meta>).
-// No relative monorepo paths; worktrees need no SHIP_META env when the pack is registered.
+// Org composition: pack keys from org.fleet.jsonc at the polyrepo root.
+// Local ship skills/agents still crawl this root; org packs are additive.
 {
-  "org": "ship"
+  "org": ["meta", "ship", "sail"]
 }
