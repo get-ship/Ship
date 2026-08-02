@@ -1,9 +1,5 @@
-// Ship product root: org agents/rules/skills from ship-meta only.
-// Product SUI skills are not org-pooled (removed from ship-meta).
-//
-// Sibling:  "include": ["../ship-meta"]
-// Worktree: export SHIP_META=/absolute/path/to/ship-meta
-//           "include": ["$SHIP_META"]
+// Opt into the managed org pack (register once: bridge org register --id ship <ship-meta>).
+// No relative monorepo paths; worktrees need no SHIP_META env when the pack is registered.
 {
-  "include": ["$SHIP_META"]
+  "org": "ship"
 }
