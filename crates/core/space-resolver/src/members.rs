@@ -143,7 +143,12 @@ pub async fn roll_up_members(
         let declarations = ts_resolver::resolve_ts_files(&lib.imported_modules, &Value::Null)
             .await
             .with_context(|| format!("roll_up_members: TS eval for {}", root.display()))?;
-        merge_ts_declarations(&mut lib, declarations, &fs, root);
+        merge_ts_declarations(&mut lib, declarations, &fs, root).with_context(|| {
+            format!(
+                "roll_up_members: merge agent nouns / TS for {}",
+                root.display()
+            )
+        })?;
         lib.imported_modules.clear();
 
         lib.permissions = agent_schema::Permissions::default();
@@ -180,7 +185,13 @@ pub async fn roll_up_members(
                     .with_context(|| {
                         format!("roll_up_members: TS eval for {}", child_root.display())
                     })?;
-            merge_ts_declarations(&mut child_lib, child_declarations, &fs, child_root);
+            merge_ts_declarations(&mut child_lib, child_declarations, &fs, child_root)
+                .with_context(|| {
+                    format!(
+                        "roll_up_members: merge agent nouns / TS for child {}",
+                        child_root.display()
+                    )
+                })?;
             child_lib.imported_modules.clear();
 
             child_lib.permissions = agent_schema::Permissions::default();

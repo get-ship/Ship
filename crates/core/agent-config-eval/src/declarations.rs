@@ -1,39 +1,22 @@
-//! Harvest every declare-form kind emitted by a `stack.config.ts` eval — not just
-//! `defineAgent`. [`generated_stub::SDK_STUB`] tags each declare-form's
-//! emitted value with a `__kind` discriminant (`{ __kind, value }`); this
-//! module routes each tagged value to its noun's harvest shape.
+//! Harvest **code-noun** declare-forms emitted by a `stack.config.ts` eval.
 //!
-//! Two harvest strategies, per noun:
+//! **ARC A5:** agent nouns are **not** harvested here. `defineAgent` /
+//! `defineSkill` / `defineRule` / `defineMcpServer` are **retired** and
+//! rejected by [`harvest`]. Agents load from `agents/*.jsonc`, MCP from
+//! `mcp.jsonc`, rules from `rules/*`, skills from `skills/*/SKILL.md`
+//! (see `space_resolver::jsonc_agent_nouns` and the fleet `fleet.jsonc`
+//! graph). `defineConfig({ agents: { mcp } })` is still parsed for
+//! permission-preset co-location but **does not** seed `mcp_servers`.
+//!
+//! Surviving harvest strategies, per noun:
 //!
 //! - **Pass-through** (pipelines, triggers, collections): the stack authoring
 //!   shape and `compiler`'s type are identical, so the emitted value
 //!   deserializes directly into `ship_pipelines::PipelineDef` /
 //!   `ship_triggers::TriggerDef` / `ship_collection::CollectionDef`.
-//! - **Mapped** (mcp servers, config): `compiler`'s type predates the
-//!   stack shape and carries fields the authoring shape doesn't — a private
-//!   `*Declare` struct mirrors the stack shape exactly and a `into_*` fn
-//!   maps it onto the compiler type, filling the gap with the same defaults
-//!   a fresh `.jsonc` / `SKILL.md` entry would get.
-//!
-//! Slice 2c close-out: `defineSkill` and `defineRule` declare-forms die —
-//! skills are on-disk `skills/<id>/SKILL.md` files (the resolver walks the
-//! `defineConfig({ skills_dir })` dir), and rules arrive exclusively via
-//! `defineAgent({ rules: { inline: "..." } })` (the inline block on the
-//! agent composition; the on-disk `rules/<id>.md` convention died
-//! with the rules-format cut, so the only authoring surface for
-//! rules is the agent composition's inline block). The `RuleDeclare` /
-//! `RuleFrontmatterDeclare` / `RuleAssetRefDeclare`
-//! / `RuleGrantDeclare` / `RuleRequirementDeclare` types and their
-//! `into_rule` harvest arms are gone. The corresponding `"rule"` case in
-//! [`harvest`] is also gone: any `__kind` other than the surviving nouns
-//! is rejected (the eval is treated as an error, same contract as before).
-//!
-//! Slice 2c also reshapes MCP server registration: `defineMcpServer`
-//! declare-forms die; MCP server registrations move to
-//! `defineConfig({ agents: { mcp: { <name>: {…} } } })` — same fields the
-//! per-call form carried. The `McpServerDeclare` struct and its
-//! `into_mcp_server_config` mapping live under `ConfigAgents` now; the
-//! `"mcp_server"` arm of [`harvest`] is gone.
+//! - **Mapped** (config blocks for code-noun dirs / permission presets): a
+//!   private `*Declare` struct mirrors the stack shape and maps onto the
+//!   library fields used by compose.
 //!
 //! Slice 3 close-out (A3+A4, 2026-07-11): hooks + permission presets leave
 //! `.ship/hooks.jsonc` + `.ship/permissions.jsonc` (the leaf no longer

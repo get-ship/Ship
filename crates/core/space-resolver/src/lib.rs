@@ -111,7 +111,7 @@ pub(crate) fn merge_ts_declarations(
     declarations: Declarations,
     fs: &dyn ship_substrate::ports::FsBroker,
     space_root: &Path,
-) {
+) -> anyhow::Result<()> {
     let cap = ship_substrate::ports::FsCap::new_unchecked(
         space_root.to_path_buf(),
         ship_substrate::ports::FsRoot::Space(ship_substrate::ports::SpaceId::new("resolver")),
@@ -121,7 +121,8 @@ pub(crate) fn merge_ts_declarations(
     // ARC A5: agent nouns (agents / mcp / rules) load from plain JSONC +
     // on-disk dirs — not from defineAgent / defineConfig.agents.mcp.
     // Skills continue via the on-disk walk below. Code nouns stay on TS.
-    jsonc_agent_nouns::merge_jsonc_agent_nouns(library, fs, &cap, space_root);
+    // Fail-closed on parse/IO errors for agent nouns (fleet parity).
+    jsonc_agent_nouns::merge_jsonc_agent_nouns(library, fs, &cap, space_root)?;
 
     // TS agent-noun fields are intentionally ignored (defineAgent /
     // defineSkill / defineRule / defineConfig.agents.mcp are retired for
@@ -318,6 +319,8 @@ pub(crate) fn merge_ts_declarations(
                 });
         }
     }
+
+    Ok(())
 }
 
 /// Append `incoming` items into `existing`, skipping any whose key is

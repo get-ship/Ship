@@ -25,60 +25,66 @@ use stack_model::ExtensionLibrary;
 ///
 /// First-wins on id collision with anything already in `library` (same policy
 /// as the former TS merge). Stable sort by id after contributing new entries.
+///
+/// **Fail-closed (A5 / fleet parity):** parse or IO errors on present agent
+/// noun files return `Err` — never warn-and-continue with an empty merge.
+/// Missing dirs/files still yield empty contributions (`Ok`).
 pub(crate) fn merge_jsonc_agent_nouns(
     library: &mut ExtensionLibrary,
     fs: &dyn FsBroker,
     cap: &FsCap,
     space_root: &Path,
-) {
-    match load_agents_jsonc(fs, cap) {
-        Ok(agents) => merge_agents(library, agents),
-        Err(e) => tracing::warn!(
-            "resolver: agents/*.jsonc load failed under {}: {e}",
+) -> Result<()> {
+    let agents = load_agents_jsonc(fs, cap).with_context(|| {
+        format!(
+            "agents/*.jsonc load failed under {} (fail-closed)",
             space_root.display()
-        ),
-    }
+        )
+    })?;
+    merge_agents(library, agents);
 
-    match load_mcp_jsonc(fs, cap) {
-        Ok(servers) => {
-            let mut seen: HashSet<String> = library.mcp_servers.iter().map(|m| m.id.clone()).collect();
-            let mut added = 0usize;
-            for s in servers {
-                if seen.insert(s.id.clone()) {
-                    library.mcp_servers.push(s);
-                    added += 1;
-                }
-            }
-            if added > 0 {
-                library.mcp_servers.sort_by(|a, b| a.id.cmp(&b.id));
+    let servers = load_mcp_jsonc(fs, cap).with_context(|| {
+        format!(
+            "mcp.jsonc load failed under {} (fail-closed)",
+            space_root.display()
+        )
+    })?;
+    {
+        let mut seen: HashSet<String> = library.mcp_servers.iter().map(|m| m.id.clone()).collect();
+        let mut added = 0usize;
+        for s in servers {
+            if seen.insert(s.id.clone()) {
+                library.mcp_servers.push(s);
+                added += 1;
             }
         }
-        Err(e) => tracing::warn!(
-            "resolver: mcp.jsonc load failed under {}: {e}",
-            space_root.display()
-        ),
+        if added > 0 {
+            library.mcp_servers.sort_by(|a, b| a.id.cmp(&b.id));
+        }
     }
 
-    match load_rules_dir(fs, cap) {
-        Ok(rules) => {
-            let mut seen: HashSet<String> =
-                library.rules.iter().map(|r| r.file_name.clone()).collect();
-            let mut added = 0usize;
-            for r in rules {
-                if seen.insert(r.file_name.clone()) {
-                    library.rules.push(r);
-                    added += 1;
-                }
-            }
-            if added > 0 {
-                library.rules.sort_by(|a, b| a.file_name.cmp(&b.file_name));
+    let rules = load_rules_dir(fs, cap).with_context(|| {
+        format!(
+            "rules/ load failed under {} (fail-closed)",
+            space_root.display()
+        )
+    })?;
+    {
+        let mut seen: HashSet<String> =
+            library.rules.iter().map(|r| r.file_name.clone()).collect();
+        let mut added = 0usize;
+        for r in rules {
+            if seen.insert(r.file_name.clone()) {
+                library.rules.push(r);
+                added += 1;
             }
         }
-        Err(e) => tracing::warn!(
-            "resolver: rules/ load failed under {}: {e}",
-            space_root.display()
-        ),
+        if added > 0 {
+            library.rules.sort_by(|a, b| a.file_name.cmp(&b.file_name));
+        }
     }
+
+    Ok(())
 }
 
 fn merge_agents(library: &mut ExtensionLibrary, agents: Vec<AgentProfile>) {
@@ -410,7 +416,7 @@ mod tests {
         let fs_broker = LocalFsBroker::new();
         let cap = cap_for(root);
         let mut library = ExtensionLibrary::default();
-        merge_jsonc_agent_nouns(&mut library, &fs_broker, &cap, root);
+        merge_jsonc_agent_nouns(&mut library, &fs_broker, &cap, root).expect("load ok");
 
         assert_eq!(library.agent_profiles.len(), 1);
         assert_eq!(library.agent_profiles[0].agent.id, "demo");
@@ -439,9 +445,28 @@ mod tests {
         let fs_broker = LocalFsBroker::new();
         let cap = cap_for(tmp.path());
         let mut library = ExtensionLibrary::default();
-        merge_jsonc_agent_nouns(&mut library, &fs_broker, &cap, tmp.path());
+        merge_jsonc_agent_nouns(&mut library, &fs_broker, &cap, tmp.path()).expect("empty ok");
         assert!(library.agent_profiles.is_empty());
         assert!(library.mcp_servers.is_empty());
         assert!(library.rules.is_empty());
+    }
+
+    #[test]
+    fn corrupt_agent_jsonc_fails_closed() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        fs::create_dir_all(root.join("agents")).unwrap();
+        fs::write(root.join("agents/bad.jsonc"), r#"{ "agent": { not valid } }"#).unwrap();
+        let fs_broker = LocalFsBroker::new();
+        let cap = cap_for(root);
+        let mut library = ExtensionLibrary::default();
+        let err = merge_jsonc_agent_nouns(&mut library, &fs_broker, &cap, root)
+            .expect_err("corrupt agent must fail closed");
+        let msg = format!("{err:#}");
+        assert!(
+            msg.contains("fail-closed") || msg.contains("parse"),
+            "named fail-closed: {msg}"
+        );
+        assert!(library.agent_profiles.is_empty());
     }
 }
