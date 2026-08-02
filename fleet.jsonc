@@ -1,0 +1,4 @@
+// fleet.jsonc — include org source (ship-meta) for shared rules/agents/skills/mcp
+{
+  "include": ["../ship-meta"]
+}

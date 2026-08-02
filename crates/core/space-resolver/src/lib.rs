@@ -7,29 +7,28 @@
 //! ship-platform).
 //!
 //! ## What this crate does
-
-//! Generalizes the Phase-0 resolver (compiler leaf + agent-config-eval) from
-//! single-manifest to **space shape**: a `stack.config.ts` at the space root, a
-//! `skills/` directory convention, the on-disk permissions +
-//! hooks reads. The result is a fully-populated [`stack_model::ExtensionLibrary`]
-//! (disk state) and a [`stack_model::ResolvedConfig`] (resolved state) — the
-//! canonical descriptors the rest of the platform compiles and runs against.
 //!
-//! ## The seam
+//! Generalizes the Phase-0 resolver to **space shape**: a `stack.config.ts` at
+//! the space root (code nouns only), plain-dir / fleet agent nouns, skills
+//! convention, on-disk permissions + hooks. Emits a fully-populated
+//! [`stack_model::ExtensionLibrary`] and [`stack_model::ResolvedConfig`].
 //!
-//! The resolver is a NEW crate that composes with — does NOT replace — the
-//! compiler leaf's `load_library` (per the F1 decision, `decision-f1-loader.md`
-//! Option A: "embrace the superset"). The leaf's `load_library` keeps walking
-//! `.ship/{mcp,permissions,hooks,skills}/` with its `std::fs`
-//! surface; this crate layers the Phase-2 space-shape pieces on top via the
-//! [`ship_substrate::ports::FsBroker`] gated door (R1 — new code goes through
-//! FsBroker, not raw `std::fs`).
+//! ## The seam (A5)
 //!
-//! The V8 TS-eval seam is `agent_config_eval::resolve_declarations_with_globals`
-//! (every declare-form, not just `defineAgent` — format-migration Wave 3),
-//! wrapped by `ts_resolver::resolve_ts_files` with the `!Send` isolate
-//! crossing a `spawn_blocking` boundary — the same pattern shipd's ingest
-//! uses today (`apps/shipd/src/ship_runtime/tasks.rs:285-304`, R2).
+//! - **Agent nouns** (agents / skills / rules / MCP): [`jsonc_agent_nouns`] —
+//!   plain dirs or, when `fleet.jsonc` is present, fleet `discover` → `rollup`
+//!   (include graph, fail-closed). Not via TS eval.
+//! - **Code nouns** (pipelines / triggers / collections / views / config):
+//!   harvested by `agent_config_eval` (historical name; stack-decl eval of
+//!   `definePipeline` / `defineTrigger` / … only).
+//!
+//! Composes with — does not replace — the compiler leaf's `load_library`
+//! (F1 Option A). Leaf walks legacy `.ship/{permissions,hooks,...}`; this
+//! crate uses [`ship_substrate::ports::FsBroker`] (R1).
+//!
+//! V8 seam: `agent_config_eval::resolve_declarations_with_globals` (code
+//! nouns; agent declare-forms rejected), via `ts_resolver::resolve_ts_files`
+//! + `spawn_blocking` (same as shipd ingest, R2).
 //!
 //! ## What this crate does NOT do
 //!
@@ -53,7 +52,9 @@
 //!   Composes with the leaf; the leaf populates the `skill_paths` field
 //!   with the single default entry (no `space.skill_paths` ship.jsonc
 //!   read — that field died with the dot-ship close-out).
-//! - [`ts_resolver`] — V8 eval fan-out. `!Send` boundary on `spawn_blocking`.
+//! - [`jsonc_agent_nouns`] — A5 agent-noun load (plain-dir or fleet graph).
+//! - [`ts_resolver`] — V8 eval fan-out for **code nouns** only. `!Send`
+//!   boundary on `spawn_blocking`.
 //! - [`descriptor`] — canonical sorted-key JSON helpers. The determinism
 //!   invariant the cache relies on (`inv-fmt-deterministic-eval`).
 //! - Descriptor cache: owned by shipd composition, not this crate.

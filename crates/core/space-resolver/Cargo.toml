@@ -3,7 +3,7 @@ name = "space-resolver"
 version = "0.1.0"
 edition = "2024"
 publish = false
-description = "Phase-2 space-shape resolver — composes the stack-model leaf (config types) with agent-config-eval (TS eval) over the FsBroker gated door. Emits a canonical ExtensionLibrary + ResolvedConfig descriptor."
+description = "Phase-2 space-shape resolver — fleet/JSONC agent nouns + agent-config-eval code-noun TS eval over FsBroker. Emits ExtensionLibrary + ResolvedConfig."
 
 [dependencies]
 # The L0 leaf — config types, the `load_library` walk over `.ship/`, the
@@ -12,22 +12,18 @@ description = "Phase-2 space-shape resolver — composes the stack-model leaf (c
 # globals, rollup_inputs). The new resolver composes with `load_library`
 # for the bulk of the read path; the leaf populates `skill_paths` with
 # the single default entry ([`DEFAULT_SPACE_SKILL_PATH`]) — no
-# `space.skill_paths` ship.jsonc read, no extras walk. Rules are
-# not part of the descriptor field set — the rules-format cut retired
-# the on-disk `rules/<id>.md` convention; rules flow through
-# `declarations.rules` (the resolver's TS eval harvests each agent's
-# `rules: { inline }` body into the merged library).
+# `space.skill_paths` ship.jsonc read, no extras walk.
+# Agent nouns (A5): jsonc_agent_nouns / fleet graph, not TS eval.
 agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "03f917d5e51921754c1a6a12a4aa2beb56b4a405" }
 stack-model = { path = "../stack-model" }
 ship-collection = { path = "../ship-platform/crates/ship-collection" }
 ship-pipelines = { path = "../ship-substrate/crates/ship-pipelines" }
 ship-triggers = { path = "../ship-platform/crates/ship-triggers" }
 ship-ui = { path = "../ship-platform/crates/ship-ui" }
-# The V8 isolate glue — `resolve_agents_with_globals` is the only call site
-# for ship.ts eval. V8 is feature-gated on the `deno` feature; the resolver
-# always pulls it (TS eval is the whole point). The `!Send` isolate crosses
-# a `spawn_blocking` boundary here, exactly as shipd's ingest does today
-# (`apps/shipd/src/ship_runtime/tasks.rs:285-304`).
+# Code-noun TS eval only (pipelines/triggers/collections/views/config).
+# Crate name is historical; rename to stack-decl-eval deferred (doc fix).
+# V8 is feature-gated on the `deno` feature. The `!Send` isolate crosses
+# a `spawn_blocking` boundary here (same as shipd ingest).
 agent-config-eval = { path = "../agent-config-eval" }
 # The #122 dep-skill / dep-agent cache reader (composition engine).
 # `load_cached_extensions` (Phase-3 J2) returns per-package bundles that
@@ -42,9 +38,9 @@ ship-store = { path = "../ship-platform/crates/ship-store" }
 # ship-substrate, so this is the one place the resolver pulls a substrate
 # dep — the resolver is the FsBroker consumer for project reads.
 ship-substrate = { path = "../ship-substrate" }
-# Closed-world TS strip + SDK stub — re-exported through `agent-config-eval`,
-# but `agent-config-eval` re-exports ship-js and we keep the dep explicit
-# so the resolver's `ts_resolver` module can name the engine in its docs.
+# ship-js is used *inside* agent-config-eval; this crate does not re-export
+# it. Explicit dep kept so `ts_resolver` docs can name the closed-world
+# engine without implying ACE re-exports ship-js (it does not).
 ship-js = { git = "https://github.com/get-ship/ship-infra.git", rev = "24de79282f45b05fdcdb07f7daa66c7346bdeb33", features = ["deno"] }
 
 # Plumbing

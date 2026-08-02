@@ -3,7 +3,7 @@ name = "agent-config-eval"
 version = "0.1.0"
 edition = "2024"
 publish = false
-description = "Evaluate a ship.ts agent config (authored with defineAgent) in a locked-down ship-js isolate → stack_model::AgentProfile."
+description = "Stack-decl eval (historical name agent-config-eval): run stack.config.ts in a locked-down ship-js isolate and harvest code nouns (definePipeline/Trigger/Collection/View/Config). Agent nouns are JSONC/fleet only (A5). Rename to stack-decl-eval deferred."
 
 [dependencies]
 # The AgentProfile type + its schema. This crate produces AgentProfiles; it does

@@ -1,47 +1,36 @@
-//! V8 eval fan-out for the project-shape resolver.
+//! V8 eval fan-out for **code nouns** (ARC A5).
 //!
-//! The resolver's TS surface is multi-file in Phase 3 (`stack.config.ts` +
-//! `agents.ts` + per-domain modules — the orchestrator lean from
-//! `design-interview-2026-07-05.md:97-119`). Phase 2 takes the seam from
-//! the shipd ingest — one source string per `imported_modules` entry — and
-//! the closed-world loader still admits ONLY `"ship"`; project-relative
-//! `.ts` imports are a Phase-3 ship-js change (R10 in
-//! `census-phase2-resolver.md`).
+//! Agent nouns (agents / skills / rules / MCP) are **not** resolved here —
+//! they load via [`super::jsonc_agent_nouns`] (plain dirs or `fleet.jsonc`
+//! graph). This module only runs `stack.config.ts` (and any
+//! `imported_modules`) through `agent_config_eval` to harvest
+//! `definePipeline` / `defineTrigger` / `defineCollection` / `defineView` /
+//! `defineConfig`. The crate name `agent-config-eval` is historical; rename
+//! to `stack-decl-eval` is deferred (doc fix preferred over rename churn).
+//!
+//! The closed-world loader still admits ONLY `"ship"`; project-relative
+//! `.ts` imports remain a later ship-js change.
 //!
 //! ## The `!Send` boundary (R2)
 //!
-//! `agent_config_eval::resolve_agents_with_globals` is async + `!Send`-
-//! isolated (the `deno_core::JsRuntime` it pulls in is `!Send`). The V8
-//! future CANNOT be `await`ed directly from a multi-threaded tokio
-//! runtime — the future is not `Send` so the executor refuses to move it
-//! across worker threads. The seam shipd uses today
-//! (`apps/shipd/src/ship_runtime/tasks.rs:285-304`) is:
+//! `agent_config_eval::resolve_declarations_with_globals` is async +
+//! `!Send`-isolated (`deno_core::JsRuntime` is `!Send`). The V8 future
+//! CANNOT be `await`ed directly from a multi-threaded tokio runtime. The
+//! seam shipd uses today (`apps/shipd/src/ship_runtime/tasks.rs:285-304`):
 //!
-//! 1. `tokio::task::spawn_blocking(move || { ... })` — moves the work to
-//!    the blocking thread pool.
-//! 2. INSIDE the closure, build a fresh `tokio::runtime::Builder::new_current_thread()`
-//!    and `.block_on(resolve_agents_with_globals(...))` — the V8 isolate
-//!    lives on that one thread, so the future never has to be `Send`.
+//! 1. `tokio::task::spawn_blocking(move || { ... })` — blocking pool.
+//! 2. INSIDE the closure, a current-thread runtime
+//!    `.block_on(resolve_declarations_with_globals(...))` so the isolate
+//!    never moves threads.
 //!
-//! We mirror that seam here. The result is `Send` (a `Vec<AgentProfile>`
-//! is plain data) and flows back to the multi-threaded executor without
-//! re-crossing the V8 boundary.
+//! We mirror that seam. Results are plain data (`Declarations`) and flow
+//! back without re-crossing V8.
 //!
-//! ## Closed world (the contract we depend on)
+//! ## Closed world
 //!
-//! `agent-config-eval` reuses the `ship-js` engine with the closed-world
-//! deny-by-default module loader (`ship-js/src/deno/module_loader.rs`):
-//! only `"ship"` resolves. Any other import — `node:fs`, `http`, even a
-//! project-relative `./agents.ts` — fails to load. So Phase 2's TS path
-//! is exactly the single-`stack.config.ts` semantics shipd's ingest has today:
-//! one source string, one V8 eval, N `defineAgent` calls rolled up to N
-//! profiles.
-//!
-//! When Phase 3 extends the loader to admit project-relative `.ts`
-//! imports (R10), the fan-out grows to N evals — one per `imported_modules`
-//! entry, merged in declared order. The function signature below takes
-//! `&[ModuleDescriptor]` so the Phase-3 call site is the same shape; the
-//! Phase-2 implementation simply iterates with a single entry.
+//! `agent-config-eval` uses the `ship-js` engine with deny-by-default
+//! loading: only `"ship"` resolves. Agent declare-forms are rejected at
+//! harvest so there is no dual path with JSONC.
 
 use agent_config_eval::Declarations;
 use anyhow::{Context, Result};
@@ -64,10 +53,9 @@ fn merge_declarations(all: &mut Declarations, module: Declarations) {
 }
 
 /// Evaluate every TS module in `imported_modules` and return the merged
-/// declare-form roll-up across all of them, in declared order — every
-/// noun a `stack.config.ts` can declare (`defineAgent`, `defineMcpServer`,
-/// `defineSkill`, `definePipeline`, `defineTrigger`, `defineCollection`,
-/// `defineRule`), not just agents (format-migration Wave 3).
+/// **code-noun** declare-form roll-up (`definePipeline`, `defineTrigger`,
+/// `defineCollection`, `defineView`, `defineConfig`). Agent nouns are not
+/// harvested here (A5 — see [`super::jsonc_agent_nouns`]).
 ///
 /// The default `globals` (operator pre-fetched defaults, baked into the
 /// SDK module as a closed-world input) is the same value
