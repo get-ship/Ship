@@ -67,7 +67,7 @@ use ship_js::{Dispatch, DispatchError};
 mod declarations;
 mod generated_stub;
 
-pub use declarations::Declarations;
+pub use declarations::{Declarations, harvest};
 pub use generated_stub::SDK_STUB;
 
 /// Strip TypeScript types from `source`, returning equivalent JavaScript.

@@ -20,6 +20,29 @@ async fn define_agent_is_rejected_loudly() {
     );
 }
 
+/// Direct harvest rejects for retired agent-noun kinds (SDK stubs no longer
+/// export defineSkill/defineRule/defineMcpServer — the collector still must
+/// fail closed if a stale module emits those `__kind` tags).
+#[test]
+fn harvest_rejects_skill_rule_mcp_kinds() {
+    use agent_config_eval::{Declarations, harvest};
+
+    for (kind, needle) in [
+        ("skill", "defineSkill"),
+        ("rule", "defineRule"),
+        ("mcp_server", "defineMcpServer"),
+    ] {
+        let mut decls = Declarations::default();
+        let raw = serde_json::json!({ "__kind": kind, "value": {} });
+        let err = harvest(&mut decls, 0, raw).expect_err(kind);
+        let msg = format!("{err:#}");
+        assert!(
+            msg.contains(needle) && msg.contains("retired"),
+            "kind={kind} expected retirement of {needle}, got: {msg}"
+        );
+    }
+}
+
 #[tokio::test(flavor = "current_thread")]
 async fn define_pipeline_still_harvests() {
     let src = r#"

@@ -9,6 +9,10 @@
 //! - `rules/<id>.md` (or `.jsonc`) → [`Rule`]
 //! - `skills/<id>/SKILL.md` → still walked in [`super::merge_ts_declarations`]
 //!
+//! When `fleet.jsonc` is present at `space_root`, agent nouns are loaded via
+//! **fleet `discover` → `rollup`** (include graph, fail-closed) instead of
+//! plain-dir-only. That closes the dual-authority hole with bridge compile.
+//!
 //! Code nouns (pipelines / triggers / collections / views) stay on the TS
 //! declare-form path — this module does not touch them.
 
@@ -23,18 +27,24 @@ use stack_model::ExtensionLibrary;
 
 /// Load agent nouns from plain dirs under `space_root` and merge into `library`.
 ///
-/// First-wins on id collision with anything already in `library` (same policy
-/// as the former TS merge). Stable sort by id after contributing new entries.
+/// When `space_root/fleet.jsonc` exists, uses `agent_schema::discover` +
+/// `rollup` (include graph) and injects agents / MCP / rules / skills —
+/// **fail-closed** on discover/rollup errors.
 ///
-/// **Fail-closed (A5 / fleet parity):** parse or IO errors on present agent
-/// noun files return `Err` — never warn-and-continue with an empty merge.
-/// Missing dirs/files still yield empty contributions (`Ok`).
+/// Otherwise: first-wins on id collision with anything already in `library`
+/// (same policy as the former TS merge). Stable sort by id after contributing
+/// new entries. Missing dirs/files still yield empty contributions (`Ok`).
 pub(crate) fn merge_jsonc_agent_nouns(
     library: &mut ExtensionLibrary,
     fs: &dyn FsBroker,
     cap: &FsCap,
     space_root: &Path,
 ) -> Result<()> {
+    // Fleet include graph SSOT when fleet.jsonc is present (bridge parity).
+    if space_root.join("fleet.jsonc").is_file() {
+        return merge_from_fleet_graph(library, space_root);
+    }
+
     let agents = load_agents_jsonc(fs, cap).with_context(|| {
         format!(
             "agents/*.jsonc load failed under {} (fail-closed)",
@@ -81,6 +91,80 @@ pub(crate) fn merge_jsonc_agent_nouns(
         }
         if added > 0 {
             library.rules.sort_by(|a, b| a.file_name.cmp(&b.file_name));
+        }
+    }
+
+    Ok(())
+}
+
+/// Discover → rollup the fleet include graph and inject agent nouns.
+///
+/// Fail-closed: any discover/rollup error propagates (cycle, collision, loosen).
+fn merge_from_fleet_graph(library: &mut ExtensionLibrary, space_root: &Path) -> Result<()> {
+    let disc = agent_schema::discover(space_root).with_context(|| {
+        format!(
+            "fleet-config discover failed under {} (fail-closed)",
+            space_root.display()
+        )
+    })?;
+    let graph = agent_schema::rollup(&disc).with_context(|| {
+        format!(
+            "fleet-config rollup failed under {} (fail-closed)",
+            space_root.display()
+        )
+    })?;
+
+    // Agents (visibility already filtered by rollup).
+    let agents: Vec<AgentProfile> = graph
+        .agents
+        .iter()
+        .map(|a| a.profile.clone())
+        .collect();
+    merge_agents(library, agents);
+
+    // MCP pool (stable id order from BTreeMap).
+    {
+        let mut seen: HashSet<String> = library.mcp_servers.iter().map(|m| m.id.clone()).collect();
+        let mut added = 0usize;
+        for (id, pooled) in &graph.mcp_servers {
+            if seen.insert(id.clone()) {
+                library.mcp_servers.push(pooled.server.clone());
+                added += 1;
+            }
+        }
+        if added > 0 {
+            library.mcp_servers.sort_by(|a, b| a.id.cmp(&b.id));
+        }
+    }
+
+    // Rules.
+    {
+        let mut seen: HashSet<String> =
+            library.rules.iter().map(|r| r.file_name.clone()).collect();
+        let mut added = 0usize;
+        for pooled in &graph.rules {
+            if seen.insert(pooled.rule.file_name.clone()) {
+                library.rules.push(pooled.rule.clone());
+                added += 1;
+            }
+        }
+        if added > 0 {
+            library.rules.sort_by(|a, b| a.file_name.cmp(&b.file_name));
+        }
+    }
+
+    // Skills (also walked later from skills/; first-wins keeps graph entries).
+    {
+        let mut seen: HashSet<String> = library.skills.iter().map(|s| s.id.clone()).collect();
+        let mut added = 0usize;
+        for (id, pooled) in &graph.skills {
+            if seen.insert(id.clone()) {
+                library.skills.push(pooled.skill.clone());
+                added += 1;
+            }
+        }
+        if added > 0 {
+            library.skills.sort_by(|a, b| a.id.cmp(&b.id));
         }
     }
 
@@ -468,5 +552,79 @@ mod tests {
             "named fail-closed: {msg}"
         );
         assert!(library.agent_profiles.is_empty());
+    }
+
+    #[test]
+    fn fleet_jsonc_uses_discover_rollup_for_agent_nouns() {
+        let tmp = TempDir::new().unwrap();
+        let org = tmp.path().join("org");
+        let repo = tmp.path().join("repo");
+        fs::create_dir_all(org.join("agents")).unwrap();
+        fs::create_dir_all(org.join("skills/spawn")).unwrap();
+        fs::create_dir_all(&repo).unwrap();
+        fs::write(
+            org.join("agents/commander.jsonc"),
+            r#"{ "agent": { "id": "commander", "name": "Commander" }, "skills": { "refs": ["spawn"] } }"#,
+        )
+        .unwrap();
+        fs::write(
+            org.join("skills/spawn/SKILL.md"),
+            "---\nname: spawn\ndescription: Spawn\n---\n\n# Spawn\n",
+        )
+        .unwrap();
+        fs::write(
+            org.join("mcp.jsonc"),
+            r#"{ "mcp": { "servers": { "gh": { "name": "GH", "command": "npx" } } } }"#,
+        )
+        .unwrap();
+        fs::write(repo.join("fleet.jsonc"), r#"{ "include": ["../org"] }"#).unwrap();
+
+        let fs_broker = LocalFsBroker::new();
+        let cap = cap_for(&repo);
+        let mut library = ExtensionLibrary::default();
+        merge_jsonc_agent_nouns(&mut library, &fs_broker, &cap, &repo).expect("fleet graph");
+
+        assert!(
+            library
+                .agent_profiles
+                .iter()
+                .any(|p| p.agent.id == "commander"),
+            "org agent via fleet include: {:?}",
+            library
+                .agent_profiles
+                .iter()
+                .map(|p| p.agent.id.as_str())
+                .collect::<Vec<_>>()
+        );
+        assert!(
+            library.skills.iter().any(|s| s.id == "spawn"),
+            "org skill via fleet include"
+        );
+        assert!(
+            library.mcp_servers.iter().any(|m| m.id == "gh"),
+            "org mcp via fleet include"
+        );
+    }
+
+    #[test]
+    fn fleet_jsonc_cycle_fails_closed() {
+        let tmp = TempDir::new().unwrap();
+        let a = tmp.path().join("a");
+        let b = tmp.path().join("b");
+        fs::create_dir_all(&a).unwrap();
+        fs::create_dir_all(&b).unwrap();
+        fs::write(a.join("fleet.jsonc"), r#"{ "include": ["../b"] }"#).unwrap();
+        fs::write(b.join("fleet.jsonc"), r#"{ "include": ["../a"] }"#).unwrap();
+
+        let fs_broker = LocalFsBroker::new();
+        let cap = cap_for(&a);
+        let mut library = ExtensionLibrary::default();
+        let err = merge_jsonc_agent_nouns(&mut library, &fs_broker, &cap, &a)
+            .expect_err("cycle must fail closed");
+        let msg = format!("{err:#}").to_lowercase();
+        assert!(
+            msg.contains("cycle") || msg.contains("discover") || msg.contains("fail-closed"),
+            "named cycle failure: {msg}"
+        );
     }
 }
