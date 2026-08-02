@@ -1,5 +1,9 @@
-// Include org source for shared agents/skills/rules.
-// Sibling layout: "../ship-meta". Worktrees: use absolute path or "$SHIP_META".
+// Ship product root: org agents/rules/skills from ship-meta only.
+// Product SUI skills are not org-pooled (removed from ship-meta).
+//
+// Sibling:  "include": ["../ship-meta"]
+// Worktree: export SHIP_META=/absolute/path/to/ship-meta
+//           "include": ["$SHIP_META"]
 {
-  "include": ["../ship-meta"]
+  "include": ["$SHIP_META"]
 }
