@@ -149,7 +149,7 @@ fn save_agents_config_prunes_dropped_agents() {
             ..Default::default()
         },
         ..Default::default()
-    };
+};
     let b = AgentProfile {
         agent: ProfileMeta {
             id: "beta".into(),
@@ -157,7 +157,7 @@ fn save_agents_config_prunes_dropped_agents() {
             ..Default::default()
         },
         ..Default::default()
-    };
+};
     save_agents_config(&fs, &dir, &[a.clone(), b.clone()]).unwrap();
     // Read back through THE reader — the save wrote canonical-shape files.
     assert_eq!(read_agent_profiles(&fs, &dir).unwrap().len(), 2);
@@ -205,7 +205,7 @@ fn save_preserves_hand_authored_canonical_fields_on_resave() {
             refs: vec!["rust".into()],
         },
         ..Default::default()
-    };
+};
     save_agents_config(&fs, &dir, &[profile]).unwrap();
 
     // The hand-authored fields must survive the re-save.
@@ -243,7 +243,7 @@ fn save_normalizes_rule_ids_on_disk() {
             ..Default::default()
         },
         ..Default::default()
-    };
+};
     // The save path normalizes rule ids; the file must round-trip cleanly.
     save_agents_config(&fs, &dir, &[profile]).unwrap();
     let agents = read_agent_profiles(&fs, &dir).unwrap();

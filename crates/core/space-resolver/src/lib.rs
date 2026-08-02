@@ -68,6 +68,7 @@
 //!   architecture, no code moves).
 pub mod descriptor;
 pub mod dtsgen;
+pub mod jsonc_agent_nouns;
 pub mod members;
 pub mod space_loader;
 pub mod ts_resolver;
@@ -111,53 +112,45 @@ pub(crate) fn merge_ts_declarations(
     fs: &dyn ship_substrate::ports::FsBroker,
     space_root: &Path,
 ) {
+    let cap = ship_substrate::ports::FsCap::new_unchecked(
+        space_root.to_path_buf(),
+        ship_substrate::ports::FsRoot::Space(ship_substrate::ports::SpaceId::new("resolver")),
+        ship_substrate::ports::FsMode::ReadOnly,
+    );
+
+    // ARC A5: agent nouns (agents / mcp / rules) load from plain JSONC +
+    // on-disk dirs — not from defineAgent / defineConfig.agents.mcp.
+    // Skills continue via the on-disk walk below. Code nouns stay on TS.
+    jsonc_agent_nouns::merge_jsonc_agent_nouns(library, fs, &cap, space_root);
+
+    // TS agent-noun fields are intentionally ignored (defineAgent /
+    // defineSkill / defineRule / defineConfig.agents.mcp are retired for
+    // the agent path). If a module still emits them, agent-config-eval
+    // rejects agent/skill/rule kinds; config.agents.mcp is still parsed
+    // for permission-preset co-location but does NOT seed mcp_servers.
     if !declarations.agents.is_empty() {
-        let mut seen: HashSet<String> = library
-            .agent_profiles
-            .iter()
-            .map(|a| a.agent.id.clone())
-            .collect();
-        for profile in declarations.agents {
-            if !seen.insert(profile.agent.id.clone()) {
-                continue;
-            }
-            library.agent_profiles.push(profile.clone());
-            library.agents.push(profile);
-        }
+        tracing::warn!(
+            "resolver: ignoring {} defineAgent profile(s) under {} — agents are JSONC-only (ARC A5)",
+            declarations.agents.len(),
+            space_root.display()
+        );
     }
-    // Slice 2c close-out: MCP server registrations move to
-    // `defineConfig({ agents: { mcp: { <name>: {…} } } })`. The per-call
-    // `defineMcpServer` form is gone; the `agents.mcp` map is the only
-    // source for MCP servers in the post-slice-2c surface. Walk
-    // `declarations.config` (root-last-wins, same as the `skills_dir` /
-    // `hooks_dir` overrides below) and convert each entry via
-    // `McpServerDeclare::into_mcp_server_config`. The id-collision
-    // policy matches the dead per-call form: the existing
-    // `library.mcp_servers` (populated by the leaf's `load_mcp_servers`
-    // for any pre-W4 `.ship/mcp.jsonc` entries) wins, then the FIRST
-    // `defineConfig.agents.mcp.<id>` claim wins — `merge_by_key`'s
-    // "first wins" semantics apply identically to the new path.
-    // Slice 2c close-out determinism: `agents.mcp` is a `HashMap`,
-    // and `HashMap` iteration order is randomized per process (the
-    // default hasher seeds from the OS). The compile output's byte
-    // sequence depends on the `mcp_servers` order in the canonical
-    // `ExtensionLibrary`, so non-deterministic order = non-deterministic
-    // output = parity-capture failures. Sort by `id` (the canonical
-    // key, sorted ascending) before the `merge_by_key` first-wins pass.
-    let mut mcp_from_config: Vec<agent_schema::McpServerConfig> = Vec::new();
-    for cfg in &declarations.config {
-        if let Some(agents) = &cfg.agents {
-            for declared in agents.mcp.values() {
-                mcp_from_config.push(declared.clone().into_mcp_server_config());
-            }
-        }
+    if !declarations.skills.is_empty() {
+        tracing::warn!(
+            "resolver: ignoring {} defineSkill entries under {} — skills are SKILL.md-only (ARC A5)",
+            declarations.skills.len(),
+            space_root.display()
+        );
     }
-    mcp_from_config.sort_by(|a, b| a.id.cmp(&b.id));
-    merge_by_key(&mut library.mcp_servers, mcp_from_config, |m| m.id.as_str());
-    merge_by_key(&mut library.skills, declarations.skills, |s| s.id.as_str());
-    merge_by_key(&mut library.rules, declarations.rules, |r| {
-        r.file_name.as_str()
-    });
+    if !declarations.rules.is_empty() {
+        tracing::warn!(
+            "resolver: ignoring {} TS-harvested rules under {} — rules are rules/* + agent inline JSONC (ARC A5)",
+            declarations.rules.len(),
+            space_root.display()
+        );
+    }
+
+    // Code nouns (pipelines / triggers / collections / views) — untouched.
     merge_by_key(&mut library.pipelines, declarations.pipelines, |p| {
         p.name.as_str()
     });
@@ -169,32 +162,10 @@ pub(crate) fn merge_ts_declarations(
     });
     library.views.extend(declarations.views);
 
-    // Per-extension-project on-disk skills walk (the resolution
-    // layer's source for skills post slice-2b). The walk happens here
-    // (not in the leaf) because the TS eval populates declared skills
-    // via `defineSkill`; the disk walk duplicates the surface for
-    // callers that author `SKILL.md` files directly.
-    //
-    // Rules no longer have an on-disk walk: the on-disk
-    // `rules/<id>.md` convention died with the rules-format cut, so
-    // rules arrive exclusively via `defineAgent({ rules: { inline: "..." } })`
-    // (the active agent's inline rule body, the `apply_agent_to_library`
-    // path in `agent-def`) — the `library.rules` vector this function
-    // populates from `declarations.rules` is the only source for rules
-    //
-    // For skills:
-
+    // Per-extension-project on-disk skills walk.
     // - The leaf populates the default (`skill_paths: ["skills/"]`).
-    // - `defineConfig({ skills_dir })` overrides via root-last-wins
-    //   scalar.
-    // - The walked records MERGE into `library.skills` with the same
-    //   id-dedup policy as the TS-declared side: an entry already in
-    //   the library wins.
-    let cap = ship_substrate::ports::FsCap::new_unchecked(
-        space_root.to_path_buf(),
-        ship_substrate::ports::FsRoot::Space(ship_substrate::ports::SpaceId::new("resolver")),
-        ship_substrate::ports::FsMode::ReadOnly,
-    );
+    // - `defineConfig({ skills_dir })` overrides via root-last-wins scalar.
+    // - Walked records MERGE into `library.skills` (first-wins).
 
     // ── Skills: resolve `skills_dir` from `defineConfig` (last wins)
     //    falling through to the leaf-populated `library.skill_paths[0]`

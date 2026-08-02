@@ -1,9 +1,11 @@
 //! **Tier: L0 sibling.** Pure eval leaf over `ship-js` — runs user-authored
 //! `stack.config.ts` through a locked-down isolate (TS-strip → JS → ship-js
-//! with deny-by-default loader + `DenyAll` host wire) and harvests the
-//! declared `defineAgent` + sibling `defineMcpServer` / `defineSkill` /
-//! `definePipeline` / `defineTrigger` / `defineCollection` / `defineRule`
-//! calls into typed [`Declarations`].
+//! with deny-by-default loader + `DenyAll` host wire) and harvests **code
+//! nouns** (`definePipeline` / `defineTrigger` / `defineCollection` /
+//! `defineView` / `defineConfig`) into typed [`Declarations`].
+//!
+//! ARC A5: agent nouns (`defineAgent` / skills / rules / MCP pool) are
+//! JSONC/on-disk only — harvest rejects those kinds so there is no dual path.
 //!
 //! The engine is closed-world: it only knows the `ship` module served from
 //! [`SDK_STUB`] (GENERATED from `@ship/stack` — `cargo xtask gen-eval-stub`).

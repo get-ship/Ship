@@ -13,7 +13,7 @@ fn write_minimal_space() -> (TempDir, std::path::PathBuf) {
     // inline rule bodies. Slice 2c: skills are on-disk
     // `skills/<id>/SKILL.md` files (the resolver walks
     // `defineConfig({ skills_dir })`); agents are on-disk
-    // `agents/<id>.ts` files (the resolver enumerates the dir and
+    // `agents/<id>.jsonc` files (the resolver enumerates the dir and
     // evals each module). `.ship/agents/` is gone (Wave 5). The
     // rules-format cut (this branch) collapsed the on-disk
     // `rules/<id>.md` convention: every rule body now lives on the
@@ -28,26 +28,12 @@ export default defineConfig({});
     )
     .unwrap();
 
-    // The agent lives at `agents/demo.ts` (slice 2c — per-noun source
-    // dir, enumerated by the resolver into `imported_modules`). The
-    // `rules: { inline: "..." }` block is the post-cut format surface
-    // for rule bodies: the on-disk `rules/<id>.md` convention died
-    // with the rules-format cut, so every rule body lives on the agent
-    // composition. The `harvest` step projects the inline body into
-    // `declarations.rules` under `file_name = {agent_id}.md`; the
-    // resolver's `merge_ts_declarations` merges it into
-    // `library.rules` like every other declared noun.
+    // ARC A5: agent at `agents/demo.jsonc`. Inline rules project into
+    // `library.rules` as `{agent_id}.md` during merge_jsonc_agent_nouns.
     std::fs::create_dir_all(root.join("agents")).unwrap();
     std::fs::write(
-        root.join("agents/demo.ts"),
-        r#"
-import { defineAgent } from "ship";
-
-defineAgent({
-  agent: { id: "demo", name: "Demo" },
-  rules: { inline: "Be terse." },
-});
-"#,
+        root.join("agents/demo.jsonc"),
+        r#"{ "agent": { "id": "demo", "name": "Demo" }, "rules": { "inline": "Be terse." } }"#,
     )
     .unwrap();
 
@@ -123,22 +109,12 @@ async fn load_root_library_omits_resolve_step() {
     let lib = space_loader::load_root_library(&LocalFsBroker::new(), &root)
         .await
         .unwrap();
-    // `load_root_library` skips the TS eval AND every on-disk walk,
-    // so `library.rules` is empty here — rules arrive via the
-    // resolver's `merge_ts_declarations` step (the inline
-    // `defineAgent({ rules: { inline } })` body projects into
-    // `declarations.rules` and the merge step lands it in
-    // `library.rules`). The on-disk `rules/<id>.md` convention
-    // died with the rules-format cut.
-    // Slice 2c: the imported_modules vec carries `stack.config.ts`
-    // (the manifest) + every `agents/<id>.ts` file in the per-noun
-    // source dir. The minimal fixture has one agent (`demo`), so
-    // exactly 2 modules: the manifest + the agent file.
-    assert_eq!(lib.imported_modules.len(), 2);
-    // Module 0 is the manifest (a `defineConfig({})` empty config).
+    // `load_root_library` skips TS eval and agent JSONC load — those
+    // happen in merge_ts_declarations. Only stack.config.ts is staged
+    // in imported_modules (agents/*.jsonc are not TS modules).
+    assert_eq!(lib.imported_modules.len(), 1);
     assert!(lib.imported_modules[0].source.contains("defineConfig"));
-    // Module 1 is the agent file (a `defineAgent` call).
-    assert!(lib.imported_modules[1].source.contains("defineAgent"));
+    assert!(lib.agent_profiles.is_empty());
 }
 
 // ── roll_up tests (Phase-3 J2) ─────────────────────────────────────
@@ -206,7 +182,7 @@ async fn roll_up_source_shadows_cached_agent_on_id_collision() {
     let (_tmp, root) = write_minimal_space();
 
     // Post format-migration Wave 5 + slice 2c close-out: source
-    // authoring for agents is via `agents/<id>.ts` files
+    // authoring for agents is via `agents/<id>.jsonc` files
     // (per-noun source dir, enumerated by the resolver into
     // `imported_modules`). The manifest is a thin pointer. The
     // roll-up's TS eval + the resolver's per-noun dir enum are the
@@ -217,19 +193,12 @@ async fn roll_up_source_shadows_cached_agent_on_id_collision() {
     // namespaced to `<pkg>/<id>`. For the collision, give the source
     // an agent whose id EQUALS the cached package's full namespaced
     // id. That's pathological authoring but proves the law.
-    std::fs::remove_file(root.join("agents/demo.ts")).unwrap();
+    std::fs::remove_file(root.join("agents/demo.jsonc")).unwrap();
     std::fs::create_dir_all(root.join("agents")).unwrap();
     std::fs::write(
-        root.join("agents/github.com__x__y__writer.ts"),
-        r#"
-import { defineAgent } from "ship";
-
-defineAgent({
-  agent: { id: "github.com/x/y/writer", name: "Source Mirror" },
-});
-"#,
-    )
-    .unwrap();
+        root.join("agents/github.com__x__y__writer.jsonc"),
+        r#"{ "agent": { "id": "github.com/x/y/writer", "name": "Source Mirror" } }"#,
+    ).unwrap();
 
     // Set up the cache with one package whose `exports.agents` is
     // `agents/writer.jsonc` (id = `helper`, namespaced to
@@ -686,52 +655,40 @@ async fn every_declare_form_round_trips_through_resolve_compose_descriptor() {
     let root = tmp.path().to_path_buf();
     std::fs::create_dir_all(root.join(".ship")).unwrap();
 
-    // The manifest is now a thin pointer: it carries the agents.mcp
-    // block (the only surviving config-shaped entry — the per-call
-    // `defineMcpServer` died with slice 2c). The other nouns live in
-    // their per-noun source dirs (or on-disk `skills/` for
-    // the disk-shaped skills surface).
+    // Manifest is a thin pointer (permissions / dir overrides only).
+    // Agent nouns: agents/*.jsonc + mcp.jsonc + skills/ (ARC A5).
     std::fs::write(
         root.join("stack.config.ts"),
         r#"
 import { defineConfig } from "ship";
 
-export default defineConfig({
-  agents: {
-    mcp: {
-      search: {
-        id: "search",
-        server_type: "stdio",
-        command: "search-mcp",
-        args: [],
-        env: null,
-        url: null,
-        scope: "project",
-      },
-    },
-  },
-});
+export default defineConfig({});
 "#,
     )
     .unwrap();
-    // Agents: per-noun source dir, one TS file per agent (slice 2c).
-    // The rules-format cut collapsed the on-disk `rules/<id>.md`
-    // convention — the rule body now lives on the agent composition
-    // as `rules: { inline: "..." }`. The harvest step projects
-    // the inline body into `declarations.rules` under
-    // `file_name = {agent_id}.md`; the resolver's
-    // `merge_ts_declarations` lands it in `library.rules`.
+    std::fs::write(
+        root.join("mcp.jsonc"),
+        r#"{
+  "mcp": {
+    "servers": {
+      "search": {
+        "name": "search",
+        "command": "search-mcp",
+        "args": [],
+        "server_type": "stdio",
+        "scope": "project"
+      }
+    }
+  }
+}"#,
+    )
+    .unwrap();
+    // Agents: agents/<id>.jsonc (ARC A5). Inline rules project to
+    // library.rules as {agent_id}.md.
     std::fs::create_dir_all(root.join("agents")).unwrap();
     std::fs::write(
-        root.join("agents/demo.ts"),
-        r#"
-import { defineAgent } from "ship";
-
-defineAgent({
-  agent: { id: "demo", name: "Demo" },
-  rules: { inline: "Be terse." },
-});
-"#,
+        root.join("agents/demo.jsonc"),
+        r#"{ "agent": { "id": "demo", "name": "Demo" }, "rules": { "inline": "Be terse." } }"#,
     )
     .unwrap();
 
@@ -1006,11 +963,7 @@ async fn roll_up_content_hash_changes_when_a_source_define_view_changes() {
     std::fs::write(
         root.join("stack.config.ts"),
         r#"
-import { defineAgent, defineView } from "ship";
-
-defineAgent({
-  agent: { id: "demo", name: "Demo" },
-});
+import { defineView } from "ship";
 
 defineView({
   route: "/alpha",
@@ -1039,11 +992,7 @@ defineView({
     std::fs::write(
         root.join("stack.config.ts"),
         r#"
-import { defineAgent, defineView } from "ship";
-
-defineAgent({
-  agent: { id: "demo", name: "Demo" },
-});
+import { defineView } from "ship";
 
 defineView({
   route: "/beta",
@@ -1266,34 +1215,24 @@ defineView({
 // roll-up-level proof.
 #[tokio::test(flavor = "current_thread")]
 async fn roll_up_two_extensions_compose_with_pin() {
-    // 1. Space root with agents in `agents/<id>.ts` files (slice 2c).
+    // 1. Space root with agents in `agents/<id>.jsonc` files (slice 2c).
     //    The space root claims `root-only` and a SAME-ID `shared` (this
     //    one wins on collision).
     let (_tmp, root) = write_minimal_space();
-    // The minimal fixture already laid down `agents/demo.ts` + an empty
+    // The minimal fixture already laid down `agents/demo.jsonc` + an empty
     // `stack.config.ts`. Replace the agent set: delete the demo file,
     // add `root-only` + `shared` (the colliding id).
-    std::fs::remove_file(root.join("agents/demo.ts")).unwrap();
+    std::fs::remove_file(root.join("agents/demo.jsonc")).unwrap();
     std::fs::write(
-        root.join("agents/root-only.ts"),
-        r#"
-import { defineAgent } from "ship";
-
-defineAgent({ agent: { id: "root-only", name: "Root Only" } });
-"#,
-    )
-    .unwrap();
+        root.join("agents/root-only.jsonc"),
+        r#"{ "agent": { "id": "root-only", "name": "Root Only" } }"#,
+    ).unwrap();
     std::fs::write(
-        root.join("agents/shared.ts"),
-        r#"
-import { defineAgent } from "ship";
+        root.join("agents/shared.jsonc"),
+        r#"{ "agent": { "id": "shared", "name": "Root Shared" } }"#,
+    ).unwrap();
 
-defineAgent({ agent: { id: "shared", name: "Root Shared" } });
-"#,
-    )
-    .unwrap();
-
-    // 2. Child dir with `agents/<id>.ts` files defining a `child-only`
+    // 2. Child dir with `agents/<id>.jsonc` files defining a `child-only`
     //    agent and a SAME-ID `shared` agent (this one loses on
     //    collision). The child extension carries its own
     // `stack.config.ts` (a thin pointer manifest — empty
@@ -1311,23 +1250,13 @@ export default defineConfig({});
     )
     .unwrap();
     std::fs::write(
-        child.join("agents/child-only.ts"),
-        r#"
-import { defineAgent } from "ship";
-
-defineAgent({ agent: { id: "child-only", name: "Child Only" } });
-"#,
-    )
-    .unwrap();
+        child.join("agents/child-only.jsonc"),
+        r#"{ "agent": { "id": "child-only", "name": "Child Only" } }"#,
+    ).unwrap();
     std::fs::write(
-        child.join("agents/shared.ts"),
-        r#"
-import { defineAgent } from "ship";
-
-defineAgent({ agent: { id: "shared", name: "Child Shared" } });
-"#,
-    )
-    .unwrap();
+        child.join("agents/shared.jsonc"),
+        r#"{ "agent": { "id": "shared", "name": "Child Shared" } }"#,
+    ).unwrap();
 
     // Empty cache + library tiers — the proof is about the
     // multi-extension roll-up, not the cached / enabled tiers.
@@ -1455,11 +1384,7 @@ async fn define_config_custom_skill_paths_walk_finds_on_disk_skill() {
     std::fs::write(
         root.join("stack.config.ts"),
         r#"
-import { defineConfig, defineAgent } from "ship";
-
-defineAgent({
-  agent: { id: "demo", name: "Demo" },
-});
+import { defineConfig } from "ship";
 
 defineConfig({
   skills_dir: "custom-skills",
@@ -1525,17 +1450,12 @@ async fn roll_up_members_composes_explicit_roots_without_scanning() {
     // Member A: an agent referencing a skill that lives in member B.
     std::fs::create_dir_all(parent.join("a/agents")).unwrap();
     std::fs::write(
-        parent.join("a/agents/probe.ts"),
-        r#"
-import { defineAgent } from "ship";
-
-defineAgent({
-  agent: { id: "probe", name: "Probe", version: "0.1.0", description: "member A agent" },
-  skills: { refs: ["peer-skill"] },
-  mcp: { servers: [] },
-  permissions: {},
-});
-"#,
+        parent.join("a/agents/probe.jsonc"),
+        r#"{
+  "agent": { "id": "probe", "name": "Probe", "version": "0.1.0", "description": "member A agent" },
+  "skills": { "refs": ["peer-skill"] },
+  "mcp": { "servers": [] }
+}"#,
     )
     .unwrap();
     // Member B: the skill, plus a hook payload (push content — fenced) and a

@@ -233,12 +233,18 @@ fn compile_from_library(
         });
     }
 
-    // 7. Compile per harness
+    // 7. Compile per harness (HCC returns Result; UnknownHarness is skip)
     let mut outputs = Vec::new();
     for harness_id in &harnesses {
-        let Some(mut output) = harness_config_compiler::compile(&resolved, harness_id) else {
-            eprintln!("warning: unknown harness '{}', skipping", harness_id);
-            continue;
+        let mut output = match harness_config_compiler::compile(&resolved, harness_id) {
+            Ok(o) => o,
+            Err(harness_config_compiler::CompileError::UnknownHarness { .. }) => {
+                eprintln!("warning: unknown harness '{}', skipping", harness_id);
+                continue;
+            }
+            Err(e) => {
+                return Err(e).with_context(|| format!("compile harness '{harness_id}'"));
+            }
         };
         augment_with_sdk_references(&mut output);
         outputs.push((harness_id.clone(), output));

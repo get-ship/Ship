@@ -30,7 +30,8 @@ fn profile(id: &str, name: &str) -> AgentProfile {
             ..Default::default()
         },
         ..Default::default()
-    }
+    },
+    visibility: None,
 }
 use ship_substrate::events::EventFilter;
 use ship_substrate::events::new_isolated_for_test;

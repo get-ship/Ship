@@ -62,7 +62,8 @@ fn agent(id: &str, name: &str) -> AgentProfile {
             ..Default::default()
         },
         ..Default::default()
-    }
+    },
+    visibility: None,
 }
 
 fn ext(source: ExtSource, hash: &str, descriptor: ExtensionLibrary) -> ExtensionDescriptor {

@@ -30,14 +30,11 @@ fn write_bare_root(root: &Path) {
 }
 
 fn write_agent(root: &Path, file_stem: &str, id: &str, name: &str) {
+    // ARC A5: agents are JSONC-only (`agents/<id>.jsonc`).
     std::fs::create_dir_all(root.join("agents")).unwrap();
     std::fs::write(
-        root.join("agents").join(format!("{file_stem}.ts")),
-        format!(
-            r#"import {{ defineAgent }} from "ship";
-defineAgent({{ agent: {{ id: "{id}", name: "{name}" }} }});
-"#
-        ),
+        root.join("agents").join(format!("{file_stem}.jsonc")),
+        format!(r#"{{ "agent": {{ "id": "{id}", "name": "{name}" }} }}"#),
     )
     .unwrap();
 }
@@ -929,10 +926,8 @@ async fn rule_and_agent_collision_winners_stay_consistent_across_nouns() {
     write_bare_root(&root);
     std::fs::create_dir_all(root.join("agents")).unwrap();
     std::fs::write(
-        root.join("agents/demo.ts"),
-        r#"import { defineAgent } from "ship";
-defineAgent({ agent: { id: "demo", name: "Root Demo" }, rules: { inline: "Root rule body." } });
-"#,
+        root.join("agents/demo.jsonc"),
+        r#"{ "agent": { "id": "demo", "name": "Root Demo" }, "rules": { "inline": "Root rule body." } }"#,
     )
     .unwrap();
 
@@ -940,10 +935,8 @@ defineAgent({ agent: { id: "demo", name: "Root Demo" }, rules: { inline: "Root r
     write_bare_root(&child);
     std::fs::create_dir_all(child.join("agents")).unwrap();
     std::fs::write(
-        child.join("agents/demo.ts"),
-        r#"import { defineAgent } from "ship";
-defineAgent({ agent: { id: "demo", name: "Child Demo" }, rules: { inline: "Child rule body." } });
-"#,
+        child.join("agents/demo.jsonc"),
+        r#"{ "agent": { "id": "demo", "name": "Child Demo" }, "rules": { "inline": "Child rule body." } }"#,
     )
     .unwrap();
 

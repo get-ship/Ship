@@ -140,7 +140,8 @@ fn full_profile() -> AgentProfile {
         harness_settings: [("claude".to_string(), serde_json::json!({ "model": "opus" }))]
             .into_iter()
             .collect(),
-    }
+    },
+    visibility: None,
 }
 
 #[test]

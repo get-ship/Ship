@@ -319,7 +319,8 @@ fn agent_profile(id: &str, name: &str) -> AgentProfile {
             ..Default::default()
         },
         ..Default::default()
-    }
+    },
+    visibility: None,
 }
 
 fn ext_descriptor(

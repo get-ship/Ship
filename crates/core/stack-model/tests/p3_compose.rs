@@ -22,7 +22,8 @@ fn agent(id: &str, name: &str) -> AgentProfile {
             ..Default::default()
         },
         ..Default::default()
-    }
+    },
+    visibility: None,
 }
 
 fn skill(id: &str, name: &str) -> Skill {

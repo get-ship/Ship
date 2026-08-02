@@ -172,10 +172,9 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn single_define_agent_rolls_up_to_one_profile() {
-        // Real ship.ts shape: a `defineAgent` call, a closed-world eval,
-        // a single AgentProfile out. Mirrors the rollup fixture at
-        // `agent-config-eval/tests/fixtures/rollup.ship.ts`.
+    async fn define_agent_module_is_skipped_after_a5() {
+        // ARC A5: defineAgent fails harvest; resolve_ts_files logs and
+        // continues with empty agents (no silent dual path).
         let module = empty_module(
             "stack.config.ts",
             r#"
@@ -187,101 +186,66 @@ defineAgent({
 "#,
         );
         let declarations = resolve_ts_files(&[module], &Value::Null).await.unwrap();
-        assert_eq!(declarations.agents.len(), 1);
-        assert_eq!(declarations.agents[0].agent.id, "demo");
-    }
-
-    #[tokio::test(flavor = "current_thread")]
-    async fn loop_rolls_up_to_one_profile_per_iteration() {
-        // The roll-up invariant the Phase-0 tests pin down: a `for` with
-        // N `defineAgent` calls yields N profiles. The resolver must
-        // preserve that — the descriptor cache will store the N profiles
-        // for warm reads.
-        let module = empty_module(
-            "stack.config.ts",
-            r#"
-import { defineAgent } from "ship";
-
-for (const id of ["a", "b", "c"]) {
-  defineAgent({ agent: { id, name: id } });
-}
-"#,
+        assert!(
+            declarations.agents.is_empty(),
+            "defineAgent must not harvest agents after ARC A5"
         );
-        let declarations = resolve_ts_files(&[module], &Value::Null).await.unwrap();
-        let ids: Vec<&str> = declarations
-            .agents
-            .iter()
-            .map(|p| p.agent.id.as_str())
-            .collect();
-        assert_eq!(ids, vec!["a", "b", "c"]);
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn eval_is_deterministic_across_two_runs() {
-        // The same input twice yields the same profile set, in order.
-        // The canonical-JSON content hash test in `descriptor.rs` covers
-        // the byte-level invariant; this one covers the V8 eval invariant
-        // the cache depends on.
+    async fn code_noun_eval_is_deterministic_across_two_runs() {
         let source = r#"
-import { defineAgent } from "ship";
+import { definePipeline } from "ship";
 
-defineAgent({ agent: { id: "x", name: "X" } });
-defineAgent({ agent: { id: "y", name: "Y" } });
+definePipeline({
+  name: "ci",
+  steps: [{ id: "build", after: [], step_specs: [] }],
+  auto_merge: false,
+});
 "#;
         let m1 = empty_module("stack.config.ts", source);
         let m2 = empty_module("stack.config.ts", source);
         let d1 = resolve_ts_files(&[m1], &Value::Null).await.unwrap();
         let d2 = resolve_ts_files(&[m2], &Value::Null).await.unwrap();
-        let ids1: Vec<&str> = d1.agents.iter().map(|p| p.agent.id.as_str()).collect();
-        let ids2: Vec<&str> = d2.agents.iter().map(|p| p.agent.id.as_str()).collect();
-        assert_eq!(ids1, ids2);
+        assert_eq!(d1.pipelines.len(), 1);
+        assert_eq!(d2.pipelines.len(), 1);
+        assert_eq!(d1.pipelines[0].name, d2.pipelines[0].name);
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn multiple_modules_merge_in_declared_order() {
-        // Phase-3 shape: two modules, each contributing profiles. The
-        // fan-out merges in declared order so a later module's profiles
-        // follow an earlier module's. Phase-2 supports this because the
-        // closed-world loader denies inter-module imports today, but the
-        // signature already takes `&[ModuleDescriptor]` — the Phase-3
-        // extension to project-relative imports only changes the loader.
+    async fn multiple_modules_merge_code_nouns_in_declared_order() {
         let m1 = empty_module(
             "a.ts",
             r#"
-import { defineAgent } from "ship";
-defineAgent({ agent: { id: "a1", name: "A1" } });
+import { definePipeline } from "ship";
+definePipeline({ name: "a1", steps: [], auto_merge: false });
 "#,
         );
         let m2 = empty_module(
             "b.ts",
             r#"
-import { defineAgent } from "ship";
-defineAgent({ agent: { id: "b1", name: "B1" } });
-defineAgent({ agent: { id: "b2", name: "B2" } });
+import { definePipeline } from "ship";
+definePipeline({ name: "b1", steps: [], auto_merge: false });
+definePipeline({ name: "b2", steps: [], auto_merge: false });
 "#,
         );
         let declarations = resolve_ts_files(&[m1, m2], &Value::Null).await.unwrap();
-        let ids: Vec<&str> = declarations
-            .agents
+        let names: Vec<&str> = declarations
+            .pipelines
             .iter()
-            .map(|p| p.agent.id.as_str())
+            .map(|p| p.name.as_str())
             .collect();
-        assert_eq!(ids, vec!["a1", "b1", "b2"]);
+        assert_eq!(names, vec!["a1", "b1", "b2"]);
     }
 
-    /// Slice 2c: `defineSkill` + `defineRule` + `defineMcpServer` retired
-    /// (skills/rules → on-disk files, MCP → `defineConfig({ agents: { mcp } })`).
-    /// The surviving declare-forms (`defineAgent`, `definePipeline`,
-    /// `defineTrigger`, `defineCollection`, `defineView`, `defineConfig`)
-    /// still harvest into the matching `Declarations` field. This test
-    /// pins that contract end-to-end through `resolve_ts_files`.
+    /// ARC A5: agent nouns retired from TS; code nouns + defineConfig
+    /// (permissions / dir pointers) still harvest.
     #[tokio::test(flavor = "current_thread")]
-    async fn every_declare_form_lands_in_its_noun_field() {
+    async fn every_code_declare_form_lands_in_its_noun_field() {
         let module = empty_module(
             "stack.config.ts",
             r#"
 import {
-  defineAgent,
   definePipeline,
   defineTrigger,
   defineCollection,
@@ -289,22 +253,18 @@ import {
   defineConfig,
 } from "ship";
 
-defineAgent({ agent: { id: "demo", name: "Demo" } });
-
 defineConfig({
   dependencies: {
     "github.com/better-auth/skills": "main",
   },
   agents: {
-    mcp: {
-      search: {
-        id: "search",
-        server_type: "stdio",
-        command: "search-mcp",
-        args: [],
-        env: null,
-        url: null,
-        scope: "project",
+    permissions: {
+      presets: {
+        "ship-standard": {
+          default_mode: "default",
+          tools_allow: ["Read"],
+          tools_deny: [],
+        },
       },
     },
   },
@@ -336,21 +296,13 @@ defineView({
         );
         let declarations = resolve_ts_files(&[module], &Value::Null).await.unwrap();
 
-        assert_eq!(declarations.agents.len(), 1);
-        assert_eq!(declarations.agents[0].agent.id, "demo");
-
-        // Slice 2c: mcp servers are NOT in the TS harvest any more.
-        // The `defineConfig({ agents: { mcp } })` block lands in
-        // `declarations.config[0].agents.mcp`; the space-resolver
-        // `merge_ts_declarations` walks that map and converts each
-        // entry to `McpServerConfig`. The unit-level harvest here
-        // only proves the config shape parsed.
+        assert!(declarations.agents.is_empty());
         assert!(declarations.mcp_servers.is_empty());
         assert_eq!(declarations.config.len(), 1);
         let cfg = &declarations.config[0];
         let agents = cfg.agents.as_ref().expect("agents block in defineConfig");
-        assert_eq!(agents.mcp.len(), 1);
-        assert!(agents.mcp.contains_key("search"));
+        assert!(agents.mcp.is_empty());
+        assert!(agents.permissions.is_some());
         let dep = cfg
             .dependencies
             .get("github.com/better-auth/skills")

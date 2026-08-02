@@ -332,7 +332,7 @@ async fn write_then_emit_then_spawned_consumer_indexes_the_row() {
                 ..Default::default()
             },
             ..Default::default()
-        }],
+}],
     )
     .unwrap();
     notify_agent_def_saved(&kernel, &fs, &dir, "live", Some(SpaceId::new("idx-test"))).await;

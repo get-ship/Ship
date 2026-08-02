@@ -539,12 +539,16 @@ mod tests {
         std::fs::write(
             root.join("stack.config.ts"),
             r#"
-import { defineAgent } from "ship";
-
-defineAgent({
-  agent: { id: "demo", name: "Demo" },
-});
+import { defineConfig } from "ship";
+export default defineConfig({});
 "#,
+        )
+        .unwrap();
+        // ARC A5: agent nouns live beside the manifest as JSONC.
+        std::fs::create_dir_all(root.join("agents")).unwrap();
+        std::fs::write(
+            root.join("agents/demo.jsonc"),
+            r#"{ "agent": { "id": "demo", "name": "Demo" } }"#,
         )
         .unwrap();
 
@@ -557,25 +561,16 @@ defineAgent({
         let fs = LocalFsBroker::new();
         let lib = load_root_library(&fs, &root).await.unwrap();
 
-        // Post Wave 5: the leaf does not read skill files from
-        // disk. Skills land in `ExtensionLibrary::skills` through
-        // `space_resolver::merge_ts_declarations` one layer up
-        // (declare-forms in `stack.config.ts`). This test exercises
-        // the disk-shape side: the leaf's permissions/hooks read +
-        // the `stack.config.ts` source read + the default
-        // `skill_paths` field population.
+        // load_root_library only stores stack.config.ts + dir modules —
+        // JSONC agents land in merge_jsonc_agent_nouns one layer up.
         assert!(lib.mcp_servers.is_empty());
-        assert!(lib.skills.is_empty(), "no on-disk skills walk post Wave 5");
+        assert!(lib.skills.is_empty(), "no on-disk skills walk in leaf");
         assert!(lib.rules.is_empty());
-        // skill_paths carries the single default entry the leaf
-        // populates — no extras walk, no extras field, no
-        // `space.skill_paths` field either.
         assert_eq!(lib.skill_paths, vec!["skills/".to_string()],);
-        // stack.config.ts: one module, content hash non-empty.
         assert_eq!(lib.imported_modules.len(), 1);
         let module = &lib.imported_modules[0];
         assert_eq!(module.path, PathBuf::from("stack.config.ts"));
-        assert!(module.source.contains("defineAgent"));
+        assert!(module.source.contains("defineConfig"));
         assert_eq!(module.content_hash.len(), 64, "SHA-256 hex");
     }
 
@@ -636,9 +631,15 @@ defineAgent({
         .unwrap();
         std::fs::write(
             child.join("stack.config.ts"),
-            r#"import { defineAgent } from "ship";
-defineAgent({ agent: { id: "child-agent", name: "Child" } });
+            r#"import { defineConfig } from "ship";
+export default defineConfig({});
 "#,
+        )
+        .unwrap();
+        std::fs::create_dir_all(child.join("agents")).unwrap();
+        std::fs::write(
+            child.join("agents/child-agent.jsonc"),
+            r#"{ "agent": { "id": "child-agent", "name": "Child" } }"#,
         )
         .unwrap();
         std::fs::create_dir_all(root.join("hooks")).unwrap();

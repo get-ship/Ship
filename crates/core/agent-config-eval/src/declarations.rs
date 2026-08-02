@@ -131,39 +131,12 @@ pub fn harvest(out: &mut Declarations, index: usize, raw: Value) -> Result<()> {
     let envelope: Envelope = serde_json::from_value(raw)
         .with_context(|| format!("declare-form call #{index} did not emit a tagged declaration"))?;
     match envelope.__kind.as_str() {
-        "agent" => {
-            let profile: AgentProfile = serde_json::from_value(envelope.value)
-                .with_context(|| format!("defineAgent call #{index} did not match AgentProfile"))?;
-            // Rules arrive exclusively via the agent composition's
-            // `rules: { inline: "..." }` block (the rules-format
-            // cut retired the on-disk `rules/<id>.md` convention).
-            // Project each agent's inline rule body into the
-            // declarations-level rule pool — the resolver's
-            // `merge_ts_declarations` merges it into `library.rules`
-            // with the same id-dedup policy as every other noun.
-            // `file_name` is the agent id (the
-            // `apply_agent_to_library` step in `agent-def` uses
-            // the same convention when the agent is active).
-            // body into the declarations-level rule pool — the
-            // resolver's `merge_ts_declarations` merges it into
-            // `library.rules` with the same id-dedup policy as
-            // every other noun. `file_name` is the agent id (the
-            // `apply_agent_to_library` step in `agent-def` uses
-            // the same convention when the agent is active).
-            if let Some(inline) = profile.rules.inline.as_deref() {
-                let trimmed = inline.trim();
-                if !trimmed.is_empty() {
-                    out.rules.push(agent_schema::Rule {
-                        file_name: format!("{}.md", profile.agent.id),
-                        content: trimmed.to_string(),
-                        always_apply: true,
-                        globs: vec![],
-                        description: None,
-                    });
-                }
-            }
-            out.agents.push(profile);
-        }
+        // ARC A5: agent nouns are JSONC/on-disk only. defineAgent is
+        // rejected so there is no silent dual path with agents/*.jsonc.
+        "agent" => bail!(
+            "declare-form call #{index}: `defineAgent` is retired (ARC A5) — author agents \
+             as `agents/<id>.jsonc` (JSONC AgentProfile); space-resolver loads the plain dir"
+        ),
         "pipeline" => {
             let def: PipelineDef = serde_json::from_value(envelope.value).with_context(|| {
                 format!("definePipeline call #{index} did not match PipelineDef")
@@ -227,16 +200,16 @@ pub fn harvest(out: &mut Declarations, index: usize, raw: Value) -> Result<()> {
         // re-introduction or a stale module — and the eval is treated
         // as an error, same as an unknown kind.
         "skill" => bail!(
-            "declare-form call #{index}: `defineSkill` is retired (slice 2c) — author skills \
+            "declare-form call #{index}: `defineSkill` is retired (ARC A5) — author skills \
              on-disk at `<skills_dir>/<id>/SKILL.md`; the resolver walks the dir"
         ),
         "rule" => bail!(
-            "declare-form call #{index}: `defineRule` is retired (slice 2c) — author rules \
-             on the agent composition: `defineAgent({{ rules: {{ inline: \"...\" }} }})`"
+            "declare-form call #{index}: `defineRule` is retired (ARC A5) — author rules as \
+             `rules/<id>.md` (or agent-doc `rules.inline` in agents/<id>.jsonc)"
         ),
         "mcp_server" => bail!(
-            "declare-form call #{index}: `defineMcpServer` is retired (slice 2c) — author MCP \
-             server registrations under `defineConfig({{ agents: {{ mcp: {{ … }} }} }})`"
+            "declare-form call #{index}: `defineMcpServer` is retired (ARC A5) — author MCP \
+             servers in `mcp.jsonc` (`mcp.servers` map)"
         ),
         other => bail!("declare-form call #{index}: unrecognized kind `{other}`"),
     }

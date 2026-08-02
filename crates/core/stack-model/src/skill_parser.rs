@@ -185,6 +185,9 @@ pub fn parse_skill(id: &str, raw: &str) -> Skill {
         content,
         source: SkillSource::default(),
         vars: Default::default(),
+        version: None,
+        var_schema: Default::default(),
+        signature: None,
     }
 }
 

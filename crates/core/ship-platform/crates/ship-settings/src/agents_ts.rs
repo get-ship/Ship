@@ -1,17 +1,13 @@
-//! The `.ts`-config ingest seam — V8-FREE by design.
+//! Legacy `.ts`-config ingest seam — V8-FREE by design.
 //!
-//! `.ship/agents/<id>.ts` files are authored with `defineAgent` and EVALUATED by
-//! `agent-config-eval` in a ship-js isolate (which pulls V8). That eval lives at
-//! the ingest layer (shipd), NEVER here — this crate stays V8-free (grep-gate
-//! invariant). This module owns only the two V8-free ends of the seam:
+//! ARC A5: agent nouns are JSONC-only (`agents/<id>.jsonc`). This module remains
+//! for residual `.ts` sources still on disk (read-only surface) and for
+//! projecting an already-resolved [`agent_schema::AgentProfile`] into the index
+//! summary. Evaluation of `defineAgent` is retired — do not reintroduce it.
 //!
-//! - [`read_agent_ts_sources`] — surface the raw `.ts` source text for the ingest
-//!   layer to evaluate (through the same [`FsBroker`] door the `.jsonc` reader
-//!   uses).
-//! - [`source_from_profile`] — project an already-resolved [`agent_schema::AgentProfile`]
-//!   back into the index summary, through the SAME [`crate::agents::to_source`]
-//!   projection the `.jsonc` reader uses, so a `.ts`-authored agent indexes
-//!   identically to a `.jsonc` one.
+//! - [`read_agent_ts_sources`] — surface raw `.ts` source text if any remain.
+//! - [`source_from_profile`] — project a resolved profile through the SAME
+//!   [`crate::agents::to_source`] projection the `.jsonc` reader uses.
 
 use std::path::Path;
 

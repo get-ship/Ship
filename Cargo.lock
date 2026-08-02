@@ -74,7 +74,6 @@ dependencies = [
 [[package]]
 name = "agent-driver"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/fleet.git?rev=03f917d5e51921754c1a6a12a4aa2beb56b4a405#03f917d5e51921754c1a6a12a4aa2beb56b4a405"
 dependencies = [
  "agent-schema",
  "anyhow",
@@ -88,13 +87,15 @@ dependencies = [
 [[package]]
 name = "agent-schema"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/fleet.git?rev=03f917d5e51921754c1a6a12a4aa2beb56b4a405#03f917d5e51921754c1a6a12a4aa2beb56b4a405"
 dependencies = [
  "anyhow",
- "minijinja",
+ "minisign-verify",
+ "rhai",
+ "schemars 1.2.2",
  "serde",
  "serde_json",
  "specta",
+ "thiserror 2.0.19",
 ]
 
 [[package]]
@@ -104,6 +105,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5a15f179cd60c4584b8a8c596927aadc462e27f2ca70c04e0071964a73ba7a75"
 dependencies = [
  "cfg-if",
+ "const-random",
  "getrandom 0.3.4",
  "once_cell",
  "serde",
@@ -786,7 +788,6 @@ dependencies = [
 [[package]]
 name = "bridge"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/fleet.git?rev=03f917d5e51921754c1a6a12a4aa2beb56b4a405#03f917d5e51921754c1a6a12a4aa2beb56b4a405"
 dependencies = [
  "agent-driver",
  "agent-schema",
@@ -820,13 +821,12 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "ulid",
- "yoke-proto",
+ "yoke-proto 0.1.0",
 ]
 
 [[package]]
 name = "bridge-proto"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/fleet.git?rev=03f917d5e51921754c1a6a12a4aa2beb56b4a405#03f917d5e51921754c1a6a12a4aa2beb56b4a405"
 dependencies = [
  "buffa",
  "connectrpc",
@@ -1398,10 +1398,45 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a6ef517f0926dd24a1582492c791b6a4818a4d94e789a334894aa15b0d12f55c"
 
 [[package]]
+name = "const-random"
+version = "0.1.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "87e00182fe74b066627d63b85fd550ac2998d4b0bd86bfed477a0ae4c7c71359"
+dependencies = [
+ "const-random-macro",
+]
+
+[[package]]
+name = "const-random-macro"
+version = "0.1.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f9d839f2a20b0aee515dc581a6172f2321f96cab76c1a38a4c584a194955390e"
+dependencies = [
+ "getrandom 0.2.17",
+ "once_cell",
+ "tiny-keccak",
+]
+
+[[package]]
+name = "const-str"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "18f12cc9948ed9604230cdddc7c86e270f9401ccbe3c2e98a4378c5e7632212f"
+
+[[package]]
 name = "constant_time_eq"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d52eff69cd5e647efe296129160853a42795992097e8af39800e1060caeea9b"
+
+[[package]]
+name = "convert_case"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ec182b0ca2f35d8fc196cf3404988fd8b8c739a4d270ff118a398feb0cbec1ca"
+dependencies = [
+ "unicode-segmentation",
+]
 
 [[package]]
 name = "convert_case"
@@ -1590,6 +1625,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "61803da095bee82a81bb1a452ecc25d3b2f1416d1897eb86430c6159ef717c17"
 
 [[package]]
+name = "crunchy"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "460fbee9c2c2f33933d720630a6a0bac33ba7053db5344fac858d4b8952d77d5"
+
+[[package]]
 name = "crypto-common"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1614,7 +1655,7 @@ version = "0.36.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dae61cf9c0abb83bd659dab65b7e4e38d8236824c85f0f804f173567bda257d2"
 dependencies = [
- "cssparser-macros",
+ "cssparser-macros 0.6.1",
  "dtoa-short",
  "itoa",
  "phf 0.13.1",
@@ -1622,10 +1663,42 @@ dependencies = [
 ]
 
 [[package]]
+name = "cssparser"
+version = "0.37.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8c9cdaae01d5ed7882b04d795e7f752f46ff52d2fa3b50a20d28c464510bba98"
+dependencies = [
+ "cssparser-macros 0.7.0",
+ "dtoa-short",
+ "itoa",
+ "phf 0.13.1",
+ "smallvec",
+]
+
+[[package]]
+name = "cssparser-color"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bbaa233e1dcd9c13a5d3e3a8a2c0f5a727bac380398345dbcb31db4597edc86b"
+dependencies = [
+ "cssparser 0.37.0",
+]
+
+[[package]]
 name = "cssparser-macros"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13b588ba4ac1a99f7f2964d24b3d896ddc6bf847ee3855dbd4366f058cfcd331"
+dependencies = [
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
+name = "cssparser-macros"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "10a2a99df6e410a8ff4245aa2006499ea662245f967cc7c0a38c83ef8eb44dbf"
 dependencies = [
  "quote",
  "syn 2.0.119",
@@ -1725,7 +1798,6 @@ dependencies = [
 [[package]]
 name = "deck"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/sail.git?branch=feat%2Fnext#06cc82e329f48dccbac894256c20c3673505f4e9"
 dependencies = [
  "deck-axum",
  "deck-bundler",
@@ -1738,7 +1810,6 @@ dependencies = [
 [[package]]
 name = "deck-axum"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/sail.git?branch=feat%2Fnext#06cc82e329f48dccbac894256c20c3673505f4e9"
 dependencies = [
  "async-stream",
  "axum",
@@ -1758,7 +1829,6 @@ dependencies = [
 [[package]]
 name = "deck-bundler"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/sail.git?branch=feat%2Fnext#06cc82e329f48dccbac894256c20c3673505f4e9"
 dependencies = [
  "anyhow",
  "deck-config",
@@ -1767,10 +1837,11 @@ dependencies = [
  "notify",
  "rolldown",
  "rolldown_common",
+ "rolldown_error",
  "rustc-hash",
+ "sail-compiler",
  "serde",
  "serde_json",
- "sui-compiler",
  "tempfile",
  "thiserror 2.0.19",
  "tokio",
@@ -1780,7 +1851,6 @@ dependencies = [
 [[package]]
 name = "deck-config"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/sail.git?branch=feat%2Fnext#06cc82e329f48dccbac894256c20c3673505f4e9"
 dependencies = [
  "serde",
  "serde_json",
@@ -1790,16 +1860,16 @@ dependencies = [
 [[package]]
 name = "deck-core"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/sail.git?branch=feat%2Fnext#06cc82e329f48dccbac894256c20c3673505f4e9"
 dependencies = [
  "anyhow",
  "deck-config",
  "deck-host",
+ "lightningcss",
  "notify",
+ "sail-compiler",
  "serde",
  "serde_json",
  "specta",
- "sui-compiler",
  "tempfile",
  "tracing",
  "ulid",
@@ -1808,29 +1878,27 @@ dependencies = [
 [[package]]
 name = "deck-host"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/sail.git?branch=feat%2Fnext#06cc82e329f48dccbac894256c20c3673505f4e9"
 dependencies = [
+ "sail-compiler",
  "serde",
  "serde_json",
  "specta",
- "sui-compiler",
  "tempfile",
 ]
 
 [[package]]
 name = "deck-ssr"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/sail.git?branch=feat%2Fnext#06cc82e329f48dccbac894256c20c3673505f4e9"
 dependencies = [
  "anyhow",
  "async-trait",
  "deck-core",
  "rolldown",
  "rolldown_common",
+ "sail-compiler",
  "serde",
  "serde_json",
  "ship-js",
- "sui-compiler",
  "tokio",
 ]
 
@@ -2172,7 +2240,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "521e380c0c8afb8d9a1e83a1822ee03556fc3e3e7dbc1fd30be14e37f9cb3f89"
 dependencies = [
  "bit-set",
- "cssparser",
+ "cssparser 0.36.0",
  "foldhash 0.2.0",
  "html5ever",
  "precomputed-hash",
@@ -3070,6 +3138,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "grid"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b40ca9252762c466af32d0b1002e91e4e1bc5398f77455e55474deb466355ff5"
+
+[[package]]
 name = "gtk"
 version = "0.18.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3161,12 +3235,10 @@ dependencies = [
 [[package]]
 name = "harness-config-compiler"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/fleet.git?rev=03f917d5e51921754c1a6a12a4aa2beb56b4a405#03f917d5e51921754c1a6a12a4aa2beb56b4a405"
 dependencies = [
  "agent-schema",
  "anyhow",
  "indexmap 2.14.0",
- "minijinja",
  "nanoid",
  "semver",
  "serde",
@@ -3178,7 +3250,6 @@ dependencies = [
 [[package]]
 name = "harness-drivers"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/fleet.git?rev=03f917d5e51921754c1a6a12a4aa2beb56b4a405#03f917d5e51921754c1a6a12a4aa2beb56b4a405"
 dependencies = [
  "agent-driver",
  "anyhow",
@@ -3801,6 +3872,15 @@ dependencies = [
 
 [[package]]
 name = "itertools"
+version = "0.10.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b0fd2260e829bddf4cb6ea802289de2f86d6a7a690192fbe91b3f46e0f2c8473"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
@@ -4245,6 +4325,41 @@ dependencies = [
  "libc",
  "pkg-config",
  "vcpkg",
+]
+
+[[package]]
+name = "lightningcss"
+version = "1.0.0-alpha.72"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d31b760f96e8fdfe1d0c295e4bf76c503d6f15d2d470d53bd8cd1f7aa8c7d934"
+dependencies = [
+ "ahash",
+ "bitflags 2.13.1",
+ "const-str",
+ "cssparser 0.37.0",
+ "cssparser-color",
+ "data-encoding",
+ "getrandom 0.3.4",
+ "indexmap 2.14.0",
+ "itertools 0.10.5",
+ "lazy_static",
+ "lightningcss-derive",
+ "parcel_selectors",
+ "pastey",
+ "pathdiff",
+ "smallvec",
+]
+
+[[package]]
+name = "lightningcss-derive"
+version = "1.0.0-alpha.43"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "84c12744d1279367caed41739ef094c325d53fb0ffcd4f9b84a368796f870252"
+dependencies = [
+ "convert_case 0.6.0",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -4994,6 +5109,9 @@ name = "once_cell"
 version = "1.21.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
+dependencies = [
+ "portable-atomic",
+]
 
 [[package]]
 name = "once_cell_polyfill"
@@ -6137,6 +6255,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "parcel_selectors"
+version = "0.28.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d05f71e01edca03d245ab0a9f7ce13a974ceb79baaae8faf2ba0b11de6b90913"
+dependencies = [
+ "bitflags 2.13.1",
+ "cssparser 0.37.0",
+ "log",
+ "phf 0.11.3",
+ "phf_codegen 0.11.3",
+ "precomputed-hash",
+ "rustc-hash",
+ "smallvec",
+]
+
+[[package]]
 name = "parking"
 version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6170,6 +6304,12 @@ name = "paste"
 version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
+
+[[package]]
+name = "pastey"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "35fb2e5f958ec131621fdd531e9fc186ed768cbe395337403ae56c17a74c68ec"
 
 [[package]]
 name = "path-layout"
@@ -6229,6 +6369,15 @@ dependencies = [
 
 [[package]]
 name = "phf"
+version = "0.11.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1fd6780a80ae0c52cc120a26a1a42c1ae51b247a253e4e06113d23d2c2edd078"
+dependencies = [
+ "phf_shared 0.11.3",
+]
+
+[[package]]
+name = "phf"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c1562dc717473dbaa4c1f85a36410e03c047b2e7df7f45ee938fbef64ae7fadf"
@@ -6251,12 +6400,32 @@ dependencies = [
 
 [[package]]
 name = "phf_codegen"
+version = "0.11.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aef8048c789fa5e851558d709946d6d79a8ff88c0440c587967f8e94bfb1216a"
+dependencies = [
+ "phf_generator 0.11.3",
+ "phf_shared 0.11.3",
+]
+
+[[package]]
+name = "phf_codegen"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49aa7f9d80421bca176ca8dbfebe668cc7a2684708594ec9f3c0db0805d5d6e1"
 dependencies = [
  "phf_generator 0.13.1",
  "phf_shared 0.13.1",
+]
+
+[[package]]
+name = "phf_generator"
+version = "0.11.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3c80231409c20246a13fddb31776fb942c38553c51e871f8cbd687a4cfb5843d"
+dependencies = [
+ "phf_shared 0.11.3",
+ "rand 0.8.7",
 ]
 
 [[package]]
@@ -6303,6 +6472,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.119",
+]
+
+[[package]]
+name = "phf_shared"
+version = "0.11.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "67eabc2ef2a60eb7faa00097bd1ffdb5bd28e62bf39990626a582201b7a754e5"
+dependencies = [
+ "siphasher",
 ]
 
 [[package]]
@@ -6489,6 +6667,12 @@ dependencies = [
  "rustix 1.1.4",
  "windows-sys 0.61.2",
 ]
+
+[[package]]
+name = "portable-atomic"
+version = "1.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3d20d5497ef88037a52ff98267d066e7f11fcc5e99bbfbd58a42336193aacec3"
 
 [[package]]
 name = "portable-pty"
@@ -7223,6 +7407,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "rhai"
+version = "1.25.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd4dd0f8c36625202a4ba553c416c19b719947cd2a31d1bda06126e4a5727daf"
+dependencies = [
+ "ahash",
+ "bitflags 2.13.1",
+ "num-traits",
+ "once_cell",
+ "rhai_codegen",
+ "smallvec",
+ "smartstring",
+ "thin-vec",
+ "web-time",
+]
+
+[[package]]
+name = "rhai_codegen"
+version = "3.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3cd3a7535e50bf36857e7be7bec276d334e8c2dfa469c2201226fd01638ea5ca"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
 name = "rig-core"
 version = "0.38.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7262,7 +7474,7 @@ version = "0.38.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "643eb495acbd4bd5976164cd068f186d534f741def8d5d052f860266b98d07f8"
 dependencies = [
- "convert_case",
+ "convert_case 0.11.0",
  "deluxe",
  "indoc",
  "proc-macro-crate 3.5.0",
@@ -7901,6 +8113,52 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
 
 [[package]]
+name = "sail-build-info"
+version = "0.1.0"
+
+[[package]]
+name = "sail-compiler"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "libc",
+ "sail-build-info",
+ "sail-layout",
+ "sail-lint",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.19",
+]
+
+[[package]]
+name = "sail-layout"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "sail-lint",
+ "serde",
+ "serde_json",
+ "taffy",
+ "thiserror 2.0.19",
+]
+
+[[package]]
+name = "sail-lint"
+version = "0.1.0"
+dependencies = [
+ "oxc_allocator 0.128.0",
+ "oxc_ast 0.128.0",
+ "oxc_ast_visit 0.128.0",
+ "oxc_parser 0.128.0",
+ "oxc_span 0.128.0",
+ "oxc_syntax 0.128.0",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "same-file"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8018,12 +8276,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c5d9c0c92a92d33f08817311cf3f2c29a3538a8240e94a6a3c622ce652d7e00c"
 dependencies = [
  "bitflags 2.13.1",
- "cssparser",
+ "cssparser 0.36.0",
  "derive_more",
  "log",
  "new_debug_unreachable",
  "phf 0.13.1",
- "phf_codegen",
+ "phf_codegen 0.13.1",
  "precomputed-hash",
  "rustc-hash",
  "servo_arc",
@@ -8665,7 +8923,6 @@ dependencies = [
 [[package]]
 name = "ship-js"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/ship-infra.git?rev=24de79282f45b05fdcdb07f7daa66c7346bdeb33#24de79282f45b05fdcdb07f7daa66c7346bdeb33"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8795,7 +9052,6 @@ dependencies = [
 [[package]]
 name = "ship-proto"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/ship-contracts.git?branch=feat%2Fnext#e8a622b71394414785f5736ae8bf43aaf36b1c99"
 dependencies = [
  "buffa",
  "buffa-descriptor",
@@ -8843,7 +9099,6 @@ dependencies = [
 name = "ship-settings"
 version = "0.1.0"
 dependencies = [
- "agent-config-eval",
  "agent-def",
  "agent-schema",
  "anyhow",
@@ -9166,7 +9421,7 @@ dependencies = [
  "tracing-appender",
  "tracing-subscriber",
  "yoke 0.1.0",
- "yoke-proto",
+ "yoke-proto 0.1.0 (git+https://github.com/get-ship/fleet.git?rev=03f917d5e51921754c1a6a12a4aa2beb56b4a405)",
 ]
 
 [[package]]
@@ -9260,12 +9515,32 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
 
 [[package]]
+name = "slotmap"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bdd58c3c93c3d278ca835519292445cb4b0d4dc59ccfdf7ceadaab3f8aeb4038"
+dependencies = [
+ "version_check",
+]
+
+[[package]]
 name = "smallvec"
 version = "1.15.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ed6a63f02c8539c91a8685a86f4099661ba3da017932f6ebbea6de3f0fa7c90"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "smartstring"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3fb72c633efbaa2dd666986505016c32c3044395ceaf881518399d2f4127ee29"
+dependencies = [
+ "autocfg",
+ "static_assertions",
+ "version_check",
 ]
 
 [[package]]
@@ -9834,6 +10109,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72b64191b275b66ffe2469e8af2c1cfe3bafa67b529ead792a6d0160888b4237"
 dependencies = [
  "proc-macro2",
+ "quote",
  "unicode-ident",
 ]
 
@@ -9970,6 +10246,18 @@ dependencies = [
  "pkg-config",
  "toml 0.8.23",
  "version-compare",
+]
+
+[[package]]
+name = "taffy"
+version = "0.12.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "340a09581f29809fc0df82a3955501dc7f2a21f887e5d1c13dbe288fe1c0bef4"
+dependencies = [
+ "arrayvec",
+ "grid",
+ "serde",
+ "slotmap",
 ]
 
 [[package]]
@@ -10471,6 +10759,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "thin-vec"
+version = "0.2.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "79def32ffcd477db1ff26f76dab9e3a91f0bd42a85ca96577089b24623056f9d"
+
+[[package]]
 name = "thiserror"
 version = "1.0.69"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10579,6 +10873,15 @@ dependencies = [
  "zerotrie",
  "zerovec",
  "zoneinfo64",
+]
+
+[[package]]
+name = "tiny-keccak"
+version = "2.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2c9d3793400a45f954c52e73d068316d76b6f4e36977e3fcebb13a2721e80237"
+dependencies = [
+ "crunchy",
 ]
 
 [[package]]
@@ -11585,7 +11888,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "075474b12bcb3d2e3d4546580e9de478eeeead668a1761e2a8860c836b7ef297"
 dependencies = [
  "phf 0.13.1",
- "phf_codegen",
+ "phf_codegen 0.13.1",
  "string_cache",
  "string_cache_codegen",
 ]
@@ -12473,7 +12776,6 @@ checksum = "cfe53a6657fd280eaa890a3bc59152892ffa3e30101319d168b781ed6529b049"
 [[package]]
 name = "yoke"
 version = "0.1.0"
-source = "git+https://github.com/get-ship/fleet.git?rev=03f917d5e51921754c1a6a12a4aa2beb56b4a405#03f917d5e51921754c1a6a12a4aa2beb56b4a405"
 dependencies = [
  "agent-schema",
  "anyhow",
@@ -12509,6 +12811,19 @@ dependencies = [
  "quote",
  "syn 2.0.119",
  "synstructure",
+]
+
+[[package]]
+name = "yoke-proto"
+version = "0.1.0"
+dependencies = [
+ "buffa",
+ "connectrpc",
+ "connectrpc-build",
+ "http",
+ "http-body",
+ "protoc-bin-vendored",
+ "serde",
 ]
 
 [[package]]

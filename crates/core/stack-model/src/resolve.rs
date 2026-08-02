@@ -676,6 +676,9 @@ mod tests {
             artifacts: vec![],
             grants: vec![],
             requires: vec![],
+            version: None,
+            var_schema: Default::default(),
+            signature: None,
         }
     }
 
@@ -713,7 +716,7 @@ mod tests {
                 refs: vec!["real-skill".to_string(), "ghost-skill".to_string()],
             },
             ..Default::default()
-        };
+};
         let mut skills = vec![make_skill("real-skill"), make_skill("other-skill")];
         apply_agent_skill_filter(&mut skills, Some(&agent));
         let ids: Vec<&str> = skills.iter().map(|s| s.id.as_str()).collect();
@@ -735,7 +738,7 @@ mod tests {
             },
             skills: SkillRefs { refs: vec![] },
             ..Default::default()
-        };
+};
         let mut skills = vec![make_skill("a"), make_skill("b")];
         apply_agent_skill_filter(&mut skills, Some(&agent));
         assert_eq!(skills.len(), 2, "empty refs apply no filter");
@@ -764,7 +767,7 @@ mod tests {
                     refs: vec!["workflow".to_string()],
                 },
                 ..Default::default()
-            }],
+}],
             ..Default::default()
         };
         let workflow = Skill {
@@ -808,7 +811,7 @@ mod tests {
                     refs: vec!["workflow".to_string()],
                 },
                 ..Default::default()
-            }],
+}],
             ..Default::default()
         };
         let workflow = Skill {
@@ -885,7 +888,7 @@ mod tests {
                     refs: vec!["alpha".to_string()],
                 },
                 ..Default::default()
-            }],
+}],
             ..Default::default()
         };
         let skills = vec![make_skill("alpha"), make_skill("beta")];
@@ -918,7 +921,7 @@ mod tests {
                     servers: vec!["nonexistent".to_string()],
                 },
                 ..Default::default()
-            }],
+}],
             ..Default::default()
         };
         let resolved = resolve(
@@ -948,7 +951,7 @@ mod tests {
                     servers: vec!["github".to_string()],
                 },
                 ..Default::default()
-            }],
+}],
             ..Default::default()
         };
         let resolved = resolve(
@@ -1039,7 +1042,7 @@ mod tests {
                 },
                 target_agents: vec!["some-target".to_string()],
                 ..Default::default()
-            }],
+}],
             ..Default::default()
         };
         let resolved = resolve(
@@ -1070,7 +1073,7 @@ mod tests {
                     ..Default::default()
                 },
                 ..Default::default()
-            }],
+}],
             ..Default::default()
         };
         let rules = vec![
@@ -1216,7 +1219,7 @@ mod tests {
                     ..Default::default()
                 },
                 ..Default::default()
-            }],
+}],
             ..Default::default()
         };
         let skills = vec![make_skill("x"), make_skill("y")];
@@ -1253,7 +1256,7 @@ mod tests {
                     refs: vec!["plan-skill".to_string()],
                 },
                 ..Default::default()
-            }],
+}],
             ..Default::default()
         };
         let skills = vec![make_skill("plan-skill"), make_skill("other")];
@@ -1307,7 +1310,8 @@ mod tests {
                 target_agents: Vec::new(),
                 apps: Default::default(),
                 harness_settings: Default::default(),
-            }],
+                visibility: None,
+}],
             claude_team_agents: vec![("team-lead.md".to_string(), "# Team Lead".to_string())],
             env: {
                 let mut m = std::collections::HashMap::new();
@@ -1345,7 +1349,7 @@ mod tests {
                         refs: vec!["plan-skill".to_string()],
                     },
                     ..Default::default()
-                },
+},
                 AgentProfile {
                     agent: ProfileMeta {
                         id: "code".to_string(),
@@ -1356,7 +1360,7 @@ mod tests {
                         refs: vec!["code-skill".to_string()],
                     },
                     ..Default::default()
-                },
+},
             ],
             ..Default::default()
         };

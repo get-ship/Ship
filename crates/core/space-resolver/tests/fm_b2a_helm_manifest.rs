@@ -72,7 +72,7 @@ async fn fm_b2a_helm_extension_supplies_working_in_helm_via_child_root() {
     std::fs::create_dir_all(ship.join(".ship")).expect("ship/.ship");
     std::fs::create_dir_all(ship.join("agents")).expect("ship/agents");
     // The manifest is a thin pointer: empty `defineConfig({})`.
-    // The agents live in `agents/<id>.ts` files (slice 2c).
+    // The agents live in `agents/<id>.jsonc` files (ARC A5).
     std::fs::write(
         ship.join("stack.config.ts"),
         r#"
@@ -83,21 +83,13 @@ export default defineConfig({});
     )
     .expect("ship manifest");
     std::fs::write(
-        ship.join("agents/rust-lane.ts"),
-        r#"
-import { defineAgent } from "ship";
-
-defineAgent({ agent: { id: "rust-lane", name: "Rust Lane" } });
-"#,
+        ship.join("agents/rust-lane.jsonc"),
+        r#"{ "agent": { "id": "rust-lane", "name": "Rust Lane" } }"#,
     )
     .expect("rust-lane agent");
     std::fs::write(
-        ship.join("agents/writer.ts"),
-        r#"
-import { defineAgent } from "ship";
-
-defineAgent({ agent: { id: "writer", name: "Writer" } });
-"#,
+        ship.join("agents/writer.jsonc"),
+        r#"{ "agent": { "id": "writer", "name": "Writer" } }"#,
     )
     .expect("writer agent");
     // Ship-side skill: on-disk `skills/ship-skill/SKILL.md`.
