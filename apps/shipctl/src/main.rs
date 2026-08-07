@@ -1,6 +1,7 @@
 mod cli;
 mod daemon;
 mod doctor;
+mod fleet_membership;
 mod http;
 mod logging;
 mod settings_client;

@@ -1,12 +1,16 @@
 //! `ship doctor` — diagnostic snapshot for "something feels off."
 //!
 //! Reports the build matrix (CLI vs running daemon), home-layout state,
-//! and common-issue checks. The canonical entry point for diagnosing
-//! version skew, missing layout, and daemon connectivity.
+//! fleet org membership on disk, and common-issue checks. The canonical
+//! entry point for diagnosing version skew, missing layout, and daemon
+//! connectivity.
 
 use anyhow::Result;
 use std::time::Duration;
 
+use crate::fleet_membership::{
+    BRIDGE_DATA_DIRNAME, ORGS_DIRNAME, OrgMembers, list_fleet_org_membership, resolve_data_home,
+};
 use crate::http::daemon_client;
 
 /// Run `ship doctor` and print a multi-section report.
@@ -67,6 +71,8 @@ pub fn run() -> Result<()> {
         }
     }
 
+    report_fleet_membership();
+
     section("recommended next steps");
     if !data_ok || !config_ok || !state_ok || !cache_ok || !runtime_ok {
         println!(
@@ -82,6 +88,42 @@ pub fn run() -> Result<()> {
         );
     }
     Ok(())
+}
+
+fn report_fleet_membership() {
+    let data_home = resolve_data_home();
+    let orgs_root = data_home.join(BRIDGE_DATA_DIRNAME).join(ORGS_DIRNAME);
+    section("fleet membership");
+    kv("data home", &data_home.display().to_string());
+    kv("orgs root", &orgs_root.display().to_string());
+
+    let orgs = list_fleet_org_membership(&data_home);
+    if orgs.is_empty() {
+        kv("orgs", "no orgs registered");
+        return;
+    }
+
+    for (org_id, status) in orgs {
+        kv("org", &org_id);
+        match status {
+            OrgMembers::Listed(members) if members.is_empty() => {
+                kv("members", "(empty)");
+            }
+            OrgMembers::Listed(members) => {
+                for (i, member) in members.iter().enumerate() {
+                    let path = member.display().to_string();
+                    if i == 0 {
+                        kv("members", &path);
+                    } else {
+                        println!("  {:14} {path}", "");
+                    }
+                }
+            }
+            OrgMembers::Malformed(msg) => {
+                kv("members", &format!("MALFORMED — {msg}"));
+            }
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -149,4 +191,3 @@ fn section(title: &str) {
 fn kv(key: &str, val: &str) {
     println!("  {key:14} {val}");
 }
-
