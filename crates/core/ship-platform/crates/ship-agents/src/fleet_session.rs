@@ -121,17 +121,10 @@ pub async fn dispatch_via_fleet_session(
         .or_else(|| payload.spec.clone())
         .filter(|s| !s.trim().is_empty());
 
-    // E2: preserve mission scratch / spawn env; never place-on-run.
-    let mut env: HashMap<String, String> = session_ctx.env.clone();
-    env.insert(
-        "SHIP_WORKTREE".into(),
-        worktree_path.display().to_string(),
-    );
-    env.insert("SHIP_SESSION_ID".into(), payload.session_id.clone());
-    env.insert("SHIP_SLUG".into(), slug.clone());
-    if let Some(ref p) = payload.source_spec_path {
-        env.insert("SHIP_SPEC_PATH".into(), p.clone());
-    }
+    // E2: use the same spawn env the classic executor path already built
+    // (`build_spawn_env` → session_ctx.env). Do not invent SHIP_* keys here —
+    // ship-paths / spawn_policy own that vocabulary.
+    let env: HashMap<String, String> = session_ctx.env.clone();
 
     let params = CreateParams {
         agent: None,
