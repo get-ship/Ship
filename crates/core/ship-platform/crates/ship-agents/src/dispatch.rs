@@ -231,6 +231,24 @@ async fn dispatch_agent_session_internal(
         }
     };
 
+    // Phase E: Fleet SessionManager door (opt-in). No second LaunchPlan —
+    // isolation already prepared the worktree; Fleet only runs the harness.
+    if crate::fleet_session::fleet_session_service_enabled() {
+        let session_ctx_with_dir = SessionContext {
+            work_dir: worktree_path.clone(),
+            ..session_ctx
+        };
+        crate::fleet_session::dispatch_via_fleet_session(
+            kernel,
+            payload,
+            ports,
+            &session_ctx_with_dir,
+            worktree_path,
+        )
+        .await;
+        return;
+    }
+
     let (exit_tx, exit_rx) = tokio::sync::mpsc::unbounded_channel();
     let session_ctx_with_dir = SessionContext {
         work_dir: worktree_path.clone(),

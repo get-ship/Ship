@@ -80,6 +80,7 @@ impl LifecycleSink for KernelLifecycleSink {
     async fn session_completed(&self, session_id: &str, slug: &str) {
         let payload = SessionCompleted {
             session_id: session_id.to_string(),
+            ..Default::default()
         };
         if let Ok(env) = EventEnvelope::new(
             canonical_session_event_types::SESSION_COMPLETED,

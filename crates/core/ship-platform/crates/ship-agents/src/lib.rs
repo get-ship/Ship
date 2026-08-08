@@ -17,6 +17,8 @@ pub mod actor;
 #[cfg(feature = "bridge")]
 pub mod cancel;
 pub mod dispatch;
+#[cfg(feature = "bridge")]
+pub mod fleet_session;
 pub mod dispatch_gate;
 pub mod emit;
 pub mod errors;

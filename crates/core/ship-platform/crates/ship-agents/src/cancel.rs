@@ -64,6 +64,9 @@ pub async fn handle_agent_cancelled(kernel: &Kernel, envelope: &EventEnvelope, p
     // Registry first (fast path), via the L0 slug-keyed teardown primitive. On a
     // registry miss, try the executor's resume path — best effort — and stop the
     // recovered handle through the same L0 teardown core.
+    // E1: Fleet SessionManager sessions (FLEET_SESSION_SERVICE) cancel by slug map.
+    let _ = crate::fleet_session::cancel_by_slug(&slug).await;
+
     let pid = if let Some(pid) = bridge::lifecycle::stop_by_slug(
         &ports.lifecycle,
         &ports.registry,
