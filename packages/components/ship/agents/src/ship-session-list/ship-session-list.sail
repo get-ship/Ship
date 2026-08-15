@@ -1,3 +1,9 @@
+<scope>
+  props: {
+    rows = '[]'
+    scope = ''
+  }
+</scope>
 <controller>
 import { controller, derived, signal } from '@ship/sail-runtime'
 import type { ViewScope } from '@ship/sail-runtime'
@@ -145,22 +151,22 @@ export default controller(({ rows, scope }: ViewScope<Scope>, host) => {
   </div>
 
   <row gap="1">
-    <for as="pill" of={pills()} key={pill.key}>
+    <for {pills() as pill} key={pill.key}>
     <button type="button" data-test="filter-pill" on:click={pill.select}>{pill.label}<span>{pill.count}</span></button>
     </for>
   </row>
 
-  <if cond={visible().length === 0}>
+  <if {visible().length === 0}>
   <div data-test="list-empty">No sessions.</div>
   </if>
-  <for as="row" of={visible()} key={row.id}>
+  <for {visible() as row} key={row.id}>
   <div data-test="session-row">
     <span><span></span><span>{row.status}</span></span>
     <span>{row.harness}</span>
     <column gap="1">
-      <span><span>{row.agent}</span><if cond={row.child}><span>{row.child}</span></if></span>
+      <span><span>{row.agent}</span><if {row.child}><span>{row.child}</span></if></span>
       <span>{row.input}</span>
-      <if cond={row.reason}>
+      <if {row.reason}>
       <span>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v4M12 16h.01"></path></svg>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M15 9l-6 6M9 9l6 6"></path></svg>
@@ -169,7 +175,7 @@ export default controller(({ rows, scope }: ViewScope<Scope>, host) => {
       </span>
       </if>
     </column>
-    <column align="end" gap="1"><span>{row.turns} <span>{row.turnsLabel}</span></span><span>{row.model} · {row.time}</span><if cond={row.cost}><span>{row.cost}</span></if></column>
+    <column align="end" gap="1"><span>{row.turns} <span>{row.turnsLabel}</span></span><span>{row.model} · {row.time}</span><if {row.cost}><span>{row.cost}</span></if></column>
   </div>
   </for>
 </div>

@@ -19,12 +19,14 @@
     'allow-comment' = true
     'allow-generate' = false
   }
+  style shell = { position({ scheme: relative }).size({ w: full, min-w: 0, min-h: 48 }) }
+  style toolbar = { pad({ x: 2, y: 1 }).border({ edge: b, width: 1, color: border }).bg(surface-1) }
+  style editorBox = { size({ w: full, min-h: 48 }) }
+  style pin = { position({ scheme: absolute, l: bind(pinX), t: bind(pinY) }) }
 </scope>
 
 <controller>
-// Ambient: controller, signal, derived, effect, mount, ref
-import type { ControllerScope } from '@ship/sail-runtime'
-import type { Scope } from './ship-markdown-editor.sail'
+import type { Action } from '@ship/sail-runtime'
 import { createMarkdownEditor, readMarkdown, type MarkdownEditor } from './ship-markdown-editor.init'
 import { injectEditorStyles } from './ship-markdown-editor.styles'
 import { injectBubbleStyles } from './ship-markdown-editor.bubble.styles'
@@ -48,30 +50,52 @@ function getSelectedText(ed: MarkdownEditor | null): string {
   return ed.state.doc.textBetween(from, to, ' ').trim()
 }
 
-export default controller((_ctx: ControllerScope<Scope>, host?: Element) => {
-  const hostEl = host as HTMLElement
+function asHtml(node: Element | null): HTMLElement | null {
+  return node instanceof HTMLElement ? node : null
+}
+
+type EditorProps = {
+  value: () => string
+  placeholder: () => string
+  disabled: () => boolean
+  invalid: () => boolean
+  label: () => string
+  showSelectionToolbar: () => boolean
+  allowComment: () => boolean
+  allowGenerate: () => boolean
+}
+
+export default controller((_ctx: EditorProps, host?: Element) => {
+  const hostEl = asHtml(host ?? null)
   const _editorRef: { current: MarkdownEditor | null } = { current: null }
   const marks = signal<MarkMap>({ ...EMPTY_MARKS })
   const bubblePos = signal<BubblePos>(null)
   const pending = signal<PendingComment>(null)
   const composerValue = signal('')
-  // bind:this slots — signals (compiler pre-seeds / modern pattern, not legacy ref()).
-  const shellEl = signal<HTMLElement | null>(null)
-  const editorHost = signal<HTMLElement | null>(null)
-  const composerInputEl = signal<HTMLTextAreaElement | null>(null)
+  const shellEl = signal<Element | null>(null)
+  const editorHost = signal<Element | null>(null)
+  const composerInputEl = signal<Element | null>(null)
 
-  // Numeric geometry for use:pin (style:top/left removed — actions own runtime geometry).
+  const captureShell: Action<void> = (node) => {
+    shellEl.set(node)
+    return { destroy: () => shellEl.set(null) }
+  }
+  const captureEditor: Action<void> = (node) => {
+    editorHost.set(node)
+    return { destroy: () => editorHost.set(null) }
+  }
+  const captureComposer: Action<void> = (node) => {
+    composerInputEl.set(node)
+    return { destroy: () => composerInputEl.set(null) }
+  }
+
   const bubblePin = derived(() => {
     const pos = bubblePos()
-    return pos
-      ? { x: pos.left, y: pos.top }
-      : { x: -9999, y: -9999 }
+    return pos ? { x: pos.left, y: pos.top } : { x: -9999, y: -9999 }
   })
   const composerPin = derived(() => {
     const pos = bubblePos()
-    return pos
-      ? { x: pos.left, y: Math.max(pos.top + 10, 0) }
-      : { x: 0, y: 24 }
+    return pos ? { x: pos.left, y: Math.max(pos.top + 10, 0) } : { x: 0, y: 24 }
   })
   const pendingQuote = derived(() => {
     const p = pending()
@@ -118,7 +142,9 @@ export default controller((_ctx: ControllerScope<Scope>, host?: Element) => {
     const ed = _editorRef.current
     if (!ed || isDisabled()) return
     const prev = (ed.getAttributes('link').href as string | undefined) ?? ''
-    const url = window.prompt('Link URL', prev); if (url === null) return
+    const ask = (globalThis as { prompt?: (m: string, d?: string) => string | null }).prompt
+    const url = ask ? ask('Link URL', prev) : null
+    if (url === null) return
     const c = ed.chain().focus().extendMarkRange('link')
     url === '' ? c.unsetLink().run() : c.setLink({ href: url }).run()
   }
@@ -163,6 +189,16 @@ export default controller((_ctx: ControllerScope<Scope>, host?: Element) => {
     }
   }
 
+  const onToolbarMouseDown = (e: MouseEvent): void => {
+    e.preventDefault()
+  }
+  const onBubbleMouseDown = (e: MouseEvent): void => {
+    e.preventDefault()
+  }
+  const onComposerMouseDown = (e: MouseEvent): void => {
+    e.stopPropagation()
+  }
+
   const onCancel = (): void => {
     pending.set(null); composerValue.set('')
     _editorRef.current?.commands.focus()
@@ -175,24 +211,18 @@ export default controller((_ctx: ControllerScope<Scope>, host?: Element) => {
     pending.set(null); composerValue.set('')
   }
 
-  // TipTap lifecycle + style adoption live in mount.
-  // Sail components are light DOM — adopt styles onto the host (not shadowRoot).
   mount((host) => {
     injectEditorStyles(host)
     injectBubbleStyles(host)
 
     const disposers: Array<() => void> = []
 
-    // Editor min-height rides sx on the host shell (see template) — controllers
-    // must not touch `.style` / setProperty (sail-no-imperative-style).
-
     disposers.push(effect(() => {
       if (pending()) {
-        queueMicrotask(() => composerInputEl()?.focus())
+        queueMicrotask(() => asHtml(composerInputEl())?.focus())
       }
     }))
 
-    // Expose setters for testing — available before TipTap init so headless tests work.
     const el = host as HTMLElement & {
       _setBubblePos?: (p: BubblePos) => void
       _setPending?: (p: PendingComment) => void
@@ -208,10 +238,6 @@ export default controller((_ctx: ControllerScope<Scope>, host?: Element) => {
     el._setComposerValue = (v) => composerValue.set(v)
 
     let changeTimer: ReturnType<typeof setTimeout> | null = null
-    // `createMarkdownEditor` is async; the element can disconnect before it
-    // resolves. Track teardown so the resolved editor is destroyed even then —
-    // otherwise ProseMirror's document-level `selectionchange` listener
-    // outlives the element and throws on a detached shadow root.
     let disposed = false
 
     function refreshMarks(): void {
@@ -236,18 +262,16 @@ export default controller((_ctx: ControllerScope<Scope>, host?: Element) => {
       try {
         const coords = ed.view.coordsAtPos(sel.from)
         const endCoords = ed.view.coordsAtPos(sel.to)
-        const shell = shellEl()
-        const rect = shell?.getBoundingClientRect() ?? { top: 0, left: 0 }
+        const rect = shellEl()?.getBoundingClientRect() ?? { top: 0, left: 0 }
         const top = Math.min(coords.top, endCoords.top) - rect.top - 42
         const left = (coords.left + endCoords.left) / 2 - rect.left
         bubblePos.set({ top: Math.max(-4, top), left: Math.max(20, left) })
       } catch { bubblePos.set(null) }
     }
 
-    // Wait a tick so bind:this has filled editorHost.
     queueMicrotask(() => {
       if (disposed) return
-      const editorHostEl = editorHost()
+      const editorHostEl = asHtml(editorHost())
       if (!editorHostEl) return
 
       void (async () => {
@@ -259,7 +283,6 @@ export default controller((_ctx: ControllerScope<Scope>, host?: Element) => {
           onUpdate: (editor) => {
             const md = readMarkdown(editor)
             if (md === _ctx.value()) return
-            // Write through the host prop accessor (same path as form-associated value).
             ;(host as HTMLElement & { value: string }).value = md
             host.dispatchEvent(new Event('input', { bubbles: true, composed: true }))
             if (changeTimer) clearTimeout(changeTimer)
@@ -294,70 +317,69 @@ export default controller((_ctx: ControllerScope<Scope>, host?: Element) => {
 
   return {
     marks, bubblePos, pending, composerValue,
-    shellEl, editorHost, composerInputEl,
+    captureShell, captureEditor, captureComposer,
     bubblePin, composerPin, pendingQuote,
     onToolbarClick, onLinkClick, onBubbleFmt,
+    onToolbarMouseDown, onBubbleMouseDown, onComposerMouseDown,
     onOpenComposer, onGenerate, onComposerKey, onCancel, onSubmit,
-    // Template uses disabled() / invalid() / label() / showSelectionToolbar() from props via _ctx;
-    // also surface helpers for template convenience.
     disabled: () => isDisabled(),
+    invalid: () => _ctx.invalid(),
+    label: () => _ctx.label(),
+    showSelectionToolbar: () => _ctx.showSelectionToolbar(),
+    allowComment: () => _ctx.allowComment(),
+    allowGenerate: () => _ctx.allowGenerate(),
   }
 })
 </controller>
 
-<div bind:this={shellEl}
+<div use:captureShell
   aria-invalid={invalid() ? 'true' : null}
   aria-disabled={disabled() ? 'true' : null}
-  sx={style.position(relative).w(full).minW(0).minH(48)}>
-  <div role="toolbar"
-    aria-label={label() || 'Editor toolbar'}
-    on:mousedown={(e) => e.preventDefault()}>
-    <button type="button" data-is-active={marks().bold} disabled={disabled()} data-action="bold" aria-label="Bold" aria-pressed={marks().bold ? 'true' : 'false'} title="Bold (Ctrl+B)" on:click={onToolbarClick}><icon name="bold" size="sm" aria-hidden="true"></icon></button>
-    <button type="button" data-is-active={marks().italic} disabled={disabled()} data-action="italic" aria-label="Italic" aria-pressed={marks().italic ? 'true' : 'false'} title="Italic (Ctrl+I)" on:click={onToolbarClick}><icon name="italic" size="sm" aria-hidden="true"></icon></button>
-    <button type="button" data-is-active={marks().code} disabled={disabled()} data-action="code" aria-label="Inline code" aria-pressed={marks().code ? 'true' : 'false'} on:click={onToolbarClick}><icon name="code-2" size="sm" aria-hidden="true"></icon></button>
-    <span aria-hidden="true"></span>
-    <button type="button" data-is-active={marks().h1} disabled={disabled()} data-action="h1" aria-label="Heading 1" aria-pressed={marks().h1 ? 'true' : 'false'} on:click={onToolbarClick}><icon name="heading-1" size="sm" aria-hidden="true"></icon></button>
-    <button type="button" data-is-active={marks().h2} disabled={disabled()} data-action="h2" aria-label="Heading 2" aria-pressed={marks().h2 ? 'true' : 'false'} on:click={onToolbarClick}><icon name="heading-2" size="sm" aria-hidden="true"></icon></button>
-    <button type="button" data-is-active={marks().h3} disabled={disabled()} data-action="h3" aria-label="Heading 3" aria-pressed={marks().h3 ? 'true' : 'false'} on:click={onToolbarClick}><icon name="heading-3" size="sm" aria-hidden="true"></icon></button>
-    <span aria-hidden="true"></span>
-    <button type="button" data-is-active={marks().bullet} disabled={disabled()} data-action="bullet" aria-label="Bullet list" aria-pressed={marks().bullet ? 'true' : 'false'} on:click={onToolbarClick}><icon name="list" size="sm" aria-hidden="true"></icon></button>
-    <button type="button" data-is-active={marks().ordered} disabled={disabled()} data-action="ordered" aria-label="Ordered list" aria-pressed={marks().ordered ? 'true' : 'false'} on:click={onToolbarClick}><icon name="list-ordered" size="sm" aria-hidden="true"></icon></button>
-    <button type="button" data-is-active={marks().task} disabled={disabled()} data-action="task" aria-label="Task list" aria-pressed={marks().task ? 'true' : 'false'} on:click={onToolbarClick}><icon name="list-checks" size="sm" aria-hidden="true"></icon></button>
-    <span aria-hidden="true"></span>
-    <button type="button" data-is-active={marks().link} disabled={disabled()} data-action="link" aria-label="Link" aria-pressed={marks().link ? 'true' : 'false'} title="Link (Ctrl+K)" on:click={onLinkClick}><icon name="link-2" size="sm" aria-hidden="true"></icon></button>
+  style(shell)>
+  <row gap="1" align="center" role="toolbar" aria-label={label() || 'Editor toolbar'} on:mousedown={onToolbarMouseDown} style(toolbar)>
+    <button type="button" data-is-active={marks().bold} disabled={disabled()} data-action="bold" aria-label="Bold" aria-pressed={marks().bold ? 'true' : 'false'} title="Bold (Ctrl+B)" on:click={onToolbarClick}>B</button>
+    <button type="button" data-is-active={marks().italic} disabled={disabled()} data-action="italic" aria-label="Italic" aria-pressed={marks().italic ? 'true' : 'false'} title="Italic (Ctrl+I)" on:click={onToolbarClick}>I</button>
+    <button type="button" data-is-active={marks().code} disabled={disabled()} data-action="code" aria-label="Inline code" aria-pressed={marks().code ? 'true' : 'false'} on:click={onToolbarClick}>code</button>
+    <button type="button" data-is-active={marks().h1} disabled={disabled()} data-action="h1" aria-label="Heading 1" aria-pressed={marks().h1 ? 'true' : 'false'} on:click={onToolbarClick}>H1</button>
+    <button type="button" data-is-active={marks().h2} disabled={disabled()} data-action="h2" aria-label="Heading 2" aria-pressed={marks().h2 ? 'true' : 'false'} on:click={onToolbarClick}>H2</button>
+    <button type="button" data-is-active={marks().h3} disabled={disabled()} data-action="h3" aria-label="Heading 3" aria-pressed={marks().h3 ? 'true' : 'false'} on:click={onToolbarClick}>H3</button>
+    <button type="button" data-is-active={marks().bullet} disabled={disabled()} data-action="bullet" aria-label="Bullet list" aria-pressed={marks().bullet ? 'true' : 'false'} on:click={onToolbarClick}>•</button>
+    <button type="button" data-is-active={marks().ordered} disabled={disabled()} data-action="ordered" aria-label="Ordered list" aria-pressed={marks().ordered ? 'true' : 'false'} on:click={onToolbarClick}>1.</button>
+    <button type="button" data-is-active={marks().task} disabled={disabled()} data-action="task" aria-label="Task list" aria-pressed={marks().task ? 'true' : 'false'} on:click={onToolbarClick}>☑</button>
+    <button type="button" data-is-active={marks().link} disabled={disabled()} data-action="link" aria-label="Link" aria-pressed={marks().link ? 'true' : 'false'} title="Link (Ctrl+K)" on:click={onLinkClick}>url</button>
+  </row>
+  <div style(editorBox)>
+    <div use:captureEditor></div>
   </div>
-  <div>
-    <div bind:this={editorHost}></div>
-  </div>
-  <if cond={showSelectionToolbar()}>
+  <if {showSelectionToolbar()}>
     <div role="toolbar" aria-label="Selection actions" data-md-bubble
       data-open={bubblePos() !== null && pending() === null ? 'true' : 'false'}
       aria-hidden={bubblePos() !== null && pending() === null ? 'false' : 'true'}
       use:pin={bubblePin()}
-      sx={style.position(absolute).left(bind(pinX)).top(bind(pinY))}
-      on:mousedown={(e) => e.preventDefault()}>
-      <button type="button" data-is-active={marks().bold} aria-label="Bold" aria-pressed={marks().bold ? 'true' : 'false'} data-action="bold" on:click={onBubbleFmt}><icon name="bold" size="sm" aria-hidden="true"></icon></button>
-      <button type="button" data-is-active={marks().italic} aria-label="Italic" aria-pressed={marks().italic ? 'true' : 'false'} data-action="italic" on:click={onBubbleFmt}><icon name="italic" size="sm" aria-hidden="true"></icon></button>
-      <button type="button" data-is-active={marks().strike} aria-label="Strike" aria-pressed={marks().strike ? 'true' : 'false'} data-action="strike" on:click={onBubbleFmt}><icon name="strikethrough" size="sm" aria-hidden="true"></icon></button>
-      <button type="button" data-is-active={marks().code} aria-label="Code" aria-pressed={marks().code ? 'true' : 'false'} data-action="code" on:click={onBubbleFmt}><icon name="code-2" size="sm" aria-hidden="true"></icon></button>
-      <if cond={allowComment() || allowGenerate()}>
+      style(pin)
+      on:mousedown={onBubbleMouseDown}>
+      <button type="button" data-is-active={marks().bold} aria-label="Bold" aria-pressed={marks().bold ? 'true' : 'false'} data-action="bold" on:click={onBubbleFmt}>B</button>
+      <button type="button" data-is-active={marks().italic} aria-label="Italic" aria-pressed={marks().italic ? 'true' : 'false'} data-action="italic" on:click={onBubbleFmt}>I</button>
+      <button type="button" data-is-active={marks().strike} aria-label="Strike" aria-pressed={marks().strike ? 'true' : 'false'} data-action="strike" on:click={onBubbleFmt}>S</button>
+      <button type="button" data-is-active={marks().code} aria-label="Code" aria-pressed={marks().code ? 'true' : 'false'} data-action="code" on:click={onBubbleFmt}>code</button>
+      <if {allowComment() || allowGenerate()}>
         <span aria-hidden="true" data-md-sep></span>
       </if>
-      <if cond={allowComment()}>
-        <button type="button" aria-label="Comment" on:click={onOpenComposer}><icon name="message-circle" size="sm" aria-hidden="true"></icon></button>
+      <if {allowComment()}>
+        <button type="button" aria-label="Comment" on:click={onOpenComposer}>note</button>
       </if>
-      <if cond={allowGenerate()}>
-        <button type="button" aria-label="Generate" on:click={onGenerate}><icon name="sparkles" size="sm" aria-hidden="true"></icon></button>
+      <if {allowGenerate()}>
+        <button type="button" aria-label="Generate" on:click={onGenerate}><icon name="sparkles" size="sm"></icon></button>
       </if>
     </div>
-    <if cond={pending()}>
+    <if {pending()}>
       <div role="dialog" aria-label="Add comment" data-md-composer
         use:pin={composerPin()}
-        sx={style.position(absolute).left(bind(pinX)).top(bind(pinY))}
-        on:mousedown={(e) => e.stopPropagation()}>
+        style(pin)
+        on:mousedown={onComposerMouseDown}>
         <div data-md-composer-quote>"{pendingQuote()}"</div>
         <textarea rows="2" placeholder="Add your comment…" data-composer-input
-          bind:this={composerInputEl}
+          use:captureComposer
           bind:value={composerValue}
           on:keydown={onComposerKey}></textarea>
         <div data-md-composer-actions>

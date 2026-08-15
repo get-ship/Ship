@@ -1,16 +1,27 @@
+<scope>
+  props: {
+    harness: 'claude' | 'codex' | 'cursor' | 'gemini' | 'opencode' = 'claude'
+    size: 'sm' | 'md' | 'lg' = 'md'
+    variant: 'tile' | 'glyph' = 'tile'
+  }
+</scope>
 <controller>
-import { bindHtml, controller, derived, effect, ref } from '@ship/sail-runtime'
-import type { ViewScope } from '@ship/sail-runtime'
+import { controller, derived, signal } from '@ship/sail-runtime'
+import type { Action, ViewScope } from '@ship/sail-runtime'
 import type { Scope } from './sui-harness-blob.sail'
 import { HARNESSES, type Harness } from './harness-logos'
 
 export default controller((ctx: ViewScope<Scope>) => {
 
-    const tileEl = ref<HTMLSpanElement>(null)
+    const tileEl = signal<Element | null>(null)
+    const captureTile: Action<void> = (node) => {
+      tileEl.set(node)
+      return { destroy: () => tileEl.set(null) }
+    }
     const tileLabel = derived<string>(
       () => (HARNESSES[ctx.harness() as Harness] ?? HARNESSES.claude).label,
     )
-    return { tileEl, tileLabel }
+    return { captureTile, tileLabel }
 })
 </controller>
 
@@ -47,6 +58,6 @@ export default controller((ctx: ViewScope<Scope>) => {
 <!-- style block removed: use sx / external CSS -->
 
 <span role="img" aria-label={tileLabel()}>
-  <span bind:this={tileEl}></span>
+  <span use:captureTile></span>
 </span>
 <span><slot></slot></span>

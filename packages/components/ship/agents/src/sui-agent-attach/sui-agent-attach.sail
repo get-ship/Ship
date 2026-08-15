@@ -15,30 +15,21 @@
  * off and drive the lifecycle themselves.
  */
 
-import { controller, effect, ref, signal } from '@ship/sail-runtime'
+import { controller, signal } from '@ship/sail-runtime'
+import type { Action } from '@ship/sail-runtime'
 import type { ViewScope } from '@ship/sail-runtime'
 import type { Scope } from './sui-agent-attach.sail'
-
-import { attachAgentSession, type AgentSessionAttachment } from './attach'
-
-interface TerminalEl extends HTMLElement {
-  write?: (data: string | Uint8Array) => void
-  clear?: () => void
-  fit?: () => void
-  terminal?: { cols: number; rows: number } | null
-}
-
-type HostEl = HTMLElement & {
-  connect?: (() => void) | undefined
-  disconnect?: (() => void) | undefined
-}
 
 export default controller((_ctx: ViewScope<Scope>) => {
 
     const connected = signal(false)
     const disconnectReason = signal('')
-    const termRef = ref<TerminalEl>(null)
-    return { connected, disconnectReason, termRef }
+    const termEl = signal<Element | null>(null)
+    const captureTerm: Action<void> = (node) => {
+      termEl.set(node)
+      return { destroy: () => termEl.set(null) }
+    }
+    return { connected, disconnectReason, captureTerm }
 })
 </controller>
 
@@ -88,24 +79,24 @@ export default controller((_ctx: ViewScope<Scope>) => {
 
 <row>
   <ship-terminal
-    bind:this={termRef}
+    use:captureTerm
     readonly={readonly()}
     fit
   ></ship-terminal>
 </row>
 
-<if cond={!slug()}>
+<if {!slug()}>
   <div data-test="empty-slug">
     <column gap="3" align="center">
       <p>No agent session selected</p>
-      <p>Set the `slug` attribute to attach.</p>
+      <p>Set the slug attribute to attach.</p>
     </column>
   </div>
-<else-if cond={!connected() && disconnectReason()}>
+{else-if {!connected() && disconnectReason()} =>
   <div data-test="disconnected">
     <column gap="3" align="center">
       <p>Session disconnected</p>
       <p>{disconnectReason()}</p>
     </column>
   </div>
-</else-if></if>
+}</if>

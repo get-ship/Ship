@@ -14,13 +14,13 @@
 <span>
   <span><b data-test="usage-input">{input()}</b> in</span>
   <span><b data-test="usage-output">{output()}</b> out</span>
-  <if cond={reasoning()}>
+  <if {reasoning()}>
     <span data-test="usage-reasoning"><b>{reasoning()}</b> reas</span>
   </if>
-  <if cond={cache()}>
+  <if {cache()}>
     <span data-test="usage-cache"><b>{cache()}</b> cache</span>
   </if>
-  <if cond={cost()}>
+  <if {cost()}>
     <span data-test="usage-cost">{cost()}</span>
   </if>
 </span>

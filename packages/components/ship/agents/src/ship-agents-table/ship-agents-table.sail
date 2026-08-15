@@ -1,3 +1,6 @@
+<scope>
+  props: {}
+</scope>
 <controller>
 import { controller, derived, query, unwrapOr } from '@ship/sail-runtime'
 import type { ViewScope } from '@ship/sail-runtime'
@@ -41,18 +44,27 @@ export default controller((_ctx: ViewScope<Scope>) => {
   called setShipClient() will throw on the first SDK access.
 -->
 
-<while-loading of="agents">
-  <spinner shape="line" size="lg"></spinner>
-</while-loading>
-<while-error as="err" of="agents">
-  <error-state title="Couldn't load agents">{err.message}</error-state>
-</while-error>
-<if cond={agents().kind === 'ok'}>
-  <sail-table
-    variant="data"
-    rows={rows()}
-    columns={columnDefs()}
-    hoverable
-    striped
-  ></sail-table>
-</if>
+<match {agents()}>
+  {loading => <spinner size="lg"></spinner>}
+  {error as err => <error-state title="Couldn't load agents">{err.message}</error-state>}
+  {ok as _ =>
+    <table>
+      <thead>
+        <tr>
+          <for {columnDefs() as col} key={col.field}>
+            <th>{col.label}</th>
+          </for>
+        </tr>
+      </thead>
+      <tbody>
+        <for {rows() as row} key={row.name}>
+          <tr>
+            <td>{row.name}</td>
+            <td>{row.description}</td>
+            <td>{row.source}</td>
+          </tr>
+        </for>
+      </tbody>
+    </table>
+  }
+</match>
