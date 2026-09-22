@@ -1,6 +1,11 @@
+<scope>
+  props: {
+    collection = ''
+    value = 'SELECT * FROM items'
+  }
+</scope>
 <controller>
-import { controller, derived, live, unwrapOr } from '@ship/sail-runtime'
-import type { ViewScope } from '@ship/sail-runtime'
+import { controller, derived, query, unwrapOr } from '@ship/sail-runtime'
 import { ship } from '@ship/sdk-client'
 import type { Scope } from './ship-query-editor.sail'
 
@@ -35,9 +40,9 @@ function lastIdentifier(text: string): string {
   return m?.[1] ?? ''
 }
 
-export default controller(({ value, collection }: ViewScope<Scope>, host) => {
+export default controller(({ value, collection }: Scope, host?: Element) => {
 
-    const state = live<unknown>(() => ship.collections.state(collection() ? { active: collection() } : {}))
+    const state = query<unknown>(() => ship.collections.state(collection() ? { active: collection() } : {}))
     const schema = derived<SchemaShape | null>(() => {
       const s = unwrapOr(state, EMPTY) as { schema?: SchemaShape }
       return s.schema ?? null
@@ -60,11 +65,7 @@ export default controller(({ value, collection }: ViewScope<Scope>, host) => {
       return `len ${v.length} · ${collection()}`
     })
 
-    // Re-emit on user input. The textarea is host-owned; listening on
-    // the host's `input` event keeps the wire simple and matches the
-    // spec's "captured query" contract.
-    const onInput = (): void => {
-      const v = value()
+    function emitChange(v: string): void {
       host?.dispatchEvent(
         new CustomEvent('ship-query-change', {
           detail: { ast: { collection: collection(), source: v }, sql: v },
@@ -73,7 +74,13 @@ export default controller(({ value, collection }: ViewScope<Scope>, host) => {
         }),
       )
     }
-    host?.addEventListener('input', onInput)
+
+    function onValueInput(e: Event): void {
+      const detail = (e as CustomEvent<{ value: string }>).detail
+      const next = detail?.value ?? (e.target as HTMLTextAreaElement | null)?.value ?? ''
+      value.set(next)
+      emitChange(next)
+    }
 
     function acceptSuggestion(s: Suggestion): (ev: Event) => void {
       return (ev: Event): void => {
@@ -83,24 +90,12 @@ export default controller(({ value, collection }: ViewScope<Scope>, host) => {
         const next = token
           ? current.slice(0, current.length - token.length) + s.name
           : current + s.name
-        // value is a Signal<string> in the scope (textarea bind:value).
         value.set(next)
-        host?.dispatchEvent(
-          new CustomEvent('ship-query-change', {
-            detail: { ast: { collection: collection(), source: next }, sql: next },
-            bubbles: true,
-            composed: true,
-          }),
-        )
+        emitChange(next)
       }
     }
 
-    return {
-      state, schema, suggestions, statusText, acceptSuggestion,
-      unmount: (): void => {
-        host?.removeEventListener('input', onInput)
-      },
-    }
+    return { state, schema, suggestions, statusText, acceptSuggestion, onValueInput }
 })
 </controller>
 
@@ -116,14 +111,12 @@ export default controller(({ value, collection }: ViewScope<Scope>, host) => {
   minimal shape the runner understands; the "sql" is the compiled
   string shown back in the editor footer.
 
-  Tag prefix `ship-*` marks this component as depending on the Ship
-  runtime: mounting without a host that has called setShipClient()
-  will throw on the first SDK access.
+  Tag prefix `ship-*` marks this component as depending on the
+  Ship runtime: mounting without a host that has called
+  setShipClient() will throw on the first SDK access.
 -->
 <!-- <prop name="collection" type="string" default="" /> -->
 <!-- <prop name="value" type="string" default="SELECT * FROM items" /> -->
-
-<!-- style block removed: use sx / external CSS -->
 
 <div>
   <span>Query</span>
@@ -135,17 +128,18 @@ export default controller(({ value, collection }: ViewScope<Scope>, host) => {
     data-test="textarea"
     placeholder="SELECT * FROM items"
     aria-label="Query editor"
-    bind:value={value}
+    value={value()}
+    on:input={(e) => onValueInput(e)}
   ></textarea>
   <div>
     <span data-test="status">{statusText()}</span>
   </div>
 </div>
 
-<if cond={suggestions().length > 0}>
+<if {suggestions().length > 0}>
   <div data-test="suggestions">
     <div role="listbox">
-      <for as="s" of={suggestions()} key={s.name}>
+      <for {suggestions() as s} key={s.name}>
         <div role="option" data-test="suggestion" aria-selected="false" on:mousedown={() => acceptSuggestion(s)}>
           <strong>{s.name}</strong>
           <span> · {s.type}</span>

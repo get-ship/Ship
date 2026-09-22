@@ -137,7 +137,7 @@ mod tests {
         std::fs::create_dir_all(ship_dir.join("agents")).expect("mkdir agents");
         std::fs::write(
             ship_dir.join("agents/demo.jsonc"),
-            r#"{ "agent": { "id": "demo", "name": "Demo" }, "target_agents": ["claude"] }"#,
+            r#"{ "agent": { "id": "demo", "name": "Demo" } }"#,
         )
         .expect("write demo agent");
         if compile_agent_config(&worktree, "demo", None).is_err() {

@@ -1,6 +1,10 @@
+<scope>
+  props: {
+    request = ''
+  }
+</scope>
 <controller>
 import { controller, derived } from '@ship/sail-runtime'
-import type { ViewScope } from '@ship/sail-runtime'
 import type { Scope } from './ship-approval-card.sail'
 
 export interface AuthorityRequest {
@@ -39,10 +43,9 @@ const RISK_TONE: Record<AuthorityRequest['risk'], 'muted' | 'warning' | 'destruc
   high: 'destructive',
 }
 
-export default controller(({ request }: ViewScope<Scope>, host) => {
-
+export default controller((ctx: Scope, host?: Element) => {
     // `request` arrives as a JSON string (SUI props carry no object type).
-    const req = derived<AuthorityRequest>(() => ({ ...EMPTY, ...parseRequest(request()) }))
+    const req = derived<AuthorityRequest>(() => ({ ...EMPTY, ...parseRequest(ctx.request()) }))
 
     const isCapability = derived(() => req().kind === 'capability')
     const agent = derived(() => req().agent)
@@ -110,17 +113,14 @@ export default controller(({ request }: ViewScope<Scope>, host) => {
 <!-- `request` is a JSON string (SUI props carry no object type); the
      controller parses it. Hosts pass it via request={obj} (the runtime
      JSON-encodes) or a literal request='{…}' attribute. -->
-<!-- <prop name="request" type="string" default="" /> -->
-
-<!-- style block removed: use sx / external CSS -->
 
 <article data-test="approval-card">
   <div>
-    <if cond={isCapability()}>
+    <if {isCapability()}>
       <button type="button" data-test="inspect" on:click={inspect}>{agent()}</button>
-    <else>
+    {else =>
       <span>{agent()}</span>
-    </else></if>
+    }</if>
     <span aria-hidden="true">·</span>
     <span>{space()}</span>
     <span><badge tone={riskTone()} variant="soft" size="sm" data-test="risk">{risk()}</badge></span>
@@ -128,11 +128,11 @@ export default controller(({ request }: ViewScope<Scope>, host) => {
 
   <div>{kindLabel()}</div>
 
-  <if cond={isCapability()}>
+  <if {isCapability()}>
     <div data-test="scope">{scopeLine()}</div>
-  <else>
+  {else =>
     <pre data-test="command">$ {command()}</pre>
-  </else></if>
+  }</if>
 
   <div>Why · {why()}</div>
 

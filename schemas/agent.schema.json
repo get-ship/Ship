@@ -46,29 +46,13 @@
         "icon": {
           "type": "string",
           "description": "Display icon — emoji or icon name (e.g. '\ud83e\uddea', 'test-tube')."
-        },
-        "role": {
-          "type": "string",
-          "deprecated": true,
-          "description": "DEPRECATED (Floki D2b): superseded by top-level `capabilities`. The gate enforces capability, not role. Legacy mapping (worker → 'worker'; lead/commander → 'orchestrator') is still honored by the local stdio gate until removed."
-        },
-        "tools_preset": {
-          "type": "string",
-          "deprecated": true,
-          "description": "DEPRECATED (Floki D2b): superseded by top-level `capabilities`. See `role`."
-        },
-        "active_tools": {
-          "type": "array",
-          "items": { "type": "string" },
-          "deprecated": true,
-          "description": "DEPRECATED (Floki D2b): superseded by top-level `capabilities`. See `role`."
         }
       },
       "additionalProperties": false
     },
     "capabilities": {
       "type": "array",
-      "description": "Ship-op authority grants — gate-enforced. Each entry grants the agent ops in `domain` up to the `blast` ceiling. Replaces the deprecated `role`/`tools_preset` derivation. C0 (read) and C1 (workspace-write) are an implicit baseline every agent already has; C3 (critical) is operator-only and NEVER agent-settable (omit it). Mirrors ship_ops_rpc::BlastRadius.",
+      "description": "Ship-op authority grants — gate-enforced. Each entry grants the agent ops in `domain` up to the `blast` ceiling. C0 (read) and C1 (workspace-write) are an implicit baseline every agent already has; C3 (critical) is operator-only and NEVER agent-settable (omit it). Mirrors ship_ops_rpc::BlastRadius.",
       "items": {
         "type": "object",
         "required": ["domain"],
@@ -207,23 +191,6 @@
         },
         "additionalProperties": false
       }
-    },
-    "target_agents": {
-      "type": "array",
-      "items": { "type": "string" },
-      "description": "Harness targets to sync this agent to (e.g. [\"claude\", \"codex\"]). Empty = sync to every blessed harness."
-    },
-    "apps": {
-      "type": "object",
-      "description": "Ship app integrations for this agent.",
-      "properties": {
-        "studio": {
-          "type": "boolean",
-          "default": false,
-          "description": "Whether this agent integrates with Studio."
-        }
-      },
-      "additionalProperties": false
     },
     "isolation": {
       "type": "object",

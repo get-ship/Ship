@@ -39,16 +39,18 @@
   Parts: head, scope, body, tree
   ─────────────────────────────────────────────────────────────────────────────
 -->
-<!-- <prop name="label" type="string" default="" /> -->
-<!-- <prop name="scope" type="string" default="" /> -->
-<!-- <prop name="nodes" type="string" default="" /> -->
-<!-- <prop name="selectable" values="none|single|multi" default="none" reflect /> -->
-<!-- <prop name="show-guides" type="bool" default="true" reflect /> -->
-<!-- <prop name="size" values="sm|md|lg" default="md" reflect /> -->
-<!-- <prop name="loading" type="bool" default="false" reflect /> -->
-<!-- <prop name="error" type="string" default="" /> -->
-
-<!-- style block removed: use sx / external CSS -->
+<scope>
+  props: {
+    label = ''
+    scope = ''
+    nodes = ''
+    selectable: 'none' | 'single' | 'multi' = 'none'
+    showGuides = true
+    size: 'sm' | 'md' | 'lg' = 'md'
+    loading = false
+    error = ''
+  }
+</scope>
 
 <div>
   <span>{label()}</span>

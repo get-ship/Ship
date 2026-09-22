@@ -1,6 +1,6 @@
 // @ship/chrome — Ship Chrome pack (ship-* tags for shell chrome).
 //
-// Each <tag>.compiled.js calls customElements.define() on import, so a single
+// Each <tag>.sail calls customElements.define() on import, so a single
 // `import '@ship/chrome'` registers every tag globally.
 //
 // These components are runtime-coupled shell chrome: they own controllers that
@@ -36,7 +36,7 @@ import './ship-rail/ship-rail.compiled.js'
 import './ship-rail/ship-rail-item.compiled.js'
 import './ship-rail/ship-rail-section.compiled.js'
 // <ship-command-palette> — the ⌘K palette composition (trigger pill + dialog).
-// It provisions a shared scope its two inner panels consume via useShared:
+// It provisions a shared scope its two inner panels consume via host-walk:
 // <ship-command-panel> (find/command/mention/create) and <ship-command-chat>
 // (the unified ai mode). Distinct from the <ship-command-bar> primitive above.
 import './ship-command-palette/ship-command-palette.compiled.js'

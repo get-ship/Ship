@@ -1,6 +1,10 @@
+<scope>
+  props: {
+    rows = '[]'
+  }
+</scope>
 <controller>
 import { controller, derived } from '@ship/sail-runtime'
-import type { ViewScope } from '@ship/sail-runtime'
 import type { Scope } from './ship-policy-matrix.sail'
 
 type Tier = 'C0' | 'C1' | 'C2' | 'C3'
@@ -52,9 +56,8 @@ function buildRow(r: PolicyRow): GridRow {
   return { domain: r.domain ?? '', note: r.note ?? '', cells }
 }
 
-export default controller(({ rows }: ViewScope<Scope>) => {
-
-    const grid = derived<GridRow[]>(() => parse(rows()).map(buildRow))
+export default controller((ctx: Scope) => {
+    const grid = derived<GridRow[]>(() => parse(ctx.rows()).map(buildRow))
     return { grid }
 })
 </controller>
@@ -74,24 +77,21 @@ export default controller(({ rows }: ViewScope<Scope>) => {
                 granted = highest allowed tier ('' = operator-only, all locked)
   Part:   matrix
 -->
-<!-- <prop name="rows" type="string" default="[]" /> -->
-
-<!-- style block removed: use sx / external CSS -->
 
 <div>
   <table>
     <thead><tr><th>domain</th><th>C0</th><th>C1</th><th>C2</th><th>C3</th><th>scope</th></tr></thead>
     <tbody>
-      <for as="r" of={grid()} key={r.domain}>
+      <for {grid()} as="r" key={r.domain}>
         <tr>
           <td>{r.domain}</td>
-          <for as="cell" of={r.cells} key={cell.tone}>
+          <for {r.cells} as="cell" key={cell.tone}>
             <td>
-              <if cond={cell.granted}>
+              <if {cell.granted}>
                 <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg></span>
-              <else>
+              {else =>
                 <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg></span>
-              </else></if>
+              }</if>
             </td>
           </for>
           <td>{r.note}</td>

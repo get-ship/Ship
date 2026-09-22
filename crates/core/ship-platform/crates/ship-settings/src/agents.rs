@@ -308,7 +308,7 @@ pub fn read_agent_doc_in(
 // ── Summary source (read-only index keys on this) ───────────────────────────────
 
 /// One agent def parsed from its file, for the index. The summary granularity:
-/// id/name/role/tags + `harness` (canonical `agent.harnesses`, which the nested
+/// id/name/tags + `harness` (canonical `agent.harnesses`, which the nested
 /// `agent_schema::AgentProfile` view drops) + the file-identity fields the index
 /// keys on. `content_hash` is the SHA-256 of the raw bytes — the SAME value the
 /// `agent.def.updated` notification carries.
@@ -316,7 +316,6 @@ pub fn read_agent_doc_in(
 pub struct AgentDefSource {
     pub id: String,
     pub name: String,
-    pub role: Option<String>,
     pub tags: Vec<String>,
     pub harness: Vec<String>,
     pub path: String,
@@ -337,7 +336,6 @@ pub(crate) fn to_source(doc: &DefDoc) -> AgentDefSource {
     AgentDefSource {
         id,
         name,
-        role: str_field(agent_obj, "role"),
         tags: str_array(agent_obj, "tags"),
         harness: str_array(agent_obj, "harnesses"),
         path: format!("{}.jsonc", doc.stem),

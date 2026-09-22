@@ -1,16 +1,24 @@
+<scope>
+  props: {
+    open = false
+    mode: 'sign-in' | 'sign-up' = 'sign-in'
+    loading = false
+    backdrop: 'default' | 'blur' | 'solid' = 'blur'
+  }
+</scope>
 <controller>
-import { controller, derived, effect, ref, signal } from '@ship/sail-runtime'
-import type { ViewScope } from '@ship/sail-runtime'
+import { controller, derived, signal } from '@ship/sail-runtime'
+import type { Action } from '@ship/sail-runtime'
 import type { Scope } from './sui-auth-dialog.sail'
 
 type AuthMode = 'sign-in' | 'sign-up'
-type DialogEl = HTMLElement & { show(): void; showModal(): void; close(): void }
 
-export default controller((ctx: ViewScope<Scope>, host) => {
-
-    const dialogRef = ref<DialogEl>(null)
-    const formRef = ref<HTMLFormElement>(null)
-    const providersSlot = ref<HTMLSlotElement>(null)
+export default controller((ctx: Scope, host?: Element) => {
+    const formEl = signal<Element | null>(null)
+    const captureForm: Action<void> = (node) => {
+      formEl.set(node)
+      return { destroy: () => formEl.set(null) }
+    }
     const hasProviders = signal<boolean>(false)
 
     const defaultTitle = derived<string>(() =>
@@ -56,7 +64,9 @@ export default controller((ctx: ViewScope<Scope>, host) => {
 
     function onSubmit(e: Event): void {
       e.preventDefault()
-      const form = (e.currentTarget as HTMLFormElement | null) ?? formRef()
+      const captured = formEl()
+      const form = (e.currentTarget as HTMLFormElement | null)
+        ?? (captured instanceof HTMLFormElement ? captured : null)
       if (!form) return
       const email =
         (form.elements.namedItem('email') as HTMLInputElement | null)?.value ?? ''
@@ -76,16 +86,18 @@ export default controller((ctx: ViewScope<Scope>, host) => {
     }
 
     function onDialogClose(): void {
-      // The inner <sui-dialog> dispatches sui-close with composed:true,
+      // The inner <dialog> dispatches close with composed:true,
       // so the event bubbles to the host naturally — no re-dispatch
       // here. Just sync our own open signal.
       if (ctx.open()) ctx.open.set(false)
     }
 
+    function show(): void { ctx.open.set(true) }
+    function showModal(): void { ctx.open.set(true) }
+    function close(): void { ctx.open.set(false) }
+
     return {
-      dialogRef,
-      formRef,
-      providersSlot,
+      captureForm,
       hasProviders,
       defaultTitle,
       submitLabel,
@@ -97,6 +109,9 @@ export default controller((ctx: ViewScope<Scope>, host) => {
       onSubmit,
       onSwitchClick,
       onDialogClose,
+      show,
+      showModal,
+      close,
     }
 })
 </controller>
@@ -122,7 +137,7 @@ export default controller((ctx: ViewScope<Scope>, host) => {
   loading (bool, false)        loading (bool, false,    ✓ reflects
                                   reflect)
   backdrop (default|blur|      backdrop (enum, 'blur',  ✓ forwarded to
-    solid)                       reflect)                 sui-dialog
+    solid)                       reflect)                 dialog
   ─────────────────────────────────────────────────────────────────────────────
   ship-auth-submit             sui-auth-submit          renamed per
                                                           convention
@@ -139,18 +154,11 @@ export default controller((ctx: ViewScope<Scope>, host) => {
   ─────────────────────────────────────────────────────────────────────────────
 -->
 
-<!-- <prop name="open" type="bool" default="false" reflect /> -->
-<!-- <prop name="mode" values="sign-in|sign-up" default="sign-in" reflect /> -->
-<!-- <prop name="loading" type="bool" default="false" reflect /> -->
-<!-- <prop name="backdrop" values="default|blur|solid" default="blur" reflect /> -->
-
-<!-- style block removed: use sx / external CSS -->
-
 <dialog
   size="sm"
   backdrop={backdrop()}
-  bind:this={dialogRef}
-  on:sail-close={onDialogClose}
+  open={open()}
+  on-close={onDialogClose}
 >
   <div slot="header">
     <slot name="header">{defaultTitle()}</slot>
@@ -167,14 +175,14 @@ export default controller((ctx: ViewScope<Scope>, host) => {
     </tabs>
 
     <div>
-      <slot name="harnesses" bind:this={providersSlot}></slot>
+      <slot name="harnesses"></slot>
     </div>
 
-    <if cond={hasProviders()}>
+    <if {hasProviders()}>
       <div>or</div>
     </if>
 
-    <form on:submit={onSubmit} novalidate bind:this={formRef}>
+    <form on:submit={onSubmit} novalidate use:captureForm>
       <label>
         Email
         <input

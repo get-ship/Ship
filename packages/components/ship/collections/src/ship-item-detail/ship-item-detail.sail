@@ -1,18 +1,23 @@
+<scope>
+  props: {
+    collection = ''
+    id = ''
+    view: 'typed' | 'raw' = 'typed'
+  }
+</scope>
 <controller>
-import { controller, derived, live, unwrapOr } from '@ship/sail-runtime'
-import type { ViewScope } from '@ship/sail-runtime'
+import { controller, derived, query, unwrapOr } from '@ship/sail-runtime'
 import { ship } from '@ship/sdk-client'
 import type { Scope } from './ship-item-detail.sail'
 
 // <ship-item-detail> — one item rendered by its typed fields + raw fallback.
 //
 // ship.collections.get_item({collection, item_id}) is a Promise (not a
-// LiveSource) per the SDK surface; live() handles Promises by resolving
+// LiveSource) per the SDK surface; query() handles Promises by resolving
 // them to the `ok` state and rejecting to the `error` state — so the
-// template's `{#while-loading of item}` and `{#while-error err of item}`
-// branches work without extra wrapping. The runtime re-fires the thunk
-// whenever a tracked dep inside it changes (collection() or id()), so
-// a new id just reruns the call.
+// template match / if-ok branches work without extra wrapping. The
+// runtime re-fires the thunk whenever a tracked dep inside it changes
+// (collection() or id()), so a new id just reruns the call.
 
 interface ItemEnvelope {
   id: string
@@ -48,20 +53,19 @@ function formatValue(value: unknown, type: FieldType): string {
 }
 
 
-export default controller(({ collection, id }: ViewScope<Scope>, host) => {
+export default controller(({ collection, id }: Scope, host?: Element) => {
 
-    // live() returns a LiveSignal<{kind, ...}>; the Promise path resolves
+    // query() returns a LiveSignal<{kind, ...}>; the Promise path resolves
     // to `{ kind: 'ok', value }` or `{ kind: 'error', error }`. The
-    // `{#while-loading/while-error/if ok}` blocks in the template work
-    // directly against that signal.
-    const item = live<{ ok: true; data: ItemEnvelope } | null>(() => {
+    // template match / if-ok blocks work directly against that signal.
+    const item = query<{ ok: true; data: ItemEnvelope } | null>(() => {
       const c = collection()
       const i = id()
       if (!c || !i) return Promise.resolve(null)
       return ship.collections.get_item({ collection: c, item_id: i })
     })
 
-    const state = live<unknown>(() => ship.collections.state(collection() ? { active: collection() } : {}))
+    const state = query<unknown>(() => ship.collections.state(collection() ? { active: collection() } : {}))
 
     const schema = derived<SchemaShape | null>(() => {
       const s = unwrapOr(state, null) as { schema?: SchemaShape } | null
@@ -129,17 +133,16 @@ export default controller(({ collection, id }: ViewScope<Scope>, host) => {
 <!-- <prop name="id" type="string" default="" /> -->
 <!-- <prop name="view" values="typed|raw" default="typed" reflect /> -->
 
-<!-- style block removed: use sx / external CSS -->
-
-<while-loading of="item">
-  <spinner shape="line" size="lg"></spinner>
-  <div></div>
-  <spinner shape="line" size="md"></spinner>
-</while-loading>
-<while-error as="err" of="item">
-  <error-state title="Couldn't load item" variant="inline">{err.message}</error-state>
-</while-error>
-<if cond={item().kind === 'ok' && item().value}>
+<match {item()}>
+  {loading =>
+    <spinner shape="line" size="lg"></spinner>
+    <div></div>
+    <spinner shape="line" size="md"></spinner>
+  }
+  {error as err => <error-state title="Couldn't load item" variant="inline" body={err?.message ?? 'Request failed'}></error-state>}
+  {ok as _ => }
+</match>
+<if {item().kind === 'ok' && item().value}>
   <div>
     <span data-test="item-id">{id()}</span>
     <div role="tablist">
@@ -148,19 +151,19 @@ export default controller(({ collection, id }: ViewScope<Scope>, host) => {
     </div>
     <button type="button" data-test="edit" on:click={edit}>Edit</button>
   </div>
-  <if cond={view() === 'raw'}>
+  <if {view() === 'raw'}>
     <div data-test="raw">
       <sail-json-view data={rawJson()}></sail-json-view>
     </div>
-  <else>
+  {else =>
     <dl data-test="rows">
-      <if cond={fieldRows().length === 0}>
+      <if {fieldRows().length === 0}>
         <dd>No fields in this schema.</dd>
       </if>
-      <for as="f" of={fieldRows()} key={f.name}>
+      <for {fieldRows() as f} key={f.name}>
         <dt>{f.name} <span>· {f.type}</span></dt>
         <dd data-test={f.name}>{f.value}</dd>
       </for>
     </dl>
-  </else></if>
+  }</if>
 </if>

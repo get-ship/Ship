@@ -132,8 +132,8 @@ impl HarnessService for HarnessImpl {
                 (Some(space), Some(cache)) => Arc::clone(
                     &cache
                         .get_or_load(space, &content_hash, h, || async {
-                            harness_config_compiler::compile(&resolved, h).ok_or_else(|| {
-                                anyhow::anyhow!("compile: no output for harness {h}")
+                            harness_config_compiler::compile(&resolved, h).map_err(|e| {
+                                anyhow::anyhow!("compile({h}): {e}")
                             })
                         })
                         .await
@@ -142,8 +142,8 @@ impl HarnessService for HarnessImpl {
                         })?,
                 ),
                 _ => match harness_config_compiler::compile(&resolved, h) {
-                    Some(out) => Arc::new(out),
-                    None => continue,
+                    Ok(out) => Arc::new(out),
+                    Err(_) => continue,
                 },
             };
             flatten_compile_output(h, &compiled, &mut files);

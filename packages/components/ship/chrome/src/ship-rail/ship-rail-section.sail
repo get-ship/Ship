@@ -1,3 +1,9 @@
+<scope>
+  props: {
+    label = ''
+  }
+</scope>
+
 <!--
   <ship-rail-section> — labeled section divider for <ship-rail>.
   Co-located with <ship-rail> in the same directory.
@@ -13,10 +19,6 @@
     --rail-label-display  (flex | none)  hides heading when rail is collapsed
   ─────────────────────────────────────────────────────────────────────────────
 -->
-
-<!-- <prop name="label" type="string" default="" /> -->
-
-<!-- style block removed: use sx / external CSS -->
 
 <span>{label()}</span>
 <slot></slot>

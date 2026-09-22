@@ -115,9 +115,9 @@ describe('<ship-code-editor>', () => {
     const el = await mount('<ship-code-editor></ship-code-editor>')
     // Reflect skips the initial pass; attribute absent means the default (true) was never mutated.
     // We verify by checking the CM gutter is rendered inside the shadow.
-    const shadow = el.shadowRoot!
-    // CodeMirror creates a .cm-editor inside .editor-root when the view mounts.
-    expect(shadow.querySelector('.editor-root .cm-editor')).not.toBeNull()
+    const root = el.shadowRoot ?? el
+    // CodeMirror creates a .cm-editor inside the captured host when the view mounts.
+    expect(root.querySelector('.cm-editor')).not.toBeNull()
   })
 
   it('exposes setDiagnostics method on host after mount', async () => {
@@ -168,7 +168,7 @@ describe('<ship-code-editor>', () => {
     const el = await mount('<ship-code-editor value="fn main() {}"></ship-code-editor>')
     const saves: CustomEvent[] = []
     el.addEventListener('sail-save', (e) => saves.push(e as CustomEvent))
-    const cm = el.shadowRoot!.querySelector('.cm-editor .cm-content') as HTMLElement | null
+    const cm = (el.shadowRoot ?? el).querySelector('.cm-editor .cm-content') as HTMLElement | null
     cm?.focus()
     cm?.dispatchEvent(new KeyboardEvent('keydown', {
       key: 's', metaKey: true, ctrlKey: false, bubbles: true, composed: true,

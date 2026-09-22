@@ -1,6 +1,11 @@
+<scope>
+  props: {
+    can = '[]'
+    cant = '[]'
+  }
+</scope>
 <controller>
 import { controller, derived } from '@ship/sail-runtime'
-import type { ViewScope } from '@ship/sail-runtime'
 import type { Scope } from './ship-capability-bar.sail'
 
 type Tier = 'C0' | 'C1' | 'C2' | 'C3'
@@ -30,13 +35,12 @@ function safeJson(raw: string): unknown {
 const normTier = (t: unknown): Tier =>
   t === 'C1' || t === 'C2' || t === 'C3' ? t : 'C0'
 
-export default controller(({ can, cant }: ViewScope<Scope>) => {
-
+export default controller((ctx: Scope) => {
     const canList = derived<Grant[]>(() =>
-      parse<Grant>(can()).map((g) => ({ domain: g.domain ?? '', tier: normTier(g.tier) })),
+      parse<Grant>(ctx.can()).map((g) => ({ domain: g.domain ?? '', tier: normTier(g.tier) })),
     )
     const cantList = derived<Denial[]>(() =>
-      parse<Denial>(cant()).map((d) => ({
+      parse<Denial>(ctx.cant()).map((d) => ({
         domain: d.domain ?? '',
         tier: normTier(d.tier),
         why: d.why ?? '',
@@ -65,27 +69,23 @@ export default controller(({ can, cant }: ViewScope<Scope>) => {
           cant  JSON string — [{ domain, tier, why }]       (denied)
   Part:   capabilities
 -->
-<!-- <prop name="can" type="string" default="[]" /> -->
-<!-- <prop name="cant" type="string" default="[]" /> -->
-
-<!-- style block removed: use sx / external CSS -->
 
 <div>
   <div>
     <span>can</span>
-    <for as="c" of={canList()} key={c.domain}>
+    <for {canList()} as="c" key={c.domain}>
       <span><span>{c.domain}</span><ship-blast-tag tier={c.tier}></ship-blast-tag></span>
     </for>
   </div>
-  <if cond={hasDenied()}>
+  <if {hasDenied()}>
     <span></span>
     <div>
       <span>can't</span>
-      <for as="d" of={cantList()} key={d.domain}>
+      <for {cantList()} as="d" key={d.domain}>
         <span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>
           <span>{d.domain}</span><ship-blast-tag tier={d.tier}></ship-blast-tag>
-          <if cond={d.why}><span>{d.why}</span></if>
+          <if {d.why}><span>{d.why}</span></if>
         </span>
       </for>
     </div>

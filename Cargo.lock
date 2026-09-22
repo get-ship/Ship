@@ -1817,6 +1817,7 @@ dependencies = [
  "deck-config",
  "deck-core",
  "futures-util",
+ "sail-compiler",
  "serde",
  "serde_json",
  "specta",
@@ -3244,6 +3245,7 @@ dependencies = [
  "serde",
  "serde_json",
  "specta",
+ "thiserror 2.0.19",
  "toml 0.8.23",
 ]
 

@@ -1,6 +1,31 @@
+<!--
+  <ship-agent-thread> — a complete chat surface bound to a Ship session.
+
+  Composes two `@ship/sail-chat-elements` primitives:
+    • <sail-message-list>  keyed, auto-scrolling column of message bubbles
+    • <sail-composer>       text input that emits `sui-composer-submit`
+
+  The primitives are unbound (pure chat elements, no SDK). This `ship-*`
+  wrapper supplies the Ship-runtime binding: it owns the message array
+  and the submit handler, turning the framework-tier pieces into a
+  working, session-scoped thread.
+
+  Tag prefix `ship-*` marks Ship-runtime dependence. The two composed
+  primitives must be registered before this mounts — the host imports
+  `@ship/sail-chat-elements` (declared as a dependency of this pack).
+
+  Props
+  ─────────────────────────────────────────────────────────────────────
+  session-id  (string, required)  Ship session id to thread against.
+  ─────────────────────────────────────────────────────────────────────
+-->
+<scope>
+  props: {
+    'session-id' = ''
+  }
+</scope>
 <controller>
-import { controller, derived, signal } from '@ship/sail-runtime'
-import type { ViewScope } from '@ship/sail-runtime'
+import type { ControllerScope } from '@ship/sail-runtime'
 import type { Scope } from './ship-agent-thread.sail'
 
 // ── Message contract ──────────────────────────────────────────────────
@@ -17,7 +42,7 @@ export interface Message {
   status?: 'sending' | 'sent' | 'error'
 }
 
-// `<sui-message-list>` consumes its own item shape (`content` /
+// `<sail-message-list>` consumes its own item shape (`content` /
 // `contentType`, camelCase). This wrapper owns `Message[]` (the SDK
 // contract above) and maps it onto the primitive's shape at the binding
 // edge — one place to adjust if either side moves.
@@ -39,8 +64,7 @@ const toListItem = (m: Message): ListItem => ({
   status: m.status ?? 'sent',
 })
 
-export default controller((ctx: ViewScope<Scope>) => {
-
+export default controller((ctx: ControllerScope<Scope>) => {
     // ── TODO(#SDK-chat): replace the local signal + mock send ──────────
     // The required SDK methods do not exist yet — today `@ship/sdk-client`
     // only exposes `ship.chat.state(args)`. When the gap closes, this
@@ -102,32 +126,6 @@ export default controller((ctx: ViewScope<Scope>) => {
     return { messages, sending, items, onSubmit }
 })
 </controller>
-
-<!--
-  <ship-agent-thread> — a complete chat surface bound to a Ship session.
-
-  Composes two `@ship/sail-chat-elements` primitives:
-    • <sail-message-list>  keyed, auto-scrolling column of message bubbles
-    • <sail-composer>       text input that emits `sui-composer-submit`
-
-  The primitives are unbound (pure `sui-*`, no SDK). This `ship-*`
-  wrapper supplies the Ship-runtime binding: it owns the message array
-  and the submit handler, turning the framework-tier pieces into a
-  working, session-scoped thread.
-
-  Tag prefix `ship-*` marks Ship-runtime dependence. The two composed
-  primitives must be registered before this mounts — the host imports
-  `@ship/sail-chat-elements` (declared as a dependency of this pack).
-
-  Props
-  ─────────────────────────────────────────────────────────────────────
-  session-id  (string, required)  Ship session id to thread against.
-  ─────────────────────────────────────────────────────────────────────
--->
-
-<!-- <prop name="session-id" type="string" default="" /> -->
-
-<!-- style block removed: use sx / external CSS -->
 
 <column gap="0">
   <sail-message-list items={items()}>

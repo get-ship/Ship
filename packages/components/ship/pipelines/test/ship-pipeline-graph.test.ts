@@ -5,9 +5,9 @@ import { createContainerRegistry, flush, mount } from '@ship/test-setup'
 const reg = createContainerRegistry()
 afterEach(() => reg.cleanup())
 
-const shadow = (el: HTMLElement) => el.shadowRoot!
-// The flow host carries bind:this AND an authored class/part. Querying through
-// `.flow` pins #285: static attributes must survive alongside the ref binding.
+const shadow = (el: HTMLElement) => el.shadowRoot ?? el
+// The flow host carries use:paint. Querying through `.flow` pins #285: static
+// attributes must survive alongside the action binding.
 const flow = (el: HTMLElement) => shadow(el).querySelector('.flow')!
 const stepsAttr = (steps: unknown) => JSON.stringify(steps)
 
@@ -22,7 +22,7 @@ describe('<ship-pipeline-graph>', () => {
     expect(customElements.get('ship-pipeline-graph')).toBeDefined()
   })
 
-  it('keeps the authored class and part on the bind:this host (#285)', async () => {
+  it('keeps the authored class and part on the use: host (#285)', async () => {
     const { el } = mount(reg, 'ship-pipeline-graph', { steps: '[]' })
     await flush()
     const host = shadow(el).querySelector('.flow')

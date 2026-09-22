@@ -6,11 +6,12 @@
   Buses: sfx (game effects), music (looped beds — out of scope for v0.1
   playback semantics, but the bus exists for volume control), ui (HUD clicks).
 -->
-
-<!-- <prop name="src" type="string" default="" reflect /> -->
-<!-- <prop name="on" type="string" default="" reflect /> -->
-<!-- <prop name="volume" type="number" default="1" /> -->
-<!-- <prop name="pitch-range" type="string" default="1..1" /> -->
-<!-- <prop name="bus" values="sfx|music|ui" default="sfx" reflect /> -->
-
-<!-- style block removed: use sx / external CSS -->
+<scope>
+  props: {
+    src = ''
+    on = ''
+    volume = 1
+    'pitch-range' = '1..1'
+    bus: 'sfx' | 'music' | 'ui' = 'sfx'
+  }
+</scope>

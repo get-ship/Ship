@@ -1,6 +1,6 @@
 // @ship/viewer — the content-renderer ROUTER pack (`<ship-viewer>` dispatcher).
 //
-// The dispatcher's <tag>.compiled.js calls customElements.define() on import, so
+// The dispatcher's <tag>.sail calls customElements.define() on import, so
 // a single `import '@ship/viewer'` registers the `ship-viewer` tag globally.
 //
 // `<ship-viewer>` reads a resolved source and routes it to the right renderer

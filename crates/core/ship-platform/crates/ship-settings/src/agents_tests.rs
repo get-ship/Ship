@@ -37,7 +37,7 @@ fn read_agent_profiles_reads_canonical_via_fs_broker() {
         &dir,
         "alpha",
         serde_json::json!({
-            "agent": { "id": "alpha", "name": "Alpha", "role": "worker" },
+            "agent": { "id": "alpha", "name": "Alpha" },
             "skills": { "refs": ["rust"] },
             "mcp": { "servers": ["fs"] }
         }),
@@ -46,7 +46,6 @@ fn read_agent_profiles_reads_canonical_via_fs_broker() {
     let profiles = read_agent_profiles(&fs, &dir).unwrap();
     assert_eq!(profiles.len(), 1);
     assert_eq!(profiles[0].agent.id, "alpha");
-    assert_eq!(profiles[0].agent.role.as_deref(), Some("worker"));
     assert_eq!(profiles[0].skills.refs, vec!["rust".to_string()]);
     assert_eq!(profiles[0].mcp.servers, vec!["fs".to_string()]);
 }

@@ -13,7 +13,7 @@ import { createContainerRegistry, mount } from '@ship/test-setup'
 const reg = createContainerRegistry()
 afterEach(() => reg.cleanup())
 
-const shadow = (el: HTMLElement) => el.shadowRoot!
+const shadow = (el: HTMLElement) => el.shadowRoot ?? el
 
 describe('<ship-app-chrome>', () => {
   it('registers as a custom element', () => {

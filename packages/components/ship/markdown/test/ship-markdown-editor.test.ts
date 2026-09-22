@@ -34,7 +34,7 @@ function make(attrs: Record<string, string | boolean> = {}) {
   return mount(reg, 'ship-markdown-editor', attrs)
 }
 
-function shadow(el: HTMLElement) { return el.shadowRoot! }
+function shadow(el: HTMLElement) { return el.shadowRoot ?? el }
 function toolbar(el: HTMLElement) { return shadow(el).querySelector<HTMLElement>('.toolbar') }
 function bubble(el: HTMLElement) { return shadow(el).querySelector<HTMLElement>('.bubble') }
 function composer(el: HTMLElement) { return shadow(el).querySelector<HTMLElement>('.composer') }

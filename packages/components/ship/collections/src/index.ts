@@ -2,7 +2,7 @@
 // collections domain: list, table, item detail/editor, schema editor,
 // query editor/runner, picker).
 //
-// Each <tag>.compiled.js calls customElements.define() on import, so a
+// Each <tag>.sail calls customElements.define() on import, so a
 // single `import '@ship/collections'` registers every tag globally.
 //
 // Host requirement: the host (shell main.ts) must call setShipClient()

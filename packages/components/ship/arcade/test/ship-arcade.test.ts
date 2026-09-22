@@ -22,7 +22,7 @@ function mount(attrs: Record<string, string> = {}) {
 }
 
 const flush = () => new Promise<void>((r) => setTimeout(r, 0))
-const shadow = (el: HTMLElement) => el.shadowRoot!
+const shadow = (el: HTMLElement) => el.shadowRoot ?? el
 const gamesAttr = (g: unknown) => JSON.stringify(g)
 
 const FIXTURE = [

@@ -421,7 +421,7 @@ pub fn resolve(
     feature: Option<&WorkspaceOverrides>,
     active_agent_override: Option<&str>,
 ) -> ResolvedConfig {
-    // ── Active agent (resolved first — needed for harness target_agents) ─────
+    // ── Active agent (resolved first — filters skills/rules/mcp) ─────────────
     let active_agent = active_agent_override
         .map(str::trim)
         .filter(|v| !v.is_empty())
@@ -1024,14 +1024,10 @@ mod tests {
         assert_eq!(resolved.harnesses, vec!["claude"]);
     }
 
-    // ── Agent target_agents is ignored for harness selection ─────────────
-    // Agent profiles are harness-agnostic at the baseline; an agent's
-    // target_agents (if non-empty for whatever legacy reason) does NOT
-    // restrict which harnesses compile. Project list (and feature
-    // override) are the only inputs to the harness loop.
+    // ── Project harnesses win (agents do not select harnesses) ───────────
 
     #[test]
-    fn agent_target_agents_does_not_override_project_harnesses() {
+    fn project_harnesses_drive_selection_with_active_agent() {
         let config = SpaceManifest {
             harnesses: vec!["codex".to_string()],
             agents: vec![AgentProfile {
@@ -1040,9 +1036,8 @@ mod tests {
                     name: "Any Agent".to_string(),
                     ..Default::default()
                 },
-                target_agents: vec!["some-target".to_string()],
                 ..Default::default()
-}],
+            }],
             ..Default::default()
         };
         let resolved = resolve(
@@ -1294,10 +1289,7 @@ mod tests {
                     name: "Test Agent".to_string(),
                     version: None,
                     description: None,
-                    role: None,
                     tags: vec![],
-                    tools_preset: None,
-                    active_tools: vec![],
                     icon: None,
                 },
                 capabilities: Vec::new(),
@@ -1307,11 +1299,9 @@ mod tests {
                 permissions: ProfilePermissions::default(),
                 rules: ProfileRules::default(),
                 hooks: Default::default(),
-                target_agents: Vec::new(),
-                apps: Default::default(),
                 harness_settings: Default::default(),
                 visibility: None,
-}],
+            }],
             claude_team_agents: vec![("team-lead.md".to_string(), "# Team Lead".to_string())],
             env: {
                 let mut m = std::collections::HashMap::new();

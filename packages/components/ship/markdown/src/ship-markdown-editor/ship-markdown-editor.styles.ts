@@ -14,7 +14,7 @@ export const EDITOR_CONTENT_CSS = `
   line-height: var(--ed-lh, 1.7);
   color: var(--foreground);
   outline: none;
-  min-height: 100%;
+  min-height: 0;
   caret-color: var(--foreground);
 }
 .ProseMirror > *:first-child { margin-top: 0 !important; }

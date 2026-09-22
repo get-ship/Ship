@@ -1,6 +1,12 @@
+<scope>
+  props: {
+    collection = ''
+    source = ''
+    limit = 100
+  }
+</scope>
 <controller>
-import { controller, derived, live, signal, unwrapOr } from '@ship/sail-runtime'
-import type { ViewScope } from '@ship/sail-runtime'
+import { controller, derived, effect, query, signal, unwrapOr } from '@ship/sail-runtime'
 import { ship } from '@ship/sdk-client'
 import type { Scope } from './ship-query-runner.sail'
 
@@ -39,31 +45,28 @@ interface RowRecord {
 const EMPTY_STATE: StatePayload = { schema: { name: '', fields: [] } }
 const EMPTY_ITEMS = { items: [] as unknown[], total_items: 0 }
 
-async function runQuery(collection: string): Promise<{ items: unknown[]; total_items: number }> {
-  return ship.collections.items({ collection }) as unknown as Promise<{ items: unknown[]; total_items: number }>
-}
+export default controller(({ collection, source, limit }: Scope, _host?: Element) => {
 
-export default controller(({ collection, source, limit }: ViewScope<Scope>, _host) => {
+    const state = query<unknown>(() => ship.collections.state(collection() ? { active: collection() } : {}))
 
-    const state = live<unknown>(() => ship.collections.state(collection() ? { active: collection() } : {}))
-
-    // Track elapsed via a signal the live() thunk updates on resolve.
+    // Track elapsed via a signal updated when results settle.
     // The template reads elapsed() reactively — no host attribute round-trip.
     const elapsedMs = signal<number>(0)
+    const startedAt = signal<number>(0)
 
-    const results = live<{ items: unknown[]; total_items: number }>(() => {
-      const c = collection()
-      if (!c) return Promise.resolve({ items: [], total_items: 0 })
-      const started = Date.now()
-      return runQuery(c).then((r) => {
-        elapsedMs.set(Date.now() - started)
-        return r
-      })
+    const results = query<{ items: unknown[]; total_items: number }>(() => {
+      startedAt.set(Date.now())
+      return ship.collections.items({ collection: collection() })
+    })
+
+    effect(() => {
+      const r = results()
+      if (r.kind === 'ok') elapsedMs.set(Math.max(0, Date.now() - startedAt()))
     })
 
     // source + limit are wired to the RPC in v2 with the typed
     // query_items op; reading them here keeps the dependency alive so
-    // the live() thunk re-fires on prop change.
+    // the query() thunk re-fires on prop change.
     void source; void limit
 
     const running = derived<boolean>(() => results().kind === 'loading')
@@ -111,7 +114,7 @@ export default controller(({ collection, source, limit }: ViewScope<Scope>, _hos
 
 <!--
   <ship-query-runner> — @ship/collections · run a query and render
-  typed results + row count + elapsed time. Calls QueryItems via
+  typed results + row count + elapsed time. Calls items() via
   the SDK and composes <sail-table> for the result grid. Reads the
   schema for column rendering (the typed-from-schema contract).
 
@@ -122,35 +125,32 @@ export default controller(({ collection, source, limit }: ViewScope<Scope>, _hos
   triggers runs by listening for ship-query-change, or by passing
   a query string via the `source` prop and toggling `run` to true.
 
-  Tag prefix `ship-*` marks this component as depending on the Ship
-  runtime: mounting without a host that has called setShipClient()
-  will throw on the first SDK access.
+  Tag prefix `ship-*` marks this component as depending on the
+  Ship runtime: mounting without a host that has called
+  setShipClient() will throw on the first SDK access.
 -->
 <!-- <prop name="collection" type="string" default="" /> -->
 <!-- <prop name="source" type="string" default="" /> -->
 <!-- <prop name="limit" type="number" default="100" /> -->
 
-<!-- style block removed: use sx / external CSS -->
-
 <div>
   <span>Results</span>
-  <if cond={running()}><span>· running…</span></if>
+  <if {running()}><span>· running…</span></if>
   <span data-test="meta">
     <span data-test="count">{rowCount()} rows</span>
     <span data-test="elapsed">{elapsed()}</span>
   </span>
 </div>
 
-<while-loading of="results">
-  <spinner shape="line" size="md"></spinner>
-</while-loading>
-<while-error as="err" of="results">
-  <error-state title="Query failed" variant="inline" data-test="error">{err.message}</error-state>
-</while-error>
-<if cond={results().kind === 'ok'}>
-  <if cond={rows().length === 0}>
+<match {results()}>
+  {loading => <spinner shape="line" size="md"></spinner>}
+  {error as err => <error-state title="Query failed" variant="inline" data-test="error" body={err?.message ?? 'Request failed'}></error-state>}
+  {ok as _ => }
+</match>
+<if {results().kind === 'ok'}>
+  <if {rows().length === 0}>
     <div data-test="empty">0 rows</div>
-  <else>
+  {else =>
     <sail-table
       variant="data"
       rows={rows()}
@@ -159,5 +159,5 @@ export default controller(({ collection, source, limit }: ViewScope<Scope>, _hos
       striped
       data-test="grid"
     ></sail-table>
-  </else></if>
+  }</if>
 </if>

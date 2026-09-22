@@ -1,8 +1,13 @@
+<scope>
+  props: {
+    type: 'agent' | 'gate' | 'merge' | 'human' = 'agent'
+    state: 'ok' | 'running' | 'awaiting' | 'err' | 'none' = 'none'
+    compact = false
+  }
+</scope>
 <controller>
 // <sui-pipeline-step> — derives the display labels from the type/state props
 // so the template renders real DOM text (not CSS ::before/::after content).
-import { controller, derived } from '@ship/sail-runtime'
-import type { ViewScope } from '@ship/sail-runtime'
 import type { Scope } from './sui-pipeline-step.sail'
 
 const STATE_LABEL: Record<string, string> = {
@@ -13,11 +18,10 @@ const STATE_LABEL: Record<string, string> = {
   none: '',
 }
 
-export default controller(({ type, state }: ViewScope<Scope>) => {
-
-    const kindLabel = derived(() => type())
-    const stateLabel = derived(() => STATE_LABEL[state()] ?? '')
-    return { kindLabel, stateLabel }
+export default controller((ctx: Scope) => {
+  const kindLabel = derived(() => ctx.type())
+  const stateLabel = derived(() => STATE_LABEL[ctx.state()] ?? '')
+  return { kindLabel, stateLabel }
 })
 </controller>
 
@@ -30,11 +34,6 @@ export default controller(({ type, state }: ViewScope<Scope>) => {
   Slots:  default = step id/title · sub = sub line · arts = artifact chips
   Parts:  step · accent · kind · chip
 -->
-<!-- <prop name="type" values="agent|gate|merge|human" default="agent" reflect /> -->
-<!-- <prop name="state" values="ok|running|awaiting|err|none" default="none" reflect /> -->
-<!-- <prop name="compact" type="bool" default="false" reflect /> -->
-
-<!-- style block removed: use sx / external CSS -->
 
 <div>
   <div>

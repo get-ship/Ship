@@ -9,6 +9,5 @@ defineAgent({
 // Same injected default, but a per-agent field overrides it — local wins.
 defineAgent({
   ...globals.agentDefaults,
-  agent: { id: "override", name: "override" },
-  target_agents: ["local-only"],
+  agent: { id: "override", name: "override", description: "local-only" },
 });

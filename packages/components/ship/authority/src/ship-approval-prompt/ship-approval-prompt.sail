@@ -1,6 +1,16 @@
+<scope>
+  props: {
+    op = 'op'
+    args = ''
+    req = ''
+    grant = ''
+    blast: 'C0' | 'C1' | 'C2' | 'C3' = 'C2'
+    state: 'pending' | 'approved' | 'denied' | 'expired' = 'pending'
+    open = false
+  }
+</scope>
 <controller>
 import { controller } from '@ship/sail-runtime'
-import type { ViewScope } from '@ship/sail-runtime'
 import type { Scope } from './ship-approval-prompt.sail'
 
 // Presentation is reflected-attribute driven (op · args · req · grant · blast ·
@@ -17,14 +27,13 @@ import type { Scope } from './ship-approval-prompt.sail'
 // 'expired' after the decision is persisted, the resolved chip + tone shift
 // fall out of CSS alone. The buttons auto-hide because ship-approval-prompt(:not([state='pending']))
 // .actions { display: none; }.
-export default controller(({ open, req }: ViewScope<Scope>, host) => {
-
+export default controller((ctx: Scope, host?: Element) => {
     function toggleDetails(): void {
-      const next = !open()
+      const next = !ctx.open()
       host?.toggleAttribute('open', next)
       host?.dispatchEvent(
         new CustomEvent('ship-inspect', {
-          detail: { req: req() },
+          detail: { req: ctx.req() },
           bubbles: true,
           composed: true,
         }),
@@ -34,7 +43,7 @@ export default controller(({ open, req }: ViewScope<Scope>, host) => {
     function decide(decision: 'approve' | 'deny'): void {
       host?.dispatchEvent(
         new CustomEvent('ship-decide', {
-          detail: { req: req(), decision },
+          detail: { req: ctx.req(), decision },
           bubbles: true,
           composed: true,
         }),
@@ -62,15 +71,6 @@ export default controller(({ open, req }: ViewScope<Scope>, host) => {
     ship-decide    { detail: { req, decision: 'approve' | 'deny' } } — Approve/Deny buttons
     ship-inspect   { detail: { req } }                              — Details disclosure toggle
 -->
-<!-- <prop name="op" type="string" default="op" /> -->
-<!-- <prop name="args" type="string" default="" /> -->
-<!-- <prop name="req" type="string" default="" /> -->
-<!-- <prop name="grant" type="string" default="" /> -->
-<!-- <prop name="blast" values="C0|C1|C2|C3" default="C2" reflect /> -->
-<!-- <prop name="state" values="pending|approved|denied|expired" default="pending" reflect /> -->
-<!-- <prop name="open" type="bool" default="false" reflect /> -->
-
-<!-- style block removed: use sx / external CSS -->
 
 <div>
   <div>

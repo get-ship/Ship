@@ -5,7 +5,7 @@ import { createContainerRegistry, flush, mount } from '@ship/test-setup'
 const reg = createContainerRegistry()
 afterEach(() => reg.cleanup())
 
-const shadow = (el: HTMLElement) => el.shadowRoot!
+const shadow = (el: HTMLElement) => el.shadowRoot ?? el
 const rowsAttr = (rows: unknown) => JSON.stringify(rows)
 
 const FIXTURE = [

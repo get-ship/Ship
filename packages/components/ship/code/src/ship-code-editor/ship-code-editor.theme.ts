@@ -15,6 +15,8 @@ export const suiEditorTheme = EditorView.theme({
     color: 'var(--foreground)',
     fontSize: 'inherit',
     fontFamily: 'inherit',
+    height: '100%',
+    minHeight: '100%',
   },
   '.cm-content': {
     caretColor: 'var(--foreground)',
@@ -72,6 +74,8 @@ export const suiEditorTheme = EditorView.theme({
   '.cm-scroller': {
     fontFamily: 'inherit',
     lineHeight: 'inherit',
+    height: '100%',
+    minHeight: '100%',
   },
 })
 

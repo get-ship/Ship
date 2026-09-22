@@ -1,10 +1,14 @@
+<scope>
+  props: {
+    request = ''
+    duration: 'once' | 'session' | 'always' = 'session'
+    open = false
+  }
+</scope>
 <controller>
-import { controller, derived, effect, ref } from '@ship/sail-runtime'
-import type { ViewScope } from '@ship/sail-runtime'
+import { controller, derived } from '@ship/sail-runtime'
 import type { Scope } from './ship-capability-request.sail'
-import type { AuthorityRequest } from '../ship-approval-card/ship-approval-card.controller'
-
-type Duration = 'once' | 'session' | 'always'
+import type { AuthorityRequest } from '../ship-approval-card/ship-approval-card.sail'
 
 const EMPTY: AuthorityRequest = {
   id: '', agent: '', space: '', kind: 'capability', why: '', risk: 'low',
@@ -20,10 +24,8 @@ function parseRequest(raw: unknown): Partial<AuthorityRequest> {
   }
 }
 
-export default controller(({ request, duration, open }: ViewScope<Scope>, host) => {
-
-    const dialogRef = ref<HTMLElement>(null)
-    const req = derived<AuthorityRequest>(() => ({ ...EMPTY, ...parseRequest(request()) }))
+export default controller((ctx: Scope, host?: Element) => {
+    const req = derived<AuthorityRequest>(() => ({ ...EMPTY, ...parseRequest(ctx.request()) }))
     const agent = derived(() => req().agent)
     const space = derived(() => req().space)
     const why = derived(() => req().why)
@@ -32,23 +34,27 @@ export default controller(({ request, duration, open }: ViewScope<Scope>, host) 
     // sui-toggle-group emits sui-change { value } — mirror it into our prop.
     function onDurationChange(e: Event): void {
       const value = (e as CustomEvent<{ value: string }>).detail?.value
-      if (value === 'once' || value === 'session' || value === 'always') duration.set(value)
+      if (value === 'once' || value === 'session' || value === 'always') ctx.duration.set(value)
     }
 
     function emitDecide(decision: 'deny' | 'allow'): void {
       host?.dispatchEvent(
         new CustomEvent('ship-decide', {
-          detail: { id: req().id, decision, duration: duration() },
+          detail: { id: req().id, decision, duration: ctx.duration() },
           bubbles: true,
           composed: true,
         }),
       )
-      open.set(false)
+      ctx.open.set(false)
     }
     function deny(): void { emitDecide('deny') }
     function allow(): void { emitDecide('allow') }
 
-    return { dialogRef, req, agent, space, why, scopeLine, onDurationChange, deny, allow }
+    function onClose(): void {
+      if (ctx.open()) ctx.open.set(false)
+    }
+
+    return { req, agent, space, why, scopeLine, onDurationChange, deny, allow, onClose }
 })
 </controller>
 
@@ -75,17 +81,12 @@ export default controller(({ request, duration, open }: ViewScope<Scope>, host) 
   <toggle-group>/<toggle> (single-select) for the duration picker.
 -->
 
-<!-- <prop name="request" type="string" default="" /> -->
-<!-- <prop name="duration" values="once|session|always" default="session" reflect /> -->
-<!-- <prop name="open" type="bool" default="false" reflect /> -->
-
-<!-- style block removed: use sx / external CSS -->
-
 <dialog
   size="sm"
   role-override="alertdialog"
   no-close-button
-  bind:this={dialogRef}
+  open={open()}
+  on-close={onClose}
 >
   <span slot="header">
     <p>Capability request</p>

@@ -1,6 +1,6 @@
 // @ship/skills — Ship Skills pack (ship-* tags for the hub /studio/skills surface).
 //
-// Each <tag>.compiled.js calls customElements.define() on import, so a
+// Each <tag>.sail calls customElements.define() on import, so a
 // single `import '@ship/skills'` registers every tag globally.
 //
 // Composites:

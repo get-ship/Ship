@@ -1,3 +1,11 @@
+<scope>
+  props: {
+    src = ''
+    page = 1
+    zoom = 1
+    label = 'PDF page'
+  }
+</scope>
 <controller>
 // <ship-pdf> controller — drives the pdf.js (pdfjs-dist) load/render engine and
 // wires it to the component's props + lifecycle events. The engine owns the
@@ -6,42 +14,44 @@
 // `ship-pdf-page`, and surface a load/render failure as the template's visible
 // error state (never a blank canvas).
 //
-// The prop signals (`src`/`page`/`zoom`) are read in the `scope` factory — where
+// The prop signals (`src`/`page`/`zoom`) are read in the setup function — where
 // they're the reactive prop accessors — into deriveds (`pdfSource`/`pageNum`/
-// `zoomLevel`). `mount` reads those deriveds through the writable state proxy's
-// value side, which subscribes the surrounding effect, so an attribute/property
-// change re-runs the load/render.
+// `zoomLevel`). `mount` reads those deriveds, which subscribes the surrounding
+// effect, so an attribute/property change re-runs the load/render.
 //
 // Two reactive effects in `mount`:
 //   - LOAD: re-runs when `pdfSource` changes — opens the document, emits
 //     `ship-pdf-load { pages }`, clears any prior error, then triggers a render.
 //   - RENDER: re-runs when the loaded doc / `pageNum` / `zoomLevel` / the
-//     bind:this canvas change — paints the page and emits `ship-pdf-page` when
+//     captured canvas change — paints the page and emits `ship-pdf-page` when
 //     the displayed page changes.
 // Any rejection flips `errorMessage`; the template swaps the canvas for
-// <sui-error-state role=alert>.
+// <error-state>.
 
-import { controller, derived, effect, emit, ref, signal } from '@ship/sail-runtime'
+import { emit } from '@ship/sail-runtime'
+import type { Action } from '@ship/sail-runtime'
 import { createPdfEngine, sourceFromString, type PdfSource } from './engine/pdf-engine'
 import type { Scope } from './ship-pdf.sail'
 
-export default controller({
-  scope: ({ src, page, zoom }: Scope) => {
-    // bind:this target — the engine-owned canvas pdf.js paints into.
-    const canvasEl = ref<HTMLCanvasElement>(null)
-    // Reactive views of the props, read where they're the live prop signals.
-    const pdfSource = derived<PdfSource | null>(() => sourceFromString(src()))
-    const pageNum = derived<number>(() => page())
-    const zoomLevel = derived<number>(() => zoom())
-    // Page count of the loaded document (0 before load).
-    const pages = signal(0)
-    const errorMessage = signal('')
-    const errored = derived<boolean>(() => errorMessage() !== '')
-    return { canvasEl, pdfSource, pageNum, zoomLevel, pages, errorMessage, errored }
-  },
+export default controller((ctx: Scope, host?: Element) => {
+  // use: capture target — the engine-owned canvas pdf.js paints into.
+  const canvasEl = signal<Element | null>(null)
+  const captureCanvas: Action<void> = (node) => {
+    canvasEl.set(node)
+    return { destroy: () => canvasEl.set(null) }
+  }
+  // Reactive views of the props, read where they're the live prop signals.
+  const pdfSource = derived<PdfSource | null>(() => sourceFromString(ctx.src()))
+  const pageNum = derived<number>(() => ctx.page())
+  const zoomLevel = derived<number>(() => ctx.zoom())
+  // Page count of the loaded document (0 before load).
+  const pages = signal(0)
+  const errorMessage = signal('')
+  const errored = derived<boolean>(() => errorMessage() !== '')
 
-  mount(state, host) {
+  mount((mountedHost) => {
     const engine = createPdfEngine()
+    const target = mountedHost ?? host
 
     // Loaded-document generation: bumped on every successful load so the render
     // effect re-runs after a fresh document opens (the engine identity is
@@ -51,48 +61,50 @@ export default controller({
 
     // --- LOAD: re-resolve whenever the source changes ----------------------
     const stopLoad = effect(() => {
-      const source = state.pdfSource as PdfSource | null // value-side read subscribes
+      const source = pdfSource()
       // No source yet (or cleared) — clear error + page count, nothing to draw.
       if (!source) {
-        state.errorMessage = ''
-        state.pages = 0
+        errorMessage.set('')
+        pages.set(0)
         return
       }
       void engine
         .load(source)
         .then((count) => {
-          state.errorMessage = ''
-          state.pages = count
+          errorMessage.set('')
+          pages.set(count)
           lastEmittedPage = 0
-          emit(host, 'ship-pdf-load', { pages: count })
+          if (target) emit(target, 'ship-pdf-load', { pages: count })
           docGen.set(docGen() + 1)
         })
         .catch((err: unknown) => {
-          state.pages = 0
-          state.errorMessage =
-            err instanceof Error ? err.message : 'The document could not be opened.'
+          pages.set(0)
+          errorMessage.set(
+            err instanceof Error ? err.message : 'The document could not be opened.',
+          )
         })
     })
 
     // --- RENDER: re-resolve on doc / page / zoom / canvas change -----------
     const stopRender = effect(() => {
       docGen() // subscribe — re-render after each successful load
-      const page = state.pageNum as number
-      const zoom = state.zoomLevel as number
-      const canvas = state.canvasEl as HTMLCanvasElement | null
+      const page = pageNum()
+      const zoom = zoomLevel()
+      const canvas = canvasEl()
       // Canvas absent (error branch is showing) or no document loaded → skip.
-      if (!canvas || engine.pageCount() === 0) return
+      if (!(canvas instanceof HTMLCanvasElement) || engine.pageCount() === 0) return
       void engine
         .renderPage(canvas, page, zoom)
         .then((result) => {
           if (result.page !== lastEmittedPage) {
             lastEmittedPage = result.page
-            emit(host, 'ship-pdf-page', { page: result.page })
+            if (target) emit(target, 'ship-pdf-page', { page: result.page })
           }
         })
         .catch((err: unknown) => {
-          state.errorMessage =
-            err instanceof Error ? err.message : 'The page could not be rendered.'
+          errorMessage.set(
+            err instanceof Error ? err.message : 'The page could not be rendered.',
+          )
         })
     })
 
@@ -101,7 +113,9 @@ export default controller({
       stopRender()
       engine.destroy()
     }
-  },
+  })
+
+  return { captureCanvas, pdfSource, pageNum, zoomLevel, pages, errorMessage, errored }
 })
 </controller>
 
@@ -111,7 +125,7 @@ export default controller({
   SHIP-tier (engine via the pdfjs-dist npm dep, not sui-media): the controller
   drives a small load/render engine (`engine/pdf-engine.ts`) that calls pdf.js
   `getDocument()` and paints the current page onto an engine-OWNED <canvas>
-  (`bind:this` — pdf.js draws into the 2d context; the controller never sets
+  (`use:` capture — pdf.js draws into the 2d context; the controller never sets
   innerHTML). `GlobalWorkerOptions` is pointed at the pack's same-origin
   bundler-emitted worker (never a CDN).
 
@@ -131,27 +145,20 @@ export default controller({
     toolbar — chrome above the page (prev/next/zoom). Empty by default; the
               consumer drops controls in, or drives `page`/`zoom` as props.
 
-  Graceful: a load/render failure renders a VISIBLE error state (sui-error-state,
+  Graceful: a load/render failure renders a VISIBLE error state (error-state,
   role=alert) — never a blank canvas or undefined element.
 -->
 
-<!-- <prop name="src" type="string" default="" reflect /> -->
-<!-- <prop name="page" type="number" default="1" reflect /> -->
-<!-- <prop name="zoom" type="number" default="1" /> -->
-<!-- <prop name="label" type="string" default="PDF page" /> -->
-
-<!-- style block removed: use sx / external CSS -->
-
 <div><slot name="toolbar"></slot></div>
 
-<if cond={errored()}>
+<if {errored()}>
   <error-state
     title="Couldn't open PDF"
     body={errorMessage()}
     variant="inline">
   </error-state>
-<else>
+{else =>
   <div>
-    <canvas bind:this={canvasEl} aria-label={label()} role="img"></canvas>
+    <canvas use:captureCanvas aria-label={label()} role="img"></canvas>
   </div>
-</else></if>
+}</if>

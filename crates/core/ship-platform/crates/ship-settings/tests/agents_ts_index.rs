@@ -49,7 +49,6 @@ async fn jsonc_agent_loads_into_index_and_serves_via_get_doc() {
   "agent": {
     "id": "reviewer",
     "name": "Reviewer",
-    "role": "reviewer",
     "description": "Reviews diffs for correctness."
   },
   "skills": { "refs": ["review-pr"] }
@@ -73,9 +72,9 @@ async fn jsonc_agent_loads_into_index_and_serves_via_get_doc() {
     );
     assert_eq!(
         doc.get("agent")
-            .and_then(|a| a.get("role"))
+            .and_then(|a| a.get("description"))
             .and_then(|v| v.as_str()),
-        Some("reviewer"),
+        Some("Reviews diffs for correctness."),
     );
 }
 

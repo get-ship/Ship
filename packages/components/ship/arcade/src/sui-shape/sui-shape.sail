@@ -8,26 +8,26 @@
   Shapes are useful for retro-arcade art (rects + circles + polygons) and
   for placeholder gameplay sprites before art assets exist.
 -->
-
-<!-- <prop name="kind" values="rect|circle|polygon|line" default="rect" reflect /> -->
-<!-- <prop name="width" type="number" default="10" /> -->
-<!-- <prop name="height" type="number" default="10" /> -->
-<!-- <prop name="radius" type="number" default="5" /> -->
-<!-- <prop name="points" type="string" default="" /> -->
-<!-- <prop name="x" type="number" default="0" /> -->
-<!-- <prop name="y" type="number" default="0" /> -->
-<!-- <prop name="z" type="number" default="0" /> -->
-<!-- <prop name="vx" type="number" default="0" /> -->
-<!-- <prop name="vy" type="number" default="0" /> -->
-<!-- <prop name="scale" type="number" default="1" /> -->
-<!-- <prop name="rotation" type="number" default="0" /> -->
-<!-- <prop name="alpha" type="number" default="1" /> -->
-<!-- <prop name="fill" type="string" default="foreground" /> -->
-<!-- <prop name="stroke" type="string" default="" /> -->
-<!-- <prop name="stroke-width" type="number" default="1" /> -->
-<!-- <prop name="group" type="string" default="" reflect /> -->
-<!-- <prop name="tag" type="string" default="" reflect /> -->
-
-<!-- style block removed: use sx / external CSS -->
-
+<scope>
+  props: {
+    kind: 'rect' | 'circle' | 'polygon' | 'line' = 'rect'
+    width = 10
+    height = 10
+    radius = 5
+    points = ''
+    x = 0
+    y = 0
+    z = 0
+    vx = 0
+    vy = 0
+    scale = 1
+    rotation = 0
+    alpha = 1
+    fill = 'foreground'
+    stroke = ''
+    'stroke-width' = 1
+    group = ''
+    tag = ''
+  }
+</scope>
 <slot></slot>

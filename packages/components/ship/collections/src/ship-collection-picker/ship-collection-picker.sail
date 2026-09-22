@@ -1,6 +1,11 @@
+<scope>
+  props: {
+    active = ''
+    placeholder = 'Pick a collection'
+  }
+</scope>
 <controller>
-import { controller, derived, live, signal, unwrapOr } from '@ship/sail-runtime'
-import type { LiveSource, ViewScope } from '@ship/sail-runtime'
+import { controller, derived, onCleanup, query, signal, unwrapOr } from '@ship/sail-runtime'
 import { ship } from '@ship/sdk-client'
 import type { Scope } from './ship-collection-picker.sail'
 
@@ -17,9 +22,9 @@ interface CollectionRow {
 
 const EMPTY = { items: [] as { id: string; name: string | null; item_count: number; builtin?: boolean }[] }
 
-export default controller((_ctx, host) => {
+export default controller((ctx: Scope, host?: Element) => {
 
-    const list = live(() => ship.collections.list() as unknown as LiveSource<typeof EMPTY>)
+    const list = query(() => ship.collections.list())
     const rows = derived<CollectionRow[]>(() =>
       unwrapOr(list, EMPTY).items.map((c) => ({
         id: c.id,
@@ -30,7 +35,7 @@ export default controller((_ctx, host) => {
     )
     const open = signal(false)
     const activeLabel = derived(() => {
-      const found = rows().find((c) => c.id === (host?.getAttribute('active') ?? ''))
+      const found = rows().find((c) => c.id === ctx.active())
       return found?.name ?? ''
     })
 
@@ -44,7 +49,7 @@ export default controller((_ctx, host) => {
           open.set(!open())
           return
         }
-        if (node.matches('.row[data-id]')) {
+        if (node.matches('[data-id]')) {
           const id = node.getAttribute('data-id')
           if (id) {
             host.dispatchEvent(
@@ -81,15 +86,14 @@ export default controller((_ctx, host) => {
     })
     if (host) observer.observe(host, { attributes: true, attributeFilter: ['active'] })
 
-    return {
-      list, rows, open, activeLabel,
-      unmount: (): void => {
-        host?.removeEventListener('click', onClick)
-        document.removeEventListener('click', onDocClick, true)
-        document.removeEventListener('keydown', onKey)
-        observer.disconnect()
-      },
-    }
+    onCleanup(() => {
+      host?.removeEventListener('click', onClick)
+      document.removeEventListener('click', onDocClick, true)
+      document.removeEventListener('keydown', onKey)
+      observer.disconnect()
+    })
+
+    return { list, rows, open, activeLabel }
 })
 </controller>
 
@@ -109,12 +113,14 @@ export default controller((_ctx, host) => {
 <!-- <prop name="active" type="string" default="" /> -->
 <!-- <prop name="placeholder" type="string" default="Pick a collection" /> -->
 
-<!-- style block removed: use sx / external CSS -->
-
-<while-loading of="list">
-  <div data-test="skeleton"><spinner shape="line" size="sm"></spinner></div>
-</while-loading>
-<if cond={list().kind === 'ok'}>
+<match {list()}>
+  {loading =>
+    <div data-test="skeleton"><spinner shape="line" size="sm"></spinner></div>
+  }
+  {error as err => <error-state title="Couldn't load collections" body={err?.message ?? 'Request failed'}></error-state>}
+  {ok as _ => }
+</match>
+<if {list().kind === 'ok'}>
   <button type="button" data-test="trigger"
     data-action="toggle" aria-haspopup="listbox" aria-expanded={open() ? 'true' : 'false'}
   >
@@ -123,16 +129,16 @@ export default controller((_ctx, host) => {
     </span>
     <span aria-hidden="true">▾</span>
   </button>
-  <if cond={open()}>
+  <if {open()}>
     <div role="listbox" data-test="menu">
-      <for as="c" of={rows()} key={c.id}>
+      <for {rows() as c} key={c.id}>
         <button type="button" role="option" data-test="row"
           data-active={c.id === active()}
           aria-selected={c.id === active() ? 'true' : 'false'}
           data-id={c.id}
         >
           <span>{c.name}</span>
-          <if cond={c.system}><span>system</span></if>
+          <if {c.system}><span>system</span></if>
           <span>{c.item_count}</span>
         </button>
       </for>

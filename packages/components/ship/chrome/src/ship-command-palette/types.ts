@@ -225,10 +225,8 @@ export function detectMode(value: string, fallback: BarMode): BarMode {
   return 'ai'
 }
 
-// The shared reactive scope <ship-command-palette> provisions (via
-// `shared(...)`) for its sibling panels (<ship-command-panel>,
-// <ship-command-chat>) to consume through
-// `useShared<CommandBarScope>(host, 'ship-command-palette')`.
+// The shared reactive scope <ship-command-palette> provisions on its host
+// for sibling panels (<ship-command-panel>, <ship-command-chat>).
 export interface CommandBarScope {
   open: Signal<boolean>
   mode: Signal<BarMode>
@@ -262,4 +260,23 @@ export interface CommandBarScope {
   recentSends: Signal<string[]>
   historyIdx: Signal<number>
   sendError: Signal<string | null>
+}
+
+// Host-walk bag that replaces retired `shared()` / `useShared(host, name)`.
+// The palette writes this on its host; panel/chat walk ancestors to read it.
+export const PALETTE_CTX = '__sui_ctx_ship-command-palette'
+
+export function publishCommandBar(host: Element | undefined, scope: CommandBarScope): void {
+  if (!host) return
+  ;(host as unknown as Record<string, unknown>)[PALETTE_CTX] = scope
+}
+
+export function commandBarOf(host: Element | undefined): CommandBarScope {
+  let n: Element | null | undefined = host
+  while (n) {
+    const bag = (n as unknown as Record<string, unknown>)[PALETTE_CTX]
+    if (bag) return bag as CommandBarScope
+    n = n.parentElement
+  }
+  throw new Error('ship-command-palette shared scope missing')
 }

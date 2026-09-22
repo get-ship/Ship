@@ -25,8 +25,7 @@ use std::collections::BTreeSet;
 
 use agent_schema::capability::{BlastRadius, Capability};
 use agent_schema::profile::{
-    AgentProfile, McpRefs, PluginRefs, ProfileApps, ProfileMeta, ProfilePermissions, ProfileRules,
-    SkillRefs,
+    AgentProfile, McpRefs, PluginRefs, ProfileMeta, ProfilePermissions, ProfileRules, SkillRefs,
 };
 use agent_schema::{HookConfig, HookTrigger};
 use serde_json::Value;
@@ -85,10 +84,7 @@ fn full_profile() -> AgentProfile {
             name: "Conformance".into(),
             version: Some("1.0.0".into()),
             description: Some("Pins schema⟷struct parity.".into()),
-            role: Some("worker".into()),
             tags: vec!["review".into()],
-            tools_preset: Some("worker".into()),
-            active_tools: vec!["Read".into()],
             icon: Some("test-tube".into()),
         },
         capabilities: vec![Capability::new("collections", BlastRadius::C2Elevated)],
@@ -135,13 +131,11 @@ fn full_profile() -> AgentProfile {
                 cursor_event: None,
             },
         ],
-        target_agents: vec!["claude".into()],
-        apps: ProfileApps { studio: true },
         harness_settings: [("claude".to_string(), serde_json::json!({ "model": "opus" }))]
             .into_iter()
             .collect(),
-    },
-    visibility: None,
+        visibility: None,
+    }
 }
 
 #[test]
@@ -183,10 +177,9 @@ fn per_section_key_parity() {
     let profile_obj = profile.as_object().expect("profile object");
 
     // Each Ship-owned nested section: its serialized struct keys must equal
-    // the schema section's `properties` keys. Pins default_mode,
-    // apps.studio, plugins.scope, and every other nested field exactly.
-    // `harness_settings` is excluded — it is the opaque seam (covered by
-    // `harness_settings_seam_matches_registry`).
+    // the schema section's `properties` keys. Pins plugins.scope and every
+    // other nested field exactly. `harness_settings` is excluded — it is the
+    // opaque seam (covered by `harness_settings_seam_matches_registry`).
     //
     // Most sections are object-shaped. `hooks` is a `Vec<HookConfig>` —
     // serialized as a JSON array; the per-element schema lives under
@@ -204,7 +197,6 @@ fn per_section_key_parity() {
         "permissions",
         "rules",
         "hooks",
-        "apps",
     ] {
         let section_value = profile_obj
             .get(section)

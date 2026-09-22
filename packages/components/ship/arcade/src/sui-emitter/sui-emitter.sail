@@ -8,21 +8,22 @@
   `size` is `"start..end"` (e.g. `"4..0"` shrinks to nothing). `color`
   accepts a theme token name (`accent`, `tone-success-bg`) or hex.
 -->
-
-<!-- <prop name="kind" values="radial|cone|line|explosion" default="radial" reflect /> -->
-<!-- <prop name="x" type="number" default="0" /> -->
-<!-- <prop name="y" type="number" default="0" /> -->
-<!-- <prop name="rate" type="number" default="0" /> -->
-<!-- <prop name="burst" type="number" default="16" /> -->
-<!-- <prop name="lifetime" type="number" default="600" /> -->
-<!-- <prop name="spread" type="number" default="360" /> -->
-<!-- <prop name="direction" type="number" default="-90" /> -->
-<!-- <prop name="speed" type="number" default="120" /> -->
-<!-- <prop name="speed-jitter" type="number" default="0.3" /> -->
-<!-- <prop name="gravity" type="number" default="0" /> -->
-<!-- <prop name="color" type="string" default="accent" /> -->
-<!-- <prop name="size" type="string" default="3..0" /> -->
-<!-- <prop name="max" type="number" default="64" /> -->
-<!-- <prop name="on" type="string" default="" reflect /> -->
-
-<!-- style block removed: use sx / external CSS -->
+<scope>
+  props: {
+    kind: 'radial' | 'cone' | 'line' | 'explosion' = 'radial'
+    x = 0
+    y = 0
+    rate = 0
+    burst = 16
+    lifetime = 600
+    spread = 360
+    direction = -90
+    speed = 120
+    'speed-jitter' = 0.3
+    gravity = 0
+    color = 'accent'
+    size: string = '3..0'
+    max = 64
+    on = ''
+  }
+</scope>

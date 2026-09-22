@@ -1,5 +1,1 @@
-// Org composition: pack keys from org.fleet.jsonc at the polyrepo root.
-// Local ship skills/agents still crawl this root; org packs are additive.
-{
-  "org": ["meta", "ship", "sail"]
-}
+{ "org": "ship" }

@@ -1,6 +1,6 @@
 // @ship/home — Ship Home pack (ship-* tags for the hub `/` dashboard).
 //
-// Each <tag>.compiled.js calls customElements.define() on import, so a
+// Each <tag>.sail calls customElements.define() on import, so a
 // single `import '@ship/home'` registers every tag globally.
 //
 // Composites:

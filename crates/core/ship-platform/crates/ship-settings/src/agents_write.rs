@@ -315,29 +315,11 @@ fn set_meta_fields(block: &mut serde_json::Value, flat: &AgentProfile) {
             serde_json::Value::String(desc.clone()),
         );
     }
-    if let Some(role) = &flat.agent.role {
-        a.insert("role".into(), serde_json::Value::String(role.clone()));
-    }
-    if let Some(preset) = &flat.agent.tools_preset {
-        a.insert(
-            "tools_preset".into(),
-            serde_json::Value::String(preset.clone()),
-        );
-    }
-    if !flat.agent.active_tools.is_empty() {
-        a.insert(
-            "active_tools".into(),
-            to_str_array(&flat.agent.active_tools),
-        );
-    }
-    if !flat.target_agents.is_empty() {
-        a.insert("harnesses".into(), to_str_array(&flat.target_agents));
-    }
 }
 
 /// Overlay the platform-managed fields of a flat [`AgentProfile`] onto a
 /// canonical nested JSONC document. Fields the platform does not own (`hooks`,
-/// `plugins`, `rules.inline`, `harness_settings`, `apps`) are left untouched.
+/// `plugins`, `rules.inline`, `harness_settings`) are left untouched.
 fn merge_flat_into_canonical(doc: &mut serde_json::Value, flat: &AgentProfile) {
     let Some(root) = doc.as_object_mut() else {
         return;

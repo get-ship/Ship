@@ -5,7 +5,7 @@ import { createContainerRegistry, flush, mount } from '@ship/test-setup'
 const reg = createContainerRegistry()
 afterEach(() => reg.cleanup())
 
-const shadow = (el: HTMLElement) => el.shadowRoot!
+const shadow = (el: HTMLElement) => el.shadowRoot ?? el
 
 // Returns a promise that resolves with the next matching event. Attach
 // the listener FIRST, then drive the action — no real-clock timer.

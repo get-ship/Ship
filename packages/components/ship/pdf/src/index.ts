@@ -4,7 +4,7 @@
 // inlines the engine at build, so the published pack carries no committed
 // engine source. SLICE 0 landed the engine + its offline-worker wiring;
 // SLICE 1 lands <ship-pdf>, the page renderer. Each tag's
-// `<tag>.compiled.js` calls customElements.define() on import, so a single
+// `<tag>.sail` calls customElements.define() on import, so a single
 // `import '@ship/pdf'` registers every ship-pdf-* tag globally.
 import './ship-pdf/ship-pdf.compiled.js'
 

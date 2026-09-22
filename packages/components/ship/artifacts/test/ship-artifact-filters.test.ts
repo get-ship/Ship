@@ -5,7 +5,7 @@ import { createContainerRegistry, flush, mount } from '@ship/test-setup'
 const reg = createContainerRegistry()
 afterEach(() => reg.cleanup())
 
-const shadow = (el: HTMLElement) => el.shadowRoot!
+const shadow = (el: HTMLElement) => el.shadowRoot ?? el
 
 const findByTest = (root: ParentNode, sel: string): Element | null =>
   root.querySelector(`[data-test="${sel}"]`)

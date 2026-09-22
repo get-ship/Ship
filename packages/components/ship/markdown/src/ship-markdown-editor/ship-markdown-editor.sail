@@ -19,9 +19,10 @@
     'allow-comment' = true
     'allow-generate' = false
   }
-  style shell = { position({ scheme: relative }).size({ w: full, min-w: 0, min-h: 48 }) }
-  style toolbar = { pad({ x: 2, y: 1 }).border({ edge: b, width: 1, color: border }).bg(surface-1) }
-  style editorBox = { size({ w: full, min-h: 48 }) }
+  style shell = { position({ scheme: relative }).size({ w: max, min-w: 0, min-h: 0, h: max }).size(grow) }
+  style toolbar = { pad({ x: 1, y: 1 }).border({ edge: b, width: 1, color: border }).bg(surface).overflow({ x: auto }) }
+  style editorBox = { size({ w: max, min-w: 0, min-h: bind(edMinH) }).overflow({ y: auto }) }
+  style editorFill = { size({ w: max, min-w: 0, min-h: 0, h: max }).size(grow).overflow({ y: auto }) }
   style pin = { position({ scheme: absolute, l: bind(pinX), t: bind(pinY) }) }
 </scope>
 
@@ -60,10 +61,15 @@ type EditorProps = {
   disabled: () => boolean
   invalid: () => boolean
   label: () => string
+  rows: () => number
+  fullHeight: () => boolean
   showSelectionToolbar: () => boolean
   allowComment: () => boolean
   allowGenerate: () => boolean
 }
+
+const ROW_PX = 24
+const ROW_FLOOR = 28
 
 export default controller((_ctx: EditorProps, host?: Element) => {
   const hostEl = asHtml(host ?? null)
@@ -118,9 +124,13 @@ export default controller((_ctx: EditorProps, host?: Element) => {
     }))
   }
 
-  const onToolbarClick = (e: MouseEvent): void => {
-    const action = (e.target as Element).closest<HTMLElement>('[data-action]')?.dataset.action
-    if (!action) return
+  const edMinH = derived((): number => {
+    const n = Number(_ctx.rows?.() ?? 12)
+    const rows = Number.isFinite(n) && n > 0 ? n : 12
+    return Math.max(ROW_FLOOR, rows * ROW_PX)
+  })
+
+  const onFmt = (action: string): void => {
     runCmd(ed => {
       const c = ed.chain().focus()
       switch (action) {
@@ -174,6 +184,10 @@ export default controller((_ctx: EditorProps, host?: Element) => {
     if (!text) return
     emitFeedback({ action: 'generate', selection: text })
     bubblePos.set(null)
+  }
+
+  const onComposerInput = (e: { detail?: { value?: string }; target?: { value?: string } }): void => {
+    composerValue.set(e.detail?.value ?? e.target?.value ?? '')
   }
 
   const onComposerKey = (e: KeyboardEvent): void => {
@@ -319,9 +333,11 @@ export default controller((_ctx: EditorProps, host?: Element) => {
     marks, bubblePos, pending, composerValue,
     captureShell, captureEditor, captureComposer,
     bubblePin, composerPin, pendingQuote,
-    onToolbarClick, onLinkClick, onBubbleFmt,
+    edMinH,
+    fullHeight: () => _ctx.fullHeight() === true,
+    onFmt, onLinkClick, onBubbleFmt,
     onToolbarMouseDown, onBubbleMouseDown, onComposerMouseDown,
-    onOpenComposer, onGenerate, onComposerKey, onCancel, onSubmit,
+    onOpenComposer, onGenerate, onComposerInput, onComposerKey, onCancel, onSubmit,
     disabled: () => isDisabled(),
     invalid: () => _ctx.invalid(),
     label: () => _ctx.label(),
@@ -332,25 +348,31 @@ export default controller((_ctx: EditorProps, host?: Element) => {
 })
 </controller>
 
-<div use:captureShell
+<column use:captureShell
   aria-invalid={invalid() ? 'true' : null}
   aria-disabled={disabled() ? 'true' : null}
   style(shell)>
-  <row gap="1" align="center" role="toolbar" aria-label={label() || 'Editor toolbar'} on:mousedown={onToolbarMouseDown} style(toolbar)>
-    <button type="button" data-is-active={marks().bold} disabled={disabled()} data-action="bold" aria-label="Bold" aria-pressed={marks().bold ? 'true' : 'false'} title="Bold (Ctrl+B)" on:click={onToolbarClick}>B</button>
-    <button type="button" data-is-active={marks().italic} disabled={disabled()} data-action="italic" aria-label="Italic" aria-pressed={marks().italic ? 'true' : 'false'} title="Italic (Ctrl+I)" on:click={onToolbarClick}>I</button>
-    <button type="button" data-is-active={marks().code} disabled={disabled()} data-action="code" aria-label="Inline code" aria-pressed={marks().code ? 'true' : 'false'} on:click={onToolbarClick}>code</button>
-    <button type="button" data-is-active={marks().h1} disabled={disabled()} data-action="h1" aria-label="Heading 1" aria-pressed={marks().h1 ? 'true' : 'false'} on:click={onToolbarClick}>H1</button>
-    <button type="button" data-is-active={marks().h2} disabled={disabled()} data-action="h2" aria-label="Heading 2" aria-pressed={marks().h2 ? 'true' : 'false'} on:click={onToolbarClick}>H2</button>
-    <button type="button" data-is-active={marks().h3} disabled={disabled()} data-action="h3" aria-label="Heading 3" aria-pressed={marks().h3 ? 'true' : 'false'} on:click={onToolbarClick}>H3</button>
-    <button type="button" data-is-active={marks().bullet} disabled={disabled()} data-action="bullet" aria-label="Bullet list" aria-pressed={marks().bullet ? 'true' : 'false'} on:click={onToolbarClick}>•</button>
-    <button type="button" data-is-active={marks().ordered} disabled={disabled()} data-action="ordered" aria-label="Ordered list" aria-pressed={marks().ordered ? 'true' : 'false'} on:click={onToolbarClick}>1.</button>
-    <button type="button" data-is-active={marks().task} disabled={disabled()} data-action="task" aria-label="Task list" aria-pressed={marks().task ? 'true' : 'false'} on:click={onToolbarClick}>☑</button>
-    <button type="button" data-is-active={marks().link} disabled={disabled()} data-action="link" aria-label="Link" aria-pressed={marks().link ? 'true' : 'false'} title="Link (Ctrl+K)" on:click={onLinkClick}>url</button>
+  <row gap="1" align="center" nowrap label={label() || 'Editor toolbar'} on:mousedown={onToolbarMouseDown} style(toolbar)>
+    <button type="button" size="sm" variant="ghost" pressed={marks().bold} disabled={disabled()} label="Bold" on:click={() => onFmt('bold')}>B</button>
+    <button type="button" size="sm" variant="ghost" pressed={marks().italic} disabled={disabled()} label="Italic" on:click={() => onFmt('italic')}>I</button>
+    <button type="button" size="sm" variant="ghost" pressed={marks().code} disabled={disabled()} label="Inline code" on:click={() => onFmt('code')}>code</button>
+    <button type="button" size="sm" variant="ghost" pressed={marks().h1} disabled={disabled()} label="Heading 1" on:click={() => onFmt('h1')}>H1</button>
+    <button type="button" size="sm" variant="ghost" pressed={marks().h2} disabled={disabled()} label="Heading 2" on:click={() => onFmt('h2')}>H2</button>
+    <button type="button" size="sm" variant="ghost" pressed={marks().h3} disabled={disabled()} label="Heading 3" on:click={() => onFmt('h3')}>H3</button>
+    <button type="button" size="sm" variant="ghost" pressed={marks().bullet} disabled={disabled()} label="Bullet list" on:click={() => onFmt('bullet')}>•</button>
+    <button type="button" size="sm" variant="ghost" pressed={marks().ordered} disabled={disabled()} label="Ordered list" on:click={() => onFmt('ordered')}>1.</button>
+    <button type="button" size="sm" variant="ghost" pressed={marks().task} disabled={disabled()} label="Task list" on:click={() => onFmt('task')}>☑</button>
+    <button type="button" size="sm" variant="ghost" pressed={marks().link} disabled={disabled()} label="Link" on:click={onLinkClick}>url</button>
   </row>
-  <div style(editorBox)>
-    <div use:captureEditor></div>
-  </div>
+  <if {fullHeight()}>
+    <div style(editorFill)>
+      <div use:captureEditor></div>
+    </div>
+  {else =>
+    <div style(editorBox)>
+      <div use:captureEditor></div>
+    </div>
+  }</if>
   <if {showSelectionToolbar()}>
     <div role="toolbar" aria-label="Selection actions" data-md-bubble
       data-open={bubblePos() !== null && pending() === null ? 'true' : 'false'}
@@ -380,7 +402,8 @@ export default controller((_ctx: EditorProps, host?: Element) => {
         <div data-md-composer-quote>"{pendingQuote()}"</div>
         <textarea rows="2" placeholder="Add your comment…" data-composer-input
           use:captureComposer
-          bind:value={composerValue}
+          value={composerValue()}
+          on:input={onComposerInput}
           on:keydown={onComposerKey}></textarea>
         <div data-md-composer-actions>
           <button type="button" data-md-cancel on:click={onCancel}>Cancel</button>
@@ -389,4 +412,4 @@ export default controller((_ctx: EditorProps, host?: Element) => {
       </div>
     </if>
   </if>
-</div>
+</column>

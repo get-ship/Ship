@@ -44,13 +44,15 @@
 
   Parts: card, icon, title, body, primary-action, actions
 -->
-<!-- <prop name="title" type="string" default="" reflect /> -->
-<!-- <prop name="body" type="string" default="" /> -->
-<!-- <prop name="variant" values="not-found|error" default="not-found" reflect /> -->
-<!-- <prop name="href" type="string" default="" reflect /> -->
-<!-- <prop name="action-label" type="string" default="Go back" reflect /> -->
-
-<!-- style block removed: use sx / external CSS -->
+<scope>
+  props: {
+    title = ''
+    body = ''
+    variant: 'not-found' | 'error' = 'not-found'
+    href = ''
+    actionLabel = 'Go back'
+  }
+</scope>
 
 <div role="alert" aria-live="polite">
   <div aria-hidden="true">
@@ -71,7 +73,7 @@
   </p>
 
   <div>
-    <if cond={href()}>
+    <if {href()}>
       <a
          href={href()}
          data-test="primary-action">{actionLabel()}</a>

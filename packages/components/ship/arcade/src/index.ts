@@ -1,7 +1,7 @@
 // @ship/arcade — SUI arcade primitives registry.
 //
 // Side-effect imports for the eight arcade components. Each
-// `<tag>.compiled.js` calls `customElements.define()` on import, so a
+// `<tag>.sail` calls `customElements.define()` on import, so a
 // single `import '@ship/arcade'` at the consumer registers every tag in
 // this pack globally.
 

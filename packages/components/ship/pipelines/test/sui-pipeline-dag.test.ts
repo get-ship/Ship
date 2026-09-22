@@ -5,9 +5,9 @@ import { createContainerRegistry, flush, mount } from '@ship/test-setup'
 const reg = createContainerRegistry()
 afterEach(() => reg.cleanup())
 
-const shadow = (el: HTMLElement) => el.shadowRoot!
-// The dag host carries bind:this AND an authored class/part. Querying through
-// `.dag` pins #285: static attributes must survive alongside the ref binding.
+const shadow = (el: HTMLElement) => el.shadowRoot ?? el
+// The dag host carries use:paint. Querying through `.dag` pins #285: static
+// attributes must survive alongside the action binding.
 const dag = (el: HTMLElement) => shadow(el).querySelector('.dag')!
 const stepsAttr = (steps: unknown) => JSON.stringify(steps)
 
@@ -22,7 +22,7 @@ describe('<sui-pipeline-dag>', () => {
     expect(customElements.get('sui-pipeline-dag')).toBeDefined()
   })
 
-  it('keeps the authored class and part on the bind:this host (#285)', async () => {
+  it('keeps the authored class and part on the use: host (#285)', async () => {
     const { el } = mount(reg, 'sui-pipeline-dag', { steps: '[]' })
     await flush()
     const host = shadow(el).querySelector('.dag')

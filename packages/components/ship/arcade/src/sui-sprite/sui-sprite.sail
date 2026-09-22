@@ -10,24 +10,24 @@
   stage.world.spawn(); markup sprites are for level scenery / static
   decorations.
 -->
-
-<!-- <prop name="src" type="string" default="" reflect /> -->
-<!-- <prop name="x" type="number" default="0" /> -->
-<!-- <prop name="y" type="number" default="0" /> -->
-<!-- <prop name="z" type="number" default="0" /> -->
-<!-- <prop name="vx" type="number" default="0" /> -->
-<!-- <prop name="vy" type="number" default="0" /> -->
-<!-- <prop name="scale" type="number" default="1" /> -->
-<!-- <prop name="rotation" type="number" default="0" /> -->
-<!-- <prop name="anchor" type="string" default="center" /> -->
-<!-- <prop name="tint" type="string" default="" /> -->
-<!-- <prop name="alpha" type="number" default="1" /> -->
-<!-- <prop name="frames" type="string" default="" /> -->
-<!-- <prop name="frame-rate" type="number" default="0" /> -->
-<!-- <prop name="frame" type="number" default="0" /> -->
-<!-- <prop name="group" type="string" default="" reflect /> -->
-<!-- <prop name="tag" type="string" default="" reflect /> -->
-
-<!-- style block removed: use sx / external CSS -->
-
+<scope>
+  props: {
+    src = ''
+    x = 0
+    y = 0
+    z = 0
+    vx = 0
+    vy = 0
+    scale = 1
+    rotation = 0
+    anchor = 'center'
+    tint = ''
+    alpha = 1
+    frames = ''
+    'frame-rate' = 0
+    frame = 0
+    group = ''
+    tag = ''
+  }
+</scope>
 <slot></slot>

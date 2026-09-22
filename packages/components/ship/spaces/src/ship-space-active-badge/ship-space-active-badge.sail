@@ -5,23 +5,25 @@
   no space is active (global-only mode: active_id = null), it renders the empty
   state instead. Purely presentational — `name` / `path` are fed by the
   integration layer (List + the active pointer); no controller, no daemon.
-  Compiled as <ship-space-active-badge>. Parts: badge · dot · label.
+  Compiled as <ship-space-active-badge>.
 -->
-<!-- <prop name="name" type="string" default="" /> -->
-<!-- <prop name="path" type="string" default="" /> -->
+<scope>
+  props: {
+    name = ''
+    path = ''
+  }
+</scope>
 
-<!-- style block removed: use sx / external CSS -->
-
-<if cond={name()}>
+<if {name()}>
   <span>
     <span></span>
     <span>in</span>
     <span>{name()}</span>
-    <if cond={path()}><span>{path()}</span></if>
+    <if {path()}><span>{path()}</span></if>
   </span>
-<else>
+{else =>
   <span>
     <span></span>
     <span>No active space</span>
   </span>
-</else></if>
+}</if>

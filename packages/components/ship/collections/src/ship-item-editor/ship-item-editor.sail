@@ -1,3 +1,10 @@
+<scope>
+  props: {
+    collection = ''
+    id = ''
+    mode: 'create' | 'edit' = 'create'
+  }
+</scope>
 <controller>
 // <ship-item-editor> — schema-generated form, client-side validation,
 // Create/Update RPC. Form state lives as a single keyed Record so the
@@ -5,8 +12,7 @@
 // expression subset forbids function calls in templates, so per-field
 // signals accessed by dynamic name don't work; a keyed Record does.
 
-import { controller, derived, effect, live, signal, unwrapOr } from '@ship/sail-runtime'
-import type { ViewScope } from '@ship/sail-runtime'
+import { controller, derived, effect, query, signal, unwrapOr } from '@ship/sail-runtime'
 import { ship } from '@ship/sdk-client'
 import type { Scope } from './ship-item-editor.sail'
 import { validateFieldValue, type FieldDef } from '../schema'
@@ -47,12 +53,12 @@ function coerceFromString(text: string, type: string): FormValue {
   return text
 }
 
-export default controller(({ collection, id, mode }: ViewScope<Scope>, host) => {
+export default controller(({ collection, id, mode }: Scope, host?: Element) => {
 
-    const state = live<unknown>(() => ship.collections.state(collection() ? { active: collection() } : {}))
+    const state = query<unknown>(() => ship.collections.state(collection() ? { active: collection() } : {}))
 
     // Pre-existing item (edit mode) for prefilling.
-    const existing = live<{ ok: true; data: { id: string; data: Record<string, unknown> } } | null>(() => {
+    const existing = query<{ ok: true; data: { id: string; data: Record<string, unknown> } } | null>(() => {
       if (mode() !== 'edit') return Promise.resolve(null)
       const c = collection()
       const i = id()
@@ -129,12 +135,12 @@ export default controller(({ collection, id, mode }: ViewScope<Scope>, host) => 
 
     function onTextInput(name: string, e: Event): void {
       const detail = (e as CustomEvent<{ value: string }>).detail
-      setField(name, detail?.value ?? '')
+      setField(name, detail?.value ?? (e.target as HTMLInputElement | HTMLTextAreaElement | null)?.value ?? '')
     }
 
     function onChecked(name: string, e: Event): void {
       const detail = (e as CustomEvent<{ checked: boolean }>).detail
-      setField(name, detail?.checked === true)
+      setField(name, detail?.checked === true || (e.target as HTMLInputElement | null)?.checked === true)
     }
 
     const errors = derived<string[]>(() => {
@@ -228,80 +234,76 @@ export default controller(({ collection, id, mode }: ViewScope<Scope>, host) => 
 <!-- <prop name="id" type="string" default="" /> -->
 <!-- <prop name="mode" values="create|edit" default="create" reflect /> -->
 
-<!-- style block removed: use sx / external CSS -->
-
-<while-loading of="state">
-  <spinner shape="line" size="lg"></spinner>
-</while-loading>
-<while-error as="err" of="state">
-  <error-state title="Couldn't load schema" variant="inline">{err.message}</error-state>
-</while-error>
-<if cond={state().kind === 'ok' && state().value}>
+<match {state()}>
+  {loading => <spinner shape="line" size="lg"></spinner>}
+  {error as err => <error-state title="Couldn't load schema" variant="inline" body={err?.message ?? 'Request failed'}></error-state>}
+  {ok as _ => }
+</match>
+<if {state().kind === 'ok' && state().value}>
   <div>
     <h3 data-test="editor-title">{mode() === 'create' ? 'New item' : 'Edit item'}</h3>
-    <if cond={mode() === 'edit'}><span data-test="editor-id">{id()}</span></if>
+    <if {mode() === 'edit'}><span data-test="editor-id">{id()}</span></if>
   </div>
-  <if cond={fieldDefs().length === 0}>
+  <if {fieldDefs().length === 0}>
     <empty-state title="No fields" body="This collection's schema has no fields."></empty-state>
-  <else>
+  {else =>
     <form data-test="form" on:submit={submit}>
-      <for as="f" of={fieldDefs()} key={f.name}>
+      <for {fieldDefs() as f} key={f.name}>
         <column gap="1" data-test={'field-' + f.name}>
           <label>
             <span>{f.name}</span>
             <span>· {f.type}</span>
-            <if cond={requiredFlags()[f.name]}><span title="required">*</span></if>
+            <if {requiredFlags()[f.name]}><span title="required">*</span></if>
           </label>
-          <match on={f.type}>
-            <case of={'bool'}>
-              <input type="checkbox"
-                checked={formState()[f.name] === true}
-                label={f.name}
-                on:sail-change={(e) => onChecked(f.name, e)}
-                data-test={'input-' + f.name}
-              >
-            </case><case of={'text'}>
-              <if cond={f.name === 'content' || f.name === 'description' || f.name === 'body'}>
-                <textarea
-                  value={formState()[f.name] || ''}
-                  name={f.name}
-                  rows={4}
-                  on:sail-input={(e) => onTextInput(f.name, e)}
-                  data-test={'input-' + f.name}
-                ></textarea>
-              <else>
-                <input
-                  value={formState()[f.name] || ''}
-                  name={f.name}
-                  on:sail-input={(e) => onTextInput(f.name, e)}
-                  data-test={'input-' + f.name}
-                >
-              </else></if>
-            </case><case of={'json'}>
+          <if {f.type === 'bool'}>
+            <checkbox
+              checked={formState()[f.name] === true}
+              label={f.name}
+              on:input={(e) => onChecked(f.name, e)}
+              data-test={'input-' + f.name}
+            ></checkbox>
+          {else-if {f.type === 'text'} =>
+            <if {f.name === 'content' || f.name === 'description' || f.name === 'body'}>
               <textarea
-                value={jsonValues()[f.name] || ''}
+                value={formState()[f.name] || ''}
                 name={f.name}
-                variant={'code'}
                 rows={4}
-                on:sail-input={(e) => onTextInput(f.name, e)}
+                on:input={(e) => onTextInput(f.name, e)}
                 data-test={'input-' + f.name}
               ></textarea>
-            </case><default>
+            {else =>
               <input
                 value={formState()[f.name] || ''}
                 name={f.name}
-                type={numberTypes()[f.name] ? 'number' : 'text'}
-                on:sail-input={(e) => onTextInput(f.name, e)}
+                on:input={(e) => onTextInput(f.name, e)}
                 data-test={'input-' + f.name}
               >
-          </default></match>
+            }</if>
+          }{else-if {f.type === 'json'} =>
+            <textarea
+              value={jsonValues()[f.name] || ''}
+              name={f.name}
+              variant={'code'}
+              rows={4}
+              on:input={(e) => onTextInput(f.name, e)}
+              data-test={'input-' + f.name}
+            ></textarea>
+          }{else =>
+            <input
+              value={formState()[f.name] || ''}
+              name={f.name}
+              type={numberTypes()[f.name] ? 'number' : 'text'}
+              on:input={(e) => onTextInput(f.name, e)}
+              data-test={'input-' + f.name}
+            >
+          }</if>
         </column>
       </for>
-      <if cond={errors().length > 0}>
+      <if {errors().length > 0}>
         <div data-test="errors">
           <strong>Validation failed</strong>
           <ul>
-            <for as="e" of={errors()} key={e}>
+            <for {errors() as e} key={e}>
               <li>{e}</li>
             </for>
           </ul>
@@ -314,5 +316,5 @@ export default controller(({ collection, id, mode }: ViewScope<Scope>, host) => 
         </div>
       </div>
     </form>
-  </else></if>
+  }</if>
 </if>

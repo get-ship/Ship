@@ -1,13 +1,16 @@
+<scope>
+  props: {
+    count = '0'
+  }
+</scope>
 <controller>
 import { controller } from '@ship/sail-runtime'
-import type { ViewScope } from '@ship/sail-runtime'
 import type { Scope } from './ship-approvals-queue.sail'
 
 // The queue is presentational + event-out: it owns no list state (the host
 // slots the pending checkpoints). The controller exists only to emit the
 // operator's batch intent up to the host, which owns the batched mutation.
-export default controller((_scope: ViewScope<Scope>, host) => {
-
+export default controller((_ctx: Scope, host?: Element) => {
     function emit(type: 'ship-approve-all' | 'ship-deny-all'): void {
       host?.dispatchEvent(
         new CustomEvent(type, { detail: {}, bubbles: true, composed: true }),
@@ -36,9 +39,6 @@ export default controller((_scope: ViewScope<Scope>, host) => {
     ship-approve-all { detail: {} }
     ship-deny-all    { detail: {} }
 -->
-<!-- <prop name="count" type="string" default="0" /> -->
-
-<!-- style block removed: use sx / external CSS -->
 
 <div>
   <div>

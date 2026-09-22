@@ -1,8 +1,11 @@
+<scope>
+  props: {
+    state: 'ok' | 'running' | 'awaiting' | 'err' | 'none' = 'none'
+  }
+</scope>
 <controller>
 // <sui-pipeline-run> — derives the state label so the chip renders real DOM
 // text (awaiting → "review"), not CSS ::after content.
-import { controller, derived } from '@ship/sail-runtime'
-import type { ViewScope } from '@ship/sail-runtime'
 import type { Scope } from './sui-pipeline-run.sail'
 
 const STATE_LABEL: Record<string, string> = {
@@ -13,10 +16,9 @@ const STATE_LABEL: Record<string, string> = {
   none: '',
 }
 
-export default controller(({ state }: ViewScope<Scope>) => {
-
-    const stateLabel = derived(() => STATE_LABEL[state()] ?? '')
-    return { stateLabel }
+export default controller((ctx: Scope) => {
+  const stateLabel = derived(() => STATE_LABEL[ctx.state()] ?? '')
+  return { stateLabel }
 })
 </controller>
 
@@ -30,9 +32,6 @@ export default controller(({ state }: ViewScope<Scope>) => {
   Slots:  default = name · meta = right-aligned meta · rail = the step rail
   Parts:  run · header · chip · rail
 -->
-<!-- <prop name="state" values="ok|running|awaiting|err|none" default="none" reflect /> -->
-
-<!-- style block removed: use sx / external CSS -->
 
 <div>
   <div>

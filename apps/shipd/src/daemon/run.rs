@@ -111,13 +111,10 @@ pub async fn run_network(
     )?;
     if let Some(ref w) = workspace_dir {
         tracing::info!(workspace = %w.display(), daemon_dir = %daemon_dir.display(), "shipd: project-scoped mode");
-        // Make `--workspace` authoritative for the SUI resolver chain.
-        // deck-core's resolver consults an in-process global set by
-        // `deck::resolver::set_project_root` (the SAFE path) — see the
-        // call below. The `Var::DevProjectDir` env var is kept for
-        // non-deck readers (apps/shipd/src/views/discovery.rs, ship-agents
-        // view_state.rs) that still key off it; deck-core no longer
-        // reads it.
+        // Make `--workspace` authoritative for non-deck readers via
+        // `Var::DevProjectDir` (apps/shipd/src/views/discovery.rs,
+        // ship-agents view_state.rs). Deck itself uses mount-scoped
+        // `Resolution` on the router, not process env.
         //
         // Leave any pre-existing value alone — callers that need a
         // different SUI resolver root than the daemon workspace
@@ -135,16 +132,9 @@ pub async fn run_network(
                 env::set(Var::DevProjectDir, w);
             }
         }
-        // Authoritative project-root override for deck-core's resolver. Same
-        // value the router reads at DeckConfig::load time (router.rs's
-        // `rt.workspace_dir()`/cwd fallback) so the resolver and the
-        // bundler agree on where `<root>/.deck` lives. Non-deck readers
-        // (apps/shipd/src/views/discovery.rs, ship-agents view_state.rs)
-        // still rely on the env var above.
-        let repo_root = Some(w.clone()).or_else(|| std::env::current_dir().ok());
-        if let Some(r) = repo_root {
-            deck::resolver::set_project_root(r);
-        }
+        // Project root for deck is carried as `Extension<Arc<Resolution>>`
+        // on the router (mount-scoped; no process global). Built below once
+        // apps are resolved. Non-deck readers still use DevProjectDir above.
     } else {
         tracing::info!(daemon_dir = %daemon_dir.display(), "shipd: global-only mode (no --workspace given)");
     }
@@ -304,16 +294,13 @@ pub async fn run_network(
         .unwrap_or_else(|| std::path::PathBuf::from("."));
     let app_registry = router::apps_config::ShipAppRegistry::new(apps_base_dir, apps_config_path);
     let apps = app_registry.serve_configs();
-    // Per-app view-output dir is CONVENTION (`<package>/<source>/views`) —
-    // every app gets it registered so deck's runtime serves compiled
-    // view bundles from the right per-app location (e.g.
-    // `<ship>/node_modules/@ship/hub/.deck/views/<name>/view.js`)
-    // before falling back to the workspace-root output. We resolve the
-    // absolute path through the registry's `package_dirs()` snapshot
-    // (the resolved package dir on disk) + the app's `source` (the
-    // convention `<dir-basename>/.deck`, overridable per-entry). The
-    // snapshot is host-private state — deck sees only the registered
-    // `Extension<Arc<PathBuf>>` per app, not how the host got it.
+    // Mount-scoped deck Resolution: workspace root + per-app route-output
+    // dirs (`<package>/<source>/views`). Deck handlers read this via
+    // `Extension<Arc<Resolution>>` — no process-global registration.
+    let mut resolution = deck::Resolution::new();
+    if let Some(ref w) = workspace_dir {
+        resolution = resolution.with_root(w.clone());
+    }
     let package_dirs = app_registry.package_dirs();
     for app in &apps {
         if app.source.is_empty() {
@@ -322,12 +309,12 @@ pub async fn run_network(
         let Some(pkg_dir) = package_dirs.get(&app.name) else {
             tracing::warn!(
                 app = %app.name,
-                "no resolved package dir for app; skipping view-output registration"
+                "no resolved package dir for app; skipping route-output registration"
             );
             continue;
         };
         let abs = pkg_dir.join(&app.source).join("views");
-        deck::register_view_output(app.name.clone(), abs);
+        resolution.register_route_output(app.name.clone(), abs);
     }
     let app = router::build_router(
         rt.clone(),
@@ -335,6 +322,7 @@ pub async fn run_network(
         attestation_verifier,
         daemon_mode,
         apps,
+        Arc::new(resolution),
     );
     let user_pinned = port.is_some();
     let (listener, port) =

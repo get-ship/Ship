@@ -46,12 +46,11 @@ Ship gives you seven primitives. You define them in `.ship/`; the runtime makes 
 
 ## Smart Skills
 
-Skills are markdown templates compiled into agent context. They use progressive disclosure — agents load only what they need via `active_tools`, so a large reference doesn't bloat every context.
+Skills are markdown templates compiled into agent context. They use progressive disclosure — agents attach only the skill refs they need, so a large reference doesn't bloat every context.
 
 ```jsonc
 {
-  "skills": { "refs": ["tdd", "code-review"] },
-  "active_tools": ["tdd"]   // only tdd skill expands in context
+  "skills": { "refs": ["tdd", "code-review"] }
 }
 ```
 

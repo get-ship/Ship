@@ -75,7 +75,12 @@ impl ViewToolPort for ViewToolAdapter {
     }
 
     fn resolve_view_source(&self, name: &str) -> Result<(String, std::path::PathBuf), String> {
-        let resolved = deck::resolver::resolve(name, None).map_err(|e| e.message.clone())?;
+        let root = self
+            .state
+            .workspace_dir()
+            .ok_or_else(|| "no workspace root for view resolution".to_string())?;
+        let resolved =
+            deck::resolver::resolve(root, name, None).map_err(|e| e.message.clone())?;
         let path = resolved
             .source_path
             .ok_or_else(|| "view has no on-disk source".to_string())?;
@@ -84,15 +89,12 @@ impl ViewToolPort for ViewToolAdapter {
 
     fn preview_view_html(&self, name: &str) -> Result<String, ship_ui::view_ports::PreviewError> {
         use ship_ui::view_ports::PreviewError;
-        // The old `deck::resolver::render_resolved(&resolved, name)` from
-        // the pre-multi-repo deck crate returned `{ html, .. }` on Ok.
-        // Post-carve, the equivalent lives in deck-core's render_helpers
-        // and returns `Option<String>` directly (None when the view's
-        // source can't be located, which is the "view not found" path;
-        // render-time failures surface through the same None since the
-        // helper is source-only — full SSR render is deck-ssr's job and
-        // isn't wired into this port).
-        deck::render_helpers::render_view_source(name).ok_or_else(|| {
+        let root = self.state.workspace_dir().ok_or_else(|| {
+            PreviewError::ViewNotFound(format!("view {name} not found or has no source"))
+        })?;
+        // Mount-scoped: source lives under the workspace root. None when
+        // the route cannot be located (view-not-found path).
+        deck::render_helpers::render_route_source(root, name).ok_or_else(|| {
             PreviewError::ViewNotFound(format!("view {name} not found or has no source"))
         })
     }

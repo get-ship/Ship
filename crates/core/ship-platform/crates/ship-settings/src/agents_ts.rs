@@ -52,8 +52,8 @@ pub fn read_agent_ts_sources(
 /// reader uses. The profile is re-serialized to the canonical doc value +
 /// content-hashed over those bytes. Identity is the agent id: the rel path is
 /// `<id>.ts`, so one `.ts` module emitting N agents yields N distinct rows.
-/// `harness` comes from the profile's `target_agents` — the `.ts` model's
-/// harness-target list.
+/// Harnesses are not agent-declared; summary `harness` stays empty unless the
+/// serialized doc carries `agent.harnesses`.
 pub fn source_from_profile(profile: &agent_schema::AgentProfile) -> AgentDefSource {
     let value = serde_json::to_value(profile).unwrap_or(serde_json::Value::Null);
     let raw = serde_json::to_vec(&value).unwrap_or_default();
@@ -63,6 +63,5 @@ pub fn source_from_profile(profile: &agent_schema::AgentProfile) -> AgentDefSour
         value,
     });
     src.path = format!("{}.ts", profile.agent.id);
-    src.harness = profile.target_agents.clone();
     src
 }

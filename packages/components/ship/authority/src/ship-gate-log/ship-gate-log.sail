@@ -1,6 +1,12 @@
+<scope>
+  props: {
+    space = ''
+    entries = '[]'
+    live = true
+  }
+</scope>
 <controller>
 import { controller, derived } from '@ship/sail-runtime'
-import type { ViewScope } from '@ship/sail-runtime'
 import type { Scope } from './ship-gate-log.sail'
 
 export interface GateLogEntry {
@@ -41,11 +47,10 @@ function safeJson(raw: string): unknown {
   }
 }
 
-export default controller(({ space, entries, live }: ViewScope<Scope>) => {
-
-    const rows = derived<GateLogEntry[]>(() => parseEntries(entries()))
-    const isLive = derived<boolean>(() => live() !== false)
-    const spaceLabel = derived<string>(() => (space() ? ` · ${space()}` : ''))
+export default controller((ctx: Scope) => {
+    const rows = derived<GateLogEntry[]>(() => parseEntries(ctx.entries()))
+    const isLive = derived<boolean>(() => ctx.live() !== false)
+    const spaceLabel = derived<string>(() => (ctx.space() ? ` · ${ctx.space()}` : ''))
     return { rows, isLive, spaceLabel }
 })
 </controller>
@@ -67,17 +72,12 @@ export default controller(({ space, entries, live }: ViewScope<Scope>) => {
           live     bool — header pulses while the stream is live (default true)
   Part:   log
 -->
-<!-- <prop name="space" type="string" default="" /> -->
-<!-- <prop name="entries" type="string" default="[]" /> -->
-<!-- <prop name="live" type="bool" default="true" reflect /> -->
-
-<!-- style block removed: use sx / external CSS -->
 
 <div>
   <div>
-    <if cond={isLive()}><span><span></span>live</span><span>· gate verdicts{spaceLabel()}</span><else><span>gate verdicts{spaceLabel()}</span></else></if>
+    <if {isLive()}><span><span></span>live</span><span>· gate verdicts{spaceLabel()}</span>{else => <span>gate verdicts{spaceLabel()}</span>}</if>
   </div>
-  <for as="e" of={rows()} key={e.id}>
+  <for {rows()} as="e" key={e.id}>
     <div>
       <span>{e.time}</span>
       <span>{e.session}</span>

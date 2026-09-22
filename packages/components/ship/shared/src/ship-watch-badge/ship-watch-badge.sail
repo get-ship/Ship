@@ -12,10 +12,12 @@
   Prop:  label   string                                (reflect, default "")
   Part:  badge · dot · label
 -->
-<!-- <prop name="state" values="live|connecting|paused|error" default="live" reflect /> -->
-<!-- <prop name="label" type="string" default="" reflect /> -->
-
-<!-- style block removed: use sx / external CSS -->
+<scope>
+  props: {
+    state: 'live' | 'connecting' | 'paused' | 'error' = 'live'
+    label = ''
+  }
+</scope>
 
 <span>
   <span></span>

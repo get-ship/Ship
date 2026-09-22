@@ -9,9 +9,10 @@
     "ArrowLeft", "A", "Space", "Enter", "Escape", or "GamepadButton0..".
   Convenience aliases recognized: Up/Down/Left/Right/Esc/Space.
 -->
-
-<!-- <prop name="map" type="string" default="" reflect /> -->
-<!-- <prop name="action" type="string" default="" reflect /> -->
-<!-- <prop name="repeat" type="bool" default="true" reflect /> -->
-
-<!-- style block removed: use sx / external CSS -->
+<scope>
+  props: {
+    map = ''
+    action = ''
+    repeat = true
+  }
+</scope>

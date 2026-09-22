@@ -1,6 +1,8 @@
+<scope>
+  props: {}
+</scope>
 <controller>
-import { controller, signal } from '@ship/sail-runtime'
-import type { ViewScope } from '@ship/sail-runtime'
+import { controller, mount, signal } from '@ship/sail-runtime'
 import type { Scope } from './ship-home-dock.sail'
 
 // One launcher entry. `href` is the route the host navigates to when the
@@ -15,11 +17,22 @@ export interface DockApp {
 // identity prop: `apps`. It does NOT navigate (route-agnostic, so any desktop
 // reuses it); <ship-dock-app> emits `ship-launch { label }` (bubbles, composed)
 // and the host maps that label to a route. The `apps` array is a JS-property
-// binding reflected onto the scope signal in `mount`, mirroring <sui-tree-view>.
-export default controller((_ctx: ViewScope<Scope>) => {
+// binding reflected onto the scope signal in `mount`, mirroring <sail-tree>.
+export default controller((_ctx: Scope) => {
+  const apps = signal<DockApp[]>([])
 
-    const apps = signal<DockApp[]>([])
-    return { apps }
+  mount((host) => {
+    const init = (host as { apps?: DockApp[] }).apps
+    if (init != null) apps.set(init)
+
+    Object.defineProperty(host, 'apps', {
+      configurable: true,
+      get: () => apps(),
+      set: (v: DockApp[]) => { apps.set(v) },
+    })
+  })
+
+  return { apps }
 })
 </controller>
 
@@ -41,10 +54,8 @@ export default controller((_ctx: ViewScope<Scope>) => {
   --shadow-md, --radius-*; pill from --foreground/--background + --font-mono.
 -->
 
-<!-- style block removed: use sx / external CSS -->
-
 <nav aria-label="App launcher">
-  <for as="app" of={apps()} key={app.href}>
+  <for {apps() as app} key={app.href}>
     <span>
       <ship-dock-app label={app.label}>
         <icon name={app.icon} aria-hidden="true"></icon>

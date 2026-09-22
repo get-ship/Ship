@@ -34,7 +34,7 @@ describe('<ship-agent-thread>', () => {
     c.innerHTML = '<ship-agent-thread session-id="s-1"></ship-agent-thread>'
     const host = c.querySelector('ship-agent-thread')!
     await flush()
-    const root = host.shadowRoot!
+    const root = host.shadowRoot ?? host
     expect(root.querySelector('sui-message-list')).not.toBeNull()
     expect(root.querySelector('sui-composer')).not.toBeNull()
   })
@@ -44,7 +44,7 @@ describe('<ship-agent-thread>', () => {
     c.innerHTML = '<ship-agent-thread session-id="s-1"></ship-agent-thread>'
     const host = c.querySelector('ship-agent-thread')!
     await flush()
-    const root = host.shadowRoot!
+    const root = host.shadowRoot ?? host
     const list = root.querySelector('sui-message-list')! as ListEl
     expect(list.items).toEqual([])
 
@@ -72,7 +72,7 @@ describe('<ship-agent-thread>', () => {
     c.innerHTML = '<ship-agent-thread session-id="s-1"></ship-agent-thread>'
     const host = c.querySelector('ship-agent-thread')!
     await flush()
-    const root = host.shadowRoot!
+    const root = host.shadowRoot ?? host
     const list = root.querySelector('sui-message-list')! as ListEl
 
     root.querySelector('sui-composer')!.dispatchEvent(

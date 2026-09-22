@@ -1,6 +1,6 @@
 // @ship/spaces — Ship Spaces pack (ship-* tags for the SHELL side of spaces).
 //
-// Each <tag>.compiled.js calls customElements.define() on import, so a single
+// Each <tag>.sail calls customElements.define() on import, so a single
 // `import '@ship/spaces'` registers every tag globally.
 //
 // These are the SHELL surfaces — they speak the REGISTRY concepts (List,

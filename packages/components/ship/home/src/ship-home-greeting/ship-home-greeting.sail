@@ -1,3 +1,8 @@
+<scope>
+  props: {
+    workspace = ''
+  }
+</scope>
 <controller>
 // <ship-home-greeting> — @ship/home · greeting strip for the hub `/`.
 //
@@ -10,8 +15,6 @@
 // `now()` signal; the template binds them as plain expressions (the
 // cutover-clarity rules: no I/O, no const/let in the template).
 
-import { controller, derived, signal } from '@ship/sail-runtime'
-import type { ViewScope } from '@ship/sail-runtime'
 import type { Scope } from './ship-home-greeting.sail'
 
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const
@@ -38,22 +41,21 @@ function formatClock(d: Date): string {
   return `${h}:${m}`
 }
 
-export default controller(({ workspace }: ViewScope<Scope>) => {
+export default controller((ctx: Scope) => {
+  const now = signal<number>(Date.now())
 
-    const now = signal<number>(Date.now())
+  const greeting = derived<string>(() => partOfDay(new Date(now()).getHours()))
+  const dayLabel = derived<string>(() => formatDay(new Date(now())))
+  const clock = derived<string>(() => formatClock(new Date(now())))
+  const sub = derived<string>(() => {
+    const ws = ctx.workspace().trim()
+    const day = formatDay(new Date(now()))
+    return ws
+      ? `Your space, ready when you are — ${ws}, ${day}.`
+      : 'Your space, ready when you are.'
+  })
 
-    const greeting = derived<string>(() => partOfDay(new Date(now()).getHours()))
-    const dayLabel = derived<string>(() => formatDay(new Date(now())))
-    const clock = derived<string>(() => formatClock(new Date(now())))
-    const sub = derived<string>(() => {
-      const ws = workspace().trim()
-      const day = formatDay(new Date(now()))
-      return ws
-        ? `Your space, ready when you are — ${ws}, ${day}.`
-        : 'Your space, ready when you are.'
-    })
-
-    return { greeting, dayLabel, clock, sub, now }
+  return { greeting, dayLabel, clock, sub, now }
 })
 </controller>
 
@@ -80,13 +82,9 @@ export default controller(({ workspace }: ViewScope<Scope>) => {
   local hard-coded colours; theming is inherited from the parent.
 -->
 
-<!-- <prop name="workspace" type="string" default="" /> -->
-
-<!-- style block removed: use sx / external CSS -->
-
 <header data-test="home-greeting">
   <h1>{greeting()}.</h1>
-  <if cond={workspace()}>
+  <if {workspace()}>
     <span data-test="home-greeting-workspace">{workspace()}</span>
   </if>
   <span data-test="home-greeting-day">{dayLabel()} · {clock()}</span>

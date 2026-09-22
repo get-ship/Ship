@@ -1,11 +1,30 @@
+<!--
+  <ship-arcade> — the arcade LAUNCHER surface. Renders a JSON list of games as a
+  grid of tiles (art block + initial, title, meta line). Prop-driven only;
+  this is chrome over the sui-* arcade primitives — it does not touch the
+  PixiJS engine.
+
+  Props:  games   — JSON array of { id, title?, meta?, tone?, art? }
+          heading — grid heading (default "Arcade")
+          sub     — heading sub-line
+  Events: ship-select { game } — a tile was activated (click / Enter / Space)
+-->
+<scope>
+  props: {
+    games = '[]'
+    heading = 'Arcade'
+    sub = ''
+  }
+  style muted = { type({ size: sm }).fg(muted-foreground) }
+  style art = { type({ family: mono, size: 2xl, weight: bold }).fg(muted-foreground) }
+  style title = { type({ size: sm, weight: medium }) }
+  style meta = { type({ size: xs }).fg(muted-foreground) }
+</scope>
+
 <controller>
-// <ship-arcade> — renders a JSON list of games as launcher tiles. Tiles are
-// generated as a runtime HTML string via bindHtml (tone tokens compose
-// freely). A delegated listener emits `ship-select { game }` on click /
-// Enter / Space. Chrome only — no contact with the PixiJS engine.
-import { controller, ref, bindHtml } from '@ship/sail-runtime'
-import type { ViewScope } from '@ship/sail-runtime'
+import type { ControllerScope } from '@ship/sail-runtime'
 import type { Scope } from './ship-arcade.sail'
+import { emitSelect, type Host, type KeyEv } from './host'
 
 interface Game {
   id: string
@@ -15,93 +34,68 @@ interface Game {
   art?: string
 }
 
-const TONES = new Set(['success', 'info', 'warning', 'destructive', 'accent', 'primary'])
-const EMPTY = '<div>no games</div>'
-
-function esc(s: string): string {
-  return String(s).replace(/[&<>"]/g, (c) =>
-    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] ?? c)
+interface Tile {
+  id: string
+  title: string
+  meta: string
+  art: string
 }
 
-function tile(g: Game): string {
-  const title = g.title ?? g.id
-  const tone = TONES.has(g.tone ?? '') ? ` t-${g.tone}` : ''
-  const art = esc((g.art ?? (title.charAt(0) || '?')).slice(0, 2))
-  return `<div data-game-id="${esc(g.id)}" tabindex="0" `
-    + `role="button" aria-label="${esc(title)}">`
-    + `<div>${art}</div>`
-    + `<div><div>${esc(title)}</div>`
-    + `<div>${esc(g.meta ?? '')}</div></div></div>`
+function tilesOf(raw: string): Tile[] {
+  try {
+    const parsed = JSON.parse(raw || '[]') as unknown
+    if (!Array.isArray(parsed)) return []
+    const out: Tile[] = []
+    for (const item of parsed) {
+      if (!item || typeof item !== 'object') continue
+      const g = item as Game
+      if (!g.id) continue
+      const title = g.title ?? g.id
+      out.push({
+        id: g.id,
+        title,
+        meta: g.meta ?? '',
+        art: (g.art ?? (title.charAt(0) || '?')).slice(0, 2),
+      })
+    }
+    return out
+  } catch {
+    return []
+  }
 }
 
-function render(games: Game[]): string {
-  if (!Array.isArray(games) || games.length === 0) return EMPTY
-  return games.map(tile).join('')
-}
+export default controller((ctx: ControllerScope<Scope>, host?: Host) => {
+  const tiles = derived<Tile[]>(() => tilesOf(ctx.games()))
+  const hasGames = derived(() => tiles().length > 0)
 
-export default controller({
-  scope: (_ctx: ViewScope<Scope>) => ({ gridEl: ref<HTMLElement>(null) }),
-
-  mount(state, host) {
-    const el = state.gridEl as HTMLElement | null
-    if (!el) return () => {}
-
-    const select = (target: EventTarget | null) => {
-      const t = (target as HTMLElement | null)?.closest?.('[data-game-id]')
-      const id = t?.getAttribute('data-game-id')
-      if (!id) return
-      host.dispatchEvent(new CustomEvent('ship-select', {
-        detail: { game: id }, bubbles: true, composed: true,
-      }))
-    }
-    const onClick = (e: Event) => select(e.target)
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Enter' && e.key !== ' ') return
-      const t = (e.target as HTMLElement | null)?.closest?.('[data-game-id]')
-      if (!t) return
-      e.preventDefault()
-      select(e.target)
-    }
-    el.addEventListener('click', onClick)
-    el.addEventListener('keydown', onKey)
-
-    const stop = bindHtml(el, () => {
-      try {
-        return render(JSON.parse((state.games as string) || '[]') as Game[])
-      } catch {
-        return EMPTY
-      }
-    })
-
-    return () => {
-      stop()
-      el.removeEventListener('click', onClick)
-      el.removeEventListener('keydown', onKey)
-    }
-  },
+  const select = (id: string) => { emitSelect(host, id) }
+  const onKey = (e: KeyEv, id: string) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return
+    e.preventDefault()
+    select(id)
+  }
+  return { tiles, hasGames, select, onKey }
 })
 </controller>
 
-<!--
-  <ship-arcade> — the arcade LAUNCHER surface. Renders a JSON list of games as a
-  grid of tone-tinted tiles (art block + initial, title, meta line). Tile tone
-  maps to a ship tone token so themes re-skin the whole grid. Prop-driven only;
-  this is chrome over the sui-* arcade primitives — it does not touch the
-  PixiJS engine.
-
-  Props:  games   — JSON array of { id, title?, meta?, tone?, art? }
-          heading — grid heading (default "Arcade")
-          sub     — heading sub-line
-  Events: ship-select { game } — a tile was activated (click / Enter / Space)
-  Parts:  surface · grid
--->
-<!-- <prop name="games" type="string" default="[]" reflect /> -->
-<!-- <prop name="heading" type="string" default="Arcade" /> -->
-<!-- <prop name="sub" type="string" default="" /> -->
-
-<!-- style block removed: use sx / external CSS -->
-
-<div>
-  <div><h3>{heading()}</h3><span>{sub()}</span></div>
-  <div bind:this={gridEl}></div>
-</div>
+<column gap="3">
+  <row gap="2" align="center">
+    <h3>{heading()}</h3>
+    <span style(muted)>{sub()}</span>
+  </row>
+  <if {hasGames()}>
+    <column gap="2">
+      <for {tiles() as g} key={g.id}>
+        <button type="button" label={g.title} on:click={() => select(g.id)} on:keydown={(e) => onKey(e, g.id)}>
+          <column gap="1">
+            <span style(art)>{g.art}</span>
+            <span style(title)>{g.title}</span>
+            <span style(meta)>{g.meta}</span>
+          </column>
+        </button>
+      </for>
+    </column>
+  {else =>
+    <span style(muted)>no games</span>
+  }</if>
+</column>

@@ -1,10 +1,11 @@
+<scope>
+  props: {
+    collapsed = false
+  }
+</scope>
 <controller>
-import { controller, effect, ref, signal } from '@ship/sail-runtime'
-import type { ViewScope } from '@ship/sail-runtime'
-// Two-state rail: visible (icon-only, 48px) vs hidden (display:none).
-// The arrow toggle button was removed — the top-nav menu button is the
-// sole control surface, dispatching `sui:rail:toggle` which the shell
-// app translates into a [collapsed] attribute on the rail.
+import { controller, effect, mount, signal } from '@ship/sail-runtime'
+import type { Action } from '@ship/sail-runtime'
 import type { Scope } from './ship-rail.sail'
 import { setupProjectSwitcher, type Project } from './ship-rail-project-switcher'
 
@@ -21,42 +22,163 @@ function dispatchBubble(host: HTMLElement, type: string, detail?: unknown): void
   }))
 }
 
-export default controller((_ctx: ViewScope<Scope>) => {
+function asHtml(node: Element | null): HTMLElement | null {
+  return node instanceof HTMLElement ? node : null
+}
 
-    const projectOpen = signal(false)
-    const projects = signal<Project[]>([])
-    const activeProjectId = signal<string | null>(null)
-    const activeView = signal<string>(
-      typeof location !== 'undefined' ? routeToViewName(location.pathname) : '',
-    )
-    const projectInitial = (): string => {
-      const list = projects()
-      const cur = list.find((p) => p.id === activeProjectId()) ?? list[0]
-      // Always render SOMETHING — `·` placeholder when no project is tracked
-      // so the badge isn't a featureless solid color square. Matches j2
-      // shell's ship-rail behavior.
-      if (!cur) return '·'
-      return (cur.label ?? cur.name).charAt(0).toUpperCase()
-    }
-    return {
-      projectOpen,
+export default controller((_ctx: Scope) => {
+  const projectOpen = signal(false)
+  const projects = signal<Project[]>([])
+  const activeProjectId = signal<string | null>(null)
+  const activeView = signal<string>(
+    typeof location !== 'undefined' ? routeToViewName(location.pathname) : '',
+  )
+  const popoverEl = signal<Element | null>(null)
+  const projectBadgeEl = signal<Element | null>(null)
+  const createBtnEl = signal<Element | null>(null)
+  const launcherBtnEl = signal<Element | null>(null)
+
+  const capturePopover: Action<void> = (node) => {
+    popoverEl.set(node)
+    return { destroy: () => popoverEl.set(null) }
+  }
+  const captureBadge: Action<void> = (node) => {
+    projectBadgeEl.set(node)
+    return { destroy: () => projectBadgeEl.set(null) }
+  }
+  const captureCreate: Action<void> = (node) => {
+    createBtnEl.set(node)
+    return { destroy: () => createBtnEl.set(null) }
+  }
+
+  const projectInitial = (): string => {
+    const list = projects()
+    const cur = list.find((p) => p.id === activeProjectId()) ?? list[0]
+    // Always render SOMETHING — `·` placeholder when no project is tracked
+    // so the badge isn't a featureless solid color square. Matches j2
+    // shell's ship-rail behavior.
+    if (!cur) return '·'
+    return (cur.label ?? cur.name).charAt(0).toUpperCase()
+  }
+
+  mount((host) => {
+    // Landmark a11y: declare the rail as a navigation region so assistive
+    // tech announces it as a landmark and `aria-label` distinguishes it
+    // from other nav landmarks (e.g. top-nav). Done in mount() rather
+    // than the template so it cannot be stripped by markup edits.
+    if (!host.hasAttribute('role')) host.setAttribute('role', 'navigation')
+    if (!host.hasAttribute('aria-label')) host.setAttribute('aria-label', 'Primary navigation')
+
+    const switcher = setupProjectSwitcher({
+      host,
+      open: projectOpen,
       projects,
       activeProjectId,
-      activeView,
-      projectInitial,
-      popoverEl: ref<HTMLElement>(),
-      projectBadgeEl: ref<HTMLElement>(),
-      launcherBtnEl: ref<HTMLElement>(),
-      createBtnEl: ref<HTMLElement>(),
-      navSlot: ref<HTMLSlotElement>(),
+      popoverEl: () => asHtml(popoverEl()),
+      badgeEl: () => asHtml(projectBadgeEl()),
+    })
+    void switcher.loadProjects()
+
+    const closePopover = (): void => projectOpen.set(false)
+    const onLauncherClick = (e: MouseEvent): void => {
+      dispatchBubble(host, 'ship:launcher:open', { anchor: e.currentTarget })
+      closePopover()
     }
+    const onCreateClick = (): void => {
+      dispatchBubble(host, 'ship:create:open')
+      closePopover()
+    }
+
+    const stopLauncherBind = effect(() => {
+      const btn = asHtml(launcherBtnEl())
+      if (!btn) return
+      btn.addEventListener('click', onLauncherClick)
+      return () => btn.removeEventListener('click', onLauncherClick)
+    })
+    const stopCreateBind = effect(() => {
+      const btn = asHtml(createBtnEl())
+      if (!btn) return
+      btn.addEventListener('click', onCreateClick)
+      return () => btn.removeEventListener('click', onCreateClick)
+    })
+
+    const recomputeActive = (): void => {
+      activeView.set(routeToViewName(location.pathname))
+    }
+    const onNavigate = (): void => recomputeActive()
+    document.addEventListener('sui:navigate', onNavigate)
+    window.addEventListener('popstate', onNavigate)
+
+    const stopActiveSync = effect(() => {
+      const name = activeView()
+      const items = host.querySelectorAll<HTMLElement>('ship-rail-item[data-view]')
+      for (const item of items) {
+        if (item.dataset.view === name) item.setAttribute('active', '')
+        else item.removeAttribute('active')
+      }
+    })
+
+    // Arrow-key nav — Up/Down cycle focus through rail items, Home/End
+    // jump to first/last. Enter activates (browser handles since <a>).
+    const rootOf = (el: Element): Element => el.shadowRoot ?? el
+    const focusableItems = (): HTMLAnchorElement[] => {
+      const list: HTMLAnchorElement[] = []
+      for (const item of host.querySelectorAll<HTMLElement>('ship-rail-item')) {
+        if (item.hasAttribute('disabled')) continue
+        const link = rootOf(item).querySelector('a') as HTMLAnchorElement | null
+        if (link) list.push(link)
+      }
+      return list
+    }
+    const onKeydown = (e: KeyboardEvent): void => {
+      const inRail = (e.target as Node | null) && host.contains(e.target as Node)
+      if (!inRail) return
+      const list = focusableItems()
+      if (list.length === 0) return
+      const fromSlotted = list.findIndex((a) => a.matches(':focus'))
+      const idx = fromSlotted >= 0 ? fromSlotted : 0
+      let next: number | null = null
+      switch (e.key) {
+        case 'ArrowDown': next = (idx + 1) % list.length; break
+        case 'ArrowUp': next = (idx - 1 + list.length) % list.length; break
+        case 'Home': next = 0; break
+        case 'End': next = list.length - 1; break
+        default: return
+      }
+      if (next == null) return
+      e.preventDefault()
+      list[next]?.focus()
+    }
+    host.addEventListener('keydown', onKeydown)
+
+    return () => {
+      stopLauncherBind()
+      stopCreateBind()
+      stopActiveSync()
+      switcher.dispose()
+      host.removeEventListener('keydown', onKeydown)
+      document.removeEventListener('sui:navigate', onNavigate)
+      window.removeEventListener('popstate', onNavigate)
+    }
+  })
+
+  return {
+    projectOpen,
+    projects,
+    activeProjectId,
+    activeView,
+    projectInitial,
+    capturePopover,
+    captureBadge,
+    captureCreate,
+  }
 })
 </controller>
 
 <!--
   <ship-rail> — vertical chrome nav. IS the rail: it owns its own markup
   (left-rail nav with pinned views, a project switcher, launcher trigger,
-  and create button) and composes only registered primitives (sui-icon,
+  and create button) and composes only registered primitives (icon,
   sui-portal) — it does not wrap a layout primitive.
 
   Two states only:
@@ -87,18 +209,13 @@ export default controller((_ctx: ViewScope<Scope>) => {
   ─────────────────────────────────────────────────────────────────────────────
   Behavior (controller-owned):
     - Project switcher: portal-positioned popover; lists projects from
-      the configured list URL; adds new project via prompt;
-      transition:fade on open/close.
+      the configured list URL; adds new project via prompt.
     - Active-view: listens to sui:navigate (and reads location.pathname);
       mirrors the first path segment onto slotted
       <ship-rail-item[data-view]> children as the `active` attribute.
     - Click-outside dismiss for the project popover.
   ─────────────────────────────────────────────────────────────────────────────
 -->
-
-<!-- <prop name="collapsed" type="bool" default="false" reflect /> -->
-
-<!-- style block removed: use sx / external CSS -->
 
 <div>
   <button
@@ -107,13 +224,13 @@ export default controller((_ctx: ViewScope<Scope>) => {
     aria-label="Switch project"
     aria-haspopup="dialog"
     aria-expanded={projectOpen() ? 'true' : 'false'}
-    bind:this={projectBadgeEl}
+    use:captureBadge
   >
     <icon name="grid-2x2" size="md"></icon>
   </button>
 </div>
 <nav>
-  <slot bind:this={navSlot}></slot>
+  <slot></slot>
 </nav>
 <div>
   <div>
@@ -121,7 +238,7 @@ export default controller((_ctx: ViewScope<Scope>) => {
       type="button"
       title="Create new (⌘N)"
       aria-label="Create new"
-      bind:this={createBtnEl}
+      use:captureCreate
     >
       <icon name="plus" size="sm"></icon>
     </button>
@@ -132,23 +249,22 @@ export default controller((_ctx: ViewScope<Scope>) => {
 <!--
   Project popover is teleported to <body> via <sui-portal> so it escapes
   the rail's overflow:hidden + stacking context. The <if> mounts the
-  popover only when open; transition:fade animates entry/exit. Position
-  is computed by the controller against the project-badge's bounding
-  rect — see updatePopoverPosition() in ship-rail.controller.ts.
+  popover only when open. Position is computed by the controller against
+  the project-badge's bounding rect.
 -->
 <sui-portal target="body">
-  <if cond={projectOpen()}>
+  <if {projectOpen()}>
     <div
       role="dialog"
       aria-label="Switch project"
-      bind:this={popoverEl}
+      use:capturePopover
       transition:fade={{ duration: 150 }}
     >
       <div>Projects</div>
-      <if cond={projects().length === 0}>
+      <if {projects().length === 0}>
         <div>No projects tracked.</div>
       </if>
-      <for as="p" of={projects()} key={p.id}>
+      <for {projects() as p} key={p.id}>
         <div
           data-active={p.id === activeProjectId()}
           data-project-id={p.id}

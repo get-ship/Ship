@@ -8,8 +8,8 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { renderComponent } from '@ship/test-setup'
-import { compileSui, evalCompiledJs } from '@ship/sail-dom/test-utils'
-import stageController from '../src/sui-stage/sui-stage.controller.ts'
+import { compileSail, evalCompiledJs } from '@ship/sail-dom/test-utils'
+import stageController from '../src/sui-stage/sui-stage.sail.controller.ts'
 
 export interface StageHost extends HTMLElement {
   start(): void
@@ -35,11 +35,11 @@ export const STAGE_SUI = srcFile('sui-stage/sui-stage.sail')
  * Compile + register one of the pack's child custom elements (sui-sprite,
  * sui-hud, …) under its own tag. The child tags are markerless declarative
  * elements parsed by the stage from light DOM — they only become registered
- * custom elements when their own `.sui` is compiled. Idempotent per tag.
+ * custom elements when their own `.sail` is compiled. Idempotent per tag.
  */
 export function registerChild(tag: string): void {
   if (customElements.get(tag)) return
-  const compiled = compileSui(srcFile(`${tag}/${tag}.sui`), { componentName: tag, mode: 'component' })
+  const compiled = compileSail(srcFile(`${tag}/${tag}.sail`), { componentName: tag, mode: 'component' })
   evalCompiledJs(compiled.js)
 }
 
@@ -48,7 +48,7 @@ export function registerChild(tag: string): void {
  * drive a handful of macrotasks so the controller's async createStage mount
  * (palette resolve, child wiring, ready event) fully settles. `onHost` runs
  * synchronously before the first flush — use it to attach listeners that must
- * observe the async `sui-stage:ready` / first state events.
+ * observe the async `sail-stage:ready` / first state events.
  */
 export async function mountStage(
   inner = '',

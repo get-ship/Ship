@@ -9,7 +9,7 @@ import { createContainerRegistry, mount } from '@ship/test-setup'
 const reg = createContainerRegistry()
 afterEach(() => reg.cleanup())
 
-const shadow = (el: HTMLElement) => el.shadowRoot!
+const shadow = (el: HTMLElement) => el.shadowRoot ?? el
 const badge = (el: HTMLElement) =>
   shadow(el).querySelector('.badge') as HTMLElement | null
 const dot = (el: HTMLElement) =>

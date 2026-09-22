@@ -1,6 +1,10 @@
+<scope>
+  props: {
+    collection = ''
+  }
+</scope>
 <controller>
-import { controller, derived, live, unwrapOr } from '@ship/sail-runtime'
-import type { LiveSource, ViewScope } from '@ship/sail-runtime'
+import { controller, derived, onCleanup, query, unwrapOr } from '@ship/sail-runtime'
 import { ship } from '@ship/sdk-client'
 import type { Scope } from './ship-collection-table.sail'
 
@@ -9,7 +13,7 @@ import type { Scope } from './ship-collection-table.sail'
 // ship.collections.state({collection}) returns the schema + total_items;
 // ship.collections.items({collection}) returns paginated rows. The SDK
 // types the row payload as `unknown[]` (the field set is dynamic), so
-// we project to a flat Row shape the underlying <sui-table> consumes.
+// we project to a flat Row shape the underlying table consumes.
 
 interface ColumnDef {
   field: string
@@ -57,10 +61,10 @@ function typeLabel(type: string): string {
   }
 }
 
-export default controller(({ collection }: ViewScope<Scope>, host) => {
+export default controller(({ collection }: Scope, host?: Element) => {
 
-    const state = live(() => ship.collections.state(collection() ? { active: collection() } : {}))
-    const items = live(() => ship.collections.items({ collection: collection() }) as unknown as LiveSource<typeof EMPTY_ITEMS>)
+    const state = query(() => ship.collections.state(collection() ? { active: collection() } : {}))
+    const items = query(() => ship.collections.items({ collection: collection() }))
 
     const stateValue = derived<StatePayload>(
       () => unwrapOr(state, EMPTY_STATE) as StatePayload,
@@ -99,9 +103,9 @@ export default controller(({ collection }: ViewScope<Scope>, host) => {
       return out
     })
 
-    // Row click → emit ship-collection-row-select. The <sui-table>
-    // primitive doesn't speak our event names, so we delegate to the
-    // host's shadow root via composed event listening on `click`.
+    // Row click → emit ship-collection-row-select. The table primitive
+    // doesn't speak our event names, so we delegate to the host via
+    // composed event listening on `click`.
     const onRowClick = (e: Event): void => {
       if (!host) return
       for (const node of e.composedPath()) {
@@ -123,13 +127,11 @@ export default controller(({ collection }: ViewScope<Scope>, host) => {
       }
     }
     host?.addEventListener('click', onRowClick)
+    onCleanup(() => {
+      host?.removeEventListener('click', onRowClick)
+    })
 
-    return {
-      state, items, rows, columnDefs, stateValue,
-      unmount: (): void => {
-        host?.removeEventListener('click', onRowClick)
-      },
-    }
+    return { state, items, rows, columnDefs, stateValue }
 })
 </controller>
 
@@ -153,25 +155,21 @@ export default controller(({ collection }: ViewScope<Scope>, host) => {
 -->
 <!-- <prop name="collection" type="string" default="" /> -->
 
-<!-- style block removed: use sx / external CSS -->
-
-<while-loading of="state">
-  <spinner shape="line" size="lg"></spinner>
-</while-loading>
-<while-error as="err" of="state">
-  <error-state title="Couldn't load collection">{err.message}</error-state>
-</while-error>
-<if cond={state().kind === 'ok' && state().value}>
-  <while-loading of="items">
-    <spinner shape="line" size="md"></spinner>
-  </while-loading>
-  <while-error as="err" of="items">
-    <error-state title="Couldn't load items" variant="inline">{err.message}</error-state>
-  </while-error>
-  <if cond={items().kind === 'ok'}>
-    <if cond={rows().length === 0}>
+<match {state()}>
+  {loading => <spinner shape="line" size="lg"></spinner>}
+  {error as err => <error-state title="Couldn't load collection" body={err?.message ?? 'Request failed'}></error-state>}
+  {ok as _ => }
+</match>
+<if {state().kind === 'ok' && state().value}>
+  <match {items()}>
+    {loading => <spinner shape="line" size="md"></spinner>}
+    {error as err => <error-state title="Couldn't load items" variant="inline" body={err?.message ?? 'Request failed'}></error-state>}
+    {ok as _ => }
+  </match>
+  <if {items().kind === 'ok'}>
+    <if {rows().length === 0}>
       <div data-test="empty">No items in {state().value.schema.name}.</div>
-    <else>
+    {else =>
       <sail-table
         variant="data"
         rows={rows()}
@@ -180,7 +178,7 @@ export default controller(({ collection }: ViewScope<Scope>, host) => {
         striped
         data-test="grid"
       ></sail-table>
-    </else></if>
+    }</if>
     <div data-test="footer">
       <span>{rows().length} / {state().value.total_items}</span>
       <span>{collection()}</span>

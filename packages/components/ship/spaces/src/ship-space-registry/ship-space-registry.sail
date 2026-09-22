@@ -1,10 +1,28 @@
+<!--
+  ship-space-registry.sail — the @ship/spaces REGISTRY surface (SHELL side).
+  Renders SpaceService.List (spaces[] + active_id) as a selectable list:
+  each row is a registered space (name · path · last-seen), the active one
+  marked. Row click → `ship-activate` {id} (consumer re-points the daemon-global
+  default pointer via Activate). The register affordance → `ship-add` (consumer
+  opens the add flow).
+
+  Rows + relative last-seen are fed by the controller from the `spaces`
+  attribute (JSON) and `active` (the active id). Compiled as
+  <ship-space-registry>.
+-->
+<scope>
+  props: {
+    active = ''
+    heading = 'Spaces'
+  }
+</scope>
+
 <controller>
-import { controller, signal } from '@ship/sail-runtime'
+import { controller, signal, onCleanup } from '@ship/sail-runtime'
 import type { Scope } from './ship-space-registry.sail'
 
-/** A registry row's view model — the `{#for}` row. Derived from a
- *  SpaceService `Space` message; `lastSeen` is the relative form of
- *  `last_seen_at` computed at parse time. */
+/** A registry row's view model. Derived from a SpaceService `Space`
+ *  message; `lastSeen` is the relative form of `last_seen_at`. */
 interface SpaceRow {
   id: string
   name: string
@@ -37,100 +55,76 @@ function relTime(iso: string | undefined, now: number = Date.now()): string {
   return Math.round(days / 7) + 'w'
 }
 
-// State API note: this targets the property-access runtime — read `state.rows`,
-// write `state.rows = …` (the mount-state proxy routes the write to the signal).
-export default controller({
-  scope: (_ctx: Scope) => ({ rows: signal<SpaceRow[]>([]) }),
+export default controller((_ctx: Scope, host?: Element) => {
+  const rows = signal<SpaceRow[]>([])
+  if (!host) return { rows }
 
-  mount(state, host) {
-    // Parse the `spaces` attribute (a SpaceList.spaces[] JSON array) into rows.
-    // The integration layer keeps this attribute in sync with List + the
-    // Watch(registry) snapshot/patches; the surface itself never sees a stream.
-    const load = () => {
-      let spaces: Space[] = []
-      try {
-        spaces = JSON.parse(host.getAttribute('spaces') || '[]') as Space[]
-      } catch {
-        spaces = []
-      }
-      state.rows = spaces.map((s) => ({
+  const load = () => {
+    let spaces: Space[] = []
+    try {
+      spaces = JSON.parse(host.getAttribute('spaces') || '[]') as Space[]
+    } catch {
+      spaces = []
+    }
+    rows.set(
+      spaces.map((s) => ({
         id: s.id,
         name: s.name,
         path: s.path,
         lastSeen: relTime(s.last_seen_at),
-      }))
-    }
-    load()
-    const observer = new MutationObserver(load)
-    observer.observe(host, { attributes: true, attributeFilter: ['spaces'] })
+      })),
+    )
+  }
+  load()
+  const observer = new MutationObserver(load)
+  observer.observe(host, { attributes: true, attributeFilter: ['spaces'] })
 
-    // Delegated clicks: composedPath() reaches the real shadow target even
-    // though the event retargets to the host outside the shadow root.
-    const onClick = (e: Event) => {
-      for (const node of e.composedPath()) {
-        if (!(node instanceof Element)) continue
-        if (node.matches('[data-action="add"]')) {
-          host.dispatchEvent(new CustomEvent('ship-add', { bubbles: true, composed: true }))
-          return
+  const onClick = (e: Event) => {
+    for (const node of e.composedPath()) {
+      if (!(node instanceof Element)) continue
+      if (node.matches('[data-action="add"]')) {
+        host.dispatchEvent(new CustomEvent('ship-add', { bubbles: true, composed: true }))
+        return
+      }
+      if (node.matches('[data-id]')) {
+        const id = node.getAttribute('data-id')
+        if (id && id !== host.getAttribute('active')) {
+          host.dispatchEvent(
+            new CustomEvent('ship-activate', { detail: { id }, bubbles: true, composed: true }),
+          )
         }
-        if (node.matches('.row[data-id]')) {
-          const id = node.getAttribute('data-id')
-          if (id && id !== host.getAttribute('active')) {
-            host.dispatchEvent(
-              new CustomEvent('ship-activate', { detail: { id }, bubbles: true, composed: true }),
-            )
-          }
-          return
-        }
+        return
       }
     }
-    host.addEventListener('click', onClick)
+  }
+  host.addEventListener('click', onClick)
+  onCleanup(() => {
+    observer.disconnect()
+    host.removeEventListener('click', onClick)
+  })
 
-    return () => {
-      observer.disconnect()
-      host.removeEventListener('click', onClick)
-    }
-  },
+  return { rows }
 })
 </controller>
-
-<!--
-  ship-space-registry.sail — the @ship/spaces REGISTRY surface (SHELL side).
-  Renders SpaceService.List (spaces[] + active_id) as a selectable list:
-  each row is a registered space (name · path · last-seen), the active one
-  marked. Row click → `ship-activate` {id} (consumer re-points the daemon-global
-  default pointer via Activate). The register affordance → `ship-add` (consumer
-  opens the add flow).
-
-  Presentational + token-pure. The rows + relative last-seen are fed by the
-  controller from the `spaces` attribute (JSON) and `active` (the active id);
-  no daemon, RPC, or Watch machinery is visible in the surface itself — those
-  live in the integration layer that owns this element. Compiled as
-  <ship-space-registry>. Parts: container · header · add · rows · row · empty.
--->
-<!-- <prop name="active" type="string" default="" /> -->
-<!-- <prop name="heading" type="string" default="Spaces" /> -->
-
-<!-- style block removed: use sx / external CSS -->
 
 <div>
   <header>
     <span>{heading()} <span>{rows().length}</span></span>
     <span></span>
-    <if cond={rows().length > 0}>
+    <if {rows().length > 0}>
       <button type="button" data-action="add">Register a space</button>
     </if>
   </header>
 
-  <if cond={rows().length === 0}>
+  <if {rows().length === 0}>
     <div>
       <span>No spaces registered</span>
       <span>Register a directory to get started. Each space is an independent Ship context.</span>
       <button type="button" data-action="add">Register a space</button>
     </div>
-  <else>
+  {else =>
     <div role="list">
-      <for as="s" of={rows()} key={s.id}>
+      <for {rows() as s} key={s.id}>
         <button
           type="button"
           role="listitem"
@@ -145,5 +139,5 @@ export default controller({
         </button>
       </for>
     </div>
-  </else></if>
+  }</if>
 </div>

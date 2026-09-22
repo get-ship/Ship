@@ -2,8 +2,8 @@
   props: {}
 </scope>
 <controller>
-import { controller, derived, query, unwrapOr } from '@ship/sail-runtime'
-import type { ViewScope } from '@ship/sail-runtime'
+import { query, unwrapOr } from '@ship/sail-runtime'
+import type { ControllerScope } from '@ship/sail-runtime'
 import { ship } from '@ship/sdk-client'
 import type { AgentSummary } from '@ship/sdk-client'
 import type { Scope } from './ship-agents-table.sail'
@@ -23,8 +23,7 @@ const DEFAULT_COLUMNS: ColumnDef[] = [
 
 const EMPTY = { items: [] as AgentSummary[] }
 
-export default controller((_ctx: ViewScope<Scope>) => {
-
+export default controller((_ctx: ControllerScope<Scope>) => {
     const agents = query(() => ship.agents.summaries())
     const rows = derived(() => unwrapOr(agents, EMPTY).items)
     const columnDefs = derived<ColumnDef[]>(() => DEFAULT_COLUMNS)
@@ -45,8 +44,8 @@ export default controller((_ctx: ViewScope<Scope>) => {
 -->
 
 <match {agents()}>
-  {loading => <spinner size="lg"></spinner>}
-  {error as err => <error-state title="Couldn't load agents">{err.message}</error-state>}
+  {loading => <skeleton></skeleton>}
+  {error as err => <error-state title="Couldn't load agents" body={err?.message ?? 'Request failed'}></error-state>}
   {ok as _ =>
     <table>
       <thead>
@@ -62,6 +61,8 @@ export default controller((_ctx: ViewScope<Scope>) => {
             <td>{row.name}</td>
             <td>{row.description}</td>
             <td>{row.source}</td>
+            <td>{row.skills_count}</td>
+            <td>{row.mcp_count}</td>
           </tr>
         </for>
       </tbody>

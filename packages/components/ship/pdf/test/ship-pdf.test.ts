@@ -50,7 +50,7 @@ function mount(attrs: Record<string, string> = {}) {
   return v
 }
 
-const shadow = (el: HTMLElement): ShadowRoot => el.shadowRoot as ShadowRoot
+const shadow = (el: HTMLElement) => el.shadowRoot ?? el
 
 /** Resolve once `pred` holds, polling the macrotask queue. pdf.js load + render
  *  are async (worker round-trips — the first, cold load can take ~½s under the

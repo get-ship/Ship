@@ -15,7 +15,7 @@ beforeEach(() => {
 const reg = createContainerRegistry()
 afterEach(() => reg.cleanup())
 
-const shadow = (el: HTMLElement) => el.shadowRoot!
+const shadow = (el: HTMLElement) => el.shadowRoot ?? el
 const table = (el: HTMLElement) =>
   shadow(el).querySelector('sui-table') as (HTMLElement & {
     rows?: unknown[]

@@ -1,11 +1,17 @@
+<scope>
+  props: {
+    steps = '[]'
+  }
+</scope>
 <controller>
 // <sui-pipeline-dag> — graph form. Lays out a step DAG into dependency columns
 // (level = longest path from a root) and renders type-coloured nodes + state
 // fills + bezier edges (active edge animated) as SVG. SVG is rendered via
 // bindHtml (runtime string), so it composes tokens freely — no compile-time
 // token lint on the generated markup.
-import { controller, bindHtml } from '@ship/sail-runtime'
+import type { Action } from '@ship/sail-runtime'
 import type { Scope } from './sui-pipeline-dag.sail'
+import { bindHtml } from '../bind-html'
 
 interface Step { id: string; type?: string; state?: string; after?: string[] }
 
@@ -100,18 +106,18 @@ function render(steps: Step[]): string {
     + `</defs>${edges}${nodes}</svg>`
 }
 
-export default controller<Scope>({
-  mount(state, _host) {
-    const el = state.$signals.contentEl() as HTMLElement | null
-    if (!el) return () => {}
-    return bindHtml(el, () => {
+export default controller((ctx: Scope) => {
+  const paint: Action<void> = (node) => {
+    const stop = bindHtml(node, () => {
       try {
-        return render(JSON.parse(state.$signals.steps() || '[]') as Step[])
+        return render(JSON.parse(ctx.steps() || '[]') as Step[])
       } catch {
         return EMPTY_HTML
       }
     })
-  },
+    return { destroy: stop }
+  }
+  return { paint }
 })
 </controller>
 
@@ -123,8 +129,5 @@ export default controller<Scope>({
   Props:  steps — JSON array of { id, type, state?, after?: string[] }
   Parts:  dag
 -->
-<!-- <prop name="steps" type="string" default="[]" reflect /> -->
 
-<!-- style block removed: use sx / external CSS -->
-
-<div bind:this={contentEl}></div>
+<div use:paint></div>

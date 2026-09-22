@@ -1,64 +1,56 @@
+<!--
+  <ship-git-diff-file> — per-file collapsible header + hunk/line slot.
+-->
+<scope>
+  props: {
+    path = ''
+    additions = 0
+    deletions = 0
+    collapsed = false
+  }
+  style head = { size({ w: max, min-w: 0 }).pad({ x: 3, y: 2 }).bg(surface).border({ width: 1, color: border-subtle, edge: b }) }
+  style pathLab = { type({ size: sm, family: mono, wrap: nowrap }).size({ min-w: 0 }).overflow(hidden) }
+  style add = { type({ family: mono, size: xs }).fg(success) }
+  style del = { type({ family: mono, size: xs }).fg(destructive) }
+  style spacer = { size(grow) }
+  style body = { size({ w: max, min-w: 0 }) }
+</scope>
+
 <controller>
-import { controller, derived, effect } from '@ship/sail-runtime'
-import type { ViewScope } from '@ship/sail-runtime'
 import type { Scope } from './ship-git-diff-file.sail'
 
-export default controller((ctx: ViewScope<Scope>) => {
-
+export default controller((ctx: Scope) => {
     const chevIcon = derived<string>(() =>
       ctx.collapsed() ? 'chevron-right' : 'chevron-down',
     )
-    const expandedLabel = derived<string>(() => (ctx.collapsed() ? 'false' : 'true'))
+    const hasAdds = derived<boolean>(() => ctx.additions() > 0)
+    const hasDels = derived<boolean>(() => ctx.deletions() > 0)
+    const isOpen = derived<boolean>(() => !ctx.collapsed())
 
     function toggle(): void {
       ctx.collapsed.set(!ctx.collapsed())
     }
 
-    return { chevIcon, expandedLabel, toggle }
+    return { chevIcon, hasAdds, hasDels, isOpen, toggle }
 })
 </controller>
 
-<!--
-  <ship-git-diff-file> — SUI port of <ship-git-diff-file>.
-
-  Per-file collapsible header with the path + +/- counts. Slots the
-  file's <ship-git-diff-hunk> + <ship-git-diff-line> children below.
-
-  Prop / event / slot parity vs <ship-git-diff-file>
-  ─────────────────────────────────────────────────────────────────────────────
-  Lit                          SUI                      Notes
-  ─────────────────────────────────────────────────────────────────────────────
-  path (string, '')            path (string, '',        ✓ reflects
-                                  reflect)
-  additions (number, 0)        additions (number, 0,    ✓ reflects
-                                  reflect)
-  deletions (number, 0)        deletions (number, 0,    ✓ reflects
-                                  reflect)
-  collapsed (bool, false)      collapsed (bool, false,  ✓ reflects, hides
-                                  reflect)                  body via CSS
-  ─────────────────────────────────────────────────────────────────────────────
-  role=group + aria-label      controller effect        ✓
-  ─────────────────────────────────────────────────────────────────────────────
--->
-
-<!-- <prop name="path" type="string" default="" reflect /> -->
-<!-- <prop name="additions" type="number" default="0" reflect /> -->
-<!-- <prop name="deletions" type="number" default="0" reflect /> -->
-<!-- <prop name="collapsed" type="bool" default="false" reflect /> -->
-
-<!-- style block removed: use sx / external CSS -->
-
-<button type="button" on:click={toggle} aria-expanded={expandedLabel()}>
-  <icon size="sm" name={chevIcon()}></icon>
-  <icon size="sm" name="file-code"></icon>
-  <span>{path()}</span>
-  <span>
-    <if cond={additions() > 0}>
-      <span><icon size="sm" name="plus"></icon>{additions()}</span>
+<column gap="0">
+  <row nowrap gap="2" align="center" style(head) on:click={() => toggle()}>
+    <icon size="sm" name={chevIcon()}></icon>
+    <icon size="sm" name="file-code"></icon>
+    <span style(pathLab)>{path()}</span>
+    <row style(spacer) />
+    <if {hasAdds()}>
+      <span style(add)>+{additions()}</span>
     </if>
-    <if cond={deletions() > 0}>
-      <span><icon size="sm" name="minus"></icon>{deletions()}</span>
+    <if {hasDels()}>
+      <span style(del)>-{deletions()}</span>
     </if>
-  </span>
-</button>
-<div><slot></slot></div>
+  </row>
+  <if {isOpen()}>
+    <column gap="0" style(body)>
+      <slot></slot>
+    </column>
+  </if>
+</column>

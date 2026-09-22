@@ -1,6 +1,10 @@
+<scope>
+  props: {
+    active: 'agents' | 'views' | 'components' | 'pipelines' | 'themes' | 'collections' | 'artifacts' | 'settings' = 'views'
+  }
+</scope>
 <controller>
 import { controller } from '@ship/sail-runtime'
-import type { ViewScope } from '@ship/sail-runtime'
 import type { Scope } from './ship-activity-bar.sail'
 
 const CONTEXTS = [
@@ -16,21 +20,20 @@ function isContext(v: string | undefined): v is Context {
 // Vertical context switcher. Each item IS a context; clicking one becomes the
 // active context (reflected for styling) and emits ship-context-change so the
 // host can swap the navigator panel.
-export default controller(({ active }: ViewScope<Scope>, host) => {
-
-    function pick(e: Event): void {
-      const ctx = (e.currentTarget as HTMLElement | null)?.dataset.ctx
-      if (!isContext(ctx)) return
-      active.set(ctx)
-      host?.dispatchEvent(
-        new CustomEvent('ship-context-change', {
-          detail: { context: ctx },
-          bubbles: true,
-          composed: true,
-        }),
-      )
-    }
-    return { pick }
+export default controller((ctx: Scope, host?: Element) => {
+  function pick(e: Event): void {
+    const next = (e.currentTarget as HTMLElement | null)?.dataset.ctx
+    if (!isContext(next)) return
+    ctx.active.set(next)
+    host?.dispatchEvent(
+      new CustomEvent('ship-context-change', {
+        detail: { context: next },
+        bubbles: true,
+        composed: true,
+      }),
+    )
+  }
+  return { pick }
 })
 </controller>
 
@@ -43,9 +46,6 @@ export default controller(({ active }: ViewScope<Scope>, host) => {
   Prop: active(agents|views|components|pipelines|themes|collections|artifacts|settings).
   Controller emits ship-context-change {context} on item click.
 -->
-<!-- <prop name="active" values="agents|views|components|pipelines|themes|collections|artifacts|settings" default="views" reflect /> -->
-
-<!-- style block removed: use sx / external CSS -->
 
 <button type="button" title="Agents" data-ctx="agents" on:click={pick}><span></span><icon name="bot" size="md"></icon></button>
 <button type="button" title="Views" data-ctx="views" on:click={pick}><span></span><icon name="columns" size="md"></icon></button>

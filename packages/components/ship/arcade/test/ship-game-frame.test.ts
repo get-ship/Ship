@@ -25,7 +25,7 @@ function mount(attrs: Record<string, string> = {}, inner = '') {
 }
 
 const flush = () => new Promise<void>((r) => setTimeout(r, 0))
-const shadow = (el: HTMLElement) => el.shadowRoot!
+const shadow = (el: HTMLElement) => el.shadowRoot ?? el
 
 describe('<ship-game-frame>', () => {
   it('registers as a custom element', () => {

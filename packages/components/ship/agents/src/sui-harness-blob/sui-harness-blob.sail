@@ -6,13 +6,14 @@
   }
 </scope>
 <controller>
-import { controller, derived, signal } from '@ship/sail-runtime'
-import type { Action, ViewScope } from '@ship/sail-runtime'
+import type { Action, ControllerScope } from '@ship/sail-runtime'
 import type { Scope } from './sui-harness-blob.sail'
 import { HARNESSES, type Harness } from './harness-logos'
 
-export default controller((ctx: ViewScope<Scope>) => {
+type StyledHost = { style?: { setProperty: (name: string, value: string) => void } }
+type HtmlNode = { innerHTML: string }
 
+export default controller((ctx: ControllerScope<Scope>, host?: Element) => {
     const tileEl = signal<Element | null>(null)
     const captureTile: Action<void> = (node) => {
       tileEl.set(node)
@@ -21,6 +22,19 @@ export default controller((ctx: ViewScope<Scope>) => {
     const tileLabel = derived<string>(
       () => (HARNESSES[ctx.harness() as Harness] ?? HARNESSES.claude).label,
     )
+
+    effect(() => {
+      const meta = HARNESSES[ctx.harness() as Harness] ?? HARNESSES.claude
+      ;(host as StyledHost | undefined)?.style?.setProperty('--blob-hue', meta.hue)
+    })
+
+    effect(() => {
+      const tile = tileEl() as HtmlNode | null
+      if (!tile) return
+      const meta = HARNESSES[ctx.harness() as Harness] ?? HARNESSES.claude
+      tile.innerHTML = meta.svg
+    })
+
     return { captureTile, tileLabel }
 })
 </controller>
@@ -51,13 +65,7 @@ export default controller((ctx: ViewScope<Scope>) => {
   ─────────────────────────────────────────────────────────────────────────────
 -->
 
-<!-- <prop name="harness" values="claude|codex|cursor|gemini|opencode" default="claude" reflect /> -->
-<!-- <prop name="size" values="sm|md|lg" default="md" reflect /> -->
-<!-- <prop name="variant" values="tile|glyph" default="tile" reflect /> -->
-
-<!-- style block removed: use sx / external CSS -->
-
-<span role="img" aria-label={tileLabel()}>
+<span label={tileLabel()}>
   <span use:captureTile></span>
 </span>
 <span><slot></slot></span>

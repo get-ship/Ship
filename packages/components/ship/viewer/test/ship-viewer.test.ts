@@ -29,7 +29,7 @@ import '../../../sail/primitives/src/sui-empty-state/sui-empty-state.compiled.js
 // Register it the same way the composed primitives are registered — by importing
 // its compiled.js — so the dispatcher resolves a real, defined element.
 import '@ship/pdf'
-import dispatcher from '../src/ship-viewer/ship-viewer.controller'
+import dispatcher from '../src/ship-viewer/ship-viewer.sail.controller.ts'
 
 const SOURCE = readFileSync(
   new URL('../src/ship-viewer/ship-viewer.sail', import.meta.url),
@@ -54,7 +54,7 @@ function mountViewer(src: ViewerSource) {
   return v
 }
 
-const shadow = (el: HTMLElement): ShadowRoot => el.shadowRoot as ShadowRoot
+const shadow = (el: HTMLElement): ParentNode => (el.shadowRoot ?? el) as ParentNode
 
 // Track every mounted instance for teardown (renderComponent returns an
 // `unmount`, but a thrown spec must not leak a host into the next test).

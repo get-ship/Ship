@@ -1,6 +1,10 @@
+<scope>
+  props: {
+    principals = '[]'
+  }
+</scope>
 <controller>
 import { controller, derived } from '@ship/sail-runtime'
-import type { ViewScope } from '@ship/sail-runtime'
 import type { Scope } from './ship-principal-list.sail'
 
 type Tier = 'C0' | 'C1' | 'C2' | 'C3'
@@ -62,9 +66,8 @@ function buildRow(p: Principal): Row {
   }
 }
 
-export default controller(({ principals }: ViewScope<Scope>, host) => {
-
-    const list = derived<Row[]>(() => parse(principals()).map(buildRow))
+export default controller((ctx: Scope, host?: Element) => {
+    const list = derived<Row[]>(() => parse(ctx.principals()).map(buildRow))
 
     function edit(name: string): void {
       host?.dispatchEvent(
@@ -95,12 +98,9 @@ export default controller(({ principals }: ViewScope<Scope>, host) => {
   Event (bubble + composed):
     ship-edit { detail: { name } }   — the row's "Edit grants" was pressed
 -->
-<!-- <prop name="principals" type="string" default="[]" /> -->
-
-<!-- style block removed: use sx / external CSS -->
 
 <div>
-  <for as="pr" of={list()} key={pr.name}>
+  <for {list()} as="pr" key={pr.name}>
     <div>
       <span>
         <span>{pr.initials}</span>
@@ -108,10 +108,10 @@ export default controller(({ principals }: ViewScope<Scope>, host) => {
         <span>{pr.harness}</span>
       </span>
       <span>
-        <for as="g" of={pr.grants} key={g.domain}>
+        <for {pr.grants} as="g" key={g.domain}>
           <span><span>{g.domain}</span><ship-blast-tag tier={g.tier}></ship-blast-tag></span>
         </for>
-        <for as="d" of={pr.denials} key={d}>
+        <for {pr.denials} as="d" key={d}>
           <span>{d} ✕</span>
         </for>
       </span>

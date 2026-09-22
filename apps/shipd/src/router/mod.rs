@@ -34,6 +34,7 @@ pub fn build_router(
     attestation_verifier: attest::AttestationVerifier,
     daemon_mode: deck::DaemonMode,
     apps: Vec<deck::AppServeConfig>,
+    resolution: Arc<deck::Resolution>,
 ) -> Router {
     // Enumerated routes — one `ApiState`-typed router, registered via
 
@@ -222,6 +223,8 @@ pub fn build_router(
         // view in-process via Rolldown on a cache miss (controller inlined, no
         // bun). The same instance the watcher drives.
         .layer(axum::Extension(rt.bundler().clone()))
+        // Mount-scoped project root + per-app route outputs for deck handlers.
+        .layer(axum::Extension(resolution))
         // X-Shipd-Build header on every response: build SHA + dirty flag.
         // CLI/shell/browser read this to detect daemon-vs-client skew.
         .layer(axum::middleware::from_fn(build_header_middleware))

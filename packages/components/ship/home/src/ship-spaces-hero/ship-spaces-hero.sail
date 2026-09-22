@@ -1,3 +1,9 @@
+<scope>
+  props: {
+    spaces = '[]'
+    limit = 8
+  }
+</scope>
 <controller>
 // <ship-spaces-hero> — @ship/home · the spaces grid on the hub `/`.
 //
@@ -9,8 +15,6 @@
 // to `live(() => ship.spaces.list())` and the host pipes the result
 // into the attribute; this controller stays stable.
 
-import { controller, derived } from '@ship/sail-runtime'
-import type { ViewScope } from '@ship/sail-runtime'
 import type { Scope } from './ship-spaces-hero.sail'
 
 interface SpaceRow {
@@ -43,46 +47,44 @@ function parseSpaces(raw: string): SpaceRow[] {
   }
 }
 
-export default controller({
-  scope: ({ spaces, limit }: ViewScope<Scope>, host?: Element) => {
-    const rows = derived<SpaceRow[]>(() => {
-      const all = parseSpaces(spaces())
-      const n = Number.isFinite(limit()) ? Math.max(0, Math.floor(limit())) : 8
-      return all.slice(0, n)
-    })
-    const countLabel = derived<string>(() => {
-      const n = rows().length
-      return n === 0
-        ? 'no spaces registered'
-        : n === 1
-          ? '1 space'
-          : `${n} spaces`
-    })
+export default controller((ctx: Scope, host?: Element) => {
+  const rows = derived<SpaceRow[]>(() => {
+    const all = parseSpaces(ctx.spaces())
+    const n = Number.isFinite(ctx.limit()) ? Math.max(0, Math.floor(ctx.limit())) : 8
+    return all.slice(0, n)
+  })
+  const countLabel = derived<string>(() => {
+    const n = rows().length
+    return n === 0
+      ? 'no spaces registered'
+      : n === 1
+        ? '1 space'
+        : `${n} spaces`
+  })
 
-    const onOpen = (e: MouseEvent, id: string): void => {
-      e.preventDefault()
-      // ship-space-open — the host routes to the space surface. We
-      // preventDefault so the hub's router (rather than a full-page
-      // navigation to /spaces/:id) handles the click.
-      host?.dispatchEvent(
-        new CustomEvent('ship-space-open', {
-          detail: { id },
-          bubbles: true,
-          composed: true,
-        }),
-      )
-    }
-    const onAdd = (): void => {
-      host?.dispatchEvent(
-        new CustomEvent('ship-space-add', {
-          bubbles: true,
-          composed: true,
-        }),
-      )
-    }
+  const onOpen = (e: MouseEvent, id: string): void => {
+    e.preventDefault()
+    // ship-space-open — the host routes to the space surface. We
+    // preventDefault so the hub's router (rather than a full-page
+    // navigation to /spaces/:id) handles the click.
+    host?.dispatchEvent(
+      new CustomEvent('ship-space-open', {
+        detail: { id },
+        bubbles: true,
+        composed: true,
+      }),
+    )
+  }
+  const onAdd = (): void => {
+    host?.dispatchEvent(
+      new CustomEvent('ship-space-add', {
+        bubbles: true,
+        composed: true,
+      }),
+    )
+  }
 
-    return { rows, countLabel, onOpen, onAdd }
-  },
+  return { rows, countLabel, onOpen, onAdd }
 })
 </controller>
 
@@ -117,18 +119,13 @@ export default controller({
     ship-space-add   {}                          click on the empty-state CTA
 -->
 
-<!-- <prop name="spaces" type="string" default="[]" /> -->
-<!-- <prop name="limit" type="number" default="8" /> -->
-
-<!-- style block removed: use sx / external CSS -->
-
 <section data-test="home-spaces">
   <h2>Spaces</h2>
   <span>{countLabel()}</span>
   <button type="button" data-action="add" on:click={onAdd} title="Register a space">+ register</button>
 </section>
 
-<if cond={rows().length === 0}>
+<if {rows().length === 0}>
   <empty-state variant="inline" size="md" tone="muted" data-test="home-spaces-empty">
     <icon slot="icon" name="layout-grid"></icon>
     <span slot="title">No spaces yet</span>
@@ -137,9 +134,9 @@ export default controller({
       Register a space
     </button>
   </empty-state>
-<else>
+{else =>
   <div data-test="home-spaces-grid">
-    <for as="s" of={rows()} key={s.id}>
+    <for {rows() as s} key={s.id}>
       <a href={'/spaces/' + s.id}
          on:click={(e) => onOpen(e, s.id)}
          aria-label={'Open space ' + s.name}>
@@ -154,4 +151,4 @@ export default controller({
       </a>
     </for>
   </div>
-</else></if>
+}</if>

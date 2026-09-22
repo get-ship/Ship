@@ -1,6 +1,6 @@
 // @ship/authority — Ship Authority pack (ship-* tags for the approval flow).
 //
-// Each <tag>.compiled.js calls customElements.define() on import, so a single
+// Each <tag>.sail calls customElements.define() on import, so a single
 // `import '@ship/authority'` registers every tag globally.
 //
 // These components are presentational: they render an authority request and

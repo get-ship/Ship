@@ -5,8 +5,7 @@
   }
 </scope>
 <controller>
-import { controller, derived, signal } from '@ship/sail-runtime'
-import type { ViewScope } from '@ship/sail-runtime'
+import type { ControllerScope } from '@ship/sail-runtime'
 import type { Scope } from './ship-session-list.sail'
 
 // ── Session row contract ──────────────────────────────────────────────
@@ -36,13 +35,7 @@ export interface SessionRow {
   child?: string // e.g. "child of code-reviewer"
 }
 
-// Row enriched with the precomputed class strings the template binds, so the
-// markup stays declarative (no status→class branching in the template).
 interface EnrichedRow extends SessionRow {
-  dotClass: string
-  labelClass: string
-  harnessClass: string
-  reasonClass: string
   turnsLabel: string
 }
 
@@ -66,21 +59,15 @@ function parseRows(raw: unknown): SessionRow[] {
 }
 
 function enrich(r: SessionRow): EnrichedRow {
-  const pulse = r.status === 'active' ? ' pulse' : ''
   const turns = typeof r.turns === 'number' ? r.turns : 0
   return {
     ...r,
-    dotClass: `dot d-${r.status}${pulse}`,
-    labelClass: `stlabel l-${r.status}`,
-    harnessClass: `harness h-${r.harness}`,
-    reasonClass: `reason r-${r.reasonTone ?? 'mute'}`,
     turnsLabel: turns === 1 ? 'turn' : 'turns',
   }
 }
 
-export default controller(({ rows, scope }: ViewScope<Scope>, host) => {
-
-    const all = derived<SessionRow[]>(() => parseRows(rows()))
+export default controller((ctx: ControllerScope<Scope>, host?: Element) => {
+    const all = derived<SessionRow[]>(() => parseRows(ctx.rows()))
     const filter = signal<string>('all')
 
     const visible = derived<EnrichedRow[]>(() =>
@@ -94,13 +81,11 @@ export default controller(({ rows, scope }: ViewScope<Scope>, host) => {
         ? all().length
         : all().filter((r) => r.status === status).length
 
-    // Filter pills — `all` plus the canonical five-status fold. Each carries
-    // its live count + a `select` closure and an `active` flag the template binds.
     interface Pill {
       key: string
       label: string
       count: number
-      cls: string
+      active: boolean
       select: () => void
     }
     const pills = derived<Pill[]>(() =>
@@ -108,7 +93,7 @@ export default controller(({ rows, scope }: ViewScope<Scope>, host) => {
         key,
         label: key,
         count: countOf(key),
-        cls: filter() === key ? 'fpill on' : 'fpill',
+        active: filter() === key,
         select() {
           filter.set(key)
           host?.dispatchEvent(
@@ -123,7 +108,7 @@ export default controller(({ rows, scope }: ViewScope<Scope>, host) => {
     )
 
     const total = derived<number>(() => all().length)
-    const scopeLabel = derived<string>(() => scope())
+    const scopeLabel = derived<string>(() => ctx.scope())
 
     return { visible, pills, total, scopeLabel }
 })
@@ -138,10 +123,6 @@ export default controller(({ rows, scope }: ViewScope<Scope>, host) => {
   ship-filter on click. No hardcoded fixtures — production passes the live `sessions`
   projection straight through. Tokens only.  Props: rows · scope.
 -->
-<!-- <prop name="rows" type="string" default="[]" /> -->
-<!-- <prop name="scope" type="string" default="" /> -->
-
-<!-- style block removed: use sx / external CSS -->
 
 <div>
   <div>
@@ -152,7 +133,7 @@ export default controller(({ rows, scope }: ViewScope<Scope>, host) => {
 
   <row gap="1">
     <for {pills() as pill} key={pill.key}>
-    <button type="button" data-test="filter-pill" on:click={pill.select}>{pill.label}<span>{pill.count}</span></button>
+    <button type="button" data-test="filter-pill" pressed={pill.active} on:click={pill.select}>{pill.label}<span>{pill.count}</span></button>
     </for>
   </row>
 
@@ -168,9 +149,9 @@ export default controller(({ rows, scope }: ViewScope<Scope>, host) => {
       <span>{row.input}</span>
       <if {row.reason}>
       <span>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v4M12 16h.01"></path></svg>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M15 9l-6 6M9 9l6 6"></path></svg>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M8 12h8"></path></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v4M12 16h.01"></path></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M15 9l-6 6M9 9l6 6"></path></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M8 12h8"></path></svg>
         {row.reason}
       </span>
       </if>

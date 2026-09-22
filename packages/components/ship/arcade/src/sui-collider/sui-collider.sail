@@ -10,15 +10,16 @@
              until the texture loads)
     circle — falls back to parent's radius (or 8)
 -->
-
-<!-- <prop name="kind" values="aabb|circle" default="aabb" reflect /> -->
-<!-- <prop name="width" type="number" default="0" /> -->
-<!-- <prop name="height" type="number" default="0" /> -->
-<!-- <prop name="radius" type="number" default="0" /> -->
-<!-- <prop name="offset-x" type="number" default="0" /> -->
-<!-- <prop name="offset-y" type="number" default="0" /> -->
-<!-- <prop name="group" type="string" default="" reflect /> -->
-<!-- <prop name="collides-with" type="string" default="" reflect /> -->
-<!-- <prop name="trigger" type="bool" default="false" reflect /> -->
-
-<!-- style block removed: use sx / external CSS -->
+<scope>
+  props: {
+    kind: 'aabb' | 'circle' = 'aabb'
+    width = 0
+    height = 0
+    radius = 0
+    'offset-x' = 0
+    'offset-y' = 0
+    group = ''
+    'collides-with' = ''
+    trigger = false
+  }
+</scope>

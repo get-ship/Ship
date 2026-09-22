@@ -122,7 +122,7 @@ async fn apply_def_updated_upserts_row_on_change() {
         &fs,
         &cap,
         "alpha",
-        serde_json::json!({ "agent": { "id": "alpha", "name": "Alpha", "role": "worker" } }),
+        serde_json::json!({ "agent": { "id": "alpha", "name": "Alpha" } }),
     );
     let index = make_index(&dir).await;
     apply_def_updated(
@@ -146,7 +146,7 @@ async fn apply_def_updated_upserts_row_on_change() {
         &fs,
         &cap,
         "alpha",
-        serde_json::json!({ "agent": { "id": "alpha", "name": "Alpha Prime", "role": "lead" } }),
+        serde_json::json!({ "agent": { "id": "alpha", "name": "Alpha Prime" } }),
     );
     apply_def_updated(
         &index,
@@ -164,7 +164,6 @@ async fn apply_def_updated_upserts_row_on_change() {
         after[0].name, "Alpha Prime",
         "row reflects the re-read content"
     );
-    assert_eq!(after[0].role.as_deref(), Some("lead"));
     assert_ne!(
         after[0].content_hash, hash_before,
         "edited content → new hash in the row"

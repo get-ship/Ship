@@ -51,10 +51,7 @@ const FULL_DEF: &str = r#"{
     "name": "Code Reviewer",
     "version": "1.2.0",
     "description": "Reviews pull requests.",
-    "role": "worker",
     "tags": ["review", "testing"],
-    "tools_preset": "worker",
-    "active_tools": ["Read", "Grep"],
     "icon": "test-tube",
     "harnesses": ["claude", "codex"]
   },
@@ -73,7 +70,6 @@ const FULL_DEF: &str = r#"{
     { "id": "session-end", "trigger": "Stop", "command": "ship session end" },
     { "id": "sub-end", "trigger": "SubagentStop", "command": "ship sub end" }
   ],
-  "apps": { "studio": true },
   "harness_settings": { "claude": { "model": "opus", "temperature": 0.2 } }
 }"#;
 
@@ -98,10 +94,7 @@ fn read_agent_profiles_returns_full_nested_profile_no_field_loss() {
         p.agent.description.as_deref(),
         Some("Reviews pull requests.")
     );
-    assert_eq!(p.agent.role.as_deref(), Some("worker"));
     assert_eq!(p.agent.tags, vec!["review", "testing"]);
-    assert_eq!(p.agent.tools_preset.as_deref(), Some("worker"));
-    assert_eq!(p.agent.active_tools, vec!["Read", "Grep"]);
     assert_eq!(p.agent.icon.as_deref(), Some("test-tube"));
     // nested collections — the field loss the spec forbids
     assert_eq!(p.skills.refs, vec!["review-pr", "lint-fix"]);
@@ -120,7 +113,6 @@ fn read_agent_profiles_returns_full_nested_profile_no_field_loss() {
     assert_eq!(p.hooks.len(), 2);
     assert_eq!(p.hooks[0].command, "ship session end");
     assert_eq!(p.hooks[1].command, "ship sub end");
-    assert!(p.apps.studio);
     let claude = p.harness_settings.get("claude").expect("claude settings");
     assert_eq!(claude.get("model").and_then(|v| v.as_str()), Some("opus"));
 }
@@ -253,7 +245,6 @@ fn read_agent_defs_summary_keeps_harnesses_off_the_same_bytes() {
     let d = &defs[0];
     assert_eq!(d.id, "code-reviewer");
     assert_eq!(d.name, "Code Reviewer");
-    assert_eq!(d.role.as_deref(), Some("worker"));
     assert_eq!(d.tags, vec!["review", "testing"]);
     // `harnesses` is dropped by the nested `agent_schema::AgentProfile` view — the
     // summary must still carry it (read off the same bytes).

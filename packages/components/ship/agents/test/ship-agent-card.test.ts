@@ -28,7 +28,7 @@ beforeAll(() => {
 const reg = createContainerRegistry()
 afterEach(() => reg.cleanup())
 
-const shadow = (el: HTMLElement) => el.shadowRoot!
+const shadow = (el: HTMLElement) => el.shadowRoot ?? el
 const q = (el: HTMLElement, sel: string) =>
   shadow(el).querySelector(`[data-test="${sel}"]`)
 

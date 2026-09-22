@@ -258,9 +258,8 @@ export function detectMode(value: string, fallback: BarMode): BarMode {
   return 'ai'
 }
 
-// The shared reactive scope ship-command-bar provisions (via `shared(...)`)
-// for its slotted children to consume through
-// `useShared<CommandBarScope>(host, 'ship-command-bar')`. This is the typed
+// The shared reactive scope ship-command-bar provisions on its host
+// for slotted children to consume via the host-walk bag. This is the typed
 // contract for that boundary — the compiler-generated `Scope` types every
 // field `unknown` (its scope heuristic can't read this controller's factory),
 // so descendants must reference this interface to get real signal types.
@@ -300,4 +299,11 @@ export interface CommandBarScope {
   recentSends: Signal<string[]>
   historyIdx: Signal<number>
   sendError: Signal<string | null>
+}
+
+export const BAR_CTX = '__sui_ctx_ship-command-bar'
+
+export function publishCommandBar(host: Element | undefined, scope: CommandBarScope): void {
+  if (!host) return
+  ;(host as unknown as Record<string, unknown>)[BAR_CTX] = scope
 }

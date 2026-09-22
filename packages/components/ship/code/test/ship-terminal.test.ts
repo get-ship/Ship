@@ -52,7 +52,7 @@ describe('<ship-terminal>', () => {
     const c = mkContainer()
     c.innerHTML = '<ship-terminal></ship-terminal>'
     const el = c.querySelector('ship-terminal')!
-    const wrap = el.shadowRoot!.querySelector('.terminal-wrap')!
+    const wrap = (el.shadowRoot ?? el).querySelector('.terminal-wrap')!
     expect(wrap.getAttribute('role')).toBe('terminal')
     expect(wrap.getAttribute('aria-label')).toBe('Terminal')
   })
@@ -61,7 +61,7 @@ describe('<ship-terminal>', () => {
     const c = mkContainer()
     c.innerHTML = '<ship-terminal readonly></ship-terminal>'
     const el = c.querySelector('ship-terminal')!
-    const wrap = el.shadowRoot!.querySelector('.terminal-wrap')!
+    const wrap = (el.shadowRoot ?? el).querySelector('.terminal-wrap')!
     expect(wrap.getAttribute('role')).toBe('log')
     expect(wrap.getAttribute('aria-label')).toBe('Log output')
   })

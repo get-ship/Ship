@@ -22,7 +22,7 @@ describe('<ship-error-state>', () => {
 
   it('renders the card with role=alert', () => {
     const { el } = mount(reg, 'ship-error-state')
-    const c = el.shadowRoot!.querySelector('.card')
+    const c = (el.shadowRoot ?? el).querySelector('.card')
     expect(c).not.toBeNull()
     expect(c!.getAttribute('role')).toBe('alert')
   })
@@ -31,19 +31,19 @@ describe('<ship-error-state>', () => {
     const { el } = mount(reg, 'ship-error-state')
     await flush()
     expect((el as HTMLElement & { variant: string }).variant).toBe('not-found')
-    expect(el.shadowRoot!.querySelector('.title')?.textContent?.trim()).toBe('Not found')
+    expect((el.shadowRoot ?? el).querySelector('.title')?.textContent?.trim()).toBe('Not found')
   })
 
   it('variant=error shows "Something went wrong"', async () => {
     const { el } = mount(reg, 'ship-error-state', { variant: 'error' })
     await flush()
-    expect(el.shadowRoot!.querySelector('.title')?.textContent?.trim()).toBe('Something went wrong')
+    expect((el.shadowRoot ?? el).querySelector('.title')?.textContent?.trim()).toBe('Something went wrong')
   })
 
   it('uses the title prop when set', async () => {
     const { el } = mount(reg, 'ship-error-state', { title: 'Custom heading' })
     await flush()
-    expect(el.shadowRoot!.querySelector('.title')?.textContent?.trim()).toBe('Custom heading')
+    expect((el.shadowRoot ?? el).querySelector('.title')?.textContent?.trim()).toBe('Custom heading')
   })
 
   it('reflects variant and title attributes back to the host', () => {
@@ -59,17 +59,17 @@ describe('<ship-error-state>', () => {
   it('renders a default body when none is provided', async () => {
     const { el } = mount(reg, 'ship-error-state')
     await flush()
-    expect(el.shadowRoot!.querySelector('.body')?.textContent?.trim().length).toBeGreaterThan(0)
+    expect((el.shadowRoot ?? el).querySelector('.body')?.textContent?.trim().length).toBeGreaterThan(0)
   })
 
   it('renders no built-in primary action when href is empty', () => {
     const { el } = mount(reg, 'ship-error-state')
-    expect(el.shadowRoot!.querySelector('.primary-action')).toBeNull()
+    expect((el.shadowRoot ?? el).querySelector('.primary-action')).toBeNull()
   })
 
   it('renders an anchor when href is set', () => {
     const { el } = mount(reg, 'ship-error-state', { href: '/somewhere' })
-    const p = el.shadowRoot!.querySelector('.primary-action')
+    const p = (el.shadowRoot ?? el).querySelector('.primary-action')
     expect(p).not.toBeNull()
     expect(p!.tagName).toBe('A')
     expect((p as HTMLAnchorElement).getAttribute('href')).toBe('/somewhere')
@@ -80,24 +80,24 @@ describe('<ship-error-state>', () => {
       href: '/',
       'action-label': 'Go home',
     })
-    expect(el.shadowRoot!.querySelector('.primary-action')?.textContent?.trim()).toBe('Go home')
+    expect((el.shadowRoot ?? el).querySelector('.primary-action')?.textContent?.trim()).toBe('Go home')
   })
 
   it('renders a sui-icon in the tile', () => {
     const { el } = mount(reg, 'ship-error-state')
-    const tile = el.shadowRoot!.querySelector('.tile')
+    const tile = (el.shadowRoot ?? el).querySelector('.tile')
     expect(tile).not.toBeNull()
     expect(tile!.querySelector('sui-icon')).not.toBeNull()
   })
 
   it('error variant swaps the icon name to alert-octagon', () => {
     const { el } = mount(reg, 'ship-error-state', { variant: 'error' })
-    expect(el.shadowRoot!.querySelector('sui-icon')?.getAttribute('name')).toBe('alert-octagon')
+    expect((el.shadowRoot ?? el).querySelector('sui-icon')?.getAttribute('name')).toBe('alert-octagon')
   })
 
   it('not-found variant keeps the map-pin-off icon', () => {
     const { el } = mount(reg, 'ship-error-state', { variant: 'not-found' })
-    expect(el.shadowRoot!.querySelector('sui-icon')?.getAttribute('name')).toBe('map-pin-off')
+    expect((el.shadowRoot ?? el).querySelector('sui-icon')?.getAttribute('name')).toBe('map-pin-off')
   })
 
   it('passes a title slot through', () => {
@@ -107,7 +107,7 @@ describe('<ship-error-state>', () => {
       {},
       '<span slot="title">Slotted title</span>',
     )
-    const slot = el.shadowRoot!.querySelector('slot[name="title"]')
+    const slot = (el.shadowRoot ?? el).querySelector('slot[name="title"]')
     expect(slot).not.toBeNull()
     expect(el.querySelector('[slot="title"]')?.textContent).toBe('Slotted title')
   })
@@ -124,7 +124,7 @@ describe('<ship-error-state>', () => {
       {},
       '<button slot="action">Custom action</button>',
     )
-    const slot = el.shadowRoot!.querySelector('slot[name="action"]')
+    const slot = (el.shadowRoot ?? el).querySelector('slot[name="action"]')
     expect(slot).not.toBeNull()
     expect(el.querySelector('[slot="action"]')?.textContent).toBe('Custom action')
   })

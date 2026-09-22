@@ -82,7 +82,6 @@ async fn write_def_yields_index_row_with_fields_and_hash() {
             "agent": {
                 "id": "code-reviewer",
                 "name": "Code Reviewer",
-                "role": "worker",
                 "tags": ["review", "testing"],
                 "harnesses": ["claude", "codex"]
             },
@@ -100,7 +99,6 @@ async fn write_def_yields_index_row_with_fields_and_hash() {
     assert_eq!(row.name, "Code Reviewer");
     assert_eq!(row.scope, "project");
     assert_eq!(row.path, "code-reviewer.jsonc");
-    assert_eq!(row.role.as_deref(), Some("worker"));
     assert_eq!(row.tags, vec!["review".to_string(), "testing".to_string()]);
     assert_eq!(row.harness, vec!["claude".to_string(), "codex".to_string()]);
     assert!(
@@ -122,7 +120,7 @@ async fn edit_def_reindex_reflects_new_content_and_hash() {
         &fs,
         &cap,
         "alpha",
-        serde_json::json!({ "agent": { "id": "alpha", "name": "Alpha", "role": "worker" } }),
+        serde_json::json!({ "agent": { "id": "alpha", "name": "Alpha" } }),
     );
     let index = make_index(&dir).await;
     index
@@ -134,12 +132,12 @@ async fn edit_def_reindex_reflects_new_content_and_hash() {
     let hash_before = before[0].content_hash.clone();
     assert_eq!(before[0].name, "Alpha");
 
-    // Edit the file: change name + role. The hash MUST change with the content.
+    // Edit the file: change name. The hash MUST change with the content.
     write_def(
         &fs,
         &cap,
         "alpha",
-        serde_json::json!({ "agent": { "id": "alpha", "name": "Alpha Prime", "role": "lead" } }),
+        serde_json::json!({ "agent": { "id": "alpha", "name": "Alpha Prime" } }),
     );
     index
         .reindex_path(&fs, &dir, "project", "alpha.jsonc")
@@ -152,7 +150,6 @@ async fn edit_def_reindex_reflects_new_content_and_hash() {
         after[0].name, "Alpha Prime",
         "index reflects the edited content"
     );
-    assert_eq!(after[0].role.as_deref(), Some("lead"));
     assert_ne!(
         after[0].content_hash, hash_before,
         "edited content yields a NEW content_hash"

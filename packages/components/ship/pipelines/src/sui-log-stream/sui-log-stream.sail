@@ -1,22 +1,26 @@
+<scope>
+  props: {
+    url = ''
+    event = 'log'
+    autoscroll = false
+    active = false
+    'max-bytes' = 1000000
+  }
+</scope>
 <controller>
-import { controller, effect, ref } from '@ship/sail-runtime'
-import type { ViewScope } from '@ship/sail-runtime'
+import type { Action } from '@ship/sail-runtime'
 import type { Scope } from './sui-log-stream.sail'
+import { openEventSource } from './sse'
 
-export default controller({
-  scope: (_ctx: ViewScope<Scope>) => {
-    const preEl = ref<HTMLPreElement>(null)
-    return { preEl }
-  },
+export default controller((ctx: Scope) => {
+  let clearBuffer = () => {}
 
-  mount(state, host) {
-    let source: EventSource | null = null
+  const capture: Action<void> = (pre) => {
+    let closeSource: (() => void) | null = null
     let buffer = ''
     let stickyBottom = true
 
     const render = () => {
-      const pre = state.preEl as HTMLPreElement | null
-      if (!pre) return
       const empty = buffer.length === 0
       if (empty) {
         pre.textContent = '(no output yet)'
@@ -25,14 +29,14 @@ export default controller({
         pre.textContent = buffer
         pre.removeAttribute('data-empty')
       }
-      if (state.autoscroll && stickyBottom) {
+      if (ctx.autoscroll() && stickyBottom) {
         pre.scrollTop = pre.scrollHeight
       }
     }
 
     const append = (chunk: string) => {
       buffer += chunk
-      const cap = state.maxBytes as number
+      const cap = ctx.maxBytes()
       if (buffer.length > cap) {
         const overflow = buffer.length - cap
         const cut = buffer.indexOf('\n', overflow)
@@ -42,89 +46,73 @@ export default controller({
     }
 
     const close = () => {
-      if (source) {
-        source.close()
-        source = null
-        host.dispatchEvent(
-          new CustomEvent('sail-stream-close', { bubbles: true, composed: true }),
-        )
+      if (closeSource) {
+        closeSource()
+        closeSource = null
+        hostDispatch(pre, 'sail-stream-close', { bubbles: true, composed: true })
       }
     }
 
     const open = (url: string, eventName: string) => {
-      if (!url || source) return
-      try {
-        source = new EventSource(url, { withCredentials: true })
-      } catch {
-        host.dispatchEvent(
-          new CustomEvent('sail-stream-error', { bubbles: true, composed: true }),
-        )
-        return
-      }
-      source.addEventListener(eventName, (ev) => {
-        const chunk = (ev as MessageEvent).data ?? ''
-        append(chunk)
-        host.dispatchEvent(
-          new CustomEvent('sail-log-tick', {
-            detail: { bytes: chunk.length },
-            bubbles: true,
-            composed: true,
-          }),
-        )
+      if (!url || closeSource) return
+      closeSource = openEventSource(url, eventName, {
+        onOpen: () => {
+          hostDispatch(pre, 'sail-stream-open', { bubbles: true, composed: true })
+        },
+        onError: () => {
+          hostDispatch(pre, 'sail-stream-error', { bubbles: true, composed: true })
+        },
+        onChunk: (chunk) => {
+          append(chunk)
+          hostDispatch(pre, 'sail-log-tick', {
+            bubbles: true, composed: true, detail: { bytes: chunk.length },
+          })
+        },
       })
-      source.onopen = () => {
-        host.dispatchEvent(
-          new CustomEvent('sail-stream-open', { bubbles: true, composed: true }),
-        )
-      }
-      source.onerror = () => {
-        host.dispatchEvent(
-          new CustomEvent('sail-stream-error', { bubbles: true, composed: true }),
-        )
-      }
     }
 
-    const onScroll = (e: Event) => {
-      const pre = e.currentTarget as HTMLElement
-      stickyBottom = pre.scrollHeight - pre.clientHeight <= pre.scrollTop + 4
+    const onScroll = (e: { currentTarget?: { scrollHeight: number; clientHeight: number; scrollTop: number } }) => {
+      const el = e.currentTarget
+      if (!el) return
+      stickyBottom = el.scrollHeight - el.clientHeight <= el.scrollTop + 4
     }
+    pre.addEventListener('scroll', onScroll)
+    render()
 
-    const stopPreBind = effect(() => {
-      const pre = state.preEl as HTMLPreElement | null
-      if (!pre) return
-      pre.addEventListener('scroll', onScroll)
-      render()
-      return () => pre.removeEventListener('scroll', onScroll)
-    })
-
-    // Reconnect when url/event change while active; open/close when active flips.
     const stopActive = effect(() => {
-      const url = state.url as string
-      const eventName = state.event as string
-      const wantActive = state.active as boolean
+      const url = ctx.url()
+      const eventName = ctx.event()
+      const wantActive = ctx.active()
       if (wantActive) {
-        if (source) {
-          close()
-        }
+        if (closeSource) close()
         open(url, eventName)
       } else {
         close()
       }
     })
 
-    // Expose clear() on the host for callers (parity with lit's clear()).
-    type Clearable = HTMLElement & { clear: () => void }
-    ;(host as Clearable).clear = () => {
+    clearBuffer = () => {
       buffer = ''
       render()
     }
 
-    return () => {
-      stopPreBind()
-      stopActive()
-      close()
+    return {
+      destroy: () => {
+        clearBuffer = () => {}
+        pre.removeEventListener('scroll', onScroll)
+        stopActive()
+        close()
+      },
     }
-  },
+  }
+
+  mount((host) => {
+    return defineHostProperty(asSailHost(host), 'clear', {
+      get: () => () => clearBuffer(),
+    })
+  })
+
+  return { capture }
 })
 </controller>
 
@@ -157,12 +145,4 @@ export default controller({
   ─────────────────────────────────────────────────────────────────────────────
 -->
 
-<!-- <prop name="url" type="string" default="" reflect /> -->
-<!-- <prop name="event" type="string" default="log" reflect /> -->
-<!-- <prop name="autoscroll" type="bool" default="false" reflect /> -->
-<!-- <prop name="active" type="bool" default="false" reflect /> -->
-<!-- <prop name="max-bytes" type="number" default="1000000" /> -->
-
-<!-- style block removed: use sx / external CSS -->
-
-<pre data-empty bind:this={preEl}>(no output yet)</pre>
+<pre data-empty use:capture>(no output yet)</pre>

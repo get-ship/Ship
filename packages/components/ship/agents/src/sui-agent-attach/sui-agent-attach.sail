@@ -15,13 +15,23 @@
  * off and drive the lifecycle themselves.
  */
 
-import { controller, signal } from '@ship/sail-runtime'
-import type { Action } from '@ship/sail-runtime'
-import type { ViewScope } from '@ship/sail-runtime'
+import type { Action, ControllerScope } from '@ship/sail-runtime'
 import type { Scope } from './sui-agent-attach.sail'
+import { attachAgentSession, type AgentSessionAttachment } from './attach'
 
-export default controller((_ctx: ViewScope<Scope>) => {
+interface TerminalEl {
+  write?: (data: string | Uint8Array) => void
+  clear?: () => void
+  fit?: () => void
+  terminal?: { cols: number; rows: number } | null
+}
 
+type HostEl = Element & {
+  connect?: (() => void) | undefined
+  disconnect?: (() => void) | undefined
+}
+
+export default controller((ctx: ControllerScope<Scope>, host?: Element) => {
     const connected = signal(false)
     const disconnectReason = signal('')
     const termEl = signal<Element | null>(null)
@@ -29,6 +39,75 @@ export default controller((_ctx: ViewScope<Scope>) => {
       termEl.set(node)
       return { destroy: () => termEl.set(null) }
     }
+
+    let attachment: AgentSessionAttachment | null = null
+
+    const open = (): void => {
+      attachment?.dispose()
+      attachment = null
+      const term = termEl() as TerminalEl | null
+      const slug = ctx.slug()
+      if (!term || !slug) return
+      disconnectReason.set('')
+      attachment = attachAgentSession(term as HTMLElement & TerminalEl, slug, {
+        onOpen: () => {
+          connected.set(true)
+          host?.dispatchEvent(new CustomEvent('sui-agent-attach-open', {
+            bubbles: true, composed: true,
+          }))
+        },
+        onDisconnect: (reason: string) => {
+          connected.set(false)
+          disconnectReason.set(reason)
+          host?.dispatchEvent(new CustomEvent('sui-agent-attach-disconnect', {
+            detail: { reason }, bubbles: true, composed: true,
+          }))
+        },
+      })
+    }
+
+    const close = (): void => {
+      attachment?.dispose()
+      attachment = null
+      connected.set(false)
+    }
+
+    const hostEl = host as HostEl | undefined
+    if (hostEl) {
+      hostEl.connect = () => open()
+      hostEl.disconnect = () => close()
+    }
+
+    effect(() => {
+      const slug = ctx.slug()
+      const auto = ctx.autoConnect()
+      void termEl()
+      if (auto && slug) open()
+      else close()
+    })
+
+    effect(() => {
+      const term = termEl() as TerminalEl | null
+      if (!term || !host) return
+      const refit = (): void => {
+        try { term.fit?.() } catch { /* mid-teardown */ }
+      }
+      requestAnimationFrame(() => requestAnimationFrame(refit))
+      if (typeof ResizeObserver === 'undefined') return
+      const observer = new ResizeObserver(refit)
+      observer.observe(host)
+      observer.observe(term as Element)
+      return () => observer.disconnect()
+    })
+
+    onCleanup(() => {
+      close()
+      if (hostEl) {
+        hostEl.connect = undefined
+        hostEl.disconnect = undefined
+      }
+    })
+
     return { connected, disconnectReason, captureTerm }
 })
 </controller>
@@ -71,32 +150,28 @@ export default controller((_ctx: ViewScope<Scope>) => {
   host.disconnect() close the WS without disposing the terminal
 -->
 
-<!-- <prop name="slug" type="string" default="" /> -->
-<!-- <prop name="auto-connect" type="bool" default="true" reflect /> -->
-<!-- <prop name="readonly" type="bool" default="false" reflect /> -->
+<column gap="0">
+  <row>
+    <ship-terminal
+      use:captureTerm
+      readonly={readonly()}
+      fit
+    ></ship-terminal>
+  </row>
 
-<!-- style block removed: use sx / external CSS -->
-
-<row>
-  <ship-terminal
-    use:captureTerm
-    readonly={readonly()}
-    fit
-  ></ship-terminal>
-</row>
-
-<if {!slug()}>
-  <div data-test="empty-slug">
-    <column gap="3" align="center">
-      <p>No agent session selected</p>
-      <p>Set the slug attribute to attach.</p>
-    </column>
-  </div>
-{else-if {!connected() && disconnectReason()} =>
-  <div data-test="disconnected">
-    <column gap="3" align="center">
-      <p>Session disconnected</p>
-      <p>{disconnectReason()}</p>
-    </column>
-  </div>
-}</if>
+  <if {!slug()}>
+    <div data-test="empty-slug">
+      <column gap="3" align="center">
+        <p>No agent session selected</p>
+        <p>Set the slug attribute to attach.</p>
+      </column>
+    </div>
+  {else-if {!connected() && disconnectReason()} =>
+    <div data-test="disconnected">
+      <column gap="3" align="center">
+        <p>Session disconnected</p>
+        <p>{disconnectReason()}</p>
+      </column>
+    </div>
+  }</if>
+</column>

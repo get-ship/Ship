@@ -1,3 +1,8 @@
+<scope>
+  props: {
+    tier: 'C0' | 'C1' | 'C2' | 'C3' = 'C0'
+  }
+</scope>
 <!--
   <ship-blast-tag> — @ship/authority atom · an op's blast tier (C0–C3): its
   inherent authority weight, escalating tone (C0 muted → C1 info → C2 warning →
@@ -11,8 +16,5 @@
   Prop:  tier  C0 | C1 | C2 | C3   (reflect)
   Part:  tag
 -->
-<!-- <prop name="tier" values="C0|C1|C2|C3" default="C0" reflect /> -->
-
-<!-- style block removed: use sx / external CSS -->
 
 <span><span>C0</span><span>C1</span><span>C2</span><span>C3</span></span>

@@ -244,11 +244,6 @@
             }
           },
           "additionalProperties": false
-        },
-        "target_agents": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "Override the project's harnesses list when this mode is active."
         }
       },
       "additionalProperties": false

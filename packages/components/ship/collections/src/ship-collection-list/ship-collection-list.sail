@@ -1,6 +1,10 @@
+<scope>
+  props: {
+    active = ''
+  }
+</scope>
 <controller>
-import { controller, derived, live, unwrapOr } from '@ship/sail-runtime'
-import type { LiveSource, ViewScope } from '@ship/sail-runtime'
+import { controller, derived, query, unwrapOr } from '@ship/sail-runtime'
 import { ship } from '@ship/sdk-client'
 import type { Scope } from './ship-collection-list.sail'
 
@@ -17,9 +21,9 @@ interface CollectionRow {
 
 const EMPTY = { items: [] as { id: string; name: string | null; item_count: number; builtin?: boolean }[] }
 
-export default controller((_ctx: ViewScope<Scope>, host) => {
+export default controller((_ctx: Scope, host?: Element) => {
 
-    const list = live(() => ship.collections.list() as unknown as LiveSource<typeof EMPTY>)
+    const list = query(() => ship.collections.list())
     const rows = derived<CollectionRow[]>(() =>
       unwrapOr(list, EMPTY).items.map((c) => ({
         id: c.id,
@@ -58,21 +62,20 @@ export default controller((_ctx: ViewScope<Scope>, host) => {
 -->
 <!-- <prop name="active" type="string" default="" /> -->
 
-<!-- style block removed: use sx / external CSS -->
-
-<while-loading of="list">
-  <column gap="1" data-test="skeleton">
-    <spinner shape="line" size="sm"></spinner>
-    <spinner shape="line" size="sm"></spinner>
-    <spinner shape="line" size="sm"></spinner>
-  </column>
-</while-loading>
-<while-error as="err" of="list">
-  <error-state title="Couldn't load collections">{err.message}</error-state>
-</while-error>
-<if cond={list().kind === 'ok'}>
+<match {list()}>
+  {loading =>
+    <column gap="1" data-test="skeleton">
+      <spinner shape="line" size="sm"></spinner>
+      <spinner shape="line" size="sm"></spinner>
+      <spinner shape="line" size="sm"></spinner>
+    </column>
+  }
+  {error as err => <error-state title="Couldn't load collections" body={err?.message ?? 'Request failed'}></error-state>}
+  {ok as _ => }
+</match>
+<if {list().kind === 'ok'}>
   <column gap="1" role="listbox">
-    <for as="c" of={rows()} key={c.id}>
+    <for {rows() as c} key={c.id}>
       <button
         type="button"
         data-id={c.id}
@@ -82,7 +85,7 @@ export default controller((_ctx: ViewScope<Scope>, host) => {
         on:click={() => select(c.id, c.system)}
       >
         <span>{c.name}</span>
-        <if cond={c.system}>
+        <if {c.system}>
           <span data-test="system">system</span>
         </if>
         <span>{c.item_count}</span>

@@ -1,6 +1,11 @@
+<scope>
+  props: {
+    id = ''
+    view: 'guided' | 'raw' = 'guided'
+  }
+</scope>
 <controller>
-import { controller, derived, live, signal, unwrapOr } from '@ship/sail-runtime'
-import type { ViewScope } from '@ship/sail-runtime'
+import { controller, derived, onCleanup, query, signal, unwrapOr } from '@ship/sail-runtime'
 import { ship } from '@ship/sdk-client'
 import type { Scope } from './ship-schema-editor.sail'
 import type { FieldDef, FieldType } from '../schema'
@@ -9,7 +14,7 @@ import type { FieldDef, FieldType } from '../schema'
 // raw surfaces, with the reproject warning the spec requires.
 //
 // State is a list of FieldDefWithUid (uid is the local key for the
-// {#for}, not a schema field). On save:
+// field loop, not a schema field). On save:
 //   1. If the proposed field set drops or renames a name vs the
 //      original, the reproject warning flips on and save bails —
 //      the user clicks save a second time to acknowledge.
@@ -45,12 +50,12 @@ function isFieldType(v: unknown): v is FieldType {
 let _uid = 0
 const nextUid = (): string => `f${++_uid}`
 
-export default controller(({ id }: ViewScope<Scope>, host) => {
+export default controller(({ id }: Scope, host?: Element) => {
 
-    const detail = live<DetailShape | null>(() => {
+    const detail = query<DetailShape | null>(() => {
       const cid = id()
       if (!cid) return Promise.resolve(null)
-      return ship.collections.detail({ id: cid }) as unknown as Promise<DetailShape>
+      return ship.collections.detail({ id: cid })
     })
 
     const fields = signal<FieldDefWithUid[]>([])
@@ -154,6 +159,11 @@ export default controller(({ id }: ViewScope<Scope>, host) => {
     host?.addEventListener('click', onHostEvent)
     host?.addEventListener('change', onHostEvent)
     host?.addEventListener('input', onHostEvent)
+    onCleanup(() => {
+      host?.removeEventListener('click', onHostEvent)
+      host?.removeEventListener('change', onHostEvent)
+      host?.removeEventListener('input', onHostEvent)
+    })
 
     async function save(): Promise<void> {
       if (needsReproject() && !acknowledgedReproject()) {
@@ -179,7 +189,7 @@ export default controller(({ id }: ViewScope<Scope>, host) => {
           await ship.collections.create({
             id: id() || title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
             name: title,
-            fields: cleaned as unknown as Record<string, unknown>,
+            fields: cleaned as Record<string, unknown>,
           })
         }
         host?.dispatchEvent(
@@ -198,11 +208,6 @@ export default controller(({ id }: ViewScope<Scope>, host) => {
     return {
       detail, detailValue, fields, needsReproject, reprojectWarning, rawJson, saving,
       addField, removeField, save,
-      unmount: (): void => {
-        host?.removeEventListener('click', onHostEvent)
-        host?.removeEventListener('change', onHostEvent)
-        host?.removeEventListener('input', onHostEvent)
-      },
     }
 })
 </controller>
@@ -219,9 +224,9 @@ export default controller(({ id }: ViewScope<Scope>, host) => {
   warning is part of the spec's hard requirement — see spec.md
   §"sui-schema-editor" and the errors fixture `reproject_warning`.
 
-  Tag prefix `ship-*` marks this component as depending on the Ship
-  runtime: mounting without a host that has called setShipClient()
-  will throw on the first SDK access.
+  Tag prefix `ship-*` marks this component as depending on the
+  Ship runtime: mounting without a host that has called
+  setShipClient() will throw on the first SDK access.
 
   Interactions route through a single delegated listener on the
   host (see controller). Each row carries data-uid and each
@@ -232,15 +237,12 @@ export default controller(({ id }: ViewScope<Scope>, host) => {
 <!-- <prop name="id" type="string" default="" /> -->
 <!-- <prop name="view" values="guided|raw" default="guided" reflect /> -->
 
-<!-- style block removed: use sx / external CSS -->
-
-<while-loading of="detail">
-  <spinner shape="line" size="lg"></spinner>
-</while-loading>
-<while-error as="err" of="detail">
-  <error-state title="Couldn't load schema" variant="inline">{err.message}</error-state>
-</while-error>
-<if cond={detail().kind === 'ok'}>
+<match {detail()}>
+  {loading => <spinner shape="line" size="lg"></spinner>}
+  {error as err => <error-state title="Couldn't load schema" variant="inline" body={err?.message ?? 'Request failed'}></error-state>}
+  {ok as _ => }
+</match>
+<if {detail().kind === 'ok'}>
   <div>
     <h3 data-test="editor-title">{id() || 'New collection'}</h3>
     <div role="tablist">
@@ -249,16 +251,16 @@ export default controller(({ id }: ViewScope<Scope>, host) => {
     </div>
   </div>
   <div>
-    <if cond={view() === 'raw'}>
+    <if {view() === 'raw'}>
       <textarea
         value={rawJson()}
         variant={'code'}
         rows={14}
         data-test="raw"
       ></textarea>
-    <else>
+    {else =>
       <column gap="2" data-test="fields">
-        <for as="f" of={fields()} key={f.name || f.uid}>
+        <for {fields() as f} key={f.name || f.uid}>
           <div data-test="field" data-uid={f.uid}>
             <input
               type="text"
@@ -277,9 +279,9 @@ export default controller(({ id }: ViewScope<Scope>, host) => {
               <option value="timestamp">timestamp</option>
               <option value="json">json</option>
             </select>
-            <label data-test="required"><input type="checkbox" checked={f.required} /> req</label>
-            <label data-test="indexed"><input type="checkbox" checked={f.indexed} /> idx</label>
-            <label data-test="unique"><input type="checkbox" checked={f.unique} /> uniq</label>
+            <label data-test="required"><checkbox checked={f.required}></checkbox> req</label>
+            <label data-test="indexed"><checkbox checked={f.indexed}></checkbox> idx</label>
+            <label data-test="unique"><checkbox checked={f.unique}></checkbox> uniq</label>
             <button type="button" data-test="remove" aria-label="Remove field">×</button>
           </div>
         </for>
@@ -287,8 +289,8 @@ export default controller(({ id }: ViewScope<Scope>, host) => {
        <div>
         <button variant="ghost" size="sm" type="button" data-test="add">+ Add field</button>
       </div>
-    </else></if>
-    <if cond={reprojectWarning()}>
+    }</if>
+    <if {reprojectWarning()}>
       <div data-test="reproject-warning" role="alert">
         <strong>Reproject</strong>
         Removing or renaming a field rebuilds the projection from the

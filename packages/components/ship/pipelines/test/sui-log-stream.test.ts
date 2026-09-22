@@ -40,7 +40,7 @@ beforeEach(() => {
 
 afterEach(() => reg.cleanup())
 
-const shadow = (el: HTMLElement) => el.shadowRoot!
+const shadow = (el: HTMLElement) => el.shadowRoot ?? el
 
 describe('<sui-log-stream>', () => {
 

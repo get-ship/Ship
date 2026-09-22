@@ -1,3 +1,13 @@
+<scope>
+  props: {
+    branch = ''
+    theme = ''
+    online = false
+    agents = ''
+    mode = ''
+    project = ''
+  }
+</scope>
 <controller>
 // Status-bar controller — wires the chrome bottom strip.
 // Migrated from apps/shell/src/components/sui-status-bar; the launch-chrome
@@ -14,8 +24,7 @@
 //   3. Sets host a11y attributes (role=contentinfo) so screen-reader
 //      navigation announces the bar.
 
-import { controller, signal } from '@ship/sail-runtime'
-import type { ViewScope } from '@ship/sail-runtime'
+import { controller, mount, signal } from '@ship/sail-runtime'
 import type { Scope } from './ship-status-bar.sail'
 
 interface StatusValue {
@@ -40,22 +49,51 @@ function dispatch(host: HTMLElement, type: string, detail?: unknown): void {
   }))
 }
 
-export default controller((_ctx: ViewScope<Scope>, host?: Element) => {
+export default controller((_ctx: Scope, host?: Element) => {
+  const extensions = signal<ExtensionEntry[]>([])
+  const hostEl = host as HTMLElement
 
-    const extensions = signal<ExtensionEntry[]>([])
-    const hostEl = host as HTMLElement
+  function onDotClick(): void {
+    dispatch(hostEl, 'sui:dock:toggle')
+  }
+  function onProjectClick(): void {
+    dispatch(hostEl, 'sui:project-switcher:open')
+  }
+  function onThemeClick(): void {
+    dispatch(hostEl, 'sui:theme-picker:open')
+  }
 
-    function onDotClick(): void {
-      dispatch(hostEl, 'sui:dock:toggle')
-    }
-    function onProjectClick(): void {
-      dispatch(hostEl, 'sui:project-switcher:open')
-    }
-    function onThemeClick(): void {
-      dispatch(hostEl, 'sui:theme-picker:open')
+  mount((mounted) => {
+    if (!mounted.hasAttribute('role')) mounted.setAttribute('role', 'contentinfo')
+    if (!mounted.hasAttribute('aria-label')) mounted.setAttribute('aria-label', 'Status bar')
+
+    const entries = new Map<string, ExtensionEntry>()
+    const repaint = (): void => {
+      extensions.set(Array.from(entries.values()))
     }
 
-    return { extensions, onDotClick, onProjectClick, onThemeClick }
+    const onSet = (e: Event): void => {
+      const d = ((e as CustomEvent).detail ?? {}) as SetDetail
+      if (!d.key || !d.value) return
+      entries.set(d.key, { key: d.key, ...d.value })
+      repaint()
+    }
+    const onClear = (e: Event): void => {
+      const d = ((e as CustomEvent).detail ?? {}) as ClearDetail
+      if (!d.key) return
+      if (entries.delete(d.key)) repaint()
+    }
+
+    document.addEventListener('sui:status:set', onSet)
+    document.addEventListener('sui:status:clear', onClear)
+
+    return () => {
+      document.removeEventListener('sui:status:set', onSet)
+      document.removeEventListener('sui:status:clear', onClear)
+    }
+  })
+
+  return { extensions, onDotClick, onProjectClick, onThemeClick }
 })
 </controller>
 
@@ -73,31 +111,7 @@ export default controller((_ctx: ViewScope<Scope>, host?: Element) => {
   Live-updating via `chrome.status.set('key', { label, icon, tone, tooltip })`.
   The controller subscribes to sui:status:set / sui:status:clear and renders
   entries into an aria-live="polite" region.
-
-  Prop surface
-  ─────────────────────────────────────────────────────────────────────────────
-  branch   (string, '')              git branch text
-  theme    (string, '')              current theme ID
-  online   (bool, false, reflect)    daemon connection state — dot tone
-  agents   (string, '')              local agent indicator text
-  mode     (string, '', reflect)     'development' renders DEV badge
-  project  (string, '')              active project label (shown when set)
-  ─────────────────────────────────────────────────────────────────────────────
-  Slots:
-    start  — view-injected status content between branch and extensions
-    end    — view-injected status content between spacer and theme
-  Parts: project, dot-btn, dot, branch, agents, extensions, mode, theme-btn
-  ─────────────────────────────────────────────────────────────────────────────
 -->
-
-<!-- <prop name="branch" type="string" default="" /> -->
-<!-- <prop name="theme" type="string" default="" /> -->
-<!-- <prop name="online" type="bool" default="false" reflect /> -->
-<!-- <prop name="agents" type="string" default="" /> -->
-<!-- <prop name="mode" type="string" default="" reflect /> -->
-<!-- <prop name="project" type="string" default="" /> -->
-
-<!-- style block removed: use sx / external CSS -->
 
 <button type="button"
   on:click={onDotClick}
@@ -105,7 +119,7 @@ export default controller((_ctx: ViewScope<Scope>, host?: Element) => {
   aria-label="Daemon connection status. Click to toggle dev panel.">
   <span aria-hidden="true"></span>
 </button>
-<if cond={project()}>
+<if {project()}>
   <button type="button"
     on:click={onProjectClick}
     title="Active project — click to switch"
@@ -118,7 +132,7 @@ export default controller((_ctx: ViewScope<Scope>, host?: Element) => {
 <span>{agents()}</span>
 <span><slot name="start"></slot></span>
 <span role="status" aria-live="polite" aria-label="View status">
-  <for as="ext" of={extensions()} key={ext.key}>
+  <for {extensions() as ext} key={ext.key}>
     <span data-tone={ext.tone} title={ext.tooltip}>
       <span>{ext.label}</span>
     </span>

@@ -1,12 +1,32 @@
+<!--
+  <ship-git-diff> — unified-diff chrome.
+
+  Toolbar (file count + +/- totals + expand/collapse) and a slot for
+  <ship-git-diff-file> children. Presentational — the host walks the
+  parsed Diff tree into those children.
+-->
+<scope>
+  props: {
+    files = 0
+    additions = 0
+    deletions = 0
+    empty = false
+  }
+  style shell = { size({ w: max, min-w: 0 }).bg(background) }
+  style bar = { pad({ x: 3, y: 2 }).border({ width: 1, color: border-subtle, edge: b }).size({ w: max, min-w: 0 }) }
+  style filesLab = { type({ size: sm, weight: medium }) }
+  style add = { type({ family: mono, size: xs }).fg(success) }
+  style del = { type({ family: mono, size: xs }).fg(destructive) }
+  style spacer = { size(grow) }
+  style emptyPad = { pad(6) }
+  style body = { size({ w: max, min-w: 0 }) }
+</scope>
+
 <controller>
-import { controller, derived, effect, signal } from '@ship/sail-runtime'
-import type { ViewScope } from '@ship/sail-runtime'
 import type { Scope } from './ship-git-diff.sail'
+import { setCollapsedOnFiles } from './host'
 
-type GitDiffFile = HTMLElement & { collapsed: boolean }
-
-export default controller((ctx: ViewScope<Scope>, host) => {
-
+export default controller((ctx: Scope, host?) => {
     const allCollapsed = signal<boolean>(false)
 
     const showEmpty = derived<boolean>(() => ctx.empty() || ctx.files() === 0)
@@ -23,15 +43,13 @@ export default controller((ctx: ViewScope<Scope>, host) => {
     const toggleTitle = derived<string>(() =>
       allCollapsed() ? 'Expand all files' : 'Collapse all files',
     )
+    const hasAdds = derived<boolean>(() => ctx.additions() > 0)
+    const hasDels = derived<boolean>(() => ctx.deletions() > 0)
 
     function toggleAll(): void {
       const next = !allCollapsed()
       allCollapsed.set(next)
-      const kids = host?.querySelectorAll<GitDiffFile>('ship-git-diff-file')
-      kids?.forEach((f) => {
-        if (next) f.setAttribute('collapsed', '')
-        else f.removeAttribute('collapsed')
-      })
+      setCollapsedOnFiles(host, next)
     }
 
     return {
@@ -41,58 +59,35 @@ export default controller((ctx: ViewScope<Scope>, host) => {
       toggleIcon,
       toggleLabel,
       toggleTitle,
+      hasAdds,
+      hasDels,
       toggleAll,
     }
 })
 </controller>
 
-<!--
-  <ship-git-diff> — SUI port of <ship-git-diff>.
-
-  Container for a unified-diff tree. Renders a toolbar (file count + add/
-  remove totals + "expand all / collapse all" toggle) and slots the
-  <ship-git-diff-file> children below. The daemon parses the diff and
-  emits the tree as light DOM; this primitive supplies the chrome.
-
-  Prop / event / slot parity vs <ship-git-diff>
-  ─────────────────────────────────────────────────────────────────────────────
-  Lit                          SUI                      Notes
-  ─────────────────────────────────────────────────────────────────────────────
-  files (number, 0)            files (number, 0,        ✓ reflects
-                                  reflect)
-  additions (number, 0)        additions (number, 0,    ✓
-                                  reflect)
-  deletions (number, 0)        deletions (number, 0,    ✓
-                                  reflect)
-  empty (bool, false)          empty (bool, false,      ✓ replaces the
-                                  reflect)                 toolbar+body with
-                                                           an empty-state row
-  allCollapsed (state)         allCollapsed (signal,    ✓ controller-local
-                                  controller)              UI state
-  ─────────────────────────────────────────────────────────────────────────────
-  role=region + aria-label     controller mount + eff   ✓
-  ─────────────────────────────────────────────────────────────────────────────
--->
-
-<!-- <prop name="files" type="number" default="0" reflect /> -->
-<!-- <prop name="additions" type="number" default="0" reflect /> -->
-<!-- <prop name="deletions" type="number" default="0" reflect /> -->
-<!-- <prop name="empty" type="bool" default="false" reflect /> -->
-
-<!-- style block removed: use sx / external CSS -->
-
-<if cond={showEmpty()}>
-  <div>No changes to display</div>
-<else>
-  <div>
-    <span>{filesLabel()}</span>
-    <if cond={additions() > 0}><span>+{additions()}</span></if>
-    <if cond={deletions() > 0}><span>-{deletions()}</span></if>
-    <span></span>
-    <button type="button" on:click={toggleAll} title={toggleTitle()}>
-      <icon size="sm" name={toggleIcon()}></icon>
-      {toggleLabel()}
-    </button>
-  </div>
-  <div><slot></slot></div>
-</else></if>
+<if {showEmpty()}>
+  <center style(emptyPad)>
+    <empty-state size="sm">No changes to display</empty-state>
+  </center>
+{else =>
+  <column gap="0" style(shell)>
+    <row nowrap gap="2" align="center" style(bar)>
+      <span style(filesLab)>{filesLabel()}</span>
+      <if {hasAdds()}>
+        <span style(add)>+{additions()}</span>
+      </if>
+      <if {hasDels()}>
+        <span style(del)>-{deletions()}</span>
+      </if>
+      <row style(spacer) />
+      <button type="button" variant="ghost" size="sm" on:click={toggleAll} title={toggleTitle()}>
+        <icon size="sm" name={toggleIcon()}></icon>
+        {toggleLabel()}
+      </button>
+    </row>
+    <column gap="0" style(body)>
+      <slot></slot>
+    </column>
+  </column>
+}</if>

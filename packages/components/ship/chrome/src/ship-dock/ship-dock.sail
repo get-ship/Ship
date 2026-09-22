@@ -1,6 +1,16 @@
+<scope>
+  props: {
+    'active-tab' = 'terminal'
+    'storage-key' = 'ship-dock'
+    resizing = false
+    'edit-mode-pill' = false
+    'edit-mode-on' = false
+  }
+</scope>
 <controller>
-import { controller, signal, ref } from '@ship/sail-runtime'
-import type { ViewScope } from '@ship/sail-runtime'
+// FILE_CAP_OVERRIDE: dock owns tabstrip + resize + persisted height in one controller.
+import { controller, effect, mount, signal } from '@ship/sail-runtime'
+import type { Action } from '@ship/sail-runtime'
 import type { Scope } from './ship-dock.sail'
 import { ensureResizePillStyles } from './resize-pill-styles'
 
@@ -37,101 +47,87 @@ const DEFAULT_TABS: DockTabDef[] = [
 const DEFAULT_HEIGHT = 240
 const MIN_HEIGHT = 120
 
-export default controller({
-  scope: (state: ViewScope<Scope>, host?: Element) => {
-    const tabs = signal<DockTabDef[]>(DEFAULT_TABS)
-    const dragHeight = signal<number>(DEFAULT_HEIGHT)
-    const resizeHandle = ref<HTMLElement>(null)
-    const hostEl = host as HTMLElement | null
+function asHtml(node: Element | null): HTMLElement | null {
+  return node instanceof HTMLElement ? node : null
+}
 
-    // NB: `scope:` receives the RAW scope — prop entries are `Signal`s
-    // (read `state.x()`, write `state.x.set(v)`). The unwrapped
-    // `state.x = v` form exists only on the MutableState proxy that
-    // `on:` handlers and `mount`/`unmount` receive.
-    const writeStored = (suffix: string, val: string): void => {
-      try { localStorage.setItem(`${state.storageKey()}-${suffix}`, val) }
-      catch { /* best-effort */ }
-    }
+export default controller((ctx: Scope, host?: Element) => {
+  const tabs = signal<DockTabDef[]>(DEFAULT_TABS)
+  const dragHeight = signal<number>(DEFAULT_HEIGHT)
+  const resizeHandle = signal<Element | null>(null)
+  const hostEl = host as HTMLElement | null
 
-    function activate(id: string): void {
-      if (!tabs().some((t) => t.id === id)) return
-      if (state.activeTab() === id) return
-      state.activeTab.set(id)
-      writeStored('active', id)
-      hostEl?.dispatchEvent(
-        new CustomEvent('sui:dock:activate', {
-          detail: { tab: id }, bubbles: true, composed: true,
-        }),
-      )
-    }
-    function onPopout(): void {
-      // Open the active tab's surface in a standalone window so users
-      // can dock the source/signals/etc. alongside their editor. Each
-      // tab declares its own URL via a known map; unknown tabs fall
-      // back to a generic /sui/<tab> path.
-      const tab = state.activeTab()
-      const url = ({
-        terminal: '/sui/terminal',
-        source: '/studio/components',
-        signals: '/sui/signals',
-        schema: '/sui/schema',
-        'va-source': '/studio/components',
-        'va-components': '/studio/components',
-        'va-activity': '/events',
-        'va-compile': '/studio/components',
-      } as Record<string, string>)[tab] ?? `/sui/${tab}`
-      window.open(url, '_blank', 'noopener')
-      hostEl?.dispatchEvent(
-        new CustomEvent('sui:dock:popout', {
-          detail: { tab, url }, bubbles: true, composed: true,
-        }),
-      )
-    }
-    function onClose(): void {
-      hostEl?.dispatchEvent(
-        new CustomEvent('sui:dock:close', { bubbles: true, composed: true }),
-      )
-    }
-    function onEditModeToggle(): void {
-      const next = !state.editModeOn()
-      state.editModeOn.set(next)
-      hostEl?.dispatchEvent(
-        new CustomEvent('sui:dock:edit-mode-toggle', {
-          detail: { on: next }, bubbles: true, composed: true,
-        }),
-      )
-    }
+  const captureResize: Action<void> = (node) => {
+    resizeHandle.set(node)
+    return { destroy: () => resizeHandle.set(null) }
+  }
 
-    return {
-      tabs, dragHeight, resizeHandle,
-      activate, onPopout, onClose, onEditModeToggle,
-    }
-  },
+  const writeStored = (suffix: string, val: string): void => {
+    try { localStorage.setItem(`${ctx.storageKey()}-${suffix}`, val) }
+    catch { /* best-effort */ }
+  }
 
-  mount(state, host) {
-    const tabsSig = state.$signals.tabs
-    const activeTabSig = state.$signals.activeTab
-    const resizingSig = state.$signals.resizing
-    const dragHeightSig = state.$signals.dragHeight
-    const storageKey = state.$signals.storageKey
-    const activate = state.activate
-    const resizeHandle = state.resizeHandle
+  function activate(id: string): void {
+    if (!tabs().some((t) => t.id === id)) return
+    if (ctx.activeTab() === id) return
+    ctx.activeTab.set(id)
+    writeStored('active', id)
+    hostEl?.dispatchEvent(
+      new CustomEvent('sui:dock:activate', {
+        detail: { tab: id }, bubbles: true, composed: true,
+      }),
+    )
+  }
+  function onPopout(): void {
+    // Open the active tab's surface in a standalone window so users
+    // can dock the source/signals/etc. alongside their editor. Each
+    // tab declares its own URL via a known map; unknown tabs fall
+    // back to a generic /sui/<tab> path.
+    const tab = ctx.activeTab()
+    const url = ({
+      terminal: '/sui/terminal',
+      source: '/studio/components',
+      signals: '/sui/signals',
+      schema: '/sui/schema',
+      'va-source': '/studio/components',
+      'va-components': '/studio/components',
+      'va-activity': '/events',
+      'va-compile': '/studio/components',
+    } as Record<string, string>)[tab] ?? `/sui/${tab}`
+    window.open(url, '_blank', 'noopener')
+    hostEl?.dispatchEvent(
+      new CustomEvent('sui:dock:popout', {
+        detail: { tab, url }, bubbles: true, composed: true,
+      }),
+    )
+  }
+  function onClose(): void {
+    hostEl?.dispatchEvent(
+      new CustomEvent('sui:dock:close', { bubbles: true, composed: true }),
+    )
+  }
+  function onEditModeToggle(): void {
+    const next = !ctx.editModeOn()
+    ctx.editModeOn.set(next)
+    hostEl?.dispatchEvent(
+      new CustomEvent('sui:dock:edit-mode-toggle', {
+        detail: { on: next }, bubbles: true, composed: true,
+      }),
+    )
+  }
 
+  mount((mounted) => {
     ensureResizePillStyles()
-    ensureTerminalSlotFilled(host)
+    ensureTerminalSlotFilled(mounted)
 
     const readStored = (suffix: string): string | null => {
-      try { return localStorage.getItem(`${storageKey()}-${suffix}`) }
+      try { return localStorage.getItem(`${ctx.storageKey()}-${suffix}`) }
       catch { return null }
-    }
-    const writeStored = (suffix: string, val: string): void => {
-      try { localStorage.setItem(`${storageKey()}-${suffix}`, val) }
-      catch { /* best-effort */ }
     }
 
     const applyHeight = (px: number): void => {
       document.documentElement.style.setProperty('--ship-dock-height', `${px}px`)
-      dragHeightSig.set(px)
+      dragHeight.set(px)
     }
     const currentHeight = (): number => {
       const v = getComputedStyle(document.documentElement).getPropertyValue('--ship-dock-height')
@@ -139,18 +135,14 @@ export default controller({
       return Number.isFinite(n) ? n : DEFAULT_HEIGHT
     }
 
-    // Hydrate persisted state.
     const lastActive = readStored('active')
-    if (lastActive && tabsSig().some((t: DockTabDef) => t.id === lastActive)) {
-      activeTabSig.set(lastActive)
+    if (lastActive && tabs().some((t) => t.id === lastActive)) {
+      ctx.activeTab.set(lastActive)
     }
     const h = Number.parseInt(readStored('height') ?? '', 10)
     applyHeight(Number.isFinite(h) ? h : DEFAULT_HEIGHT)
 
-    // Toolbar slot content tracking — adds .has-content when assigned.
-    // {#for tabs()} re-renders the toolbar list when tabs change, so we
-    // re-attach listeners after each render by observing shadowRoot.
-    const sr = host.shadowRoot!
+    const root = mounted.shadowRoot ?? mounted
     const toolbarCleanups: Array<() => void> = []
     const trackToolbar = (tb: HTMLElement): void => {
       const slot = tb.querySelector<HTMLSlotElement>('slot')
@@ -163,7 +155,7 @@ export default controller({
       queueMicrotask(sync)
       toolbarCleanups.push(() => slot.removeEventListener('slotchange', sync))
     }
-    for (const tb of sr.querySelectorAll<HTMLElement>('[data-toolbar]')) trackToolbar(tb)
+    for (const tb of root.querySelectorAll<HTMLElement>('[data-toolbar]')) trackToolbar(tb)
     const mo = new MutationObserver((records) => {
       for (const r of records) {
         for (const n of r.addedNodes) {
@@ -173,19 +165,16 @@ export default controller({
         }
       }
     })
-    mo.observe(sr, { childList: true, subtree: true })
+    mo.observe(root, { childList: true, subtree: true })
 
-    // Resize drag. `bind:this={resizeHandle}` targets the static `.resize`
-    // div, present at mount; guard once so the dependent block narrows and
-    // its teardown is registered only when the handle exists.
-    const resizeCleanups: Array<() => void> = []
-    if (resizeHandle) {
-      const handle = resizeHandle
+    const stopResizeBind = effect(() => {
+      const handle = asHtml(resizeHandle())
+      if (!handle) return
       const onPointerDown = (ev: PointerEvent): void => {
         ev.preventDefault()
         const startY = ev.clientY
         const startH = currentHeight()
-        resizingSig.set(true)
+        ctx.resizing.set(true)
         handle.setPointerCapture(ev.pointerId)
         const onMove = (e: PointerEvent): void => {
           const max = Math.round(window.innerHeight * 0.5)
@@ -194,14 +183,14 @@ export default controller({
           )
         }
         const onUp = (e: PointerEvent): void => {
-          resizingSig.set(false)
+          ctx.resizing.set(false)
           handle.releasePointerCapture(e.pointerId)
           handle.removeEventListener('pointermove', onMove)
           handle.removeEventListener('pointerup', onUp)
           handle.removeEventListener('pointercancel', onUp)
           const final = currentHeight()
           writeStored('height', String(final))
-          host.dispatchEvent(
+          mounted.dispatchEvent(
             new CustomEvent('sui:dock:resize', {
               detail: { height: final }, bubbles: true, composed: true,
             }),
@@ -214,7 +203,7 @@ export default controller({
       const onDblClick = (): void => {
         applyHeight(DEFAULT_HEIGHT)
         writeStored('height', String(DEFAULT_HEIGHT))
-        host.dispatchEvent(
+        mounted.dispatchEvent(
           new CustomEvent('sui:dock:resize', {
             detail: { height: DEFAULT_HEIGHT }, bubbles: true, composed: true,
           }),
@@ -222,35 +211,39 @@ export default controller({
       }
       handle.addEventListener('pointerdown', onPointerDown)
       handle.addEventListener('dblclick', onDblClick)
-      resizeCleanups.push(() => {
+      return () => {
         handle.removeEventListener('pointerdown', onPointerDown)
         handle.removeEventListener('dblclick', onDblClick)
-      })
-    }
+      }
+    })
 
-    // Imperative API parity with <ship-panel-dock>.
-    Object.defineProperty(host, 'activate', { value: activate, configurable: true })
-    Object.defineProperty(host, 'show', {
+    Object.defineProperty(mounted, 'activate', { value: activate, configurable: true })
+    Object.defineProperty(mounted, 'show', {
       value: () => document.body.classList.add('dock-open'), configurable: true,
     })
-    Object.defineProperty(host, 'hide', {
+    Object.defineProperty(mounted, 'hide', {
       value: () => document.body.classList.remove('dock-open'), configurable: true,
     })
-    Object.defineProperty(host, 'toggle', {
+    Object.defineProperty(mounted, 'toggle', {
       value: () => document.body.classList.toggle('dock-open'), configurable: true,
     })
-    Object.defineProperty(host, 'tabs', {
-      get: () => tabsSig(),
-      set: (val: DockTabDef[]) => tabsSig.set(val),
+    Object.defineProperty(mounted, 'tabs', {
+      get: () => tabs(),
+      set: (val: DockTabDef[]) => tabs.set(val),
       configurable: true,
     })
 
     return () => {
       for (const cleanup of toolbarCleanups) cleanup()
       mo.disconnect()
-      for (const cleanup of resizeCleanups) cleanup()
+      stopResizeBind()
     }
-  },
+  })
+
+  return {
+    tabs, dragHeight, captureResize,
+    activate, onPopout, onClose, onEditModeToggle,
+  }
 })
 </controller>
 
@@ -276,32 +269,11 @@ export default controller({
   ─────────────────────────────────────────────────────────────────────────────
   Slots: <id> — body for tab id (terminal, source, signals, schema, components)
          toolbar:<id> — slim toolbar row for tab id (optional)
-
-  Runtime-exceed notes
-  ─────────────────────────────────────────────────────────────────────────────
-  Tabstrip, toolbars, and body slots all render from a single `<for>` over
-  the `tabs()` signal — the j2 Lit version only iterates the tabstrip and
-  hard-codes the toolbar/body slot ids, so a custom `tabs` array silently
-  drops projection. Here, setting `host.tabs` rebuilds the whole strip.
-
-  Drag-height pill: while a resize drag is in progress, a small floating
-  badge teleports to <body> via <sui-portal> and fades in via
-  `transition:fade`. Lit had no comparable affordance — height changed
-  silently during drag.
-  ─────────────────────────────────────────────────────────────────────────────
 -->
 
-<!-- <prop name="active-tab" type="string" default="terminal" reflect /> -->
-<!-- <prop name="storage-key" type="string" default="ship-dock" /> -->
-<!-- <prop name="resizing" type="bool" default="false" reflect /> -->
-<!-- <prop name="edit-mode-pill" type="bool" default="false" reflect /> -->
-<!-- <prop name="edit-mode-on" type="bool" default="false" reflect /> -->
-
-<!-- style block removed: use sx / external CSS -->
-
-<div role="separator" aria-orientation="horizontal" aria-label="Resize panel" bind:this={resizeHandle}></div>
+<div role="separator" aria-orientation="horizontal" aria-label="Resize panel" use:captureResize></div>
 <div role="tablist">
-  <for as="t" of={tabs()} key={t.id}>
+  <for {tabs() as t} key={t.id}>
     <button
       role="tab"
       type="button"
@@ -311,19 +283,19 @@ export default controller({
       on:click={() => activate(t.id)}>
       <icon name={t.icon} size="sm"></icon>
       <span>{t.label}</span>
-      <if cond={t.live && t.id === activeTab()}>
+      <if {t.live && t.id === activeTab()}>
         <span aria-hidden="true"></span>
       </if>
-      <if cond={t.count != null}>
+      <if {t.count != null}>
         <span>{t.count.toLocaleString()}</span>
       </if>
-      <if cond={t.badge}>
+      <if {t.badge}>
         <span>{t.badge}</span>
       </if>
     </button>
   </for>
   <span>
-    <if cond={editModePill()}>
+    <if {editModePill()}>
       <button
         type="button"
         role="switch"
@@ -339,25 +311,19 @@ export default controller({
     <button type="button" aria-label="Close panel" title="Close (⌘J)" data-action="close" on:click={onClose}><icon name="x" size="sm"></icon></button>
   </span>
 </div>
-<for as="t" of={tabs()} key={t.id}>
+<for {tabs() as t} key={t.id}>
   <div data-toolbar={t.id} hidden={t.id !== activeTab()}>
     <slot name={'toolbar:' + t.id}></slot>
   </div>
 </for>
 <div>
-  <for as="t" of={tabs()} key={t.id}>
+  <for {tabs() as t} key={t.id}>
     <slot name={t.id} data-active={t.id === activeTab()}></slot>
   </for>
 </div>
 
-<!--
-  Drag-height pill: teleported to <body> so it escapes the dock's own
-  stacking context and lives above any view content. Mounts only while
-  the user is actively dragging the resize handle; `transition:fade`
-  drives entry/exit.
--->
 <sui-portal target="body">
-  <if cond={resizing()}>
+  <if {resizing()}>
     <div transition:fade={{ duration: 120 }}>
       {dragHeight()}px
     </div>

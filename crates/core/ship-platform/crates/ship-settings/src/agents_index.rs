@@ -125,8 +125,7 @@ pub struct AgentDefRecord {
     /// Rel file name under `.ship/agents/` (e.g. `code-reviewer.jsonc`).
     pub path: String,
     pub content_hash: String,
-    pub role: Option<String>,
-    /// Target harnesses (canonical `agent.harnesses`).
+    /// Target harnesses (canonical `agent.harnesses` on the raw doc summary).
     pub harness: Vec<String>,
     pub tags: Vec<String>,
     /// The extension that supplied this row, as [`stack_model::compose_space`]
@@ -169,7 +168,6 @@ impl AgentDefIndex {
                 col("scope", ColumnKind::Text, true),
                 col("path", ColumnKind::Text, true),
                 col("content_hash", ColumnKind::Text, true),
-                col("role", ColumnKind::Text, false),
                 col("harness", ColumnKind::Text, false),
                 col("tags", ColumnKind::Text, false),
                 col("doc_json", ColumnKind::Text, false),
@@ -313,13 +311,6 @@ impl AgentDefIndex {
             .with("scope", json_str(scope))
             .with("path", json_str(&src.path))
             .with("content_hash", json_str(&src.content_hash))
-            .with(
-                "role",
-                src.role
-                    .clone()
-                    .map(json_str)
-                    .unwrap_or(serde_json::Value::Null),
-            )
             .with("harness", json_str(&join_csv(&src.harness)))
             .with("tags", json_str(&join_csv(&src.tags)))
             .with(
@@ -403,7 +394,6 @@ fn row_to_record(row: &Row) -> AgentDefRecord {
         scope: get("scope"),
         path: get("path"),
         content_hash: get("content_hash"),
-        role: row_opt_str(row, "role"),
         harness: split_csv(&get("harness")),
         tags: split_csv(&get("tags")),
         ext_source: row_opt_str(row, "ext_source"),
