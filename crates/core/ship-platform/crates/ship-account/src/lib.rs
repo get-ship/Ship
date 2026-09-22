@@ -8,9 +8,8 @@
 //! - `account.*` audit → `SpaceContext.kernel()` (KernelLog port, Account-scoped
 //!   → `account.db`), NOT the legacy `SqliteEventStore::append` bypass
 //! - gateway exchange / me / revoke → `ship-gateway-client`
-//! - gateway base URL + stored-key read (`gateway` module) → `config_doc` over
-//!   `settings.jsonc:cloud.base_url` and the single owner doc `account.jsonc`
-//!   (S5: the legacy `config::{credentials,gateway}` tier folded in here)
+//! - gateway base URL (`gateway` module) → the `SHIP_API_URL` env override,
+//!   else the default; the stored key → the single owner doc `account.jsonc`
 //!
 //! Account identity is process-global, NOT space-partitioned: no `DataStore`,
 //! no per-space table. The owner-binding (`daemon.owner.bound/unbound`) is an

@@ -5,10 +5,8 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, anyhow};
 
-use ship_substrate::fs_util::write_atomic;
-
 use super::types::{
-    Skill, SkillSource, SkillSpecFrontmatter, SkillSpecMetadata, validate_against_schema,
+    Skill, SkillSource, SkillSpecFrontmatter, validate_against_schema,
     validate_skill_spec_frontmatter,
 };
 
@@ -127,58 +125,6 @@ pub(super) fn parse_skill_spec(dir: &Path) -> Result<Skill> {
         source,
         artifacts: fm.artifacts.unwrap_or_default(),
     })
-}
-
-pub(super) fn write_skill_spec(dir: &Path, skill: &Skill) -> Result<()> {
-    fs::create_dir_all(dir)?;
-    let frontmatter = SkillSpecFrontmatter {
-        name: skill.id.clone(),
-        stable_id: skill
-            .stable_id
-            .clone()
-            .unwrap_or_else(|| skill.id.clone()),
-        description: skill
-            .description
-            .clone()
-            .unwrap_or_else(|| format!("Project skill '{}'", skill.id)),
-        tags: if skill.tags.is_empty() {
-            vec!["custom".to_string()]
-        } else {
-            skill.tags.clone()
-        },
-        authors: if skill.authors.is_empty() {
-            vec!["local".to_string()]
-        } else {
-            skill.authors.clone()
-        },
-        audience: skill.audience.clone(),
-        version: skill.version.clone(),
-        supersedes: None,
-        superseded_by: None,
-        compatibility: None,
-        allowed_tools: None,
-        license: None,
-        artifacts: if skill.artifacts.is_empty() {
-            None
-        } else {
-            Some(skill.artifacts.clone())
-        },
-        metadata: Some(SkillSpecMetadata {
-            display_name: Some(skill.name.clone()),
-            source: Some(match skill.source {
-                SkillSource::Builtin => "builtin".to_string(),
-                SkillSource::AiGenerated => "ai-generated".to_string(),
-                SkillSource::Community => "community".to_string(),
-                SkillSource::Imported => "imported".to_string(),
-                SkillSource::Custom => "custom".to_string(),
-            }),
-        }),
-    };
-    let frontmatter_yaml = serde_yaml::to_string(&frontmatter)?;
-    let content = format!("---\n{}---\n\n{}", frontmatter_yaml, skill.content.trim());
-    let path = dir.join("SKILL.md");
-    write_atomic(&path, content)?;
-    Ok(())
 }
 
 pub(super) fn list_skills_from_dir(dir: &Path) -> Result<Vec<Skill>> {

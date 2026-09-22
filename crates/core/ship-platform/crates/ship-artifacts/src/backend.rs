@@ -9,7 +9,7 @@ use std::io;
 use std::path::PathBuf;
 
 use anyhow::Result;
-use ship_substrate::ports::{BlobHash, BlobScope, BlobStore, LocalFsBlobStore, SpaceId};
+use ship_substrate::{BlobHash, BlobScope, BlobStore, LocalFsBlobStore, SpaceId};
 
 use crate::types::ArtifactScope;
 

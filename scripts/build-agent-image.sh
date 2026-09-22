@@ -18,11 +18,13 @@ cd "$(dirname "$0")/.."
 ENGINE="${SHIP_CONTAINER_ENGINE:-podman}"
 TAG="${1:-ship/agent-runner:dev}"
 
-echo "==> static-musl ship-sidecar"
+echo "==> static-musl ship-sidecar (ship-exec)"
+# ship-sidecar lives in ship-exec (j-09); sibling checkout required.
+SHIP_EXEC="${SHIP_EXEC:-$(cd ../ship-infra && pwd)}"
 rustup target add x86_64-unknown-linux-musl >/dev/null 2>&1 || true
 CC_x86_64_unknown_linux_musl=musl-gcc \
-  cargo build -p ship-sidecar --target x86_64-unknown-linux-musl
-SIDECAR="target/x86_64-unknown-linux-musl/debug/ship-sidecar"
+  cargo build -p ship-sidecar --target x86_64-unknown-linux-musl --manifest-path "$SHIP_EXEC/Cargo.toml"
+SIDECAR="$SHIP_EXEC/target/x86_64-unknown-linux-musl/debug/ship-sidecar"
 
 echo "==> assemble build context"
 CTX="$(mktemp -d)"

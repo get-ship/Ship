@@ -8,42 +8,45 @@ description = "Agent domain (L1) — agent-session dispatch, agent-domain policy
 [dependencies]
 # RPC wire layer (ConnectRPC trait impls for rules/mcp/permissions/skills/agents)
 ship-ops-rpc = { path = "../../../ship-ops-rpc" }
+ship-proto = { git = "https://github.com/get-ship/ship-contracts.git", branch = "feat/next" }
 ship-reactive = { path = "../ship-reactive" }
 connectrpc = { version = "0.4", features = ["axum"] }
 async-stream = "0.3"
 buffa = "0.5"
 # L0 substrate
 ship-substrate = { path = "../../../ship-substrate" }
-# L0 git capability — git2-backed; single git implementation.
-ship-git = { path = "../../../ship-git" }
-ship-runner = { path = "../../../ship-substrate/crates/ship-runner" }
+# L0 git capability — git2-backed; baseline SHA capture on the bridge path.
+# Home: ship-infra (j-04).
+ship-git = { git = "https://github.com/get-ship/ship-infra.git", rev = "24de79282f45b05fdcdb07f7daa66c7346bdeb33", optional = true }
+ship-device = { git = "https://github.com/get-ship/ship-infra.git", rev = "24de79282f45b05fdcdb07f7daa66c7346bdeb33", optional = true }
+ship-isolation = { git = "https://github.com/get-ship/ship-infra.git", rev = "24de79282f45b05fdcdb07f7daa66c7346bdeb33", optional = true }
+# process-supervisor — KernelSupervisorSink adapter (session spawners).
+process-supervisor = { git = "https://github.com/get-ship/ship-infra.git", rev = "24de79282f45b05fdcdb07f7daa66c7346bdeb33", optional = true }
+# Fleet runtime composition surface — always present; provides process-supervisor,
+# isolation-port, and harness-driver types that ship-agents/session registry use.
+bridge = { git = "https://github.com/get-ship/fleet.git", rev = "03f917d5e51921754c1a6a12a4aa2beb56b4a405", default-features = false, features = ["runtime"] }
 ship-types = { path = "../../../ship-substrate/crates/ship-types" }
 ship-kernel = { path = "../../../ship-substrate/crates/ship-kernel" }
 # L1 crates (carved siblings, no cycle)
 agent-def = { path = "../agent-def" }
-ship-code = { path = "../ship-code", features = ["harness-drivers"], optional = true }
-ship-config = { path = "../ship-config" }
-ship-harnesses = { path = "../ship-harnesses" }
+ship-settings = { path = "../ship-settings" }
 ship-files = { path = "../ship-files" }
 ship-store = { path = "../ship-store" }
-# L1 sibling — PTY session registry + shell spawn, carved from this crate.
-ship-terminal = { path = "../ship-terminal" }
 # Agent-run assembly deps (supervisor split — `runtime::executors`):
-#   ship-auth     — per-process scoped token mint/drop on the spawn path.
-#   ship-device   — isolation-execution sandbox dispatcher bookkeeping.
-#   ship-isolation — isolation decision + sandbox backends (L0; default-off
-#                    keeps the youki/sidecar backends opt-in, matching the
-#                    daemon's feature wiring).
-ship-auth = { path = "../ship-auth" }
-ship-device = { path = "../ship-device" }
-ship-isolation = { path = "../ship-isolation", default-features = false }
-# compiler crate (the engine; services/compile is only the wrapper)
-compiler = { path = "../../../compiler", features = ["specta"] }
-jsonschema = { version = "0.46", default-features = false }
 
-ulid = "1"
+#   ship-auth — per-process scoped token mint/drop on the spawn path.
+ship-auth = { path = "../ship-auth" }
+# compiler crate (the engine; services/compile is only the wrapper)
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "03f917d5e51921754c1a6a12a4aa2beb56b4a405", features = ["specta"] }
+stack-model = { path = "../../../stack-model", features = ["specta"] }
+# compiler crate (the engine; services/compile is only the wrapper)
+# No longer a direct dep: bridge re-exports what dispatch needs.
+space-resolver = { path = "../../../space-resolver" }
+
+ulid = { workspace = true }
 
 async-trait = { workspace = true }
+parking_lot = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
@@ -51,25 +54,13 @@ tracing = { workspace = true }
 tokio = { workspace = true, features = ["sync", "rt", "rt-multi-thread", "time", "macros", "process", "io-util"] }
 chrono = { workspace = true }
 specta = { workspace = true, features = ["chrono", "serde_json"] }
-indexmap = { workspace = true, features = ["serde"] }
-nanoid = { workspace = true }
-serde_yaml = { workspace = true }
-toml = { workspace = true, features = ["preserve_order"] }
 home = { workspace = true }
 thiserror = { workspace = true }
 shell-words = { workspace = true }
-futures-util = { workspace = true }
-walkdir = "2.3"
-globset = "0.4"
-minijinja = { workspace = true }
-sha2 = { workspace = true }
 base64 = { workspace = true }
 semver = { workspace = true, features = ["serde"] }
 tempfile = { workspace = true }
 sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio-rustls", "migrate", "macros"] }
-# SIGTERM/SIGKILL on the headless ProcessExecutor stop path (unix only).
-libc = { workspace = true }
-include_dir = "0.7"
 # RFC 6902 JSON Patch
 json-patch = "4"
 
@@ -78,17 +69,15 @@ tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "time
 tempfile = { workspace = true }
 chrono = { workspace = true }
 ship-platform = { path = "../.." }
+libc = { workspace = true }
 
 [features]
 fixtures = []
 specta = []
-# harness-drivers: pull in ship-code (the third-party-harness driver stack).
-# With this feature ON:  cancel, terminal_guard, the harness dispatch path,
-#                        executor/isolation/registry/etc. ports, and the
-#                        `runtime` re-export are all compiled in.
-# With this feature OFF: only the floki path (FlokiRunFn + the floki branch
-#                        in dispatch.rs) is compiled; ship-code is absent.
-harness-drivers = ["dep:ship-code"]
+# bridge: enable the third-party-harness dispatch path (coding agents). Adds
+# ship-git/ship-device/ship-isolation and agent-def's compile surface. The
+# fleet `bridge` runtime crate itself is an unconditional dep.
+bridge = ["dep:ship-git", "dep:ship-device", "dep:ship-isolation", "dep:process-supervisor", "agent-def/bridge"]
 
 [lints]
 workspace = true

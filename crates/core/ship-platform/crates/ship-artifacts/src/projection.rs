@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use ship_substrate::ports::{
+use ship_substrate::{
     ColumnKind, ColumnSpec, DataStore, DataStoreError, Predicate, Query, Row, TableSchema,
 };
 

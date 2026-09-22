@@ -13,33 +13,51 @@ use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
+use ship_substrate::events::EventEnvelope;
 use ship_substrate::events::daemon::{
-    PortBindFailedPayload, ShutdownCompletedPayload, event_types as daemon_events,
+    CrashDetectedPayload, PortBindFailedPayload, ShutdownCompletedPayload,
+    event_types as daemon_events,
 };
-use ship_substrate::events::{EventEnvelope, SqliteEventStore};
 
 use crate::ship_runtime::ShipRuntime;
 
 // ── startup helpers ──────────────────────────────────────────────────────
 
-/// Agent-stack startup: the floki dispatch closure + the agent-sessions actor
-/// (full orchestrator with `ship-code`, floki-only without).
+/// Agent-stack startup: in-process Yoke + agent-sessions actor
+/// (full orchestrator with `ship-code`, yoke-only without).
+///
+/// Native harness (`yoke`, alias `floki`) embeds Yoke in-process — no
+/// Bridge/fleet required. Set `YOKE_RPC=1` to force optional Connect to fleet.
+///
+/// Mount split (2026-07-10): with ship-code off, there is no
+/// `CodeService.Dispatch` route mounted — a coding-agent request surfaces
+/// as a 404, not a refused call (R-A: absence is structural).
 pub(super) async fn start_agent_stack(rt: &Arc<ShipRuntime>, global_dir: &std::path::Path) {
     let ops_router = crate::rpc::ops::router(rt.clone());
-    let floki_gateway = std::sync::Arc::new(crate::floki::gateway::ShipdGateway::new(ops_router));
-    let floki_kernel = rt.kernel().clone();
-    let floki_run_fn: ship_agents::ports::FlokiRunFn = {
-        let gateway = floki_gateway.clone();
+    let yoke_gateway = std::sync::Arc::new(crate::yoke::gateway::ShipdGateway::new(ops_router));
+    let yoke_kernel = rt.kernel().clone();
+    let yoke_rpc = std::env::var("YOKE_RPC").as_deref() == Ok("1");
+    let yoke_run_fn: ship_agents::ports::YokeRunFn = {
+        let gateway = yoke_gateway.clone();
         std::sync::Arc::new(move |payload| {
             let gateway = gateway.clone();
-            let kernel = floki_kernel.clone();
-            Box::pin(crate::floki::floki_dispatch::dispatch_floki_session(payload, gateway, kernel))
+            let kernel = yoke_kernel.clone();
+            Box::pin(async move {
+                if yoke_rpc {
+                    crate::yoke::yoke_rpc_client::dispatch_yoke_session_rpc(
+                        payload, gateway, kernel,
+                    )
+                    .await;
+                } else {
+                    crate::yoke::embed::dispatch_yoke_session(payload, gateway, kernel).await;
+                }
+            })
         })
     };
 
-    #[cfg(feature = "ship-code")]
+    #[cfg(feature = "bridge")]
     {
-        // Harness-on: hand the floki closure to the full composition root
+        // Harness-on: hand the yoke closure to the full composition root
         // (RunManager → subscribe_job_events). That path builds the full
         // AgentPorts (with harness fields) AND starts the agent-sessions
         // actor with them — the actor is the SAME one that would otherwise
@@ -50,24 +68,20 @@ pub(super) async fn start_agent_stack(rt: &Arc<ShipRuntime>, global_dir: &std::p
             &rt.health_registry(),
             rt.session_registry().clone(),
             rt.daemon_origin(),
-            Some(floki_run_fn),
+            rt.active_space_id(),
+            Some(yoke_run_fn),
         )
         .await;
-        if let Some(dh) = dispatch_handle {
-            rt.set_dispatch_handle(dh);
-        }
     }
-    #[cfg(not(feature = "ship-code"))]
+    #[cfg(not(feature = "bridge"))]
     {
-        // Flag-off: skip the orchestrator entirely (its OrchestratorContext
-        // and all the harness ports are ship-code-typed), but still start
-        // the agent-sessions actor with a floki-only AgentPorts so floki
-        // sessions keep flowing through the kernel. Non-floki sessions
-        // become no-ops on this actor (the harness-driver stack is
+        // Flag-off: skip the orchestrator (harness ports are ship-code-typed),
+        // but still start agent-sessions with yoke-only AgentPorts so native
+        // sessions keep flowing. Non-yoke sessions no-op (harness-driver stack
         // cfg-omitted from `handle_agent_session_started`).
         let _ = global_dir;
-        use ship_substrate::task_health::spawn_monitored;
-        let ports = std::sync::Arc::new(ship_agents::AgentPorts::floki_only(Some(floki_run_fn)));
+        use crate::task_health::spawn_monitored;
+        let ports = std::sync::Arc::new(ship_agents::AgentPorts::yoke_only(Some(yoke_run_fn)));
         let kernel_actor = rt.kernel().clone();
         let hr = rt.health_registry();
         spawn_monitored(hr, "agent-sessions", async move {
@@ -85,13 +99,16 @@ pub(super) fn spawn_leak_diag(rt: &Arc<ShipRuntime>) {
         return;
     }
     let diag_kernel = rt.kernel().clone();
-    let diag_sessions = rt.actor_sessions().clone();
+    let diag_sessions = rt.live_sessions().clone();
     let diag_per_turn = rt.session_registry().clone();
     tokio::spawn(async move {
         fn rss_mb() -> f64 {
             let s = std::fs::read_to_string("/proc/self/statm").unwrap_or_default();
-            let pages: u64 =
-                s.split_whitespace().nth(1).and_then(|v| v.parse().ok()).unwrap_or(0);
+            let pages: u64 = s
+                .split_whitespace()
+                .nth(1)
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(0);
             (pages * 4096) as f64 / (1024.0 * 1024.0)
         }
         let mut tick = tokio::time::interval(std::time::Duration::from_secs(5));
@@ -101,57 +118,88 @@ pub(super) fn spawn_leak_diag(rt: &Arc<ShipRuntime>) {
             let per_turn = diag_per_turn.lock().await.len();
             tracing::info!(
                 target: "leak193",
-                "DIAG rss={:.1}MB actor_sessions={} per_turn_sessions={} \
-                 pre_reg_mailboxes={} {kline}",
+                "DIAG rss={:.1}MB live_sessions={} per_turn_sessions={} {kline}",
                 rss_mb(),
                 diag_sessions.len(),
                 per_turn,
-                ship_substrate::supervisor::pre_registered_mailbox_count(),
             );
         }
     });
 }
 
-/// Spawn `HumanGatewayService` if Telegram env vars are present.
-/// Silently skips if `SHIP_TELEGRAM_TOKEN` or `SHIP_TELEGRAM_CHAT_ID` is absent.
-pub async fn spawn_human_gateway(
-    kernel: &Arc<tokio::sync::Mutex<ship_substrate::events::KernelRouter>>,
-) {
-    use ship_messaging::{HumanGatewayService, TelegramAdapter};
-    use ship_substrate::events::ActorConfig;
-    use ship_substrate::services::spawn_service;
-    use std::sync::Arc as StdArc;
-
-    let adapter = match TelegramAdapter::from_env() {
-        Some(a) => a,
-        None => {
-            tracing::info!("shipd: SHIP_TELEGRAM_TOKEN/CHAT_ID not set — human gateway disabled");
+/// Boot-time crash response, log-native: detect an unclean previous run from
+/// the log's own shape (a `daemon.startup_completed` with no
+/// `daemon.shutdown_completed` after it), not by scanning full history. Must
+/// run before this boot's own `daemon.startup_completed` lands, or that event
+/// would shadow the prior run's. Cheap — two lookups against the
+/// `(entity_id, event_type)` index, no table scan.
+///
+/// This responds (log + correlate + emit), it does not backfill: a crashed
+/// run's missing shutdown event stays missing.
+pub(super) async fn detect_prior_crash(rt: &Arc<ShipRuntime>, global_dir: &std::path::Path) {
+    let db_path = ship_substrate::db::runtime_db_path(global_dir);
+    let starts = match ship_substrate::db::events::query_events_by_entity_and_type_at(
+        &db_path,
+        "daemon",
+        daemon_events::DAEMON_STARTUP_COMPLETED,
+    ) {
+        Ok(e) => e,
+        Err(e) => {
+            tracing::warn!("shipd: crash detection: cannot read startup events: {e}");
             return;
         }
     };
-
-    // Adapter-only: the inbound outbox was removed with the dark
-    // `human.response` registration (theme-A contain A8). When the
-    // inbound fast-follow lands it will own its own channel + drain.
-    let config = ActorConfig {
-        namespace: "service.human-gateway".to_string(),
-        write_namespaces: vec!["human.".to_string()],
-        // Pipeline-run + canonical session lifecycle. The pre-inversion "job."
-        // namespace is dead; agent.session.* is retired (#26 spawn-intent).
-        // Events are now pipeline.run.* / session.* (canonical session family).
-        read_namespaces: vec!["pipeline.".to_string(), "session.".to_string()],
-        subscribe_namespaces: vec!["pipeline.".to_string(), "session.".to_string()],
-        see_directed_events: false,
+    let Some(last_start) = starts.last() else {
+        return; // first-ever boot: nothing to correlate against.
     };
+    let stops = match ship_substrate::db::events::query_events_by_entity_and_type_at(
+        &db_path,
+        "daemon",
+        daemon_events::DAEMON_SHUTDOWN_COMPLETED,
+    ) {
+        Ok(e) => e,
+        Err(e) => {
+            tracing::warn!("shipd: crash detection: cannot read shutdown events: {e}");
+            return;
+        }
+    };
+    let clean_shutdown_after = stops.last().is_some_and(|s| s.id > last_start.id);
+    if clean_shutdown_after {
+        return;
+    }
 
-    let handler: Box<dyn ship_substrate::services::ServiceHandler> = Box::new(
-        HumanGatewayService::new(StdArc::new(adapter)),
+    let crashes_dir = ship_substrate::ShipHome::from_env()
+        .state_dir()
+        .join("crashes");
+    let mut reports: Vec<String> = std::fs::read_dir(&crashes_dir)
+        .into_iter()
+        .flatten()
+        .filter_map(|e| e.ok())
+        .filter_map(|e| e.file_name().into_string().ok())
+        .filter(|name| name.starts_with("crash-") && name.ends_with(".json"))
+        .collect();
+    reports.sort();
+    reports.reverse(); // most recent first (filename carries a sortable timestamp).
+
+    tracing::error!(
+        prior_started_event_id = %last_start.id,
+        crash_report_count = reports.len(),
+        most_recent_crash_report = reports.first().map(String::as_str).unwrap_or("<none>"),
+        "shipd: prior run ended without a clean shutdown event — crash detected"
     );
 
-    match spawn_service(&mut *kernel.lock().await, "service.human-gateway", config, handler) {
-        Ok(_) => tracing::info!("shipd: human gateway service started (telegram)"),
-        Err(e) => {
-            tracing::warn!("shipd: failed to spawn human gateway: {e}");
+    if let Ok(envelope) = EventEnvelope::new(
+        daemon_events::DAEMON_CRASH_DETECTED,
+        "daemon",
+        &CrashDetectedPayload {
+            prior_started_event_id: last_start.id.clone(),
+            crash_report_count: reports.len(),
+            correlated_crash_reports: reports,
+        },
+    ) {
+        let envelope = envelope.with_actor_id("daemon");
+        if let Err(e) = rt.persist_and_route(&envelope).await {
+            tracing::warn!("shipd: cannot emit daemon.crash_detected: {e}");
         }
     }
 }
@@ -166,7 +214,7 @@ pub(super) async fn bind_with_retry(
     host: &str,
     desired_port: u16,
     user_pinned: bool,
-    global_dir: &std::path::Path,
+    rt: &Arc<ShipRuntime>,
 ) -> Result<(tokio::net::TcpListener, u16)> {
     let max_retries = if user_pinned { 1 } else { 10 };
     let mut bound_port = desired_port;
@@ -175,15 +223,12 @@ pub(super) async fn bind_with_retry(
         match tokio::net::TcpListener::bind(&addr).await {
             Ok(l) => break l,
             Err(e) if e.kind() == std::io::ErrorKind::AddrInUse && !user_pinned => {
-                tracing::warn!(
-                    port = bound_port,
-                    "shipd: port busy, trying next"
-                );
+                tracing::warn!(port = bound_port, "shipd: port busy, trying next");
                 bound_port += 1;
                 if bound_port - desired_port >= max_retries {
-                    let already_bound_by_pid = pidfile_pid_for_port(global_dir, desired_port);
+                    let already_bound_by_pid = pidfile_pid_for_port(desired_port);
                     emit_daemon_event(
-                        global_dir,
+                        rt,
                         daemon_events::DAEMON_PORT_BIND_FAILED,
                         "daemon",
                         &PortBindFailedPayload {
@@ -191,7 +236,8 @@ pub(super) async fn bind_with_retry(
                             already_bound_by_pid,
                             error: e.to_string(),
                         },
-                    );
+                    )
+                    .await;
                     return Err(anyhow!(
                         "bind {host}:{desired_port}..{}: {} (giving up after {max_retries} retries)",
                         bound_port - 1,
@@ -200,9 +246,9 @@ pub(super) async fn bind_with_retry(
                 }
             }
             Err(e) => {
-                let already_bound_by_pid = pidfile_pid_for_port(global_dir, bound_port);
+                let already_bound_by_pid = pidfile_pid_for_port(bound_port);
                 emit_daemon_event(
-                    global_dir,
+                    rt,
                     daemon_events::DAEMON_PORT_BIND_FAILED,
                     "daemon",
                     &PortBindFailedPayload {
@@ -210,7 +256,8 @@ pub(super) async fn bind_with_retry(
                         already_bound_by_pid,
                         error: e.to_string(),
                     },
-                );
+                )
+                .await;
                 return Err(anyhow!("bind {host}:{bound_port}: {e}"));
             }
         }
@@ -218,13 +265,11 @@ pub(super) async fn bind_with_retry(
     Ok((listener, bound_port))
 }
 
-/// Append a daemon.* event directly to the runtime event store.
-///
-/// Used in paths where the kernel may not be live (port bind failure) or where
-/// the runtime is already torn down (post-serve shutdown). Fire-and-forget:
-/// telemetry must never block lifecycle decisions.
-pub(super) fn emit_daemon_event<P: serde::Serialize>(
-    global_dir: &std::path::Path,
+/// Emit a daemon.* event through the live kernel router (daemon-internal
+/// Runtime binding). Fire-and-forget: telemetry must never block lifecycle
+/// decisions.
+pub(super) async fn emit_daemon_event<P: serde::Serialize>(
+    rt: &Arc<ShipRuntime>,
     event_type: &str,
     entity_id: &str,
     payload: &P,
@@ -236,34 +281,17 @@ pub(super) fn emit_daemon_event<P: serde::Serialize>(
             return;
         }
     };
-    // daemon.* is Runtime-scoped → write runtime.db.
-    let store = match SqliteEventStore::new_for_scope(
-        global_dir,
-        ship_substrate::events::EventScope::Runtime,
-        None,
-    ) {
-        Ok(s) => s,
-        Err(e) => {
-            tracing::warn!("shipd: cannot open event store for {event_type}: {e}");
-            return;
-        }
-    };
-    // Enforced write: daemon.* is Runtime-scoped and this path may run with no
-    // live kernel/session, so stamp + enforce from the daemon-internal (Runtime)
-    // binding before persist.
-    let binding = ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk);
-    if let Err(e) = store.append_enforced(&envelope, &binding) {
-        tracing::warn!("shipd: cannot append {event_type}: {e}");
+    if let Err(e) = rt.persist_and_route(&envelope).await {
+        tracing::warn!("shipd: cannot emit {event_type}: {e}");
     }
 }
 
 /// Best-effort lookup of the pid currently holding `port`, sourced from the
 /// supervisor's lock-based pidfile. Returns None if the file is missing,
 /// unparseable, or records a different port.
-fn pidfile_pid_for_port(global_dir: &std::path::Path, port: u16) -> Option<u32> {
-    let path = ship_substrate::ShipHome::at(global_dir.to_path_buf())
-        .machine_dir()
-        .join("daemon")
+fn pidfile_pid_for_port(port: u16) -> Option<u32> {
+    let path = ship_substrate::ShipHome::from_env()
+        .daemon_dir()
         .join("shipd.pid");
     let data = std::fs::read_to_string(&path).ok()?;
     let v: serde_json::Value = serde_json::from_str(data.trim()).ok()?;
@@ -294,10 +322,12 @@ pub fn maybe_open_setup(ship_dir: &Path, port: u16) {
     spawn_open(&url);
 }
 
-/// True when the user-content DB does not exist yet. A fresh install has no
-/// `data.db`, which is what first-run UX keys on.
+/// True when the daemon has not initialized this ship-home before. A fresh
+/// install has no `runtime.db` (the daemon materializes it on its first event);
+/// this is the first-run sentinel after `data.db` was removed (it carried the
+/// same "has the daemon started before" lifecycle).
 fn is_first_run(ship_dir: &Path) -> bool {
-    !ship_substrate::db::data_db_path(ship_dir).exists()
+    !ship_substrate::db::runtime_db_path(ship_dir).exists()
 }
 
 #[cfg(target_os = "linux")]
@@ -348,15 +378,15 @@ mod tests {
     use tempfile::TempDir;
 
     #[test]
-    fn is_first_run_true_when_data_db_missing() {
+    fn is_first_run_true_when_runtime_db_missing() {
         let tmp = TempDir::new().unwrap();
         assert!(is_first_run(tmp.path()));
     }
 
     #[test]
-    fn is_first_run_false_when_data_db_exists() {
+    fn is_first_run_false_when_runtime_db_exists() {
         let tmp = TempDir::new().unwrap();
-        let path = ship_substrate::db::data_db_path(tmp.path());
+        let path = ship_substrate::db::runtime_db_path(tmp.path());
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         std::fs::write(&path, b"").unwrap();
         assert!(!is_first_run(tmp.path()));
@@ -376,19 +406,29 @@ mod tests {
 
 // ── shutdown ─────────────────────────────────────────────────────────────
 
-/// Drain agents (bounded), reap sandboxes, shut the runtime down, and emit
-/// `daemon.shutdown_completed`. Runs after axum's graceful shutdown returned.
-pub(super) async fn drain_and_shutdown(rt: &Arc<ShipRuntime>, global_dir: &std::path::Path) {
+/// Drain agents (bounded), reap sandboxes, emit `daemon.shutdown_completed`
+/// while the kernel is still live, then shut the runtime down. Runs after
+/// axum's graceful shutdown returned.
+pub(super) async fn drain_and_shutdown(rt: &Arc<ShipRuntime>) {
     // Bound the agent drain so a stuck child can't hang shutdown forever (#256).
     // axum already drained connections; this cap protects the registry drain
     // (the SIGTERM→SIGKILL hang was an unbounded wait here + un-cancelled SSE).
-    #[cfg(feature = "ship-code")]
+    #[cfg(feature = "bridge")]
     let agents_drained = if let Some(dh) = rt.dispatch_handle() {
         const SHUTDOWN_DRAIN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(8);
         let mut registry = dh.registry.lock().await;
         let count = registry.len();
-        let drain = ship_code::process_registry::graceful_shutdown(rt.kernel(), &mut registry, Arc::clone(&dh.executor));
-        if tokio::time::timeout(SHUTDOWN_DRAIN_TIMEOUT, drain).await.is_err() {
+        let sink: Arc<dyn bridge::lifecycle::LifecycleSink> =
+            Arc::new(ship_agents::KernelLifecycleSink::new(rt.kernel().clone()));
+        let drain = bridge::process_registry::graceful_shutdown(
+            &sink,
+            &mut registry,
+            Arc::clone(&dh.executor),
+        );
+        if tokio::time::timeout(SHUTDOWN_DRAIN_TIMEOUT, drain)
+            .await
+            .is_err()
+        {
             tracing::warn!(
                 timeout_secs = SHUTDOWN_DRAIN_TIMEOUT.as_secs(),
                 "shipd: agent drain timed out; proceeding with shutdown"
@@ -398,7 +438,7 @@ pub(super) async fn drain_and_shutdown(rt: &Arc<ShipRuntime>, global_dir: &std::
     } else {
         0
     };
-    #[cfg(not(feature = "ship-code"))]
+    #[cfg(not(feature = "bridge"))]
     let agents_drained: usize = 0;
 
     // Reap all sandboxes so a clean restart doesn't orphan backend
@@ -410,9 +450,11 @@ pub(super) async fn drain_and_shutdown(rt: &Arc<ShipRuntime>, global_dir: &std::
         tracing::info!(sandboxes_reaped, "reaped sandboxes on shutdown");
     }
     let uptime_secs = rt.uptime().as_secs();
-    rt.shutdown().await;
+    // Emit while the kernel is still alive — `rt.shutdown()` flushes the WAL
+    // and removes liveness files, so the durable shutdown event must land
+    // before that, not after.
     emit_daemon_event(
-        global_dir,
+        rt,
         daemon_events::DAEMON_SHUTDOWN_COMPLETED,
         "daemon",
         &ShutdownCompletedPayload {
@@ -421,5 +463,7 @@ pub(super) async fn drain_and_shutdown(rt: &Arc<ShipRuntime>, global_dir: &std::
             agents_drained,
             trigger: "sigterm".to_string(),
         },
-    );
+    )
+    .await;
+    rt.shutdown().await;
 }

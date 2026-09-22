@@ -1,0 +1,18 @@
+[package]
+name = "path-layout"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "L0 traveling-artifact overlay resolver — composes a materialized root for locked space deps from ShipManifest/ShipLock, cache-dir aware via ShipHome."
+
+[dependencies]
+ship-paths = { path = "../ship-substrate/crates/ship-paths" }
+anyhow = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+walkdir = "2.3"
+sha2 = { workspace = true }
+tracing = { workspace = true }
+
+[lints]
+workspace = true

@@ -6,15 +6,15 @@
 //! the wire gates on **operator authority** — granted SOLELY by a verified
 //! operator cred (S6, #124). The Connect router runs no per-route auth
 //! middleware; instead `auth::project_authority_middleware` (layered on the ops
-//! router) projects the resolved `ship_types::Authority` into the request, and
+//! router) projects the resolved `agent_schema::Authority` into the request, and
 //! the wire checks `Authority::Operator` — no coupling to shipd's `AuthContext`.
 
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use ship_account::AccountWire;
 use ship_account::service::{AccountService, KernelOwnerBinder};
 use ship_account::store::FileTokenStore;
-use ship_account::AccountWire;
 use ship_substrate::ports::KernelLog;
 
 /// Build the typed `AccountWire` over the substrate ports.

@@ -51,7 +51,10 @@ pub async fn cors_middleware(req: Request<Body>, next: Next) -> Response {
     // tools (curl, ship CLI) send no Origin and rely on bearer auth — they
     // bypass this check by virtue of having no Origin to validate.
     let method = req.method();
-    let is_state_changing = matches!(method, &Method::POST | &Method::PUT | &Method::DELETE | &Method::PATCH);
+    let is_state_changing = matches!(
+        method,
+        &Method::POST | &Method::PUT | &Method::DELETE | &Method::PATCH
+    );
     if is_state_changing && !origin.is_empty() && !origin_is_allowed(origin) {
         tracing::warn!("shipd: rejected {method} from unapproved origin: {origin}");
         return (StatusCode::FORBIDDEN, "origin not allowed").into_response();
@@ -69,16 +72,18 @@ pub async fn cors_middleware(req: Request<Body>, next: Next) -> Response {
         let mut res = Response::new(Body::empty());
         let h = res.headers_mut();
         if !origin_header.is_empty()
-            && let Ok(val) = HeaderValue::from_str(&origin_header) {
-                h.insert("access-control-allow-origin", val);
-            }
+            && let Ok(val) = HeaderValue::from_str(&origin_header)
+        {
+            h.insert("access-control-allow-origin", val);
+        }
         h.insert(
             "access-control-allow-methods",
             HeaderValue::from_static("GET, POST, PUT, DELETE, OPTIONS"),
         );
         h.insert(
             "access-control-allow-headers",
-            HeaderValue::from_static("content-type, authorization, accept, mcp-session-id, x-ship-caller, x-ship-agent-id, x-ship-workspace-id, x-ship-session-id, datastar-request"),
+            // connect-protocol-version: Connect-web preflight (GitService browser client).
+            HeaderValue::from_static("content-type, authorization, accept, connect-protocol-version, mcp-session-id, x-ship-caller, x-ship-agent-id, x-ship-workspace-id, x-ship-session-id"),
         );
         h.insert(
             "access-control-expose-headers",
@@ -136,29 +141,45 @@ mod tests {
 
     #[tokio::test]
     async fn post_with_no_origin_passes() {
-        let req = Request::builder().method(Method::POST).uri("/x").body(Body::empty()).unwrap();
+        let req = Request::builder()
+            .method(Method::POST)
+            .uri("/x")
+            .body(Body::empty())
+            .unwrap();
         assert_eq!(send(req).await, StatusCode::OK);
     }
 
     #[tokio::test]
     async fn post_with_allowed_origin_passes() {
-        let req = Request::builder().method(Method::POST).uri("/x")
-            .header("origin", "http://localhost:3000").body(Body::empty()).unwrap();
+        let req = Request::builder()
+            .method(Method::POST)
+            .uri("/x")
+            .header("origin", "http://localhost:3000")
+            .body(Body::empty())
+            .unwrap();
         assert_eq!(send(req).await, StatusCode::OK);
     }
 
     #[tokio::test]
     async fn post_with_evil_origin_rejected() {
-        let req = Request::builder().method(Method::POST).uri("/x")
-            .header("origin", "http://evil.example").body(Body::empty()).unwrap();
+        let req = Request::builder()
+            .method(Method::POST)
+            .uri("/x")
+            .header("origin", "http://evil.example")
+            .body(Body::empty())
+            .unwrap();
         assert_eq!(send(req).await, StatusCode::FORBIDDEN);
     }
 
     #[tokio::test]
     async fn get_with_evil_origin_passes() {
         // GET is not state-changing — bearer auth gates real access.
-        let req = Request::builder().method(Method::GET).uri("/x")
-            .header("origin", "http://evil.example").body(Body::empty()).unwrap();
+        let req = Request::builder()
+            .method(Method::GET)
+            .uri("/x")
+            .header("origin", "http://evil.example")
+            .body(Body::empty())
+            .unwrap();
         assert_eq!(send(req).await, StatusCode::OK);
     }
 }

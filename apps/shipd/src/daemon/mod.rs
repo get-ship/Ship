@@ -6,7 +6,7 @@
 //! Identity file writers and stale-file cleanup moved to
 //! `ship_runtime::init::identity_files` (L0 init); the user-facing
 //! `network status` / `network stop` CLI handlers moved to
-//! `apps/ship-cli/src/daemon_cmds.rs`.
+//! `apps/shipctl/src/daemon/commands.rs`.
 
 /// Wait for SIGINT or SIGTERM (UNIX) or just SIGINT (other platforms).
 pub async fn shutdown_signal() {

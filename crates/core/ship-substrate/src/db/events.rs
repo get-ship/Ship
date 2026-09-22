@@ -76,8 +76,10 @@ pub fn list_recent_events_at(
         .fetch_all(&mut conn)
         .await
     })?;
-    let mut envs: Vec<EventEnvelope> =
-        rows.iter().map(|r| envelope_from_row(r, true)).collect::<Result<_>>()?;
+    let mut envs: Vec<EventEnvelope> = rows
+        .iter()
+        .map(|r| envelope_from_row(r, true))
+        .collect::<Result<_>>()?;
     envs.reverse();
     Ok(envs)
 }
@@ -92,7 +94,10 @@ pub fn list_recent_events(limit: usize) -> Result<Vec<EventEnvelope>> {
         .fetch_all(&mut conn)
         .await
     })?;
-    let mut envs: Vec<EventEnvelope> = rows.iter().map(|r| envelope_from_row(r, true)).collect::<Result<_>>()?;
+    let mut envs: Vec<EventEnvelope> = rows
+        .iter()
+        .map(|r| envelope_from_row(r, true))
+        .collect::<Result<_>>()?;
     envs.reverse();
     Ok(envs)
 }
@@ -149,7 +154,10 @@ pub fn query_recent_events_for_entity_at(
         .fetch_all(&mut conn)
         .await
     })?;
-    let mut envs: Vec<EventEnvelope> = rows.iter().map(|r| envelope_from_row(r, true)).collect::<Result<_>>()?;
+    let mut envs: Vec<EventEnvelope> = rows
+        .iter()
+        .map(|r| envelope_from_row(r, true))
+        .collect::<Result<_>>()?;
     envs.reverse();
     Ok(envs)
 }
@@ -159,48 +167,37 @@ pub fn query_recent_events_for_entity_at(
 /// Used by the sync client to find events that haven't been pushed yet.
 /// If `cursor` is None, returns all matching events.
 /// If `elevated_only` is true, only returns elevated events (platform-scope).
-pub fn query_events_since(
-    cursor: Option<&str>,
-    elevated_only: bool,
-) -> Result<Vec<EventEnvelope>> {
+pub fn query_events_since(cursor: Option<&str>, elevated_only: bool) -> Result<Vec<EventEnvelope>> {
     let mut conn = open_runtime_events()?;
     let query = match (cursor, elevated_only) {
-        (Some(c), true) => {
-            block_on(async {
-                sqlx::query(&format!(
-                    "SELECT {COLS} FROM events WHERE id > ? AND elevated = 1 ORDER BY id ASC"
-                ))
-                .bind(c)
+        (Some(c), true) => block_on(async {
+            sqlx::query(&format!(
+                "SELECT {COLS} FROM events WHERE id > ? AND elevated = 1 ORDER BY id ASC"
+            ))
+            .bind(c)
+            .fetch_all(&mut conn)
+            .await
+        })?,
+        (Some(c), false) => block_on(async {
+            sqlx::query(&format!(
+                "SELECT {COLS} FROM events WHERE id > ? ORDER BY id ASC"
+            ))
+            .bind(c)
+            .fetch_all(&mut conn)
+            .await
+        })?,
+        (None, true) => block_on(async {
+            sqlx::query(&format!(
+                "SELECT {COLS} FROM events WHERE elevated = 1 ORDER BY id ASC"
+            ))
+            .fetch_all(&mut conn)
+            .await
+        })?,
+        (None, false) => block_on(async {
+            sqlx::query(&format!("SELECT {COLS} FROM events ORDER BY id ASC"))
                 .fetch_all(&mut conn)
                 .await
-            })?
-        }
-        (Some(c), false) => {
-            block_on(async {
-                sqlx::query(&format!(
-                    "SELECT {COLS} FROM events WHERE id > ? ORDER BY id ASC"
-                ))
-                .bind(c)
-                .fetch_all(&mut conn)
-                .await
-            })?
-        }
-        (None, true) => {
-            block_on(async {
-                sqlx::query(&format!(
-                    "SELECT {COLS} FROM events WHERE elevated = 1 ORDER BY id ASC"
-                ))
-                .fetch_all(&mut conn)
-                .await
-            })?
-        }
-        (None, false) => {
-            block_on(async {
-                sqlx::query(&format!("SELECT {COLS} FROM events ORDER BY id ASC"))
-                    .fetch_all(&mut conn)
-                    .await
-            })?
-        }
+        })?,
     };
     query.iter().map(|r| envelope_from_row(r, true)).collect()
 }

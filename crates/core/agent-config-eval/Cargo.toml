@@ -1,0 +1,41 @@
+[package]
+name = "agent-config-eval"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Stack-decl eval (historical name agent-config-eval): run stack.config.ts in a locked-down ship-js isolate and harvest code nouns (definePipeline/Trigger/Collection/View/Config). Agent nouns are JSONC/fleet only (A5). Rename to stack-decl-eval deferred."
+
+[dependencies]
+# The AgentProfile type + its schema. This crate produces AgentProfiles; it does
+# NOT re-implement them (the deleted spike's mistake was vendoring these into the
+# engine — here ship supplies them and the engine stays type-free).
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "03f917d5e51921754c1a6a12a4aa2beb56b4a405" }
+stack-model = { path = "../stack-model" }
+ship-collection = { path = "../ship-platform/crates/ship-collection" }
+ship-pipelines = { path = "../ship-substrate/crates/ship-pipelines" }
+ship-triggers = { path = "../ship-platform/crates/ship-triggers" }
+ship-ui = { path = "../ship-platform/crates/ship-ui" }
+# The standalone JS engine (ship-infra, rev-pinned with fleet's yoke so
+# there is one ship-js source for everyone). `deno` pulls the V8 runtime;
+# the closed-world eval lives behind it.
+ship-js = { git = "https://github.com/get-ship/ship-infra.git", rev = "24de79282f45b05fdcdb07f7daa66c7346bdeb33", features = ["deno"] }
+# oxc — the one-shot TypeScript type-strip (real `.ts` → JS before eval). Already
+# vendored at 0.133.0 in the workspace lock (transitive via rolldown), so these
+# direct deps reuse the locked copies and pull no new tree. The strip is a pure
+# transform: annotations/`import type`/`satisfies` out, runtime semantics kept.
+oxc_allocator = "0.133"
+oxc_parser = "0.133"
+oxc_span = "0.133"
+oxc_semantic = "0.133"
+oxc_transformer = "0.133"
+oxc_codegen = "0.133"
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+async-trait = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt", "macros"] }
+
+[lints]
+workspace = true

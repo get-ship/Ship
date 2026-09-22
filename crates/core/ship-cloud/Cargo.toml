@@ -14,11 +14,14 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 chrono = { workspace = true }
 
-# The HTTP client. `json` feature gates `send_json` and `read_json` (the
-# `Body` reader used by `SyncClient`); without it the `ureq 3` `RequestBuilder`
-# and `Body` APIs are byte-only.
-ureq = { workspace = true, features = ["json"] }
+# The HTTP client. `SyncClient` runs from a sync `ServiceHandler::handle`
+# call inside a tokio task, so it uses the blocking client rather than async
+# reqwest — reqwest::blocking runs its transport on a dedicated background
+# thread, so it doesn't nest a runtime inside the caller's tokio worker.
+reqwest = { workspace = true, features = ["blocking", "json", "rustls-tls"] }
+bundle-limits = { path = "../ship-platform/crates/bundle-limits" }
 tracing = { workspace = true }
+tokio = { workspace = true, features = ["sync"] }
 
 [features]
 # Enables SyncServiceHandler — the ServiceHandler actor that drives the push

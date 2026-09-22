@@ -4,12 +4,11 @@
 //! native compile one shared home so the daemon can run it in-process.
 //!
 //! The compiler crate (transform) stays WASM-safe and has no platform deps.
-//! This module owns the native-only loader (disk → `compiler::ProjectLibrary`)
+//! This module owns the native-only loader (disk → `stack_model::ExtensionLibrary`)
 //! and the full compile pipeline (library → written harness files).
 
 pub mod agent;
 pub mod loader;
-pub mod mcp_allowlist;
 pub mod permissions;
 // `project_compile_state` projection — co-located with the compile service
 // so a future crate-carve takes it along.
@@ -19,13 +18,20 @@ pub mod skill_parser;
 #[cfg(test)]
 mod tests;
 
-pub use loader::{load_library, load_permission_preset, McpEntry, McpFile};
+pub use loader::{McpEntry, McpFile, load_library, load_permission_preset};
 pub use permissions::PermissionPreset;
-pub use skill_parser::load_skills;
+// `load_skills` (the agent-def disk-authoring loader) retired with
+// Wave 5 — project skills arrive via `defineSkill` declare-forms in
+// the space's `stack.config.ts` and land in `ExtensionLibrary::skills`
+// through `space_resolver::merge_ts_declarations`. The `SkillService`
+// CRUD surface in `ship-agents` still writes `SKILL.md` files (the
+// authoring path the Studio/db-scope gate owns; Phase-6's question) —
+// the read side that compiled those files into the agent-def pipeline
+// is gone.
 pub use projection::{CompileStateProjection, ProjectCompileState};
 
 use anyhow::{Context, Result};
-use compiler::CompileOutput;
+use harness_config_compiler::CompileOutput;
 use std::path::{Path, PathBuf};
 
 /// Deliver each included sdk-skill's `references/docs/*.mdoc` pages beside the
@@ -47,17 +53,16 @@ fn augment_with_sdk_references(output: &mut CompileOutput) {
     }
 }
 
-use ship_store::dep_skills::{resolve_dep_agents, resolve_dep_skills};
+use ship_store::dep_skills::resolve_dep_skills;
 
 use agent::{apply_agent_to_library, collect_all_skill_refs};
-use mcp_allowlist::{ensure_ship_mcp_allowed_claude, ensure_ship_mcp_allowed_cursor};
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
 pub struct CompileOptions {
-    /// Source root — where `.ship/` lives.
-    pub project_root: PathBuf,
-    /// Output root — where compiled files go. Defaults to `project_root`.
+    /// Source root — the source directory on disk.
+    pub space_root: PathBuf,
+    /// Output root — where compiled files go. Defaults to `space_root`.
     pub output_root: Option<PathBuf>,
     /// Optionally restrict to a single harness.
     pub harness: Option<String>,
@@ -67,15 +72,41 @@ pub struct CompileOptions {
     pub extra_skills: Vec<String>,
     /// Plugin IDs the active agent declared and that this compile installed.
     pub plugins_installed: Vec<String>,
-    /// Compile for a daemon-spawned scoped launch — emit the authed-HTTP `ship`
-    /// MCP entry instead of the trusted-local stdio shim.
-    pub scoped_launch: bool,
-    /// When true: resolve and compile but do not write files, pre-approve MCP
-    /// tools, or emit `compile.completed`. Outputs are included in the returned
-    /// summary so callers can dry-run-print them.
+    /// When true: resolve and compile but do not write files or emit
+    /// `compile.completed`. Outputs are included in the returned summary so
+    /// callers can dry-run-print them.
     pub dry_run: bool,
+    /// Default `effortLevel` for the worktree's `.claude/settings.json`.
+    /// Applied only when neither the active agent profile's
+    /// `harness_settings.claude.effortLevel` nor the library's
+    /// `claude_effort` is set. The dispatch path passes
+    /// `Some("medium")` so a daemon-spawned agent never inherits the
+    /// operator's user-scope `xhigh` default; the manual `ship use`
+    /// path passes `None` and preserves the legacy no-override
+    /// behavior. The agent profile's `harness_settings.claude.*`
+    /// passthrough still wins on conflict (it's merged LAST into the
+    /// settings patch).
+    pub default_effort: Option<String>,
+    /// Explicit event-log handle used to emit `compile.completed`.
+    /// Composition roots inject the daemon's shared `KernelLog`; when
+    /// `None` the emit is skipped (dry-run / pure-file compile paths).
+    pub kernel: Option<std::sync::Arc<ship_substrate::ports::KernelLog>>,
 }
-
+impl Default for CompileOptions {
+    fn default() -> Self {
+        Self {
+            space_root: PathBuf::new(),
+            output_root: None,
+            harness: None,
+            active_agent: None,
+            extra_skills: Vec::new(),
+            plugins_installed: Vec::new(),
+            dry_run: false,
+            default_effort: None,
+            kernel: None,
+        }
+    }
+}
 #[derive(Debug)]
 pub struct CompileSummary {
     /// Capability grants the resolved skill set requests.
@@ -90,67 +121,102 @@ pub struct CompileSummary {
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 pub fn compile_project(opts: &CompileOptions) -> Result<CompileSummary> {
-    let ship_dir = ship_substrate::ShipHome::project_ship_dir(&opts.project_root);
-    let output_root = opts.output_root.as_deref().unwrap_or(&opts.project_root);
+    // 1. Compose the on-disk source + locked cached packages + the
+    //    operator-enabled library tier into a single `ComposedLibrary`
+    //    (the Phase-3 roll-up). Post format-migration Wave 5 the leaf
+    //    no longer reads `.ship/agents/*.jsonc` / `.ship/skills/<id>/SKILL.md`
+    //    — those nouns only arrive via `stack.config.ts` declare-forms,
+    //    harvested by the resolver's TS eval and merged into the
+    //    composed library. The `#122` flat dep-agents merge
+    //    (`ship_store::dep_skills::resolve_dep_agents`) is subsumed by
+    //    `compose_space`'s precedence law (roll_up covers every case it
+    //    did — the W2 regression test pinned that). The `library` the
+    //    downstream compile consumes is the COMPOSED result, not the
+    //    leaf's single-source read.
+    let composed = space_resolver::roll_up_registered_blocking(&opts.space_root, None)
+        .context("compile_project: roll_up failed")?;
+    compile_project_from_library(opts, composed.library)
+}
 
-    // 1. Load raw library from .ship/ (flat layout)
-    let mut library = load_library(&ship_dir).context("failed to load .ship/")?;
+/// Compile from an already-composed [`stack_model::ExtensionLibrary`] — the
+/// Phase-3 roll-up path (`space_resolver::roll_up` / `stack_model::compose_space`)
+/// already merged the cache tier, the operator-enabled library tier, and the
+/// space's own source under the precedence law, so the `#122` flat merge
+/// ([`resolve_dep_agents`]) is skipped here — running it again would
+/// double-add the same namespaced ids. `ship-code`'s dispatch-compile path
+/// uses this so dispatch-compiled agents see the same composed world
+/// shipd's boot index sees, instead of the single-source `.ship/` library
+/// [`compile_project`] loads.
+pub fn compile_project_from_library(
+    opts: &CompileOptions,
+    library: stack_model::ExtensionLibrary,
+) -> Result<CompileSummary> {
+    compile_from_library(opts, library)
+}
+
+fn compile_from_library(
+    opts: &CompileOptions,
+    mut library: stack_model::ExtensionLibrary,
+) -> Result<CompileSummary> {
+    let stack_root = opts.space_root.clone();
+    let output_root = opts.output_root.as_deref().unwrap_or(&opts.space_root);
 
     // 2. Apply agent overrides (permissions, inline rules, harness list, plugins)
     if let Some(agent_id) = opts.active_agent.as_deref() {
-        apply_agent_to_library(&mut library, agent_id, &opts.project_root)?;
+        apply_agent_to_library(&mut library, agent_id, &opts.space_root)?;
     }
     library.active_agent = opts.active_agent.clone();
 
     // 3. Resolve dep skills from cache (github.com/ refs in ship.lock + cache)
     let all_skill_refs = collect_all_skill_refs(&library);
     if !all_skill_refs.is_empty() {
-        let lock_path = ship_dir.join("ship.lock");
-        let dep_skills = resolve_dep_skills(
-            &all_skill_refs,
-            &library.skills,
-            &lock_path,
-            None,
-        )
-        .context("resolving dep skills from cache")?;
+        // ship.lock: STACK ROOT beside stack.config.ts, one location.
+        let lock_path = stack_root.join("ship.lock");
+        let dep_skills = resolve_dep_skills(&all_skill_refs, &library.skills, &lock_path, None)
+            .context("resolving dep skills from cache")?;
         library.skills.extend(dep_skills);
     }
-
-    // 3b. Compose dep agents from cache (each locked package's exports.agents),
-    // namespaced by package path. Auto-compose: an installed dep's agents become
-    // available in the space. (Composition engine #122; mirrors dep skills.)
-    let dep_agents = resolve_dep_agents(&ship_dir.join("ship.lock"), None)
-        .context("composing dep agents from cache")?;
-    library.agent_profiles.extend(dep_agents);
 
     // 4. Inject extra skills into the active agent's skill filter
     if !opts.extra_skills.is_empty() {
         for skill_id in &opts.extra_skills {
             anyhow::ensure!(
                 library.skills.iter().any(|s| &s.id == skill_id),
-                "skill not found: {} — check skill_paths in ship.jsonc",
+                "skill not found: {} — check stack.config.ts defineSkill declare-forms",
                 skill_id
             );
         }
         if let Some(agent_id) = opts.active_agent.as_deref()
-            && let Some(agent) = library.agents.iter_mut().find(|a| a.id == agent_id)
-            && !agent.skills.is_empty()
+            && let Some(agent) = library.agents.iter_mut().find(|a| a.agent.id == agent_id)
+            && !agent.skills.refs.is_empty()
         {
             for skill_id in &opts.extra_skills {
-                if !agent.skills.contains(skill_id) {
-                    agent.skills.push(skill_id.clone());
+                if !agent.skills.refs.contains(skill_id) {
+                    agent.skills.refs.push(skill_id.clone());
                 }
             }
         }
     }
 
     // 5. Resolve (agent filtering, harness selection)
-    let mut resolved =
-        compiler::resolve_library(&library, None, opts.active_agent.as_deref());
-    let ship_home = ship_substrate::ShipHome::from_env();
-    resolved.ship_home_dir = Some(ship_home.root().to_string_lossy().into_owned());
-    resolved.scoped_launch = opts.scoped_launch;
-
+    // Seed the project-scope `effortLevel` from `default_effort` only when
+    // the library doesn't already carry an explicit value. The agent
+    // profile's `harness_settings.claude.effortLevel` (passthrough) still
+    // wins on conflict — it's merged LAST into the settings patch by
+    // `build_claude_settings_patch`. Gap 2: a daemon-spawned compile
+    // passes `Some("medium")` so a dispatched agent never inherits the
+    // operator's user-scope `xhigh` default.
+    if library.claude_effort.is_none() {
+        library.claude_effort = opts.default_effort.clone();
+    }
+    let resolved = stack_model::resolve_library(&library, None, opts.active_agent.as_deref());
+    if !resolved.unresolved_mcp_servers.is_empty() {
+        anyhow::bail!(
+            "unknown mcp server id(s) referenced by agent '{}': {}",
+            opts.active_agent.as_deref().unwrap_or("<none>"),
+            resolved.unresolved_mcp_servers.join(", ")
+        );
+    }
     let requested_grants = resolved.requested_grants.clone();
 
     // 6. Determine harnesses
@@ -167,12 +233,18 @@ pub fn compile_project(opts: &CompileOptions) -> Result<CompileSummary> {
         });
     }
 
-    // 7. Compile per harness
+    // 7. Compile per harness (HCC returns Result; UnknownHarness is skip)
     let mut outputs = Vec::new();
     for harness_id in &harnesses {
-        let Some(mut output) = compiler::compile(&resolved, harness_id) else {
-            eprintln!("warning: unknown harness '{}', skipping", harness_id);
-            continue;
+        let mut output = match harness_config_compiler::compile(&resolved, harness_id) {
+            Ok(o) => o,
+            Err(harness_config_compiler::CompileError::UnknownHarness { .. }) => {
+                eprintln!("warning: unknown harness '{}', skipping", harness_id);
+                continue;
+            }
+            Err(e) => {
+                return Err(e).with_context(|| format!("compile harness '{harness_id}'"));
+            }
         };
         augment_with_sdk_references(&mut output);
         outputs.push((harness_id.clone(), output));
@@ -181,24 +253,15 @@ pub fn compile_project(opts: &CompileOptions) -> Result<CompileSummary> {
     // 8. Write + post-compile steps (skipped in dry-run mode)
     if !opts.dry_run {
         for (harness_id, output) in &outputs {
-            compiler::write_output(output_root, harness_id, output)
+            harness_config_compiler::write_output(output_root, harness_id, output)
                 .with_context(|| format!("failed to write {} output", harness_id))?;
         }
-        for harness_id in &harnesses {
-            let result = match harness_id.as_str() {
-                "claude" => ensure_ship_mcp_allowed_claude(),
-                "cursor" => ensure_ship_mcp_allowed_cursor(output_root),
-                _ => Ok(()),
-            };
-            if let Err(e) = result {
-                eprintln!("warning: could not update {harness_id} MCP permissions: {e}");
-            }
-        }
         emit_compile_completed(
-            &ship_dir,
+            &stack_root,
             opts.active_agent.as_deref(),
             &harnesses,
             &opts.plugins_installed,
+            opts.kernel.as_ref(),
         );
     }
 
@@ -212,21 +275,32 @@ pub fn compile_project(opts: &CompileOptions) -> Result<CompileSummary> {
 // ── Event emission ────────────────────────────────────────────────────────────
 
 fn emit_compile_completed(
-    ship_dir: &Path,
+    stack_root: &Path,
     active_agent: Option<&str>,
     harnesses: &[String],
     plugins_installed: &[String],
+    kernel: Option<&std::sync::Arc<ship_substrate::ports::KernelLog>>,
 ) {
     use ship_substrate::events::EventEnvelope;
     use ship_substrate::events::types::{CompileCompleted, event_types::COMPILE_COMPLETED};
-    use ship_substrate::persistence::event_store::SqliteEventStore;
 
-    let space_id = match ship_substrate::project::ensure_space_id(ship_dir) {
-        Ok(id) => id,
-        Err(e) => {
-            tracing::warn!("compile: cannot resolve project id: {e}");
-            return;
-        }
+    let Some(kernel) = kernel else {
+        tracing::debug!(
+            stack_root = %stack_root.display(),
+            "compile: no KernelLog injected — compile.completed not recorded"
+        );
+        return;
+    };
+
+    // The space id comes from the `projects` pointer. An unregistered project
+    // records no compile state (space-less) — the daemon registers its
+    // workspace at boot, so the normal flow always resolves.
+    let Some(space_id) = ship_substrate::project::resolve_active_space(stack_root) else {
+        tracing::warn!(
+            stack_root = %stack_root.display(),
+            "compile: workspace is not a registered space — compile.completed not recorded"
+        );
+        return;
     };
     let payload = CompileCompleted {
         active_agent: active_agent.map(str::to_string),
@@ -242,31 +316,28 @@ fn emit_compile_completed(
             return;
         }
     };
-    // compile.* is Space-scoped → write the bound space's space.db under the
-    // global ship-home (the db compile_state::load(space_id) reads). `space_id`
-    // is the scope key.
-    let store = match ship_substrate::project::get_global_dir().and_then(|root| {
-        SqliteEventStore::new_for_scope(
-            &root,
-            ship_types::event_registry::EventScope::Space,
-            Some(space_id.as_str()),
-        )
-    }) {
-        Ok(s) => s,
-        Err(e) => {
-            tracing::warn!("compile: cannot open event store: {e}");
-            return;
-        }
-    };
     // compile.completed is Space-scoped: the binding must be bound to this
     // space so enforce_scope stamps/validates the space key. A daemon-internal
     // Space binding (the compile pass runs in the daemon, no session) carries it.
     let space = ship_types::identity::SpaceId::new(space_id.as_str());
-    let binding = ship_types::ScopeBinding::daemon_internal(
-        Some(space.clone()),
-        ship_types::Authority::Space { space_id: space },
-    );
-    if let Err(e) = store.append_enforced(&envelope, &binding) {
-        tracing::warn!("compile: cannot append compile.completed: {e}");
+    let ctx = ship_types::EmitContext {
+        caller_kind: ship_types::CallerKind::Runtime,
+        skill_id: None,
+        binding: ship_types::ScopeBinding::daemon_internal(
+            Some(space.clone()),
+            agent_schema::Authority::Space {
+                space_id: space_id.as_str().to_string(),
+            },
+        ),
+        session_id: None,
+    };
+    let kernel = kernel.clone();
+    if let Err(e) = ship_substrate::db::block_on_anyhow(async move {
+        kernel
+            .emit(envelope, &ctx)
+            .await
+            .map_err(|e| anyhow::anyhow!("{e}"))
+    }) {
+        tracing::warn!("compile: cannot emit compile.completed: {e}");
     }
 }

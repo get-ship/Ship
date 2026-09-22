@@ -4,7 +4,7 @@
 
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
 
-use ship_ops_rpc::{EventsService, JsonResponse};
+use ship_proto::ship::ops::v1::{EventsService, JsonResponse};
 
 use crate::rpc::ops::OpsImpl;
 
@@ -13,12 +13,16 @@ impl EventsService for OpsImpl {
     async fn poll(
         &self,
         _ctx: RequestContext,
-        request: ship_ops_rpc::OwnedEventsPollReqView,
+        request: ship_proto::ship::ops::v1::OwnedEventsPollReqView,
     ) -> ServiceResult<JsonResponse> {
         fn opt(s: &str) -> Option<&str> {
             if s.is_empty() { None } else { Some(s) }
         }
-        let limit = if request.limit <= 0 { 200 } else { request.limit as usize };
+        let limit = if request.limit <= 0 {
+            200
+        } else {
+            request.limit as usize
+        };
         let data = ship_substrate::runtime_reads::poll_events_core(
             self.state().ship_dir(),
             opt(request.since_id),
@@ -27,6 +31,9 @@ impl EventsService for OpsImpl {
             limit,
         )
         .map_err(|e| ConnectError::internal(format!("events.poll: {e}")))?;
-        Ok(Response::new(JsonResponse { json: data.to_string(), ..Default::default() }))
+        Ok(Response::new(JsonResponse {
+            json: data.to_string(),
+            ..Default::default()
+        }))
     }
 }

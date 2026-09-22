@@ -4,54 +4,66 @@ version = "0.1.0"
 edition = "2024"
 license-file = "LICENSE"
 publish = false
+description = "The L0 substrate engine: truth-and-storage (db/persistence/projections/queries) + the kernel/event plumbing + the port surface (DataStore/KernelLog/BlobStore/FsBroker). One crate — the heavy adapters (blob-s3, fs-watch, isolation-port) are leaves. Consumed by shipd and by lightweight L1 crates (ship-collection/reactive/artifacts) alike; no object_store/notify/portable-pty pulled in transitively."
 
 [features]
 unstable = []
+# Unchecked `Stamped` mint for tests. Production builds never enable this.
+test-support = ["ship-types/test-support"]
 
 [dependencies]
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "03f917d5e51921754c1a6a12a4aa2beb56b4a405" }
 ship-kernel = { path = "crates/ship-kernel" }
-ship-substrate-host = { path = "crates/ship-substrate-host" }
 ship-types = { path = "crates/ship-types" }
+ship-paths = { path = "crates/ship-paths" }
+fs-util = { path = "crates/fs-util" }
+config-doc = { path = "crates/config-doc" }
+bounded-spawn = { git = "https://github.com/get-ship/ship-infra.git", rev = "24de79282f45b05fdcdb07f7daa66c7346bdeb33" }
+path-layout = { path = "../path-layout" }
+blobstore = { path = "crates/blobstore" }
+fs-cap = { path = "crates/fs-cap" }
 ship-pipelines = { path = "crates/ship-pipelines", features = ["specta"] }
-durable-execution = { path = "crates/durable-execution" }
+
 inventory = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 chrono = { workspace = true }
-nanoid = { workspace = true }
 ulid = { workspace = true }
 specta = { workspace = true, features = ["chrono", "serde_json"] }
-sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio-rustls", "migrate", "macros"] }
+sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio-rustls", "macros"] }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "time", "sync", "macros", "process", "io-util"] }
-portable-pty = "0.9"
 async-trait = { workspace = true }
-object_store = { version = "0.13", features = ["aws"] }
 bytes = "1"
 futures-util = { workspace = true }
 sha2 = { workspace = true }
 tempfile = { workspace = true }
 tracing = { workspace = true }
-sea-query = { version = "0.32.7", features = ["backend-sqlite"] }
 indexmap = { workspace = true, features = ["serde"] }
-rmp-serde = "1"
 home = { workspace = true }
-sysinfo = { version = "0.38", default-features = false, features = ["system"] }
-serde_yaml = { workspace = true }
-notify = { workspace = true }
-# Pure path-layout helper for composed traveling-artifact overlays. No ship
-# deps — compiler depends only on serde/serde_json/anyhow/minijinja/etc.
-compiler = { path = "../compiler" }
+nanoid = { workspace = true }
 walkdir = "2.3"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 libc = { workspace = true }
 
 [dev-dependencies]
+serde_yaml = { workspace = true }
 tokio = { workspace = true, features = ["test-util"] }
 proptest = "1"
-ship-runner = { path = "crates/ship-runner" }
+# Unit/integration tests mint Stamped via unchecked.
+ship-types = { path = "crates/ship-types", features = ["test-support"] }
+trybuild = "1.0"
+
+# T1 storage-torture (S3): a real child process opens the scope db and begins
+# an append; the parent test SIGKILLs it mid-transaction to prove WAL
+# recovery leaves an all-or-nothing state. Gated behind `unstable` so it
+# never builds (or ships) outside the torture-test gate.
+[[bin]]
+name = "torture_crash_child"
+path = "src/bin/torture_crash_child.rs"
+required-features = ["unstable"]
 
 [lints]
 workspace = true

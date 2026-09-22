@@ -4,20 +4,35 @@
 //! messages. Kept free of any proto/wire types so the service core is
 //! transport-agnostic.
 
-/// One registered space (a `.ship/` directory the daemon has been pointed at).
-/// Backed by a `projects` projection row.
+/// One row of the `spaces` Runtime-scoped projection — a space this
+/// device's runtime has opened.
+///
+/// `space_id` is the mint-once nanoid identity (the authoritative home of
+/// identity per operator 2026-07-09); `path` is just where the space
+/// currently is on this device.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SpaceRecord {
-    pub id: String,
+    pub space_id: String,
     pub path: String,
     pub name: String,
-    pub created_at: String,
+    pub opened_at: String,
     pub last_seen_at: String,
 }
 
-/// Identity for a space. Per-space settings live on the unified
-/// `settings_overlay` (S4) — consumers read those via `SettingsService`.
-/// Identity fields are `None` when no space resolved.
+impl From<ship_substrate::db::spaces::SpaceRecord> for SpaceRecord {
+    fn from(r: ship_substrate::db::spaces::SpaceRecord) -> Self {
+        SpaceRecord {
+            space_id: r.space_id,
+            path: r.path,
+            name: r.name,
+            opened_at: r.opened_at,
+            last_seen_at: r.last_seen_at,
+        }
+    }
+}
+
+/// Identity for the served space. Identity fields are `None` when no space
+/// is bound for the request.
 #[derive(Debug, Clone)]
 pub struct SpaceInfo {
     pub space_id: Option<String>,

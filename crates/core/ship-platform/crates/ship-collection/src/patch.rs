@@ -3,10 +3,8 @@
 
 use std::sync::Arc;
 
-use ship_ops_rpc::{
-    Patch as ProtoPatch, PatchFrame as ProtoPatchFrame, PatchOp as ProtoPatchOp, WatchEvent,
-};
-use ship_substrate::ports::{Query, SpaceContext};
+use ship_proto::ship::ops::v1::{Patch as ProtoPatch, PatchFrame as ProtoPatchFrame, PatchOp as ProtoPatchOp, WatchEvent};
+use ship_substrate::{Query, SpaceContext};
 
 use crate::projection::SchemaRegistry;
 
@@ -42,9 +40,14 @@ pub(crate) fn patch_frame_to_proto(frame: ship_reactive::PatchFrame) -> WatchEve
             ..Default::default()
         })
         .collect();
-    let proto_frame = ProtoPatchFrame { patches, ..Default::default() };
+    let proto_frame = ProtoPatchFrame {
+        patches,
+        ..Default::default()
+    };
     WatchEvent {
-        body: Some(ship_ops_rpc::__buffa::oneof::watch_event::Body::Patches(Box::new(proto_frame))),
+        body: Some(ship_proto::ship::ops::v1::__buffa::oneof::watch_event::Body::Patches(
+            Box::new(proto_frame),
+        )),
         ..Default::default()
     }
 }
@@ -63,7 +66,11 @@ pub(crate) async fn snapshot_for_scope(
         return serde_json::json!({ "collections": list });
     }
     if let Some(id) = scope.strip_prefix("collection:") {
-        let q = Query { table: format!("collection_{id}"), limit: 200, ..Default::default() };
+        let q = Query {
+            table: format!("collection_{id}"),
+            limit: 200,
+            ..Default::default()
+        };
         if let Ok(result) = ctx.data().query(q).await {
             let items: Vec<serde_json::Value> = result
                 .rows

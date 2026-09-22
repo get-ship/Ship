@@ -12,19 +12,17 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use serde_json::json;
-use ship_collection::builtin::{
-    all_builtin_schemas, annotations_schema, feedback_schema, notes_schema,
-};
+use ship_collection::builtin::{all_builtin_schemas, notes_schema};
 use ship_collection::error::CollectionError;
 use ship_collection::projection::{SchemaRegistry, ensure_collection_table};
 use ship_collection::schema::{is_safe_identifier, parse_schema_doc, validate_item};
 use ship_collection::service::CollectionService;
-use ship_collection::types::{FieldKind, SchemaDoc, RESERVED_IDS};
+use ship_collection::types::{FieldKind, RESERVED_IDS, SchemaDoc};
 use ship_substrate::data::DataService;
 use ship_substrate::db::open_space_db;
-use ship_substrate::events::new_isolated_for_test;
+use ship_substrate::events::new_isolated_for_test_with;
 use ship_substrate::home::ShipHome;
-use ship_substrate::ports::{KernelLog, Query, SingleBackendDataStore, SpaceContext, SpaceId};
+use ship_substrate::{KernelLog, Query, SingleBackendDataStore, SpaceContext, SpaceId};
 use sqlx::Row;
 
 mod common;
@@ -32,15 +30,18 @@ mod common;
 // ── fixtures ──────────────────────────────────────────────────────────────────
 
 fn make_kernel(tmp: &tempfile::TempDir) -> Arc<KernelLog> {
-    common::install_collection_projection();
-    let ship_dir = ShipHome::project_ship_dir(tmp.path());
+    let ship_dir = tmp.path().join(".ship");
     std::fs::create_dir_all(&ship_dir).unwrap();
-    let router = new_isolated_for_test(ship_dir).unwrap();
+    let router =
+        new_isolated_for_test_with(ship_dir, common::collection_projection_factory()).unwrap();
     Arc::new(KernelLog::new(router))
 }
 
 fn make_ctx(tmp: &tempfile::TempDir, kernel: Arc<KernelLog>) -> Arc<SpaceContext> {
-    let ship_dir = ShipHome::project_ship_dir(tmp.path());
+    let ship_dir = tmp.path().join(".ship");
+    // I-2: register the fabricated "test" space id so `PartitionedSink::
+    // route()` doesn't refuse this suite's Space-scoped `collection.*` events.
+    ship_substrate::testutil::register_space(&ship_dir, "test").unwrap();
     // Collections are event-sourced: bind the data store to the SAME per-scope
     // `spaces/test/space.db` the kernel routes `collection.*` events to, so the
     // `CollectionProjection`'s writes are read back here (emit-only path).
@@ -51,7 +52,10 @@ fn make_ctx(tmp: &tempfile::TempDir, kernel: Arc<KernelLog>) -> Arc<SpaceContext
 }
 
 fn make_service(ctx: Arc<SpaceContext>) -> CollectionService {
-    CollectionService { ctx, schemas: Arc::new(SchemaRegistry::new()) }
+    CollectionService {
+        ctx,
+        schemas: Arc::new(SchemaRegistry::new()),
+    }
 }
 
 fn task_schema_json() -> Vec<u8> {
@@ -74,8 +78,8 @@ fn task_schema_json() -> Vec<u8> {
 #[test]
 fn parity_schema_parse_rejects_empty_id() {
     // Origin: parse_rejects_empty_id, schema_rejects_empty_id
-    let err = parse_schema_doc(br#"{ "id": "", "fields": { "x": { "type": "string" } } }"#)
-        .unwrap_err();
+    let err =
+        parse_schema_doc(br#"{ "id": "", "fields": { "x": { "type": "string" } } }"#).unwrap_err();
     assert!(
         err.to_string().contains("id") || err.to_string().contains("required"),
         "got: {err}"
@@ -92,8 +96,8 @@ fn parity_schema_parse_rejects_no_fields() {
 #[test]
 fn parity_schema_parse_rejects_enum_without_values() {
     // Origin: parse_rejects_enum_without_values, schema_rejects_enum_without_values
-    let err = parse_schema_doc(br#"{ "id": "bad", "fields": { "x": { "type": "enum" } } }"#)
-        .unwrap_err();
+    let err =
+        parse_schema_doc(br#"{ "id": "bad", "fields": { "x": { "type": "enum" } } }"#).unwrap_err();
     assert!(err.to_string().contains("values"), "got: {err}");
 }
 
@@ -101,10 +105,9 @@ fn parity_schema_parse_rejects_enum_without_values() {
 fn parity_schema_unsafe_id_rejected() {
     // Origin: schema_with_unsafe_id_is_rejected
     // Schema ids embed into table names — must be SQL-safe.
-    let err = parse_schema_doc(
-        br#"{ "id": "drop; TABLE--", "fields": { "x": { "type": "string" } } }"#,
-    )
-    .unwrap_err();
+    let err =
+        parse_schema_doc(br#"{ "id": "drop; TABLE--", "fields": { "x": { "type": "string" } } }"#)
+            .unwrap_err();
     let s = err.to_string();
     assert!(s.contains("unsafe") || s.contains("safe"), "got: {s}");
 }
@@ -123,10 +126,8 @@ fn parity_schema_unsafe_field_name_rejected() {
 #[test]
 fn parity_schema_safe_id_accepted() {
     // Origin: schema_id_alphanumeric_dash_dot_underscore_accepted
-    parse_schema_doc(
-        br#"{ "id": "my-col.v2_3", "fields": { "name": { "type": "string" } } }"#,
-    )
-    .unwrap();
+    parse_schema_doc(br#"{ "id": "my-col.v2_3", "fields": { "name": { "type": "string" } } }"#)
+        .unwrap();
 }
 
 #[test]
@@ -145,13 +146,15 @@ fn parity_is_safe_identifier_boundaries() {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 fn simple_schema() -> SchemaDoc {
-    parse_schema_doc(br#"{
+    parse_schema_doc(
+        br#"{
         "id": "t",
         "fields": {
             "title": { "type": "string", "required": true },
             "status": { "type": "enum", "values": ["open", "closed"] }
         }
-    }"#)
+    }"#,
+    )
     .unwrap()
 }
 
@@ -175,8 +178,7 @@ fn parity_validate_item_rejects_wrong_type() {
 fn parity_validate_item_rejects_invalid_enum() {
     // Origin: validate_item_rejects_invalid_enum
     let schema = simple_schema();
-    let err =
-        validate_item(&schema, &json!({ "title": "x", "status": "invalid" })).unwrap_err();
+    let err = validate_item(&schema, &json!({ "title": "x", "status": "invalid" })).unwrap_err();
     assert!(err.to_string().contains("one of"), "got: {err}");
 }
 
@@ -198,15 +200,15 @@ fn parity_validate_item_accepts_null_for_optional() {
 fn parity_validate_item_rejects_unknown_field() {
     // Origin: update_item_validates_against_schema (unknown field)
     let schema = simple_schema();
-    let err =
-        validate_item(&schema, &json!({ "title": "hi", "unknown": "bad" })).unwrap_err();
+    let err = validate_item(&schema, &json!({ "title": "hi", "unknown": "bad" })).unwrap_err();
     assert!(err.to_string().contains("unknown"), "got: {err}");
 }
 
 #[test]
 fn parity_validate_all_field_types() {
     // Origin: validate_all_field_types, collections_validation_*
-    let schema = parse_schema_doc(br#"{
+    let schema = parse_schema_doc(
+        br#"{
         "id": "all-types",
         "fields": {
             "s":   { "type": "string" },
@@ -219,7 +221,8 @@ fn parity_validate_all_field_types() {
             "arr": { "type": "array" },
             "obj": { "type": "object" }
         }
-    }"#)
+    }"#,
+    )
     .unwrap();
     validate_item(
         &schema,
@@ -235,8 +238,7 @@ fn parity_validate_all_field_types() {
 fn parity_validate_boolean_rejects_string() {
     // Origin: collections_validation_boolean_rejects_string
     let schema =
-        parse_schema_doc(br#"{ "id": "t", "fields": { "flag": { "type": "boolean" } } }"#)
-            .unwrap();
+        parse_schema_doc(br#"{ "id": "t", "fields": { "flag": { "type": "boolean" } } }"#).unwrap();
     let err = validate_item(&schema, &json!({ "flag": "true" })).unwrap_err();
     assert!(err.to_string().contains("boolean"), "got: {err}");
 }
@@ -245,8 +247,7 @@ fn parity_validate_boolean_rejects_string() {
 fn parity_validate_number_rejects_string() {
     // Origin: collections_validation_number_rejects_string
     let schema =
-        parse_schema_doc(br#"{ "id": "t", "fields": { "count": { "type": "number" } } }"#)
-            .unwrap();
+        parse_schema_doc(br#"{ "id": "t", "fields": { "count": { "type": "number" } } }"#).unwrap();
     let err = validate_item(&schema, &json!({ "count": "not-a-number" })).unwrap_err();
     assert!(err.to_string().contains("number"), "got: {err}");
 }
@@ -255,8 +256,7 @@ fn parity_validate_number_rejects_string() {
 fn parity_validate_number_accepts_float() {
     // Origin: collections_validation_number_accepts_float
     let schema =
-        parse_schema_doc(br#"{ "id": "t", "fields": { "score": { "type": "number" } } }"#)
-            .unwrap();
+        parse_schema_doc(br#"{ "id": "t", "fields": { "score": { "type": "number" } } }"#).unwrap();
     validate_item(&schema, &json!({ "score": 2.5 })).unwrap();
 }
 
@@ -264,8 +264,7 @@ fn parity_validate_number_accepts_float() {
 fn parity_validate_array_accepts_any_elements() {
     // Origin: unspecified_array_items_remains_permissive
     let schema =
-        parse_schema_doc(br#"{ "id": "t", "fields": { "items": { "type": "array" } } }"#)
-            .unwrap();
+        parse_schema_doc(br#"{ "id": "t", "fields": { "items": { "type": "array" } } }"#).unwrap();
     validate_item(&schema, &json!({ "items": [1, "two", true, null] })).unwrap();
 }
 
@@ -273,21 +272,26 @@ fn parity_validate_array_accepts_any_elements() {
 fn parity_validate_object_accepts_any_keys() {
     // Origin: unspecified_object_properties_remains_permissive
     let schema =
-        parse_schema_doc(br#"{ "id": "t", "fields": { "blob": { "type": "object" } } }"#)
-            .unwrap();
-    validate_item(&schema, &json!({ "blob": { "anything": [1], "else": "ok" } })).unwrap();
+        parse_schema_doc(br#"{ "id": "t", "fields": { "blob": { "type": "object" } } }"#).unwrap();
+    validate_item(
+        &schema,
+        &json!({ "blob": { "anything": [1], "else": "ok" } }),
+    )
+    .unwrap();
 }
 
 #[test]
 fn parity_validate_multiple_errors_collected() {
     // Origin: collections_validation_multiple_errors_collected
-    let schema = parse_schema_doc(br#"{
+    let schema = parse_schema_doc(
+        br#"{
         "id": "t",
         "fields": {
             "title": { "type": "string", "required": true },
             "count": { "type": "number", "required": true }
         }
-    }"#)
+    }"#,
+    )
     .unwrap();
     let err = validate_item(&schema, &json!({})).unwrap_err();
     let msg = err.to_string();
@@ -312,41 +316,12 @@ fn parity_builtin_notes_schema_has_title() {
 fn parity_builtin_notes_has_required_title_field() {
     // Origin: collections_builtin_notes_schema_has_required_title
     let schema = notes_schema();
-    let f = schema.fields.get("title").expect("notes must have title field");
+    let f = schema
+        .fields
+        .get("title")
+        .expect("notes must have title field");
     assert!(f.required, "notes.title must be required");
     assert_eq!(f.kind, FieldKind::String);
-}
-
-#[test]
-fn parity_builtin_feedback_is_system() {
-    // Origin: collections_builtin_feedback_schema_has_target_fields
-    let schema = feedback_schema();
-    assert!(schema.system, "feedback must have system=true");
-    assert!(schema.fields.contains_key("target_type"), "must have target_type");
-    assert!(schema.fields.contains_key("target_id"), "must have target_id");
-}
-
-#[test]
-fn parity_builtin_annotations_is_system() {
-    // Origin: collections_builtin_annotations_schema_is_system
-    let schema = annotations_schema();
-    assert!(schema.system, "annotations must have system=true");
-}
-
-#[test]
-fn parity_builtin_notes_is_not_system() {
-    // Origin: system_collections_flagged_in_list (notes is user-facing)
-    assert!(!notes_schema().system, "notes must NOT be a system collection");
-}
-
-#[test]
-fn parity_builtin_all_schemas_includes_all_three() {
-    // Origin: collections_builtin_all_schemas_includes_specs_and_notes
-    let schemas = all_builtin_schemas();
-    let ids: Vec<&str> = schemas.iter().map(|s| s.id.as_str()).collect();
-    assert!(ids.contains(&"notes"), "all builtins must include notes");
-    assert!(ids.contains(&"feedback"), "all builtins must include feedback");
-    assert!(ids.contains(&"annotations"), "all builtins must include annotations");
 }
 
 #[test]
@@ -355,9 +330,16 @@ fn parity_builtin_user_schemas_excludes_system() {
     //         collections_builtin_user_schemas_is_subset_of_all_schemas
     let all = all_builtin_schemas();
     let user: Vec<&SchemaDoc> = all.iter().filter(|s| !s.system).collect();
-    assert!(!user.is_empty(), "must have at least one non-system builtin");
+    assert!(
+        !user.is_empty(),
+        "must have at least one non-system builtin"
+    );
     for s in &user {
-        assert!(!s.system, "user schema must not be flagged system: {}", s.id);
+        assert!(
+            !s.system,
+            "user schema must not be flagged system: {}",
+            s.id
+        );
     }
     for s in all.iter().filter(|s| s.system) {
         assert!(s.system, "system schema must be flagged: {}", s.id);
@@ -377,9 +359,14 @@ async fn parity_service_create_rejects_missing_required() {
     let ctx = make_ctx(&tmp, kernel);
     let svc = make_service(ctx);
 
-    svc.create_schema("task", &task_schema_json()).await.unwrap();
+    svc.create_schema("task", &task_schema_json())
+        .await
+        .unwrap();
     let err = svc
-        .create_item("task", &serde_json::to_vec(&json!({ "status": "todo" })).unwrap())
+        .create_item(
+            "task",
+            &serde_json::to_vec(&json!({ "status": "todo" })).unwrap(),
+        )
         .await
         .unwrap_err();
     assert!(err.to_string().contains("required"), "got: {err}");
@@ -393,7 +380,9 @@ async fn parity_service_create_rejects_invalid_enum_value() {
     let ctx = make_ctx(&tmp, kernel);
     let svc = make_service(ctx);
 
-    svc.create_schema("task", &task_schema_json()).await.unwrap();
+    svc.create_schema("task", &task_schema_json())
+        .await
+        .unwrap();
     let err = svc
         .create_item(
             "task",
@@ -412,9 +401,14 @@ async fn parity_service_create_rejects_wrong_field_type() {
     let ctx = make_ctx(&tmp, kernel);
     let svc = make_service(ctx);
 
-    svc.create_schema("task", &task_schema_json()).await.unwrap();
+    svc.create_schema("task", &task_schema_json())
+        .await
+        .unwrap();
     let err = svc
-        .create_item("task", &serde_json::to_vec(&json!({ "title": 42 })).unwrap())
+        .create_item(
+            "task",
+            &serde_json::to_vec(&json!({ "title": 42 })).unwrap(),
+        )
         .await
         .unwrap_err();
     assert!(err.to_string().contains("string"), "got: {err}");
@@ -428,7 +422,9 @@ async fn parity_service_create_rejects_unknown_field() {
     let ctx = make_ctx(&tmp, kernel);
     let svc = make_service(ctx);
 
-    svc.create_schema("task", &task_schema_json()).await.unwrap();
+    svc.create_schema("task", &task_schema_json())
+        .await
+        .unwrap();
     let err = svc
         .create_item(
             "task",
@@ -447,7 +443,9 @@ async fn parity_service_get_item_nonexistent_errors() {
     let ctx = make_ctx(&tmp, kernel);
     let svc = make_service(ctx);
 
-    svc.create_schema("task", &task_schema_json()).await.unwrap();
+    svc.create_schema("task", &task_schema_json())
+        .await
+        .unwrap();
     let err = svc.get_item("task", "nope").await.unwrap_err();
     assert!(matches!(err, CollectionError::NotFound(_)), "got: {err}");
 }
@@ -460,7 +458,9 @@ async fn parity_service_update_nonexistent_errors() {
     let ctx = make_ctx(&tmp, kernel);
     let svc = make_service(ctx);
 
-    svc.create_schema("task", &task_schema_json()).await.unwrap();
+    svc.create_schema("task", &task_schema_json())
+        .await
+        .unwrap();
     let err = svc
         .update_item(
             "task",
@@ -481,7 +481,9 @@ async fn parity_service_delete_nonexistent_returns_not_found() {
     let ctx = make_ctx(&tmp, kernel);
     let svc = make_service(ctx);
 
-    svc.create_schema("task", &task_schema_json()).await.unwrap();
+    svc.create_schema("task", &task_schema_json())
+        .await
+        .unwrap();
     let err = svc.delete_item("task", "ghost").await.unwrap_err();
     assert!(matches!(err, CollectionError::NotFound(_)), "got: {err}");
 }
@@ -495,7 +497,9 @@ async fn parity_service_delete_emits_no_event_for_nonexistent() {
     let svc = make_service(ctx);
     let mut rx = kernel.subscribe();
 
-    svc.create_schema("task", &task_schema_json()).await.unwrap();
+    svc.create_schema("task", &task_schema_json())
+        .await
+        .unwrap();
     tokio::time::sleep(Duration::from_millis(30)).await;
     while rx.try_recv().is_ok() {}
 
@@ -504,7 +508,9 @@ async fn parity_service_delete_emits_no_event_for_nonexistent() {
 
     let events: Vec<_> = std::iter::from_fn(|| rx.try_recv().ok()).collect();
     assert!(
-        !events.iter().any(|e| e.event_type == "collection.item_deleted"),
+        !events
+            .iter()
+            .any(|e| e.event_type == "collection.item_deleted"),
         "must not emit item_deleted for a nonexistent item"
     );
 }
@@ -518,9 +524,14 @@ async fn parity_service_update_emits_item_updated_event() {
     let svc = make_service(ctx);
     let mut rx = kernel.subscribe();
 
-    svc.create_schema("task", &task_schema_json()).await.unwrap();
+    svc.create_schema("task", &task_schema_json())
+        .await
+        .unwrap();
     let item = svc
-        .create_item("task", &serde_json::to_vec(&json!({ "title": "orig" })).unwrap())
+        .create_item(
+            "task",
+            &serde_json::to_vec(&json!({ "title": "orig" })).unwrap(),
+        )
         .await
         .unwrap();
     tokio::time::sleep(Duration::from_millis(30)).await;
@@ -553,9 +564,14 @@ async fn parity_service_delete_emits_item_deleted_event() {
     let svc = make_service(ctx);
     let mut rx = kernel.subscribe();
 
-    svc.create_schema("task", &task_schema_json()).await.unwrap();
+    svc.create_schema("task", &task_schema_json())
+        .await
+        .unwrap();
     let item = svc
-        .create_item("task", &serde_json::to_vec(&json!({ "title": "bye" })).unwrap())
+        .create_item(
+            "task",
+            &serde_json::to_vec(&json!({ "title": "bye" })).unwrap(),
+        )
         .await
         .unwrap();
     tokio::time::sleep(Duration::from_millis(30)).await;
@@ -581,7 +597,9 @@ async fn parity_service_full_crud_lifecycle() {
     let ctx = make_ctx(&tmp, kernel);
     let svc = make_service(ctx);
 
-    svc.create_schema("task", &task_schema_json()).await.unwrap();
+    svc.create_schema("task", &task_schema_json())
+        .await
+        .unwrap();
 
     let item = svc
         .create_item(
@@ -606,8 +624,8 @@ async fn parity_service_full_crud_lifecycle() {
     assert_eq!(updated.data["status"], "done");
     assert_eq!(updated.data["title"], "Lifecycle");
 
-    let q = Query::new("collection_task")
-        .with_eq("status", serde_json::Value::String("done".into()));
+    let q =
+        Query::new("collection_task").with_eq("status", serde_json::Value::String("done".into()));
     let (items, _) = svc.query_items_by_query(q).await.unwrap();
     assert_eq!(items.len(), 1);
     assert_eq!(items[0].id, item.id);
@@ -641,17 +659,27 @@ async fn parity_service_multiple_collections_isolated() {
     svc.create_schema("task", &tasks_json).await.unwrap();
     svc.create_schema("note", &notes_json).await.unwrap();
 
-    svc.create_item("task", &serde_json::to_vec(&json!({ "title": "Task 1" })).unwrap())
-        .await
-        .unwrap();
-    svc.create_item("note", &serde_json::to_vec(&json!({ "body": "Note 1" })).unwrap())
-        .await
-        .unwrap();
+    svc.create_item(
+        "task",
+        &serde_json::to_vec(&json!({ "title": "Task 1" })).unwrap(),
+    )
+    .await
+    .unwrap();
+    svc.create_item(
+        "note",
+        &serde_json::to_vec(&json!({ "body": "Note 1" })).unwrap(),
+    )
+    .await
+    .unwrap();
 
-    let (task_items, _) =
-        svc.query_items_by_query(Query::new("collection_task")).await.unwrap();
-    let (note_items, _) =
-        svc.query_items_by_query(Query::new("collection_note")).await.unwrap();
+    let (task_items, _) = svc
+        .query_items_by_query(Query::new("collection_task"))
+        .await
+        .unwrap();
+    let (note_items, _) = svc
+        .query_items_by_query(Query::new("collection_note"))
+        .await
+        .unwrap();
 
     assert_eq!(task_items.len(), 1);
     assert_eq!(note_items.len(), 1);
@@ -669,7 +697,9 @@ async fn parity_builtin_notes_items_round_trip() {
 
     // notes is pre-seeded in SchemaRegistry but its table doesn't exist until
     // explicitly ensured (create_schema is blocked on RESERVED_IDS).
-    ensure_collection_table(ctx.data(), &notes_schema()).await.unwrap();
+    ensure_collection_table(ctx.data(), &notes_schema())
+        .await
+        .unwrap();
 
     let item = svc
         .create_item(
@@ -701,51 +731,9 @@ async fn parity_reserved_ids_all_rejected_by_create_schema() {
         let result = svc.create_schema(reserved, &schema_json).await;
         assert!(result.is_err(), "reserved id '{reserved}' must be rejected");
         let err = result.unwrap_err().to_string();
-        assert!(err.contains("reserved"), "expected 'reserved' in error for '{reserved}': {err}");
-    }
-}
-
-/// Codegen column drift guard. The TS `Database` interface is generated by
-/// `crates/xtask/src/gen_collection_types.rs` and its `SYSTEM_COLUMNS` MUST
-/// match the SQLite columns emitted by `CollectionItemProjection::create_base_table`.
-/// If either side drifts the generated TS names a column that doesn't exist
-/// (or vice versa) and Kysely queries fail at runtime — this test catches it.
-///
-/// Update BOTH this list AND `SYSTEM_COLUMNS` in the codegen when adding a
-/// system column. There is no compile-time link between them by design (xtask
-/// is a separate workspace member and cannot be a dep of ship-collection).
-const CODEC_SYSTEM_COLUMNS: &[&str] = &["id", "created_at", "updated_at", "space_id"];
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn parity_codegen_system_columns_match_db_schema() {
-    let tmp = tempfile::tempdir().unwrap();
-    let kernel = make_kernel(&tmp);
-    let ctx = make_ctx(&tmp, kernel);
-    let svc = make_service(ctx);
-
-    // The projection DDLs the table inside the same TX as the event append,
-    // so by the time `create_schema` returns the base columns + per-field
-    // columns are already materialised on the per-scope space.db.
-    svc.create_schema("task", &task_schema_json()).await.unwrap();
-
-    let ship_dir = ShipHome::project_ship_dir(tmp.path());
-    let mut conn = open_space_db(&ship_dir, "test").expect("open space.db");
-
-    let rows = ship_substrate::db::block_on(async {
-        sqlx::query("PRAGMA table_info(`collection_task`)")
-            .fetch_all(&mut conn)
-            .await
-    })
-    .expect("pragma table_info");
-    let actual: Vec<String> = rows
-        .iter()
-        .map(|r| r.get::<String, _>("name"))
-        .collect();
-
-    for col in CODEC_SYSTEM_COLUMNS {
         assert!(
-            actual.iter().any(|n| n == col),
-            "codegen SYSTEM_COLUMNS includes '{col}' but `collection_task` has only {actual:?}",
+            err.contains("reserved"),
+            "expected 'reserved' in error for '{reserved}': {err}"
         );
     }
 }
@@ -758,16 +746,14 @@ async fn parity_codegen_system_columns_match_db_schema() {
 /// without reservation.
 ///
 /// `ALL_SYSTEM_IDS` enumerates the runtime's system collections:
-/// - The four built-in schemas from `all_builtin_schemas()` (notes, feedback,
-///   annotations, decisions).
+/// - The single built-in schema from `all_builtin_schemas()` (notes).
 /// - `view_snapshots` (the L1 view-authoring collection, declared in
 ///   `ship-ui` — hardcoded here to avoid a `ship-ui` ↔ `ship-collection` dep
 ///   cycle; keep in sync with `VIEW_SNAPSHOTS_COLLECTION_ID`).
 /// - `_schema_registry` (the in-memory SchemaRegistry's durable backing).
 #[test]
 fn parity_all_system_ids_are_reserved() {
-    let mut system_ids: Vec<String> =
-        all_builtin_schemas().iter().map(|s| s.id.clone()).collect();
+    let mut system_ids: Vec<String> = all_builtin_schemas().iter().map(|s| s.id.clone()).collect();
     system_ids.push("view_snapshots".to_string());
     system_ids.push("_schema_registry".to_string());
 
@@ -792,9 +778,13 @@ async fn parity_query_empty_collection_returns_empty() {
     let ctx = make_ctx(&tmp, kernel);
     let svc = make_service(ctx);
 
-    svc.create_schema("task", &task_schema_json()).await.unwrap();
-    let (items, _) =
-        svc.query_items_by_query(Query::new("collection_task")).await.unwrap();
+    svc.create_schema("task", &task_schema_json())
+        .await
+        .unwrap();
+    let (items, _) = svc
+        .query_items_by_query(Query::new("collection_task"))
+        .await
+        .unwrap();
     assert!(items.is_empty(), "empty collection must return no items");
 }
 
@@ -806,7 +796,9 @@ async fn parity_query_filter_by_equality() {
     let ctx = make_ctx(&tmp, kernel);
     let svc = make_service(ctx);
 
-    svc.create_schema("task", &task_schema_json()).await.unwrap();
+    svc.create_schema("task", &task_schema_json())
+        .await
+        .unwrap();
     for (t, s) in [("T1", "todo"), ("T2", "done"), ("T3", "todo")] {
         svc.create_item(
             "task",
@@ -816,8 +808,8 @@ async fn parity_query_filter_by_equality() {
         .unwrap();
     }
 
-    let q = Query::new("collection_task")
-        .with_eq("status", serde_json::Value::String("todo".into()));
+    let q =
+        Query::new("collection_task").with_eq("status", serde_json::Value::String("todo".into()));
     let (items, _) = svc.query_items_by_query(q).await.unwrap();
     assert_eq!(items.len(), 2, "only todo items");
     assert!(items.iter().all(|i| i.data["status"] == "todo"));
@@ -833,7 +825,9 @@ async fn parity_ast_query_rejects_non_equality_operator() {
     let ctx = make_ctx(&tmp, kernel);
     let svc = make_service(ctx);
 
-    svc.create_schema("task", &task_schema_json()).await.unwrap();
+    svc.create_schema("task", &task_schema_json())
+        .await
+        .unwrap();
 
     let ast = json!({
         "kind": "SelectQueryNode",
@@ -853,8 +847,9 @@ async fn parity_ast_query_rejects_non_equality_operator() {
         }}
     });
 
-    let result =
-        svc.query_items_ast(&serde_json::to_vec(&ast).unwrap(), None, 50).await;
+    let result = svc
+        .query_items_ast(&serde_json::to_vec(&ast).unwrap(), None, 50)
+        .await;
     assert!(result.is_err(), "like operator must be rejected");
 }
 
@@ -866,7 +861,9 @@ async fn parity_ast_query_rejects_unsafe_column_name() {
     let ctx = make_ctx(&tmp, kernel);
     let svc = make_service(ctx);
 
-    svc.create_schema("task", &task_schema_json()).await.unwrap();
+    svc.create_schema("task", &task_schema_json())
+        .await
+        .unwrap();
 
     let ast = json!({
         "kind": "SelectQueryNode",
@@ -886,8 +883,9 @@ async fn parity_ast_query_rejects_unsafe_column_name() {
         }}
     });
 
-    let result =
-        svc.query_items_ast(&serde_json::to_vec(&ast).unwrap(), None, 50).await;
+    let result = svc
+        .query_items_ast(&serde_json::to_vec(&ast).unwrap(), None, 50)
+        .await;
     assert!(result.is_err(), "unsafe column name must be rejected");
     let err = result.unwrap_err().to_string();
     assert!(
@@ -911,7 +909,9 @@ async fn parity_gap_query_filter_by_gte() {
     let ctx = make_ctx(&tmp, kernel);
     let svc = make_service(ctx);
 
-    svc.create_schema("task", &task_schema_json()).await.unwrap();
+    svc.create_schema("task", &task_schema_json())
+        .await
+        .unwrap();
     for (title, priority) in [("low", 1i64), ("mid", 2i64), ("high", 3i64)] {
         svc.create_item(
             "task",
@@ -939,10 +939,16 @@ async fn parity_gap_query_filter_by_gte() {
         }}
     });
 
-    let (items, _) =
-        svc.query_items_ast(&serde_json::to_vec(&ast).unwrap(), None, 50).await.unwrap();
+    let (items, _) = svc
+        .query_items_ast(&serde_json::to_vec(&ast).unwrap(), None, 50)
+        .await
+        .unwrap();
     assert_eq!(items.len(), 2, "priority >= 2 should return mid and high");
-    assert!(items.iter().all(|i| i.data["priority"].as_f64().unwrap() >= 2.0));
+    assert!(
+        items
+            .iter()
+            .all(|i| i.data["priority"].as_f64().unwrap() >= 2.0)
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -960,7 +966,9 @@ async fn parity_gap_query_filter_by_in() {
     let ctx = make_ctx(&tmp, kernel);
     let svc = make_service(ctx);
 
-    svc.create_schema("task", &task_schema_json()).await.unwrap();
+    svc.create_schema("task", &task_schema_json())
+        .await
+        .unwrap();
     for (title, status) in [("T1", "todo"), ("T2", "done"), ("T3", "doing")] {
         svc.create_item(
             "task",
@@ -990,10 +998,16 @@ async fn parity_gap_query_filter_by_in() {
         }}
     });
 
-    let (items, _) =
-        svc.query_items_ast(&serde_json::to_vec(&ast).unwrap(), None, 50).await.unwrap();
+    let (items, _) = svc
+        .query_items_ast(&serde_json::to_vec(&ast).unwrap(), None, 50)
+        .await
+        .unwrap();
     assert_eq!(items.len(), 2, "IN ('todo','done') should return T1 and T2");
-    assert!(items.iter().all(|i| matches!(i.data["status"].as_str(), Some("todo") | Some("done"))));
+    assert!(
+        items
+            .iter()
+            .all(|i| matches!(i.data["status"].as_str(), Some("todo") | Some("done")))
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -1006,7 +1020,9 @@ async fn parity_gap_query_sort_descending() {
     let ctx = make_ctx(&tmp, kernel);
     let svc = make_service(ctx);
 
-    svc.create_schema("task", &task_schema_json()).await.unwrap();
+    svc.create_schema("task", &task_schema_json())
+        .await
+        .unwrap();
     for (title, priority) in [("A", 1i64), ("B", 2i64), ("C", 3i64)] {
         svc.create_item(
             "task",
@@ -1032,11 +1048,20 @@ async fn parity_gap_query_sort_descending() {
         }]}
     });
 
-    let (items, _) =
-        svc.query_items_ast(&serde_json::to_vec(&ast).unwrap(), None, 50).await.unwrap();
+    let (items, _) = svc
+        .query_items_ast(&serde_json::to_vec(&ast).unwrap(), None, 50)
+        .await
+        .unwrap();
     assert_eq!(items.len(), 3, "all three items should return");
-    let priorities: Vec<f64> = items.iter().map(|i| i.data["priority"].as_f64().unwrap()).collect();
-    assert_eq!(priorities, vec![3.0, 2.0, 1.0], "items must be sorted priority DESC");
+    let priorities: Vec<f64> = items
+        .iter()
+        .map(|i| i.data["priority"].as_f64().unwrap())
+        .collect();
+    assert_eq!(
+        priorities,
+        vec![3.0, 2.0, 1.0],
+        "items must be sorted priority DESC"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -1047,7 +1072,9 @@ async fn parity_gap_update_merges_fields_preserving_untouched() {
     let ctx = make_ctx(&tmp, kernel);
     let svc = make_service(ctx);
 
-    svc.create_schema("task", &task_schema_json()).await.unwrap();
+    svc.create_schema("task", &task_schema_json())
+        .await
+        .unwrap();
     let item = svc
         .create_item(
             "task",
@@ -1075,7 +1102,68 @@ async fn parity_gap_update_merges_fields_preserving_untouched() {
     assert_eq!(fetched.data["title"], "Keep me");
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+/// Error-quality (job claim c-2026-07-11T01-30-00, Item-3):
+/// `query_items_*` against an unknown collection must surface a typed
+/// `NotFound`, not a raw `Internal` from the missing-table storage error.
+/// The previous path let the SQL layer's "no such table" error bubble
+/// up as `Internal`, which made `QueryItems` against an unknown
+/// collection indistinguishable from a storage fault.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn query_items_returns_typed_not_found_for_unknown_collection() {
+    let tmp = tempfile::tempdir().unwrap();
+    let kernel = make_kernel(&tmp);
+    let ctx = make_ctx(&tmp, kernel);
+    let svc = make_service(ctx);
+
+    let q = Query {
+        table: "collection_does_not_exist".to_string(),
+        filters: vec![],
+        limit: 10,
+        ..Default::default()
+    };
+
+    match svc.query_items_by_query(q).await {
+        Err(CollectionError::NotFound(msg)) => {
+            assert!(
+                msg.contains("does_not_exist"),
+                "NotFound must name the unknown collection; got {msg:?}"
+            );
+        }
+        Err(other) => panic!("expected typed NotFound for unknown collection, got {other:?}"),
+        Ok(_) => panic!("query_items_by_query against unknown collection must not succeed"),
+    }
+}
+
+/// Reject a `query_items_by_query` whose table is missing the
+/// `collection_` prefix (no in-band guess) with a typed `Validation`
+/// error. The wire path always re-prefixes, so a direct caller
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+
+async fn query_items_rejects_table_without_collection_prefix() {
+    let tmp = tempfile::tempdir().unwrap();
+    let kernel = make_kernel(&tmp);
+    let ctx = make_ctx(&tmp, kernel);
+    let svc = make_service(ctx);
+
+    let q = Query {
+        table: "actors".to_string(),
+        filters: vec![],
+        limit: 10,
+        ..Default::default()
+    };
+
+    match svc.query_items_by_query(q).await {
+        Err(CollectionError::Validation(msg)) => {
+            assert!(
+                msg.contains("collection_<id>"),
+                "Validation must name the expected prefix shape; got {msg:?}"
+            );
+        }
+        Err(other) => panic!("expected typed Validation, got {other:?}"),
+        Ok(_) => panic!("query_items_by_query without collection_ prefix must not succeed"),
+    }
+}
+
 // PARITY REPORT
 // ─────────────────────────────────────────────────────────────────────────────
 //  PORT    : 49 tests (all non-#[ignore] tests above, including resolved gaps)

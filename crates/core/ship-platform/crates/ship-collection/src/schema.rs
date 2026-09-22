@@ -21,6 +21,60 @@ pub fn parse_schema_doc(schema_json: &[u8]) -> Result<SchemaDoc, CollectionError
     Ok(doc)
 }
 
+/// Maximum JSON nesting depth accepted for item `data`/patch bytes. Real
+/// collection items (forms, small nested config blocks) rarely nest more
+/// than a handful of levels; 64 is generous headroom while staying far below
+/// depths that risk stack exhaustion while parsing or later dropping a
+/// `serde_json::Value` tree.
+const MAX_ITEM_JSON_DEPTH: usize = 64;
+
+/// Parse caller-controlled item data/patch bytes into a `serde_json::Value`,
+/// rejecting anything nested deeper than `MAX_ITEM_JSON_DEPTH`. The depth
+/// check runs against the raw bytes BEFORE `serde_json::from_slice` is
+/// called: both parsing into and later dropping a sufficiently deep `Value`
+/// tree are themselves unbounded recursions that can exhaust the stack, so
+/// the guard must sit ahead of construction, not only on the parsed tree.
+pub fn parse_item_data(data_json: &[u8]) -> Result<serde_json::Value, CollectionError> {
+    check_json_nesting_depth(data_json)?;
+    serde_json::from_slice(data_json)
+        .map_err(|e| CollectionError::Validation(format!("invalid data JSON: {e}")))
+}
+
+/// Scan raw JSON bytes for `{}`/`[]` nesting depth, ignoring bytes inside
+/// string literals. Purely iterative (no recursion), so it is safe to run on
+/// arbitrarily deep/adversarial input ahead of `serde_json::from_slice`.
+fn check_json_nesting_depth(bytes: &[u8]) -> Result<(), CollectionError> {
+    let mut depth: usize = 0;
+    let mut in_string = false;
+    let mut escaped = false;
+    for &b in bytes {
+        if in_string {
+            if escaped {
+                escaped = false;
+            } else if b == b'\\' {
+                escaped = true;
+            } else if b == b'"' {
+                in_string = false;
+            }
+            continue;
+        }
+        match b {
+            b'"' => in_string = true,
+            b'{' | b'[' => {
+                depth += 1;
+                if depth > MAX_ITEM_JSON_DEPTH {
+                    return Err(CollectionError::Validation(format!(
+                        "item data exceeds maximum nesting depth of {MAX_ITEM_JSON_DEPTH}"
+                    )));
+                }
+            }
+            b'}' | b']' => depth = depth.saturating_sub(1),
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
 /// Validate the schema doc's structure (not an item against it).
 pub fn validate_schema_doc(doc: &SchemaDoc) -> Result<(), CollectionError> {
     if doc.id.is_empty() {
@@ -53,13 +107,10 @@ pub fn validate_schema_doc(doc: &SchemaDoc) -> Result<(), CollectionError> {
 }
 
 /// Validate an item's `data` JSON object against a schema.
-pub fn validate_item(
-    schema: &SchemaDoc,
-    data: &serde_json::Value,
-) -> Result<(), CollectionError> {
-    let obj = data.as_object().ok_or_else(|| {
-        CollectionError::Validation("item data must be a JSON object".into())
-    })?;
+pub fn validate_item(schema: &SchemaDoc, data: &serde_json::Value) -> Result<(), CollectionError> {
+    let obj = data
+        .as_object()
+        .ok_or_else(|| CollectionError::Validation("item data must be a JSON object".into()))?;
 
     let mut errors: Vec<String> = Vec::new();
 
@@ -93,10 +144,7 @@ pub fn validate_item(
 
 fn check_field(path: &str, field: &FieldDef, value: &serde_json::Value, errors: &mut Vec<String>) {
     match field.kind {
-        FieldKind::String
-        | FieldKind::Markdown
-        | FieldKind::Date
-        | FieldKind::File => {
+        FieldKind::String | FieldKind::Markdown | FieldKind::Date | FieldKind::File => {
             if !value.is_string() {
                 errors.push(format!("field '{path}' must be a string"));
             }

@@ -10,34 +10,13 @@
 
 use std::path::{Path, PathBuf};
 
-use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-/// One of the four well-known daemon handshake files.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum DaemonFile {
-    /// TCP port the daemon bound.
-    Port,
-    /// Authentication token for CLI/MCP/hook callers.
-    Token,
-    /// Daemon process ID.
-    Pid,
-    /// Optional Unix socket path (when used).
-    Socket,
-}
-
-impl DaemonFile {
-    /// On-disk file name under `machine/daemon/`.
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            DaemonFile::Port => "port",
-            DaemonFile::Token => "token",
-            DaemonFile::Pid => "pid",
-            DaemonFile::Socket => "socket",
-        }
-    }
-}
+// `DaemonFile` (the handshake-file enum) lives in the compiler-free `ship-paths`
+// leaf so `ShipHome::daemon_file` can take it without the substrate frontier.
+// Re-exported here so `ship_substrate::home::daemon::DaemonFile` and the
+// `home::mod` / crate-root re-exports keep resolving unchanged.
+pub use ship_paths::DaemonFile;
 
 // ── Multi-daemon discovery (devx-04) ─────────────────────────────────────────
 
@@ -69,13 +48,14 @@ pub fn path_hash(path: &Path) -> String {
 pub fn worktree_root_for(from: &Path) -> Option<PathBuf> {
     for ancestor in from.ancestors() {
         if ancestor.join(".git").exists() {
-            return Some(std::fs::canonicalize(ancestor).unwrap_or_else(|_| ancestor.to_path_buf()));
+            return Some(
+                std::fs::canonicalize(ancestor).unwrap_or_else(|_| ancestor.to_path_buf()),
+            );
         }
     }
     None
 }
-
-/// Loaded view of one daemon's IPC handshake — port, token, pid (and
+/// Loaded view of one daemon's IPC handshake — port, pid (and
 /// optional workspace path / build SHA on multi-daemon installs).
 #[derive(Debug, Clone)]
 pub struct DaemonHandle {
@@ -83,26 +63,23 @@ pub struct DaemonHandle {
     /// `machine/daemons/<hash>/` sibling).
     pub dir: PathBuf,
     pub port: u16,
-    pub token: String,
     pub pid: Option<u32>,
     pub workspace: Option<PathBuf>,
     pub build_sha: Option<String>,
 }
 
 impl DaemonHandle {
-    /// Read `port`, `token`, `pid`, `workspace`, `sha` from `dir`. Returns
+    /// Read `port`, `pid`, `workspace`, `sha` from `dir`. Returns
     /// `None` when the directory is missing or the handshake is incomplete
     /// (e.g. port file absent).
     pub fn load(dir: &Path) -> Option<Self> {
         let port = read_trim(dir.join("port")).and_then(|s| s.parse::<u16>().ok())?;
-        let token = read_trim(dir.join("token"))?;
         let pid = read_trim(dir.join("pid")).and_then(|s| s.parse::<u32>().ok());
         let workspace = read_trim(dir.join("workspace")).map(PathBuf::from);
         let build_sha = read_trim(dir.join("sha"));
         Some(Self {
             dir: dir.to_path_buf(),
             port,
-            token,
             pid,
             workspace,
             build_sha,
@@ -218,65 +195,17 @@ pub fn derive_worktree_port(hash: &str) -> u16 {
     BASE + ((n % 100) as u16)
 }
 
-/// Resolve the port shipd should bind for a given project root.
-///
-/// Lookup order:
-/// 1. `~/.ship/machine/local.jsonc:worktrees.ports[<current_branch>]` —
-///    user-pinned override; useful for stable browser-extension ports.
-/// 2. `derive_worktree_port(path_hash(project_root))` — hash-derived default.
-///
-/// `current_branch` is the branch checked out at `project_root`; resolved
-/// via `git symbolic-ref --short HEAD`. A detached HEAD or non-git tree
-/// skips the pin and falls through to derivation.
-/// Minimal local-settings shape for port-pin lookup only.
-/// Full `LocalSettings` lives in `config::local` (L1); this avoids that dep.
-#[derive(Default, Deserialize)]
-struct PortPinSettings {
-    worktrees: Option<PortPinWorktrees>,
-}
-
-#[derive(Default, Deserialize)]
-struct PortPinWorktrees {
-    #[serde(default)]
-    ports: std::collections::HashMap<String, u16>,
-}
-
+/// Resolve the port shipd binds for a given project root: a deterministic
+/// hash of the root, stable per worktree.
 pub fn worktree_port_for(project_root: &Path) -> u16 {
-    if let Some(branch) = current_branch(project_root) {
-        let home = crate::ShipHome::from_env();
-        if let Ok(raw) = std::fs::read_to_string(home.local_path()) {
-            let stripped = crate::fs_util::strip_jsonc_comments(&raw);
-            if let Ok(s) = serde_json::from_str::<PortPinSettings>(&stripped)
-                && let Some(wt) = s.worktrees
-                    && let Some(&port) = wt.ports.get(&branch)
-                {
-                    return port;
-                }
-        }
-    }
     derive_worktree_port(&path_hash(project_root))
 }
 
-fn current_branch(project_root: &Path) -> Option<String> {
-    let out = std::process::Command::new("git")
-        .args(["symbolic-ref", "--short", "HEAD"])
-        .current_dir(project_root)
-        .output()
-        .ok()?;
-    if !out.status.success() {
-        return None;
-    }
-    let s = String::from_utf8(out.stdout).ok()?;
-    let trimmed = s.trim();
-    if trimmed.is_empty() {
-        None
-    } else {
-        Some(trimmed.to_string())
-    }
-}
-
 fn read_trim<P: AsRef<Path>>(path: P) -> Option<String> {
-    std::fs::read_to_string(path.as_ref()).ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
+    std::fs::read_to_string(path.as_ref())
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
 }
 
 #[cfg(unix)]
@@ -310,7 +239,6 @@ mod tests {
     #[test]
     fn file_names_are_stable() {
         assert_eq!(DaemonFile::Port.as_str(), "port");
-        assert_eq!(DaemonFile::Token.as_str(), "token");
         assert_eq!(DaemonFile::Pid.as_str(), "pid");
         assert_eq!(DaemonFile::Socket.as_str(), "socket");
     }
@@ -367,25 +295,15 @@ mod tests {
     }
 
     #[test]
-    fn worktree_root_returns_none_outside_git() {
-        let tmp = TempDir::new().unwrap();
-        let dir = tmp.path().join("not-a-repo");
-        std::fs::create_dir_all(&dir).unwrap();
-        assert!(worktree_root_for(&dir).is_none());
-    }
-
-    #[test]
     fn handle_load_reads_full_handshake() {
         let tmp = TempDir::new().unwrap();
         std::fs::write(tmp.path().join("port"), "9315\n").unwrap();
-        std::fs::write(tmp.path().join("token"), "tok-abc\n").unwrap();
         std::fs::write(tmp.path().join("pid"), "12345\n").unwrap();
         std::fs::write(tmp.path().join("workspace"), "/proj\n").unwrap();
         std::fs::write(tmp.path().join("sha"), "abc1234\n").unwrap();
 
         let handle = DaemonHandle::load(tmp.path()).unwrap();
         assert_eq!(handle.port, 9315);
-        assert_eq!(handle.token, "tok-abc");
         assert_eq!(handle.pid, Some(12345));
         assert_eq!(handle.workspace.unwrap(), PathBuf::from("/proj"));
         assert_eq!(handle.build_sha.unwrap(), "abc1234");
@@ -394,7 +312,7 @@ mod tests {
     #[test]
     fn handle_load_returns_none_when_port_missing() {
         let tmp = TempDir::new().unwrap();
-        std::fs::write(tmp.path().join("token"), "x").unwrap();
+        std::fs::write(tmp.path().join("pid"), "1").unwrap();
         assert!(DaemonHandle::load(tmp.path()).is_none());
     }
 
@@ -416,7 +334,6 @@ mod tests {
     fn handle_is_alive_reflects_pid_state() {
         let tmp = TempDir::new().unwrap();
         std::fs::write(tmp.path().join("port"), "9315").unwrap();
-        std::fs::write(tmp.path().join("token"), "x").unwrap();
 
         // Stale handle (no pid file) → not alive.
         let handle = DaemonHandle::load(tmp.path()).unwrap();

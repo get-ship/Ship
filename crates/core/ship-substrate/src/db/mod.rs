@@ -1,6 +1,6 @@
 //! SQLite db layer: the per-scope event-log openers (`runtime.db` /
 //! `account.db` / `spaces/<id>/space.db`) that production reads and writes go
-//! through, plus the schema/migration plumbing shared by every db file.
+//! through, plus the DDL-on-open schema plumbing shared by every db file.
 //!
 //! Production never creates or reads `platform.db` (it was deleted in the
 //! 4d/B per-scope arc). Every scope owns its own db file with its own
@@ -12,25 +12,39 @@
 pub mod actor_events;
 pub mod cursors;
 pub mod daemon_settings;
-pub mod projects;
 pub mod envelope;
 pub mod events;
-pub mod integrity;
-mod migrate;
-pub mod events_scope_reconcile;
 #[cfg(test)]
 mod events_tests;
-#[cfg(test)]
-mod tests_envelope;
+pub mod heal;
+pub mod integrity;
+pub mod scope_heal;
+pub mod kv_schema;
 #[cfg(test)]
 mod property_tests;
 pub mod rebuild;
-pub mod types;
+pub mod retention;
+pub mod scope_schema;
+pub mod spaces;
+#[cfg(test)]
+mod tests_envelope;
 
+#[cfg(test)]
+mod tests_db_paths;
 #[cfg(test)]
 mod tests_integrity;
 #[cfg(test)]
+mod tests_kv;
+#[cfg(test)]
+mod tests_pragma;
+#[cfg(test)]
 mod tests_rebuild;
+#[cfg(test)]
+mod tests_retention;
+#[cfg(test)]
+mod torture_corruption_tests;
+#[cfg(test)]
+mod torture_trigger_tests;
 
 use anyhow::{Context, Result, anyhow};
 use sqlx::sqlite::SqliteConnectOptions;
@@ -52,7 +66,10 @@ pub fn event_log_summary(ship_dir: &Path) -> EventLogSummary {
     // this boot health line reports its count.
     let path = runtime_db_path(ship_dir);
     let Ok(mut conn) = open_db_at(&path) else {
-        return EventLogSummary { event_count: -1, latest_event_id: None };
+        return EventLogSummary {
+            event_count: -1,
+            latest_event_id: None,
+        };
     };
     let count: i64 = block_on(async {
         sqlx::query_scalar("SELECT COUNT(*) FROM events")
@@ -66,38 +83,36 @@ pub fn event_log_summary(ship_dir: &Path) -> EventLogSummary {
             .await
     })
     .unwrap_or(None);
-    EventLogSummary { event_count: count, latest_event_id: latest }
+    EventLogSummary {
+        event_count: count,
+        latest_event_id: latest,
+    }
 }
 
 /// The one canonical DB-path resolver. Every path-returning helper in this
-/// module routes through here; nothing computes a `machine/db/...` path
+/// module routes through here; nothing computes a db path
 /// independently. The resolution rule lives in exactly this function:
 ///
-/// - if `Var::DevDbDir` is set (workflow-set, never production) the machine
+/// - `ship_dir` is a *data* root (e.g. `$XDG_DATA_HOME/ship` in production,
+///   the SHIP_HOME-collapsed `data/` in tests). It comes from
+///   `ShipHome::from_env().data_dir()` or `get_global_dir()` (the DB-opener
+///   canonical accessor).
+/// - if `Var::DevDbDir` is set (workflow-set, never production) the
 ///   stores live at `<that dir>/<name>` — the dev workflow's isolated
 ///   scratch DB for a worktree iterating on migration code;
-/// - otherwise the canonical `<ship_dir>/machine/db/<name>`, exactly as
-///   before — so an unset override yields today's behaviour for every
-///   customer.
+/// - otherwise the canonical `<ship_dir>/<name>`, flat under the data
+///   root — same layout as `runtime.db` / `account.db` /
+///   `spaces/<id>/space.db` so every creator agrees on one location per
+///   file (XDG slice B). The historic `data/db/` subdir is dead; the
+///   kv.db file sits at the data root alongside the other stores.
 ///
 /// `Var::DevDbDir` is read here and nowhere else.
 pub(crate) fn resolve_db_path(ship_dir: &Path, db: crate::Db) -> PathBuf {
     if let Some(dir) = crate::env::read(crate::env::Var::DevDbDir) {
         return PathBuf::from(dir).join(db.as_str());
     }
-    crate::ShipHome::at(ship_dir.to_path_buf())
-        .machine_dir()
-        .join(crate::home::ship_home::MACHINE_DB_DIR)
-        .join(db.as_str())
+    ship_dir.join(db.as_str())
 }
-
-
-/// Resolve the data database path under a given ship-home root.
-/// Thin typed wrapper over [`resolve_db_path`].
-pub fn data_db_path(ship_dir: &Path) -> PathBuf {
-    resolve_db_path(ship_dir, crate::Db::Data)
-}
-
 /// Resolve the KV database path under a given ship-home root.
 /// Thin typed wrapper over [`resolve_db_path`].
 pub fn kv_db_path(ship_dir: &Path) -> PathBuf {
@@ -139,7 +154,7 @@ pub fn account_db_path(ship_dir: &Path) -> PathBuf {
 /// Ensure the events schema is initialized at an explicit per-scope db path.
 ///
 /// Creates parent directories and applies the full `events`-table schema
-/// (reconcile + migrations) via the shared [`ensure_db_at_path`].
+/// (idempotent DDL + reconcile) via the shared [`ensure_db_at_path`].
 /// Idempotent. Used by `PartitionedSink` on cache miss to lazily provision
 /// a scope's db file.
 pub fn ensure_events_db_at_path(path: &Path) -> Result<()> {
@@ -167,14 +182,37 @@ fn ensure_kv_db_at_path(path: &Path) -> Result<()> {
         .create_if_missing(true);
     let mut conn = block_on(async { SqliteConnection::connect_with(&opts).await })?;
 
-    block_on(async { sqlx::query("PRAGMA journal_mode = WAL").execute(&mut conn).await })?;
-    block_on(async { sqlx::query("PRAGMA busy_timeout = 5000").execute(&mut conn).await })?;
-    block_on(async { sqlx::query("PRAGMA foreign_keys = ON").execute(&mut conn).await })?;
+    // NORMAL (not FULL) is WAL-appropriate: WAL's fsync of the WAL file before
+    // commit covers crash safety; the extra full fsync on the main db that FULL
+    // adds is unnecessary overhead in WAL. Set explicitly because sqlite's
+    // version-dependent default for WAL is unstable (census §2 finding:
+    // unconfigured = sqlite version-dependent default).
+    block_on(async {
+        sqlx::query("PRAGMA synchronous = NORMAL")
+            .execute(&mut conn)
+            .await
+    })?;
+    block_on(async {
+        sqlx::query("PRAGMA journal_mode = WAL")
+            .execute(&mut conn)
+            .await
+    })?;
+    block_on(async {
+        sqlx::query("PRAGMA busy_timeout = 5000")
+            .execute(&mut conn)
+            .await
+    })?;
+    block_on(async {
+        sqlx::query("PRAGMA foreign_keys = ON")
+            .execute(&mut conn)
+            .await
+    })?;
 
-    if let Err(e) = block_on_migrate(async {
-        sqlx::migrate!("./migrations_kv").run(&mut conn).await
-    }) {
-        return Err(anyhow!("kv migration failed on {}: {e}", path.display()));
+    // Idempotent DDL-on-open, same mechanism as the per-scope event dbs
+    // (`scope_schema`): no `_sqlx_migrations` version log, nothing to drift.
+    for stmt in kv_schema::KV_DDL {
+        block_on(async { sqlx::query(stmt).execute(&mut conn).await })
+            .with_context(|| format!("apply kv schema on {}", path.display()))?;
     }
     Ok(())
 }
@@ -199,40 +237,66 @@ fn ensure_db_at_path(path: &std::path::Path) -> Result<()> {
         .with_context(|| format!("invalid sqlite url: {url}"))?
         .create_if_missing(true);
     let mut conn = block_on(async { SqliteConnection::connect_with(&opts).await })?;
-
-    block_on(async { sqlx::query("PRAGMA journal_mode = WAL").execute(&mut conn).await })?;
-    block_on(async { sqlx::query("PRAGMA busy_timeout = 5000").execute(&mut conn).await })?;
-    block_on(async { sqlx::query("PRAGMA foreign_keys = ON").execute(&mut conn).await })?;
-
-    // Pre-migration column reconcile. The `events` partition column lives in
-    // the living 0001 baseline (edited in place, not a forward migration), so
-    // existing DBs carry a legacy single key column (`space_id`, or the older
-    // `project_id`/`workspace_id`). Add + backfill the `(scope, scope_key)`
-    // tuple here, before sqlx_migrate inspects schema, so the canonical insert
-    // path (`INSERT INTO events (... scope, scope_key ...)`) succeeds on
-    // existing installs without touching user data.
-    events_scope_reconcile::reconcile_events_scope_columns(&mut conn).with_context(|| {
-        format!("events scope/scope_key reconcile failed on {}", path.display())
+    // NORMAL (not FULL) is WAL-appropriate (see ensure_kv_db_at_path for the
+    // full rationale). Set explicitly to avoid the sqlite version-dependent
+    // default per census §2.
+    block_on(async {
+        sqlx::query("PRAGMA synchronous = NORMAL")
+            .execute(&mut conn)
+            .await
+    })?;
+    block_on(async {
+        sqlx::query("PRAGMA journal_mode = WAL")
+            .execute(&mut conn)
+            .await
+    })?;
+    block_on(async {
+        sqlx::query("PRAGMA busy_timeout = 5000")
+            .execute(&mut conn)
+            .await
+    })?;
+    block_on(async {
+        sqlx::query("PRAGMA foreign_keys = ON")
+            .execute(&mut conn)
+            .await
     })?;
 
-    // Additive Phase-2 author-identity + signature columns. Same living-baseline
-    // posture as the scope reconcile: add the columns to a pre-existing events
-    // table if absent (fresh DBs already have them from the 0001 DDL).
-    events_scope_reconcile::reconcile_events_author_columns(&mut conn).with_context(|| {
-        format!("events author-columns reconcile failed on {}", path.display())
-    })?;
-
-    // Tolerant migration pass — see `db::migrate`. It relaxes a `_sqlx_migrations`
-    // log that is ahead of this binary, and — while PRE_LAUNCH_REBASELINE is true
-    // — re-baselines an edited applied migration's checksum with a WARN. A dirty
-    // (partially-applied) migration still hard-errors. On failure, refuse to
-    // start; never delete user data.
-    if let Err(e) = block_on_anyhow(migrate::run_tolerant(&mut conn)) {
-        tracing::error!("migration failed on {}: {e}", path.display());
-        return Err(anyhow!("migration failed on {}: {e}", path.display()));
+    // Apply the per-scope schema. `scope_schema` is the single source of truth:
+    // the universal base (events log + cursors) for every db, plus the runtime
+    // projections when (and only when) this is `runtime.db`. The scope is
+    // recovered losslessly from the canonical db filename — the same filenames
+    // `PartitionedSink::route` writes to — so this round-trips the scope the
+    // writer started with. The DDL is idempotent (`CREATE ... IF NOT EXISTS`)
+    // and re-applied on every open: there is NO `_sqlx_migrations` version log,
+    // so there is nothing to drift (this replaced the tolerant migrate runner).
+    // `kv.db` is not an event db; it applies its own DDL (`kv_schema::KV_DDL`).
+    let scope = scope_for_path(path);
+    for stmt in scope_schema::scope_schema(scope) {
+        block_on(async { sqlx::query(stmt).execute(&mut conn).await })
+            .with_context(|| format!("apply scope schema on {} ({scope:?})", path.display()))?;
     }
 
     Ok(())
+}
+
+/// Recover the [`EventScope`](crate::events::EventScope) of an event db from its
+/// canonical filename. The per-scope resolvers (`runtime_db_path` /
+/// `account_db_path` / `space_db_path`) and `PartitionedSink::route` produce
+/// exactly these three filenames, so this round-trips the scope the writer
+/// started with — no signature threading required. Any other path defaults to
+/// Runtime (the full schema): a fail-safe so an arbitrary-path caller (e.g. a
+/// test db at `scope.db`) is never under-provisioned.
+/// Public form of the canonical-filename-scope recovery — used by the
+/// boot integrity check to look up the scope-classified static table
+/// list when classifying a scope db's missing tables as
+/// projection-only damage.
+pub fn scope_for_path(path: &Path) -> crate::events::EventScope {
+    use crate::events::EventScope;
+    match path.file_name().and_then(|n| n.to_str()) {
+        Some(name) if name == ACCOUNT_DB_FILE => EventScope::Account,
+        Some(name) if name == SPACE_DB_FILE => EventScope::Space,
+        _ => EventScope::Runtime,
+    }
 }
 
 /// Open a connection to a specific database path (no migration run, never
@@ -266,7 +330,6 @@ pub fn open_account_db(ship_dir: &Path) -> Result<SqliteConnection> {
 }
 
 /// Open the per-space `spaces/<space_id>/space.db`, ensuring its schema first.
-/// The `space_id` is the bounded scope key the reader already carries.
 pub fn open_space_db(ship_dir: &Path, space_id: &str) -> Result<SqliteConnection> {
     let path = space_db_path(ship_dir, space_id);
     ensure_events_db_at_path(&path)?;
@@ -277,8 +340,24 @@ fn connect(path: &Path) -> Result<SqliteConnection> {
     let url = sqlite_url(path);
     let opts = SqliteConnectOptions::from_str(&url)
         .with_context(|| format!("invalid sqlite url: {url}"))?
-        .busy_timeout(std::time::Duration::from_secs(5));
-    block_on(async { SqliteConnection::connect_with(&opts).await })
+        .busy_timeout(std::time::Duration::from_secs(5))
+        // NORMAL (not FULL) is WAL-appropriate (see ensure_kv_db_at_path). Set
+        // via SqliteConnectOptions so every connect() call re-issues it on a
+        // fresh connection — `synchronous` is a per-connection pragma and
+        // unconfigured leaves it at the sqlite version-dependent default
+        // (census §2 finding).
+        .synchronous(sqlx::sqlite::SqliteSynchronous::Normal);
+    let mut conn = block_on(async { SqliteConnection::connect_with(&opts).await })?;
+    // `foreign_keys` is a per-connection pragma in sqlite (NOT persisted in
+    // the file header like `journal_mode`); re-issue on every fresh connect
+    // so a connection opened via the `open_*_db` paths enforces FK constraints
+    // (census §2 finding: only set at creation-time).
+    block_on(async {
+        sqlx::query("PRAGMA foreign_keys = ON")
+            .execute(&mut conn)
+            .await
+    })?;
+    Ok(conn)
 }
 
 fn sqlite_url(path: &Path) -> String {
@@ -294,19 +373,25 @@ pub fn block_on<F, T>(future: F) -> Result<T>
 where
     F: std::future::Future<Output = std::result::Result<T, sqlx::Error>>,
 {
+    // Keeps the original single-line "SQLite operation failed: {e}" display
+    // text (existing callers match substrings of it), but attaches the raw
+    // `sqlx::Error` as the error's source via `context` instead of only
+    // formatting it in — so it stays walkable via `.chain()` for callers
+    // that need to distinguish transient SQLITE_BUSY/SQLITE_LOCKED from a
+    // terminal error (e.g. the append retry in `SqliteEventStore::append`)
+    // without pattern-matching the display string.
+    fn wrap(e: sqlx::Error) -> anyhow::Error {
+        let msg = format!("SQLite operation failed: {e}");
+        anyhow::Error::new(e).context(msg)
+    }
     if let Ok(handle) = tokio::runtime::Handle::try_current() {
-        return tokio::task::block_in_place(|| {
-            handle
-                .block_on(future)
-                .map_err(|e| anyhow!("SQLite operation failed: {e}"))
-        });
+        return tokio::task::block_in_place(|| handle.block_on(future).map_err(wrap));
     }
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_time()
         .build()
         .map_err(|e| anyhow!("Failed to create SQLite runtime: {e}"))?;
-    rt.block_on(future)
-        .map_err(|e| anyhow!("SQLite operation failed: {e}"))
+    rt.block_on(future).map_err(wrap)
 }
 
 /// Like `block_on` but for `anyhow::Result<T>` futures (e.g. EventRouter::emit).
@@ -328,24 +413,3 @@ where
         .map_err(|e| anyhow!("Failed to create runtime: {e}"))?;
     rt.block_on(future)
 }
-
-/// Like `block_on` but for sqlx::migrate::MigrateError instead of sqlx::Error.
-fn block_on_migrate<F>(future: F) -> Result<()>
-where
-    F: std::future::Future<Output = std::result::Result<(), sqlx::migrate::MigrateError>>,
-{
-    if let Ok(handle) = tokio::runtime::Handle::try_current() {
-        return tokio::task::block_in_place(|| {
-            handle
-                .block_on(future)
-                .map_err(|e| anyhow!("Migration failed: {e}"))
-        });
-    }
-    let rt = tokio::runtime::Builder::new_current_thread()
-        .enable_time()
-        .build()
-        .map_err(|e| anyhow!("Failed to create SQLite runtime: {e}"))?;
-    rt.block_on(future)
-        .map_err(|e| anyhow!("Migration failed: {e}"))
-}
-

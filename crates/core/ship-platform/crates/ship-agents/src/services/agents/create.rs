@@ -30,21 +30,85 @@ pub struct PermissionPreset {
 
 pub fn builtin_templates() -> Vec<AgentTemplate> {
     vec![
-        AgentTemplate { id: "blank",        label: "Blank",         description: "Start from nothing. Just an identity.",         letter: "?", hue: "slate",  skill_ids: vec![],                                      permission_preset: "standard" },
-        AgentTemplate { id: "lane",         label: "Language Lane", description: "Narrow agent scoped to one stack. Sandbox preset.", letter: "L", hue: "red",    skill_ids: vec!["rust-compile", "tdd", "git-hygiene"],  permission_preset: "sandbox"  },
-        AgentTemplate { id: "reviewer",     label: "Reviewer",      description: "Read-only critic for PRs and diffs.",           letter: "R", hue: "amber",  skill_ids: vec!["diff-review", "a11y-audit"],          permission_preset: "read-only" },
-        AgentTemplate { id: "orchestrator", label: "Orchestrator",  description: "Routes work to specialist agents.",             letter: "O", hue: "violet", skill_ids: vec!["cmdr", "spawn-agent", "ship-agents"], permission_preset: "standard" },
-        AgentTemplate { id: "writer",       label: "Test Writer",   description: "TDD loop — writes failing tests first.",        letter: "T", hue: "teal",   skill_ids: vec!["tdd", "rust-compile", "git-hygiene"], permission_preset: "standard" },
-        AgentTemplate { id: "investigator", label: "Investigator",  description: "Reads, searches, summarises. Never writes.",    letter: "I", hue: "blue",   skill_ids: vec!["docs-first", "a11y-audit"],          permission_preset: "read-only" },
+        AgentTemplate {
+            id: "blank",
+            label: "Blank",
+            description: "Start from nothing. Just an identity.",
+            letter: "?",
+            hue: "slate",
+            skill_ids: vec![],
+            permission_preset: "standard",
+        },
+        AgentTemplate {
+            id: "lane",
+            label: "Language Lane",
+            description: "Narrow agent scoped to one stack. Sandbox preset.",
+            letter: "L",
+            hue: "red",
+            skill_ids: vec!["rust-compile", "tdd", "git-hygiene"],
+            permission_preset: "sandbox",
+        },
+        AgentTemplate {
+            id: "reviewer",
+            label: "Reviewer",
+            description: "Read-only critic for PRs and diffs.",
+            letter: "R",
+            hue: "amber",
+            skill_ids: vec!["diff-review", "a11y-audit"],
+            permission_preset: "read-only",
+        },
+        AgentTemplate {
+            id: "orchestrator",
+            label: "Orchestrator",
+            description: "Routes work to specialist agents.",
+            letter: "O",
+            hue: "violet",
+            skill_ids: vec!["cmdr", "spawn-agent", "ship-agents"],
+            permission_preset: "standard",
+        },
+        AgentTemplate {
+            id: "writer",
+            label: "Test Writer",
+            description: "TDD loop — writes failing tests first.",
+            letter: "T",
+            hue: "teal",
+            skill_ids: vec!["tdd", "rust-compile", "git-hygiene"],
+            permission_preset: "standard",
+        },
+        AgentTemplate {
+            id: "investigator",
+            label: "Investigator",
+            description: "Reads, searches, summarises. Never writes.",
+            letter: "I",
+            hue: "blue",
+            skill_ids: vec!["docs-first", "a11y-audit"],
+            permission_preset: "read-only",
+        },
     ]
 }
 
 pub fn builtin_permission_presets() -> Vec<PermissionPreset> {
     vec![
-        PermissionPreset { id: "standard",   label: "Standard",   description: "Human confirms risky actions before they run." },
-        PermissionPreset { id: "autonomous", label: "Autonomous", description: "Agent acts end-to-end; safety rails still apply." },
-        PermissionPreset { id: "read-only",  label: "Read-only",  description: "Agent inspects and reports. No writes." },
-        PermissionPreset { id: "sandbox",    label: "Sandbox",    description: "Allow anything inside a worktree; block outside." },
+        PermissionPreset {
+            id: "standard",
+            label: "Standard",
+            description: "Human confirms risky actions before they run.",
+        },
+        PermissionPreset {
+            id: "autonomous",
+            label: "Autonomous",
+            description: "Agent acts end-to-end; safety rails still apply.",
+        },
+        PermissionPreset {
+            id: "read-only",
+            label: "Read-only",
+            description: "Agent inspects and reports. No writes.",
+        },
+        PermissionPreset {
+            id: "sandbox",
+            label: "Sandbox",
+            description: "Allow anything inside a worktree; block outside.",
+        },
     ]
 }
 

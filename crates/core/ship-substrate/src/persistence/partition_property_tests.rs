@@ -13,13 +13,13 @@
 
 use std::path::Path;
 
+use agent_schema::Authority;
 use proptest::prelude::*;
-use ship_kernel::EventSink;
+use ship_kernel::EventPersist;
 use ship_types::envelope::EventEnvelope;
+use ship_types::Stamped;
 use ship_types::event_registry::EventScope;
-use ship_types::{
-    AccountId, Authority, CallerKind, DeviceId, EmitContext, ScopeBinding, SpaceId,
-};
+use ship_types::{AccountId, CallerKind, DeviceId, EmitContext, ScopeBinding, SpaceId};
 use tempfile::tempdir;
 
 use super::event_store::{EventStore, SqliteEventStore};
@@ -43,7 +43,11 @@ fn has_event(path: &Path, id: &str) -> bool {
     if !path.exists() {
         return false;
     }
-    SqliteEventStore::new_at_db_path(path).unwrap().get(id).unwrap().is_some()
+    SqliteEventStore::new_at_db_path(path)
+        .unwrap()
+        .get(id)
+        .unwrap()
+        .is_some()
 }
 
 /// The db file an event with `(scope, scope_key)` is expected to route to.
@@ -81,13 +85,21 @@ proptest! {
         let root = tmp.path();
         let sink = PartitionedSink::new(root.to_path_buf());
 
+        // I-2: route() refuses a Space event whose key has no `spaces`
+        // registry row. Register it for the Space case only — Account/
+        // Runtime never consult the registry (route ignores scope_key for
+        // them).
+        if scope == EventScope::Space {
+            crate::testutil::register_space(root, &key).unwrap();
+        }
+
         // Space carries the generated key; Account/Runtime carry one too (the
         // sink ignores it for routing — proves routing is scope-keyed, not
         // scope_key-keyed, for the non-Space scopes).
         let ev = EventEnvelope::new("test.route", "ent-1", &serde_json::json!({"k": 1}))
             .unwrap()
             .with_scope(scope, Some(&key));
-        sink.persist(&ev).unwrap();
+        sink.persist(&Stamped::unchecked(ev.clone())).unwrap();
 
         let want = expected_path(root, scope, &key);
         prop_assert!(has_event(&want, &ev.id), "event must be in its own scope db");
@@ -118,6 +130,11 @@ proptest! {
         let root = tmp.path();
         let sink = PartitionedSink::new(root.to_path_buf());
 
+        // I-2: register both fabricated space keys before routing events
+        // under them.
+        crate::testutil::register_space(root, &a).unwrap();
+        crate::testutil::register_space(root, &b).unwrap();
+
         let mk = |k: &str| {
             EventEnvelope::new("test.route", "ent-1", &serde_json::json!({}))
                 .unwrap()
@@ -125,8 +142,8 @@ proptest! {
         };
         let ea = mk(&a);
         let eb = mk(&b);
-        sink.persist(&ea).unwrap();
-        sink.persist(&eb).unwrap();
+        sink.persist(&Stamped::unchecked(ea.clone())).unwrap();
+        sink.persist(&Stamped::unchecked(eb.clone())).unwrap();
 
         prop_assert!(has_event(&db::space_db_path(root, &a), &ea.id));
         prop_assert!(has_event(&db::space_db_path(root, &b), &eb.id));
@@ -147,7 +164,9 @@ fn space_ctx(id: &str) -> EmitContext {
             DeviceId::new("dev-e2e"),
             Some(AccountId::new("acct-e2e")),
             Some(SpaceId::new(id)),
-            Authority::Space { space_id: SpaceId::new(id) },
+            Authority::Space {
+                space_id: id.to_string(),
+            },
         ),
         session_id: None,
     }
@@ -194,6 +213,10 @@ fn cross_scope_emit_persists_and_isolates_per_db() {
     rt.block_on(async {
         let tmp = tempdir().unwrap();
         let root = tmp.path().to_path_buf();
+        // I-2: register both fixture space ids before routing Space-scoped
+        // events under them.
+        crate::testutil::register_space(&root, "A").unwrap();
+        crate::testutil::register_space(&root, "B").unwrap();
         let router = crate::events::kernel_router::KernelRouter::new(root.clone()).unwrap();
 
         // One event per scope, each emitted with its scope chosen on the
@@ -247,7 +270,11 @@ fn cross_scope_emit_persists_and_isolates_per_db() {
         ];
         let all_dbs = [&space_a_db, &space_b_db, &account_db, &runtime_db];
         for (id, home) in placements {
-            assert!(has_event(home, id), "event {id} must be in {}", home.display());
+            assert!(
+                has_event(home, id),
+                "event {id} must be in {}",
+                home.display()
+            );
             for other in all_dbs {
                 if *other == *home {
                     continue;
@@ -275,9 +302,21 @@ fn cross_scope_emit_persists_and_isolates_per_db() {
             })
             .unwrap_or(0)
         };
-        assert_eq!(actors_count(&runtime_db), 1, "actors row must project into runtime.db");
-        assert_eq!(actors_count(&account_db), 0, "actors row must NOT be in account.db");
-        assert_eq!(actors_count(&space_a_db), 0, "actors row must NOT be in space A db");
+        assert_eq!(
+            actors_count(&runtime_db),
+            1,
+            "actors row must project into runtime.db"
+        );
+        assert_eq!(
+            actors_count(&account_db),
+            0,
+            "actors row must NOT be in account.db"
+        );
+        assert_eq!(
+            actors_count(&space_a_db),
+            0,
+            "actors row must NOT be in space A db"
+        );
 
         // The kernel emit path routes per-scope into the per-scope dbs; it
         // never creates a global single-store file.

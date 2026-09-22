@@ -8,8 +8,11 @@ Ship is a runtime for AI agent teams. Not a harness — a runtime. It gives agen
 
 One `.ship/` directory. Every provider.
 
-```
-.ship/agents/my-agent.jsonc    →    CLAUDE.md + .mcp.json
+- `orchestrator::emit` — re-export of the L0 `ship-runner` emit mechanism.
+- `orchestrator::exit_handler` — re-export of the L1 `ship_code::runner::exit_handler`
+  (harness-driver-specific exit commands). `dedup` / `router` / `DISPATCH_GATE` /
+  `terminal_guard` live at L0 `ship_runner` and are imported directly from there
+  as part of the seam-leak eviction.
                                      .cursor/rules + .cursor/mcp.json
                                      GEMINI.md + .gemini/settings.json
                                      AGENTS.md + .codex/config.toml
@@ -43,12 +46,11 @@ Ship gives you seven primitives. You define them in `.ship/`; the runtime makes 
 
 ## Smart Skills
 
-Skills are markdown templates compiled into agent context. They use progressive disclosure — agents load only what they need via `active_tools`, so a large reference doesn't bloat every context.
+Skills are markdown templates compiled into agent context. They use progressive disclosure — agents attach only the skill refs they need, so a large reference doesn't bloat every context.
 
 ```jsonc
 {
-  "skills": { "refs": ["tdd", "code-review"] },
-  "active_tools": ["tdd"]   // only tdd skill expands in context
+  "skills": { "refs": ["tdd", "code-review"] }
 }
 ```
 
@@ -153,7 +155,7 @@ cargo run -p shipd         # serves http://localhost:9315
 ### Dev install script
 
 `scripts/install.sh` is an explicitly **developer / CI** path — it pulls a
-release tarball, drops both binaries under `~/.ship/bin`, registers a
+release tarball, drops both binaries under the ship home's `bin/` dir, registers a
 systemd-user or launchd service, and opens the setup wizard. It is not the
 end-user distribution story; use it only for dev or CI bootstrapping.
 

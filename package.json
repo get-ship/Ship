@@ -1,14 +1,16 @@
 {
-  "name": "ship-monorepo",
+  "name": "ship",
   "private": true,
   "workspaces": {
     "packages": [
-      "apps/docs",
-      "packages/*",
-      "apps/workers/*"
+      "apps/host",
+      "apps/hub",
+      "apps/spaces",
+      "packages/components/ship/*",
+      "apps/site",
+      "packages/assets"
     ],
     "catalog": {
-      "drizzle-orm": "0.45.1",
       "hono": "4.10.8",
       "zod": "4.3.6"
     }
@@ -19,14 +21,28 @@
   "overrides": {
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "@ship/sui-runtime": "file:/home/madvib/dev/sui/packages/sui/runtime",
-
-    "@ship/sui-dom": "file:/home/madvib/dev/sui/packages/sui/dom",
-    "@ship/sui-primitives": "file:/home/madvib/dev/sui/packages/components/sui/primitives",
-    "@ship/sui-compiler-wasm": "file:/home/madvib/dev/sui/packages/sui/compiler-wasm",
-    "@ship/sui-lsp-browser": "file:/home/madvib/dev/sui/packages/deck/lsp-browser",
-    "@ship/sui-eval": "file:/home/madvib/dev/sui/packages/deck/eval",
-    "@ship/tokens": "file:/home/madvib/dev/sui/packages/sui/tokens"
+    "@ship/sui-runtime": "link:../sail/packages/sui/runtime",
+    "@ship/sui-dom": "link:../sail/packages/sui/dom",
+    "@ship/sui-compiler-wasm": "link:../sail/packages/sui/compiler-wasm",
+    "@ship/tokens": "link:../worktrees/orch/packages/sail/tokens",
+    "@ship/deck-host": "link:../worktrees/orch/packages/deck/host",
+    "@ship/deck-router": "link:../worktrees/orch/packages/deck/router",
+    "@ship/sdk": "^0.2.0",
+    "@ship/sdk-client": "^0.1.0",
+    "@ship/test-setup": "link:../worktrees/orch/packages/sail/test-setup",
+    "@ship/sail-runtime": "link:../worktrees/orch/packages/sail/runtime",
+    "@ship/sail-dom": "link:../worktrees/orch/packages/sail/dom",
+    "@ship/sail-primitives": "link:../worktrees/orch/packages/components/sail/primitives",
+    "@ship/sail-charts": "link:../worktrees/orch/packages/components/sail/charts",
+    "@ship/sail-chat-elements": "link:../worktrees/orch/packages/components/sail/chat-elements",
+    "@ship/sail-canvas": "link:../worktrees/orch/packages/components/sail/canvas",
+    "@ship/sail-media": "link:../worktrees/orch/packages/components/sail/media",
+    "@ship/sail-mermaid": "link:../worktrees/orch/packages/components/sail/mermaid",
+    "@ship/sail-viewer": "link:../worktrees/orch/packages/components/sail/viewer",
+    "@ship/sail-compiler-wasm": "link:../worktrees/orch/packages/sail/compiler-wasm",
+    "@ship/sail-lsp-browser": "link:../worktrees/orch/packages/deck/lsp-browser",
+    "@ship/sail-code-editor": "link:../worktrees/orch/packages/components/sail/code-editor",
+    "@ship/sail-tutorial": "link:../worktrees/orch/packages/sail/tutorial"
   },
   "trustedDependencies": [
     "better-sqlite3",
@@ -36,27 +52,28 @@
     "workerd"
   ],
   "scripts": {
-    "build:bundles": "cargo run --manifest-path /home/madvib/dev/sui/Cargo.toml -p deck-cli --quiet -- build-assets",
+    "build": "cargo build -p ship-cli -p shipd",
     "build:apps": "bun run --filter hub build && bun run --filter spaces build",
-    "build": "bun run build:bundles && bun run build:apps",
-    "wasm": "echo 'sui-wasm moved to the external sui repo — run `cd /home/madvib/dev/sui && wasm-pack build crates/sui/compiler --target web --out-dir packages/sui/compiler-wasm/pkg --out-name sui_compiler -- --features wasm` (or the `just sui-wasm` recipe here for the same call)'",
+    "typecheck:components": "node scripts/typecheck-components.mjs",
     "lint": "vp lint",
     "lint:fix": "vp lint --fix",
-    "test:e2e": "playwright test --config tests/e2e/playwright.config.ts",
-    "test:e2e:visual": "node node_modules/@playwright/test/cli.js test --config tests/e2e/visual/playwright.config.ts"
+    "test:contract": "cargo test -p ship-contract-tests",
+    "test:agents": "bun test tests/agents",
+    "site:dev": "bun run --filter @ship/site dev",
+    "site:build": "bun run --filter @ship/site build",
+    "site:deploy": "bun run --filter @ship/site deploy"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "^1.25.1",
-    "@cloudflare/vitest-pool-workers": "^0.15.2",
-    "@playwright/test": "^1.58.2",
-    "drizzle-kit": "^0.31.8",
     "lucide-static": "1.14.0",
-    "playwright": "^1.59.1",
     "typescript": "~5.8.3",
     "vite": "^7.3.1",
     "vite-plus": "^0.1.11",
     "vite-tsconfig-paths": "6.0.3",
-    "vitest": "^4.1.5",
-    "wrangler": "^4.66.0"
+    "vitest": "^4.1.5"
+  },
+  "//": "Self-references so workspace packages hoist into top-level node_modules/ \u2014 shipd AppSource resolves <base>/node_modules/@ship/hub etc.",
+  "dependencies": {
+    "@ship/hub": "workspace:*",
+    "spaces": "workspace:*"
   }
 }

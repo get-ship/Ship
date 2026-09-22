@@ -61,7 +61,10 @@ mod tests {
         assert_eq!(decoded.session_name, "ship-test");
         assert_eq!(decoded.slug, "test-slug");
         assert_eq!(decoded.cause, DestructionCause::External);
-        assert!(json.contains("\"external\""), "cause must serialize snake_case");
+        assert!(
+            json.contains("\"external\""),
+            "cause must serialize snake_case"
+        );
     }
 
     #[test]

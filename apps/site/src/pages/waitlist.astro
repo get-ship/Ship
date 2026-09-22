@@ -1,0 +1,29 @@
+---
+import RoomLayout from '../layouts/RoomLayout.astro';
+import WaitlistForm from '../components/WaitlistForm.astro';
+
+const reason = Astro.url.searchParams.get('reason');
+const messages: Record<string, { eyebrow: string; title: string; lede: string }> = {
+  signin: { eyebrow: 'Public beta · invite-only', title: 'Sign-in opens with the public beta.', lede: "We're polishing the rest of the launch. Leave your email and we'll let you know the moment accounts open up." },
+  signup: { eyebrow: 'Public beta · invite-only', title: 'Get an invite to SHIP.', lede: "Sign-up is opening in waves. Drop your email — we'll send the link as soon as your wave opens." },
+  reset: { eyebrow: 'Public beta · invite-only', title: 'Password reset opens with the public beta.', lede: "Reset requires email infra we're finishing up. We'll email you the moment it's ready." },
+  general: { eyebrow: 'Public beta · invite-only', title: 'Be first to ship.', lede: "Leave your email and we'll let you know the moment SHIP opens up." },
+};
+const m = messages[reason ?? 'general'] ?? messages.general;
+---
+<RoomLayout title="Join the SHIP waitlist">
+  <div class="room-card">
+    <div class="room-eyebrow">{m.eyebrow}</div>
+    <h1 class="room-title">{m.title}</h1>
+    <p class="room-lede">{m.lede}</p>
+    <WaitlistForm
+      list="general"
+      source={`waitlist:${reason ?? 'general'}`}
+      placeholder="you@company.com"
+      cta="Get notified"
+      thanks="You're on the list. We'll email you the moment it opens."
+      size="lg"
+    />
+    <div class="room-switch"><a href="/">← Back to the desktop</a></div>
+  </div>
+</RoomLayout>

@@ -7,10 +7,11 @@
 //! stamp-or-reject rule the emit chokepoint runs, so no live write reaches
 //! persist with an unenforced scope_key.
 
+use agent_schema::Authority;
+use ship_types::ScopeBinding;
 use ship_types::envelope::EventEnvelope;
 use ship_types::event_registry::EventScope;
 use ship_types::identity::{AccountId, DeviceId, SpaceId};
-use ship_types::{Authority, ScopeBinding};
 
 use super::event_store::{EventStore, SqliteEventStore};
 
@@ -21,7 +22,7 @@ fn space_binding(space: &str) -> ScopeBinding {
         Some(AccountId::new("acct-1")),
         Some(SpaceId::new(space)),
         Authority::Space {
-            space_id: SpaceId::new(space),
+            space_id: space.to_string(),
         },
     )
 }
@@ -38,9 +39,30 @@ fn spaceless_binding() -> ScopeBinding {
 
 /// A Space-scoped store for `space` rooted under a temp ship-home. The same
 /// db `append_enforced` lands in is the one the reader queries back.
+/// Registers `space` in the spaces registry so strict scope-id validation
+/// (now part of `append_enforced` via inferred ship_dir) accepts the key.
 fn space_store(tmp: &tempfile::TempDir, space: &str) -> SqliteEventStore {
-    let root = crate::ShipHome::project_ship_dir(tmp.path());
+    let root = tmp.path().join(".ship");
+    crate::testutil::register_space(&root, space).unwrap();
     SqliteEventStore::new_for_scope(&root, EventScope::Space, Some(space)).unwrap()
+}
+
+#[test]
+fn append_enforced_rejects_unregistered_space_id() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().join(".ship");
+    // Open a Space store path without registering the id — strict check must reject.
+    let store = SqliteEventStore::new_for_scope(&root, EventScope::Space, Some("ghost")).unwrap();
+    let event = EventEnvelope::new("session.started", "entity-1", &serde_json::json!({}))
+        .unwrap()
+        .with_scope(EventScope::Space, Some("ghost"));
+    let err = store
+        .append_enforced(&event, &space_binding("ghost"))
+        .unwrap_err();
+    assert!(
+        err.to_string().contains("unregistered"),
+        "unexpected error: {err}"
+    );
 }
 
 #[test]
@@ -49,7 +71,7 @@ fn append_enforced_stamps_space_key_and_author_from_binding() {
     let store = space_store(&tmp, "space-A");
     // Space event with NO scope_key — append_enforced must stamp it from the
     // binding, plus the author identity, before persisting.
-    let event = EventEnvelope::new("studio.canvas_updated", "entity-1", &serde_json::json!({}))
+    let event = EventEnvelope::new("session.started", "entity-1", &serde_json::json!({}))
         .unwrap()
         .with_scope(EventScope::Space, None);
     let id = event.id.clone();
@@ -75,7 +97,7 @@ fn append_enforced_rejects_cross_space_and_does_not_persist() {
     // Store is space-B; binding is space-A → CrossSpace reject. We target the
     // space-B store directly (its db is where a key=space-B event would land).
     let store = space_store(&tmp, "space-B");
-    let event = EventEnvelope::new("studio.canvas_updated", "entity-1", &serde_json::json!({}))
+    let event = EventEnvelope::new("session.started", "entity-1", &serde_json::json!({}))
         .unwrap()
         .with_scope(EventScope::Space, Some("space-B"));
     let id = event.id.clone();
@@ -98,7 +120,7 @@ fn append_enforced_rejects_cross_space_and_does_not_persist() {
 fn append_enforced_rejects_space_event_from_space_unbound_binding() {
     let tmp = tempfile::tempdir().unwrap();
     let store = space_store(&tmp, "space-A");
-    let event = EventEnvelope::new("studio.canvas_updated", "entity-1", &serde_json::json!({}))
+    let event = EventEnvelope::new("session.started", "entity-1", &serde_json::json!({}))
         .unwrap()
         .with_scope(EventScope::Space, None);
     let id = event.id.clone();

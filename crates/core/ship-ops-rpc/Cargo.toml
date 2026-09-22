@@ -3,27 +3,20 @@ name = "ship-ops-rpc"
 version = "0.1.0"
 edition = "2024"
 publish = false
-description = "ConnectRPC surface for the Ship operation registry (ship.ops.v1). Generated in build.rs from proto/ship/ops/v1/*.proto — proto owns op shapes + policy (capability/blast-radius). The daemon implements the OpsService trait; CLI/GUI are generated clients."
+description = "Ship-side helpers for the ops registry: FDS-backed policy (BlastRadius) + hand-authored COMMANDS/OPS catalog. Proto types come from ship-proto directly (veneer removed j-08)."
 
 [dependencies]
-# Generated proto bindings now live in the published `ship-proto` crate
-# (ship-contracts is the SSOT). This crate re-exports `ship::ops::v1` from it
-# and keeps the hand-written policy/catalog layers below (Ship impl, not contract).
-ship-proto = { git = "file:///home/madvib/dev/ship-contracts", branch = "master" }
+# Ops FileDescriptorSet for policy reflection (ship-contracts SSOT).
+ship-proto = { git = "https://github.com/get-ship/ship-contracts.git", branch = "feat/next" }
 # Connect-RPC runtime. Kept so the daemon's `axum` feature reaches connectrpc via
 # feature-unification (ship-proto compiles connectrpc client-only); shipd enables
 # axum and the single connectrpc instance gets it graph-wide.
 connectrpc = { version = "0.4", features = ["client", "axum"] }
-# Must match the version connectrpc 0.4.x pulls transitively (two-buffa-version
-# diagnostic otherwise — see ship-gateway-client).
-buffa = { version = "0.5", features = ["json"] }
 # Typed descriptor messages (FileDescriptorSet) for reading method-option
 # policy out of the embedded FILE_DESCRIPTOR_SET. Version tracks buffa's.
+buffa = { version = "0.5", features = ["json"] }
 buffa-descriptor = "0.5"
-# Generated code names ::serde:: and ::http_body:: paths directly.
 serde = { workspace = true }
-http-body = "1"
-http = "1"
 thiserror = { workspace = true }
 
 [dev-dependencies]

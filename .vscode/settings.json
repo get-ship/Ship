@@ -1,9 +1,0 @@
-{
-  "files.associations": {
-    "*.sui": "sui"
-  },
-  "[sui]": {
-    "editor.defaultFormatter": null,
-    "editor.formatOnSave": false
-  }
-}

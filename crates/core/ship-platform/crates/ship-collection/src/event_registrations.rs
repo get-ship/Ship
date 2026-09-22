@@ -12,12 +12,47 @@ use ship_types::event_registry::{EventScope, Retention, Stability};
 use ship_types::register_event;
 
 // `collection.changed` (ConfigChanged payload, watcher-family) moved to
-// ship-config/src/event_registrations.rs (keystone-A Phase A bundle 3,
+// ship-settings/src/event_registrations.rs (keystone-A Phase A bundle 3,
 // 2026-06-10) with the rest of the watcher-ping family — it is a config-domain
 // watcher event, not a CRUD/collection-domain event.
 
-register_event!("collection.created", [EventScope::Space], Retention::Durable, Stability::Stable, "CollectionCreated", crate::events::CollectionCreated);
-register_event!("collection.item_created", [EventScope::Space], Retention::Durable, Stability::Stable, "CollectionItemCreated", crate::events::CollectionItemCreated);
-register_event!("collection.item_deleted", [EventScope::Space], Retention::Durable, Stability::Stable, "CollectionItemDeleted", crate::events::CollectionItemDeleted);
-register_event!("collection.item_updated", [EventScope::Space], Retention::Durable, Stability::Stable, "CollectionItemUpdated", crate::events::CollectionItemUpdated);
-register_event!("collection.schema.changed", [EventScope::Space], Retention::Durable, Stability::Stable, "CollectionSchemaChanged", crate::events::CollectionSchemaChanged);
+register_event!(
+    "collection.created",
+    [EventScope::Space],
+    Retention::Durable,
+    Stability::Stable,
+    "CollectionCreated",
+    crate::events::CollectionCreated
+);
+register_event!(
+    "collection.item_created",
+    [EventScope::Space],
+    Retention::Durable,
+    Stability::Stable,
+    "CollectionItemCreated",
+    crate::events::CollectionItemCreated
+);
+register_event!(
+    "collection.item_deleted",
+    [EventScope::Space],
+    Retention::Durable,
+    Stability::Stable,
+    "CollectionItemDeleted",
+    crate::events::CollectionItemDeleted
+);
+register_event!(
+    "collection.item_updated",
+    [EventScope::Space],
+    Retention::Durable,
+    Stability::Stable,
+    "CollectionItemUpdated",
+    crate::events::CollectionItemUpdated
+);
+register_event!(
+    "collection.schema.changed",
+    [EventScope::Space],
+    Retention::Durable,
+    Stability::Stable,
+    "CollectionSchemaChanged",
+    crate::events::CollectionSchemaChanged
+);

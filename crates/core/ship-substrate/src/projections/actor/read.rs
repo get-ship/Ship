@@ -3,18 +3,13 @@
 use anyhow::Result;
 use sqlx::SqliteConnection;
 
-use super::row::{row_to_actor, ActorRow, ListActorsFilter, SELECT_COLS};
+use super::row::{ActorRow, ListActorsFilter, SELECT_COLS, row_to_actor};
 use crate::db::block_on;
 
 pub fn list_actors(filter: &ListActorsFilter) -> Result<Vec<ActorRow>> {
     let mut conn = crate::db::open_runtime_db(&crate::project::get_global_dir()?)?;
     let limit = if filter.limit > 0 { filter.limit } else { 200 }.min(1000);
-    let mut sql = format!(
-        "SELECT {SELECT_COLS} FROM actors WHERE 1=1"
-    );
-    if filter.workspace_id.is_some() {
-        sql.push_str(" AND workspace_id = ?");
-    }
+    let mut sql = format!("SELECT {SELECT_COLS} FROM actors WHERE 1=1");
     if filter.kind.is_some() {
         sql.push_str(" AND kind = ?");
     }
@@ -25,9 +20,6 @@ pub fn list_actors(filter: &ListActorsFilter) -> Result<Vec<ActorRow>> {
 
     block_on(async {
         let mut q = sqlx::query(&sql);
-        if let Some(w) = &filter.workspace_id {
-            q = q.bind(w);
-        }
         if let Some(k) = &filter.kind {
             q = q.bind(k);
         }
@@ -44,7 +36,10 @@ pub fn get_actor(actor_id: &str) -> Result<Option<ActorRow>> {
     let mut conn = crate::db::open_runtime_db(&crate::project::get_global_dir()?)?;
     let sql = format!("SELECT {SELECT_COLS} FROM actors WHERE id = ?");
     block_on(async {
-        let row = sqlx::query(&sql).bind(actor_id).fetch_optional(&mut conn).await?;
+        let row = sqlx::query(&sql)
+            .bind(actor_id)
+            .fetch_optional(&mut conn)
+            .await?;
         Ok(row.as_ref().map(row_to_actor))
     })
 }
@@ -62,10 +57,10 @@ pub fn list_windows() -> Result<Vec<ActorRow>> {
 
 /// `window`-kind actor hosting `space_id`, if any. The launcher consults this
 /// to focus an existing window instead of spawning a duplicate. Windows are
-/// self-registering lifecycle actors (`ActorKind::Window`); `live` is the
+/// self-registering lifecycle actors (`ProcessKind::Window`); `live` is the
 /// supervisor's pid probe.
 pub fn find_live_window_for_space(space_id: &str) -> Result<Option<ActorRow>> {
-    // "window" == ActorKind::Window.as_str(); the projection treats kind as a
+    // "window" == ProcessKind::Window.as_str(); the projection treats kind as a
     // string throughout, so we filter on the string (no supervisor dep here).
     let windows = list_actors(&ListActorsFilter {
         kind: Some("window".to_string()),
@@ -86,7 +81,6 @@ pub struct ActorEventRow {
     pub entity_id: String,
     pub actor_id: Option<String>,
     pub target_actor_id: Option<String>,
-    pub workspace_id: Option<String>,
     pub session_id: Option<String>,
     pub parent_actor_id: Option<String>,
     pub payload_json: String,
@@ -109,8 +103,7 @@ pub fn list_actor_events(
     let limit = if limit > 0 { limit } else { 500 }.min(2000);
     let mut sql = String::from(
         "SELECT id, event_type, entity_id, actor_id, target_actor_id, \
-         workspace_id, session_id, parent_actor_id, payload_json, created_at \
-         FROM events \
+         session_id, parent_actor_id, payload_json, created_at \
          WHERE (actor_id = ? OR target_actor_id = ?)",
     );
     if from_id.is_some() {
@@ -125,38 +118,63 @@ pub fn list_actor_events(
         }
         q = q.bind(limit);
         let rows = q.fetch_all(&mut conn).await?;
+        // hardening-r2 §5.6: a failed column decode on an event row becomes
+        // a silently-wrong empty value (especially payload_json → "{}"),
+        // indistinguishable from a legitimate event. Keep the fallback —
+        // this is a reconnect/replay path; we'd rather return the row than
+        // drop it — but warn with the row id + column so torn writes and
+        // forward-incompatible shapes are visible.
         Ok(rows
             .iter()
             .map(|r| {
                 use sqlx::Row;
+                let id: String = r.try_get("id").unwrap_or_else(|e| {
+                    tracing::warn!(column = "id", error = %e, "actor_event row: id decode failed");
+                    String::new()
+                });
                 ActorEventRow {
-                    id: r.try_get("id").unwrap_or_default(),
-                    event_type: r.try_get("event_type").unwrap_or_default(),
-                    entity_id: r.try_get("entity_id").unwrap_or_default(),
+                    id: id.clone(),
+                    event_type: r.try_get("event_type").unwrap_or_else(|e| {
+                        tracing::warn!(row_id = %id, column = "event_type", error = %e,
+                            "actor_event row decode failed");
+                        String::new()
+                    }),
+                    entity_id: r.try_get("entity_id").unwrap_or_else(|e| {
+                        tracing::warn!(row_id = %id, column = "entity_id", error = %e,
+                            "actor_event row decode failed");
+                        String::new()
+                    }),
                     actor_id: r.try_get("actor_id").ok(),
                     target_actor_id: r.try_get("target_actor_id").ok(),
-                    workspace_id: r.try_get("workspace_id").ok(),
                     session_id: r.try_get("session_id").ok(),
                     parent_actor_id: r.try_get("parent_actor_id").ok(),
-                    payload_json: r.try_get("payload_json").unwrap_or_else(|_| "{}".into()),
-                    created_at: r.try_get("created_at").unwrap_or_default(),
+                    payload_json: r.try_get("payload_json").unwrap_or_else(|e| {
+                        tracing::warn!(row_id = %id, column = "payload_json", error = %e,
+                            "actor_event row: payload_json decode failed; \
+                             history will show empty payload for this event");
+                        "{}".into()
+                    }),
+                    created_at: r.try_get("created_at").unwrap_or_else(|e| {
+                        tracing::warn!(row_id = %id, column = "created_at", error = %e,
+                            "actor_event row decode failed");
+                        String::new()
+                    }),
                 }
             })
             .collect())
     })
 }
 
-/// Look up `(status, workspace_id)` for routing decisions in the input
+/// Look up `(status, space_id)` for routing decisions in the input
 /// endpoint. Returns `None` if the actor isn't in the projection.
 pub fn actor_status(actor_id: &str) -> Result<Option<(String, Option<String>)>> {
     let mut conn = crate::db::open_runtime_db(&crate::project::get_global_dir()?)?;
     block_on(async {
-        let row: Option<(String, Option<String>)> = sqlx::query_as(
-            "SELECT status, workspace_id FROM actors WHERE id = ?",
-        )
-        .bind(actor_id)
-        .fetch_optional(&mut conn)
-        .await?;
+        let row: Option<(String, Option<String>)> =
+            sqlx::query_as("SELECT status, space_id FROM actors WHERE id = ?")
+                .bind(actor_id)
+                .fetch_optional(&mut conn)
+                .await?;
         Ok(row)
     })
 }
@@ -183,7 +201,9 @@ pub fn active_actor_ids() -> Result<std::collections::HashSet<String>> {
 /// Test/explicit-path variant of [`active_actor_ids`]. Mirrors the
 /// `load_*_at` shape used by the pipeline-run and agent-session
 /// projections so callers can point at a specific platform db.
-pub fn active_actor_ids_at(ship_dir: &std::path::Path) -> Result<std::collections::HashSet<String>> {
+pub fn active_actor_ids_at(
+    ship_dir: &std::path::Path,
+) -> Result<std::collections::HashSet<String>> {
     let mut conn = crate::db::open_runtime_db(ship_dir)?;
     active_actor_ids_on(&mut conn)
 }
@@ -194,9 +214,6 @@ fn active_actor_ids_on(conn: &mut SqliteConnection) -> Result<std::collections::
         let rows = sqlx::query("SELECT id FROM actors WHERE status NOT IN ('stopped', 'crashed')")
             .fetch_all(conn)
             .await?;
-        Ok(rows
-            .iter()
-            .map(|r| r.get::<String, _>("id"))
-            .collect())
+        Ok(rows.iter().map(|r| r.get::<String, _>("id")).collect())
     })
 }

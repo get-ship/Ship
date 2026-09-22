@@ -8,7 +8,9 @@ fn token_path(daemon_dir: &Path) -> PathBuf {
 
 mod stale_cleanup_tests {
     use super::token_path;
-    use crate::ship_runtime::init::identity_files::{another_daemon_alive, cleanup_stale_daemon_files, pid_path, port_path, parent_pid};
+    use crate::ship_runtime::init::identity_files::{
+        another_daemon_alive, cleanup_stale_daemon_files, parent_pid, pid_path, port_path,
+    };
     use std::path::Path;
     use tempfile::TempDir;
 
@@ -55,7 +57,10 @@ mod stale_cleanup_tests {
         cleanup_stale_daemon_files(dir.path()).expect("stale pid should be Ok");
 
         assert!(!pid_path(dir.path()).exists(), "pid file should be removed");
-        assert!(!port_path(dir.path()).exists(), "port file should be removed");
+        assert!(
+            !port_path(dir.path()).exists(),
+            "port file should be removed"
+        );
         assert!(token_path(dir.path()).exists(), "token should be preserved");
     }
 
@@ -91,12 +96,19 @@ mod stale_cleanup_tests {
         write_port(dir.path(), "9315");
 
         let detected = another_daemon_alive(dir.path());
-        assert_eq!(detected, Some(child_pid), "helper must detect live foreign pid");
+        assert_eq!(
+            detected,
+            Some(child_pid),
+            "helper must detect live foreign pid"
+        );
 
-        let err = cleanup_stale_daemon_files(dir.path())
-            .expect_err("live conflict must return Err");
+        let err =
+            cleanup_stale_daemon_files(dir.path()).expect_err("live conflict must return Err");
         let msg = format!("{err}");
-        assert!(msg.contains("another daemon is already running"), "msg: {msg}");
+        assert!(
+            msg.contains("another daemon is already running"),
+            "msg: {msg}"
+        );
         assert!(msg.contains(&child_pid.to_string()), "msg: {msg}");
         assert!(
             pid_path(dir.path()).exists(),
@@ -161,14 +173,55 @@ mod stale_cleanup_tests {
         let _ = child.kill();
         let _ = child.wait();
     }
+
+    /// hardening-r2 §5.9: a transient/non-NotFound read error on the pidfile
+    /// must REFUSE the boot, not silently fall through to "no other daemon".
+    /// On Linux this is reproducible by chmod-ing the pid file 0o000.
+    #[cfg(unix)]
+    #[test]
+    fn unreadable_pidfile_blocks_startup() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = TempDir::new().unwrap();
+        write_pid(dir.path(), "99999999"); // any well-formed pid; we never get to parse
+        let pid_file = pid_path(dir.path());
+        // Drop read perms so read_to_string hits PermissionDenied.
+        std::fs::set_permissions(&pid_file, std::fs::Permissions::from_mode(0o000)).unwrap();
+
+        // Restore on scope exit so TempDir can clean up.
+        let restore = std::fs::Permissions::from_mode(0o644);
+        struct Restore {
+            path: std::path::PathBuf,
+            perms: std::fs::Permissions,
+        }
+        impl Drop for Restore {
+            fn drop(&mut self) {
+                let _ = std::fs::set_permissions(&self.path, self.perms.clone());
+            }
+        }
+        let _restore = Restore {
+            path: pid_file.clone(),
+            perms: restore,
+        };
+
+        let err = cleanup_stale_daemon_files(dir.path()).expect_err(
+            "non-NotFound pidfile error must surface as Err — refusal to boot a 2nd daemon",
+        );
+        let msg = format!("{err}");
+        assert!(
+            msg.contains("could not read pidfile") || msg.contains("read failed"),
+            "expected fail-closed refusal, got: {msg}"
+        );
+    }
 }
 
 mod path_layout_tests {
     //! Validate that daemon writes land in the directory the caller passes —
-    //! either the singleton `<root>/machine/daemon/` or a per-worktree
-    //! `<root>/machine/daemons/<hash>/` (devx-04). The helpers treat
+    //! either the singleton `<runtime>/daemon/` or a per-worktree
+    //! `<runtime>/daemons/<hash>/` (devx-04). The helpers treat
     //! `daemon_dir` as opaque; policy lives in the caller.
-    use crate::ship_runtime::init::identity_files::{remove_liveness_files, write_pid_file, write_port_file, write_workspace_file};
+    use crate::ship_runtime::init::identity_files::{
+        remove_liveness_files, write_pid_file, write_port_file, write_workspace_file,
+    };
     use ship_substrate::ShipHome;
     use ship_substrate::home::DaemonFile;
     use tempfile::TempDir;
@@ -210,7 +263,6 @@ mod path_layout_tests {
         let daemon_dir = home.daemon_dir();
         assert_eq!(daemon_dir.join("pid"), home.daemon_file(DaemonFile::Pid));
         assert_eq!(daemon_dir.join("port"), home.daemon_file(DaemonFile::Port));
-        assert_eq!(daemon_dir.join("token"), home.daemon_file(DaemonFile::Token));
     }
 
     #[test]

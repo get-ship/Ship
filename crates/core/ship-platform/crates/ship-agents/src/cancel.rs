@@ -6,26 +6,24 @@
 //! session to Cancelled via the transition table; this decision's job is to
 //! stop the running work.
 //!
-//! The teardown MECHANISM is the L0 runner's slug-keyed primitive
-//! ([`ship_runner::stop_by_slug`] / [`ship_runner::stop_handle`]). The slug
+//! The teardown MECHANISM is the slug-keyed primitive at
+//! [`bridge::lifecycle::stop_by_slug`] /
+//! [`bridge::lifecycle::stop_handle`]. The slug
 //! is resolved from the session_id via `ProjectionReader::slug_for_session_id`
 //! — keeps this decision off `crate::projections` directly.
 //!
-//! Distinct from the orchestrator's pipeline-run cancel (which additionally
-//! walks fanout lanes and reads the jobs projection for the branch). The agent
-//! cancel is slug-keyed and harness-agnostic.
-//!
 //! The Stop RPC (`AgentsService::stop`) now emits `session.cancelled`
-//! (Space-scoped, Durable, canonical payload with slug populated) and returns
+//! (Runtime-scoped, Durable, canonical payload with slug populated) and returns
 //! optimistically; this handler performs the actual process teardown on receipt
 //! of that event. See apps/shipd/src/ops_rpc.rs stop_fn for the emit seam.
 
 use std::sync::Arc;
 
-use agent_def::canonical_session::SessionCancelled;
-use ship_runner::emit::persist_and_route;
-use ship_substrate::events::process::{event_types as process_event_types, ProcessKilledPayload};
+use agent_schema::canonical_session::SessionCancelled;
 use ship_substrate::events::EventEnvelope;
+use ship_substrate::events::emit::persist_and_route;
+use ship_substrate::events::process::ProcessKilledPayload;
+use ship_types::event_types as process_event_types;
 use tokio::sync::Mutex;
 
 use crate::ports::AgentPorts;
@@ -66,8 +64,11 @@ pub async fn handle_agent_cancelled(kernel: &Kernel, envelope: &EventEnvelope, p
     // Registry first (fast path), via the L0 slug-keyed teardown primitive. On a
     // registry miss, try the executor's resume path — best effort — and stop the
     // recovered handle through the same L0 teardown core.
-    let pid = if let Some(pid) = ship_code::runner::stop_by_slug(
-        kernel,
+    // E1: Fleet SessionManager sessions (FLEET_SESSION_SERVICE) cancel by slug map.
+    let _ = crate::fleet_session::cancel_by_slug(&slug).await;
+
+    let pid = if let Some(pid) = bridge::lifecycle::stop_by_slug(
+        &ports.lifecycle,
         &ports.registry,
         &ports.executor,
         &slug,
@@ -78,15 +79,25 @@ pub async fn handle_agent_cancelled(kernel: &Kernel, envelope: &EventEnvelope, p
     {
         pid
     } else if let Some(handle) = ports.executor.resume_handle(&slug, None, None).await {
-        ship_code::runner::stop_handle(kernel, &ports.executor, &slug, handle, "cancellation", "operator")
-            .await
+        bridge::lifecycle::stop_handle(
+            &ports.lifecycle,
+            &ports.executor,
+            &slug,
+            handle,
+            "cancellation",
+            "operator",
+        )
+        .await
     } else {
         // No handle to stop — but a dispatch for this slug may be spawning right
         // now (cancel raced the spawn). Drop a tombstone so the in-flight
         // dispatch tears the child down after it registers instead of leaking
         // it.
         ports.registry.mark_cancelled(&slug).await;
-        tracing::info!(slug, "agent-session-cancel: no live handle found; tombstoned for in-flight spawn, proceeding to cleanup");
+        tracing::info!(
+            slug,
+            "agent-session-cancel: no live handle found; tombstoned for in-flight spawn, proceeding to cleanup"
+        );
         None
     };
 
@@ -110,7 +121,10 @@ pub async fn handle_agent_cancelled(kernel: &Kernel, envelope: &EventEnvelope, p
             persist_and_route(kernel, env, &slug).await;
         }
         Err(e) => {
-            tracing::warn!(slug, "agent-session-cancel: failed to build process.killed envelope: {e}");
+            tracing::warn!(
+                slug,
+                "agent-session-cancel: failed to build process.killed envelope: {e}"
+            );
         }
     }
 }

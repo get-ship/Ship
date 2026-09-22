@@ -12,8 +12,15 @@ thiserror = { workspace = true }
 tokio = { workspace = true, features = ["sync"] }
 serde_json = { workspace = true }
 
+[features]
+default = []
+# Unchecked `Stamped` mint for tests. Production builds never enable this.
+test-support = ["ship-types/test-support"]
+
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "sync"] }
+# Unit tests mint Stamped via unchecked.
+ship-types = { path = "../ship-types", features = ["test-support"] }
 
 [lints]
 workspace = true

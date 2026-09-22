@@ -1,0 +1,38 @@
+{
+  "name": "@ship/home",
+  "version": "0.1.0",
+  "description": "Ship Home pack \u2014 <ship-home-greeting>, <ship-spaces-hero>. Pure-derived presenters; no SDK I/O. Composes <sui-card> / <sui-avatar> / <sui-status-dot> / <sui-empty-state> / <sui-stack> / <sui-badge> from @ship/sail-primitives. NOTE: <ship-activity-runs> (SDK-coupled) is omitted from this copy \u2014 it remains in the Ship hub repo.",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "customElements": "dist/custom-elements.json",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "deck": {
+    "bundles": [
+      {
+        "name": "ship-home",
+        "entry": "src/index.ts",
+        "externals": [
+          "@ship/sail-runtime",
+          "@ship/sail-dom"
+        ],
+        "lazy": true
+      }
+    ]
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@ship/sail-dom": "*",
+    "@ship/sail-primitives": "*",
+    "@ship/sail-runtime": "*"
+  },
+  "devDependencies": {
+    "@ship/test-setup": "^0.1.0",
+    "vitest": "^4.1.5"
+  }
+}

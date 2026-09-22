@@ -5,26 +5,40 @@
 //! (chat gutted in agents-arc E6; sessions folded into AgentsService.)
 
 use serde_json::Value;
-use ship_ops_rpc::{
-    ActiveSpace, ArtifactsListResponse, CollectionItem, Deletion,
-    EventsListResponse, ListProcsResponse, McpIndexResponse, PermissionsIndexResponse,
-    PipelinesIndexResponse, SessionsListResponse, SkillFileResponse, SkillsIndexResponse, Space,
-    SpaceInfo, SpaceList, SpecDetail, SpecGetResponse, SpecsListResponse,
-    ToolPatternsResponse,
+use ship_proto::ship::ops::v1::{
+    ArtifactsListResponse, CollectionItem, Deletion, EventsListResponse, ListProcsResponse,
+    McpIndexResponse, PermissionsIndexResponse, PipelinesIndexResponse, SessionsListResponse,
+    SkillFileResponse, SkillsIndexResponse, Space, SpaceInfo, SpaceList, SpecDetail,
+    SpecGetResponse, SpecsListResponse, ToolPatternsResponse,
 };
 
-const ARTIFACTS: &str = include_str!("../../../../proto/fixtures/artifacts_service.json");
-const COLLECTIONS: &str = include_str!("../../../../proto/fixtures/collections_service.json");
-const EVENTS: &str = include_str!("../../../../proto/fixtures/events_service.json");
-const MCP: &str = include_str!("../../../../proto/fixtures/mcp_service.json");
-const PERMISSIONS: &str = include_str!("../../../../proto/fixtures/permissions_service.json");
-const PIPELINES: &str = include_str!("../../../../proto/fixtures/pipelines_service.json");
-const SPACE: &str = include_str!("../../../../proto/fixtures/space_service.json");
-const RUNTIME: &str = include_str!("../../../../proto/fixtures/runtime_service.json");
+const ARTIFACTS: &str = include_str!(concat!(
+    env!("PROTO_ROOT"),
+    "/fixtures/artifacts_service.json"
+));
+const COLLECTIONS: &str = include_str!(concat!(
+    env!("PROTO_ROOT"),
+    "/fixtures/collections_service.json"
+));
+const EVENTS: &str = include_str!(concat!(env!("PROTO_ROOT"), "/fixtures/events_service.json"));
+const MCP: &str = include_str!(concat!(env!("PROTO_ROOT"), "/fixtures/mcp_service.json"));
+const PERMISSIONS: &str = include_str!(concat!(
+    env!("PROTO_ROOT"),
+    "/fixtures/permissions_service.json"
+));
+const PIPELINES: &str = include_str!(concat!(
+    env!("PROTO_ROOT"),
+    "/fixtures/pipelines_service.json"
+));
+const SPACE: &str = include_str!(concat!(env!("PROTO_ROOT"), "/fixtures/space_service.json"));
+const RUNTIME: &str = include_str!(concat!(
+    env!("PROTO_ROOT"),
+    "/fixtures/runtime_service.json"
+));
 // sessions folded into AgentsService (agents-arc E6: sessions.list → agents.sessions).
-const AGENTS: &str = include_str!("../../../../proto/fixtures/agents_service.json");
-const SKILLS: &str = include_str!("../../../../proto/fixtures/skills_service.json");
-const SPECS: &str = include_str!("../../../../proto/fixtures/specs_service.json");
+const AGENTS: &str = include_str!(concat!(env!("PROTO_ROOT"), "/fixtures/agents_service.json"));
+const SKILLS: &str = include_str!(concat!(env!("PROTO_ROOT"), "/fixtures/skills_service.json"));
+const SPECS: &str = include_str!(concat!(env!("PROTO_ROOT"), "/fixtures/specs_service.json"));
 
 fn response_ok(fixtures_json: &str, method: &str) -> String {
     let v: Value = serde_json::from_str(fixtures_json).expect("fixtures parse");
@@ -49,8 +63,8 @@ fn artifacts_delete_is_deletion() {
 
 #[test]
 fn collections_create_item_parses_envelope() {
-    let r: CollectionItem =
-        serde_json::from_str(&response_ok(COLLECTIONS, "CreateItem")).expect("parse CollectionItem");
+    let r: CollectionItem = serde_json::from_str(&response_ok(COLLECTIONS, "CreateItem"))
+        .expect("parse CollectionItem");
     assert_eq!(r.collection, "notes");
     assert!(!r.data_json.is_empty());
 }
@@ -74,40 +88,49 @@ fn mcp_list_parses_index() {
 
 #[test]
 fn permissions_list_parses_index() {
-    let r: PermissionsIndexResponse =
-        serde_json::from_str(&response_ok(PERMISSIONS, "List")).expect("parse PermissionsIndexResponse");
+    let r: PermissionsIndexResponse = serde_json::from_str(&response_ok(PERMISSIONS, "List"))
+        .expect("parse PermissionsIndexResponse");
     assert_eq!(r.items.len(), 3);
 }
 
 #[test]
 fn permissions_tool_patterns_parses_source() {
-    let r: ToolPatternsResponse =
-        serde_json::from_str(&response_ok(PERMISSIONS, "ToolPatterns")).expect("parse ToolPatternsResponse");
+    let r: ToolPatternsResponse = serde_json::from_str(&response_ok(PERMISSIONS, "ToolPatterns"))
+        .expect("parse ToolPatternsResponse");
     assert_eq!(r.patterns[0].pattern, "Bash(cargo *)");
     assert_eq!(r.patterns[0].source, "builtin");
 }
 
 #[test]
 fn pipelines_list_parses_index() {
-    let r: PipelinesIndexResponse =
-        serde_json::from_str(&response_ok(PIPELINES, "List")).expect("parse PipelinesIndexResponse");
+    let r: PipelinesIndexResponse = serde_json::from_str(&response_ok(PIPELINES, "List"))
+        .expect("parse PipelinesIndexResponse");
     assert_eq!(r.items.len(), 1);
     assert_eq!(r.items[0].id, "ship-feature");
 }
 
 #[test]
-fn space_add_parses_record() {
-    let r: Space = serde_json::from_str(&response_ok(SPACE, "Add")).expect("parse Space");
+fn space_create_parses_record() {
+    let r: Space = serde_json::from_str(&response_ok(SPACE, "Create")).expect("parse Space");
+    assert_eq!(r.id, "drydock");
+    assert_eq!(r.path, "/home/dev/drydock");
+}
+
+#[test]
+fn space_open_parses_record() {
+    let r: Space = serde_json::from_str(&response_ok(SPACE, "Open")).expect("parse Space");
     assert_eq!(r.id, "harbor");
     assert_eq!(r.path, "/home/dev/harbor");
 }
 
 #[test]
-fn space_list_parses_spaces_and_active() {
+fn space_list_parses_spaces() {
+    // S1 cutover: `SpaceList.active_id` is GONE (multi-window kills the
+    // open-one-at-a-time world). The list is now just the opened-spaces
+    // record; identity of the served space ships in `SpaceService.Info`.
     let r: SpaceList = serde_json::from_str(&response_ok(SPACE, "List")).expect("parse SpaceList");
     assert_eq!(r.spaces.len(), 1);
     assert_eq!(r.spaces[0].id, "harbor");
-    assert_eq!(r.active_id.as_deref(), Some("harbor"));
 }
 
 #[test]
@@ -150,7 +173,10 @@ fn specs_list_parses_vars_map() {
     let r: SpecsListResponse =
         serde_json::from_str(&response_ok(SPECS, "List")).expect("parse SpecsListResponse");
     assert_eq!(r.items.len(), 1);
-    assert_eq!(r.items[0].vars.get("area").map(String::as_str), Some("platform"));
+    assert_eq!(
+        r.items[0].vars.get("area").map(String::as_str),
+        Some("platform")
+    );
 }
 
 #[test]
@@ -175,22 +201,10 @@ fn specs_detail_parses_acceptance() {
 fn space_info_parses_identity_only() {
     // S4: SpaceInfo is identity-only (id/root/name). The effective settings
     // overlay moved to the unified SettingsService — see settings_contract.rs.
-    let r: SpaceInfo =
-        serde_json::from_str(&response_ok(SPACE, "Info")).expect("parse SpaceInfo");
+    let r: SpaceInfo = serde_json::from_str(&response_ok(SPACE, "Info")).expect("parse SpaceInfo");
     assert_eq!(r.space_id.as_deref(), Some("harbor"));
     assert_eq!(r.root.as_deref(), Some("/home/dev/harbor"));
     // No settings_json field on the proto — per-space settings live on
     // SettingsService.
     assert!(r.space_id.is_some());
-}
-
-// Window contract tests moved to the device topic (DeviceService) — the space
-// surface no longer carries window RPCs after the cutover.
-
-#[test]
-fn space_active_parses_active_record() {
-    let r: ActiveSpace =
-        serde_json::from_str(&response_ok(SPACE, "Active")).expect("parse ActiveSpace");
-    let active = r.active.as_option().expect("an active space is set in the fixture");
-    assert_eq!(active.id, "harbor");
 }

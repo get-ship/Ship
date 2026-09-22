@@ -15,35 +15,36 @@ use crate::def::{
     WebhookSourceDef,
 };
 use crate::engine::HookEngine;
-use crate::loader::{load_triggers_dir, parse_hook, validate_hook};
+
+/// Parse a `crate::TriggerDef` from its JSON authoring shape — replaces
+/// the retired JSONC-loader helpers (`parse_hook`/`validate_hook`) post
+/// format-migration Wave 4 phase A.
+fn trigger_def(json: &str) -> crate::TriggerDef {
+    serde_json::from_str(json).unwrap_or_else(|e| panic!("invalid trigger def json: {e}\n{json}"))
+}
 
 // ── Test helpers ─────────────────────────────────────────────────────────────
 
 fn tmp_ship_dir() -> (TempDir, std::path::PathBuf) {
     let tmp = tempfile::tempdir().unwrap();
-    let ship_dir = ship_substrate::ShipHome::project_ship_dir(tmp.path());
+    let ship_dir = tmp.path().join(".ship");
     std::fs::create_dir_all(ship_dir.join("triggers")).unwrap();
     std::fs::create_dir_all(ship_dir.join("schemas")).unwrap();
     (tmp, ship_dir)
 }
 
 fn test_kernel(ship_dir: &Path) -> Arc<Mutex<KernelRouter>> {
-     // Register the CollectionItemProjection for the test bus — the
-     // canonical trigger insert path is event-sourced and the projection
-     // materializes the `collection_*` table the read path queries.
-     ship_substrate::projections::install_extra_projections_factory(Box::new(|| {
-         vec![Box::new(
-             ship_collection::item_projection::CollectionItemProjection,
-         )]
-     }));
-     let kr = KernelRouter::new(ship_dir.to_path_buf()).unwrap();
-     Arc::new(Mutex::new(kr))
- }
-fn write_hook(ship_dir: &Path, filename: &str, content: &str) {
-    let path = ship_dir.join("triggers").join(filename);
-    std::fs::write(path, content).unwrap();
+    // CollectionItemProjection rides the bus via constructor DI — the
+    // canonical trigger insert path is event-sourced and the projection
+    // materializes the `collection_*` table the read path queries.
+    let factory: ship_substrate::projections::ProjectionFactory = Arc::new(|| {
+        vec![Box::new(
+            ship_collection::item_projection::CollectionItemProjection,
+        )]
+    });
+    let kr = KernelRouter::with_extra_projections(ship_dir.to_path_buf(), factory).unwrap();
+    Arc::new(Mutex::new(kr))
 }
-
 fn recent_events_matching(ship_dir: &Path, event_prefix: &str) -> Vec<EventEnvelope> {
     ship_substrate::db::events::list_recent_events_at(ship_dir, 200)
         .unwrap_or_default()
@@ -60,126 +61,101 @@ fn diff(before: &[EventEnvelope], after: &[EventEnvelope]) -> Vec<EventEnvelope>
         .collect()
 }
 
-// ── Load-time validation ──────────────────────────────────────────────────────
-
-#[test]
-fn reject_both_event_and_source() {
-    let hook_str = r#"{
-        "name": "both",
-        "trigger": {
-            "event": "pipeline.run.failed",
-            "source": { "type": "cron", "expression": "*/1 * * * *" }
-        },
-        "actions": []
-    }"#;
-    let (_tmp, ship_dir) = tmp_ship_dir();
-    let hook = parse_hook(hook_str).unwrap();
-    let err = validate_hook(&hook, &ship_dir).unwrap_err();
-    assert!(err.contains("either 'event' or 'source'"), "{err}");
-}
-
-#[test]
-fn reject_neither_event_nor_source() {
-    let hook_str = r#"{
-        "name": "empty-trigger",
-        "trigger": {},
-        "actions": []
-    }"#;
-    let (_tmp, ship_dir) = tmp_ship_dir();
-    let hook = parse_hook(hook_str).unwrap();
-    let err = validate_hook(&hook, &ship_dir).unwrap_err();
-    assert!(err.contains("either 'event' or 'source'"), "{err}");
-}
+// ── Conversion-time validation ────────────────────────────────────────────────
+//
+// `crate::TriggerDef`'s `trigger.event` is a required string (no TS shape
+// for a source-only trigger — def.rs's `convert_trigger_match` doc comment),
+// so "both set"/"neither set" can't arise the way the retired JSONC loader's
+// `reject_both_event_and_source`/`reject_neither_event_nor_source` tested;
+// those two cases are gone with the format they tested. The shape-level
+// checks that still apply (webhook path prefix, cron expression validity)
+// stay covered below via `HookDef::try_from_def`.
 
 #[test]
 fn reject_webhook_path_without_prefix() {
-    let hook_str = r#"{
-        "name": "bad-webhook",
-        "trigger": {
-            "source": { "type": "webhook", "path": "/api/some-path" }
-        },
+    let def = trigger_def(
+        r#"{
+        "id": "bad-webhook",
+        "trigger": { "event": "pipeline.run.started" },
+        "source": { "kind": "webhook", "path": "/api/some-path" },
         "actions": []
-    }"#;
+    }"#,
+    );
     let (_tmp, ship_dir) = tmp_ship_dir();
-    let hook = parse_hook(hook_str).unwrap();
-    let err = validate_hook(&hook, &ship_dir).unwrap_err();
+    let err = HookDef::try_from_def(&def, &ship_dir).unwrap_err();
     assert!(err.contains("/webhooks/"), "{err}");
 }
 
 #[test]
 fn accept_valid_webhook_trigger() {
-    let hook_str = r#"{
-        "name": "gh-webhook",
-        "trigger": {
-            "source": { "type": "webhook", "path": "/webhooks/github", "secret": "env:GH_SECRET" }
-        },
+    let def = trigger_def(
+        r#"{
+        "id": "gh-webhook",
+        "trigger": { "event": "pipeline.run.started" },
+        "source": { "kind": "webhook", "path": "/webhooks/github", "secret": "env:GH_SECRET" },
         "actions": [
             { "type": "event.emit", "event_type": "hook.tripped", "payload": {} }
         ]
-    }"#;
+    }"#,
+    );
     let (_tmp, ship_dir) = tmp_ship_dir();
-    let hook = parse_hook(hook_str).unwrap();
-    validate_hook(&hook, &ship_dir).unwrap();
+    HookDef::try_from_def(&def, &ship_dir).unwrap();
 }
 
 #[test]
 fn accept_valid_file_trigger() {
-    let hook_str = r#"{
-        "name": "watch-src",
-        "trigger": {
-            "source": { "type": "file", "watch": "src/**/*.rs", "events": ["modified"] }
-        },
+    let def = trigger_def(
+        r#"{
+        "id": "watch-src",
+        "trigger": { "event": "pipeline.run.started" },
+        "source": { "kind": "file", "glob": "src/**/*.rs" },
         "actions": [
             { "type": "event.emit", "event_type": "hook.tripped", "payload": {} }
         ]
-    }"#;
+    }"#,
+    );
     let (_tmp, ship_dir) = tmp_ship_dir();
-    let hook = parse_hook(hook_str).unwrap();
-    validate_hook(&hook, &ship_dir).unwrap();
+    HookDef::try_from_def(&def, &ship_dir).unwrap();
 }
 
 #[test]
 fn accept_valid_cron_trigger() {
-    let hook_str = r#"{
-        "name": "daily",
-        "trigger": {
-            "source": { "type": "cron", "expression": "0 9 * * *" }
-        },
+    let def = trigger_def(
+        r#"{
+        "id": "daily",
+        "trigger": { "event": "pipeline.run.started" },
+        "source": { "kind": "cron", "schedule": "0 9 * * *" },
         "actions": [
             { "type": "event.emit", "event_type": "hook.tripped", "payload": {} }
         ]
-    }"#;
+    }"#,
+    );
     let (_tmp, ship_dir) = tmp_ship_dir();
-    let hook = parse_hook(hook_str).unwrap();
-    validate_hook(&hook, &ship_dir).unwrap();
+    HookDef::try_from_def(&def, &ship_dir).unwrap();
 }
 
 #[test]
 fn reject_invalid_cron_expression() {
-    let hook_str = r#"{
-        "name": "bad-cron",
-        "trigger": {
-            "source": { "type": "cron", "expression": "not a cron" }
-        },
+    let def = trigger_def(
+        r#"{
+        "id": "bad-cron",
+        "trigger": { "event": "pipeline.run.started" },
+        "source": { "kind": "cron", "schedule": "not a cron" },
         "actions": []
-    }"#;
+    }"#,
+    );
     let (_tmp, ship_dir) = tmp_ship_dir();
-    let hook = parse_hook(hook_str).unwrap();
-    let err = validate_hook(&hook, &ship_dir).unwrap_err();
+    let err = HookDef::try_from_def(&def, &ship_dir).unwrap_err();
     assert!(err.contains("invalid expression"), "{err}");
 }
 
 #[test]
-fn existing_event_triggers_still_load() {
-    let (_tmp, ship_dir) = tmp_ship_dir();
-    write_hook(
-        &ship_dir,
-        "event-hook.jsonc",
-        r#"{ "name": "on-fail", "trigger": { "event": "pipeline.run.failed" }, "actions": [] }"#,
+fn existing_event_triggers_still_convert() {
+    let def = trigger_def(
+        r#"{ "id": "on-fail", "trigger": { "event": "pipeline.run.started" }, "actions": [] }"#,
     );
-    let report = load_triggers_dir(&ship_dir);
-    assert_eq!(report.hooks.len(), 1);
-    assert!(report.errors.is_empty());
+    let (_tmp, ship_dir) = tmp_ship_dir();
+    HookDef::try_from_def(&def, &ship_dir).unwrap();
 }
 
 // ── Webhook adapter ───────────────────────────────────────────────────────────
@@ -453,14 +429,11 @@ fn make_cron_hook(name: &str, expression: &str) -> HookDef {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn engine_dispatches_webhook_event_to_source_trigger() {
     let (_tmp, ship_dir) = tmp_ship_dir();
-    write_hook(
-        &ship_dir,
-        "wh.jsonc",
+    let def = trigger_def(
         r#"{
-            "name": "on-gh-push",
-            "trigger": {
-                "source": { "type": "webhook", "path": "/webhooks/github" }
-            },
+            "id": "on-gh-push",
+            "trigger": { "event": "pipeline.run.started" },
+            "source": { "kind": "webhook", "path": "/webhooks/github" },
             "actions": [
                 { "type": "event.emit", "event_type": "hook.tripped", "payload": { "from": "webhook" } }
             ]
@@ -469,7 +442,7 @@ async fn engine_dispatches_webhook_event_to_source_trigger() {
 
     let kernel = test_kernel(&ship_dir);
     let engine = HookEngine::new(kernel.clone(), ship_dir.clone());
-    engine.reload().await;
+    engine.reload(&[def]).await;
 
     let before: Vec<EventEnvelope> =
         ship_substrate::db::events::list_recent_events_at(&ship_dir, 200)

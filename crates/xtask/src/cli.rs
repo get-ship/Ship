@@ -2,13 +2,10 @@
 
 use std::path::{Path, PathBuf};
 
-use specta::TypeCollection;
-use specta_typescript::{BigIntExportBehavior, Typescript};
-
 use crate::{
-    coverage, gen_audit_readme, gen_collection_types, gen_contract, gen_events, gen_fixtures,
-    gen_icons, gen_indexes, gen_routes_doc, gen_skills, gen_sdk, lint_anti_theater,
-    lint_imports, lint_layers, lint_residue, port_descriptions, types,
+    coverage, gen_audit_readme, gen_contract, gen_eval_stub, gen_events, gen_fixtures,
+    gen_indexes, gen_sdk, lint_anti_theater,
+    lint_boundary, lint_imports, lint_layers, lint_residue,
 };
 
 pub fn repo_root() -> PathBuf {
@@ -21,13 +18,9 @@ pub fn repo_root() -> PathBuf {
 
 pub fn dispatch(cmd: &str, args: &[String]) {
     match cmd {
-        "gen-types" => {
-            let check = args.iter().any(|a| a == "--check");
-            gen_types(check);
-        }
-        "gen-sdk" => {
-            if let Err(e) = gen_sdk::run(&repo_root()) {
-                eprintln!("gen-sdk failed: {e:#}");
+        "lint-boundary" => {
+            if let Err(e) = lint_boundary::run(&repo_root()) {
+                eprintln!("lint-boundary failed: {e}");
                 std::process::exit(1);
             }
         }
@@ -83,22 +76,10 @@ pub fn dispatch(cmd: &str, args: &[String]) {
                 std::process::exit(1);
             }
         }
-        "gen-icons" => {
-            if let Err(e) = gen_icons::run(&repo_root()) {
-                eprintln!("gen-icons failed: {e:#}");
-                std::process::exit(1);
-            }
-        }
-        "gen-skills" => {
-            if let Err(e) = gen_skills::run() {
-                eprintln!("gen-skills failed: {e:#}");
-                std::process::exit(1);
-            }
-        }
-        "gen-routes-doc" => {
+        "gen-sdk" => {
             let check = args.iter().any(|a| a == "--check");
-            if let Err(e) = gen_routes_doc::run(&repo_root(), check) {
-                eprintln!("gen-routes-doc failed: {e:#}");
+            if let Err(e) = gen_sdk::run(check) {
+                eprintln!("gen-sdk failed: {e:#}");
                 std::process::exit(1);
             }
         }
@@ -106,6 +87,13 @@ pub fn dispatch(cmd: &str, args: &[String]) {
             let check = args.iter().any(|a| a == "--check");
             if let Err(e) = gen_contract::run(&repo_root(), check) {
                 eprintln!("gen-contract failed: {e:#}");
+                std::process::exit(1);
+            }
+        }
+        "gen-eval-stub" => {
+            let check = args.iter().any(|a| a == "--check");
+            if let Err(e) = gen_eval_stub::run(&repo_root(), check) {
+                eprintln!("gen-eval-stub failed: {e:#}");
                 std::process::exit(1);
             }
         }
@@ -119,19 +107,6 @@ pub fn dispatch(cmd: &str, args: &[String]) {
             let check = args.iter().any(|a| a == "--check");
             if let Err(e) = gen_indexes::run(&repo_root(), check) {
                 eprintln!("gen-indexes failed: {e:#}");
-                std::process::exit(1);
-            }
-        }
-        "gen-collection-types" => {
-            let check = args.iter().any(|a| a == "--check");
-            if let Err(e) = gen_collection_types::run(&repo_root(), check) {
-                eprintln!("gen-collection-types failed: {e:#}");
-                std::process::exit(1);
-            }
-        }
-        "port-descriptions" => {
-            if let Err(e) = port_descriptions::run() {
-                eprintln!("port-descriptions failed: {e:#}");
                 std::process::exit(1);
             }
         }
@@ -155,25 +130,21 @@ pub fn dispatch(cmd: &str, args: &[String]) {
 fn print_help() {
     eprintln!("Usage: cargo xtask <command>");
     eprintln!();
-    eprintln!("  gen-types             Regenerate packages/sdk/src/generated.ts");
-    eprintln!("  gen-types --check     Verify generated file is up-to-date (CI)");
-    eprintln!("  gen-sdk               Emit packages/sdk/src/generated/sdk-*.json + TS bindings");
-    eprintln!("  gen-fixtures          Emit proto contract fixtures from proto/fixtures/fixture-seed.json");
-    eprintln!("  gen-icons             Bake lucide-icons.json from node_modules/lucide-static");
+    eprintln!("  gen-fixtures          Emit proto contract fixtures from <PROTO_ROOT>/fixtures/fixture-seed.json (SMELL: tool lives in ship; output is ship-contracts; see .artifacts/handoff-post-cleanup.md)");
     eprintln!("  lint-layers           Verify L0/L1/L2 boundaries from the resolved cargo-metadata graph (R0-R4)");
     eprintln!("  lint-imports          Verify layer-direction rules at the `use`-statement level");
     eprintln!("  lint-anti-theater     Ban source-grep-in-tests (R18): include_str!/read_to_string of a .rs + .contains/.find");
     eprintln!("  lint-residue          Catch orphan .rs files + byte-identical .rs copied across crates");
     eprintln!("  gen-events            Generate tier-filtered proto + TS from the event registry");
     eprintln!("  gen-events --check    Verify generated files are up-to-date (CI)");
-    eprintln!("  gen-routes-doc        Regenerate skills/sdk/http-routes from @route annotations in apps/shipd/src/routes/mod.rs");
-    eprintln!("  gen-routes-doc --check  Verify the route reference is up-to-date (CI drift gate)");
+    eprintln!("  gen-sdk               Emit 5 JSON manifests + 1 TS typed-FrameworkManifest to packages/sdk/src/manifests/ (view-contexts, collections, triggers, views, framework)");
+    eprintln!("  gen-sdk --check       Verify generated manifests are up-to-date (CI)");
     eprintln!("  gen-contract          Generate docs/contract/<domain>.md consumer guides");
-    eprintln!("  gen-contract --check  Verify generated contract docs are up-to-date (CI)");
+    eprintln!("  gen-eval-stub         Regenerate agent-config-eval's SDK stub + field fingerprints from @ship/stack");
+    eprintln!("  gen-eval-stub --check Verify the generated stub is up-to-date (CI)");
     eprintln!("  gen-audit-readme      Regenerate .artifacts/specs/module-audits/README.md");
     eprintln!("  gen-indexes           Regenerate emit-sites.md + substrate-fns.md indexes");
     eprintln!("  gen-indexes --check   Verify indexes are up-to-date (CI)");
-    eprintln!("  gen-collection-types  Emit packages/sdk/src/generated/collections.ts (typed Database from .ship/collections)");
     eprintln!("  coverage              Run workspace tests; emit .artifacts/coverage/report.md");
     eprintln!("  coverage --stdout     Print coverage report to stdout");
     eprintln!("  coverage --report-only  Skip test run; read test JSON from stdin");
@@ -181,84 +152,3 @@ fn print_help() {
     eprintln!("  coverage --filter <svc>  Scope to one service/namespace prefix");
 }
 
-
-fn gen_types(check: bool) {
-    let ts = Typescript::default()
-        .bigint(BigIntExportBehavior::Number)
-        .header("// This file is auto-generated by `cargo xtask gen-types`. Do not edit.")
-        .framework_header("");
-
-    let root = repo_root();
-    let ui_out = root.join("packages/sdk/src/generated.ts");
-    let ui_content = ts
-        .export(&types::collect_types())
-        .expect("specta-typescript export failed (ui)");
-
-    let cloud_out = root.join("packages/cloud-types/src/generated.ts");
-    let cloud_content = build_cloud_types(&ts, &root);
-
-    // framework types (sui-runtime) — the runtime crate lives in the external
-    // sui repo post-carve. gen-types no longer emits this file; sui ships
-    // its own `cargo xtask gen-framework-types` against the sui workspace.
-    let ship_data_out = root.join("packages/sdk-client/src/generated.ts");
-    let ship_data_content = ts
-        .export(&types::collect_ship_data_types())
-        .expect("specta-typescript export failed (ship-data)");
-
-    if check {
-        let mut stale = false;
-        for (path, expected) in [
-            (&ui_out, &ui_content),
-            (&cloud_out, &cloud_content),
-            (&ship_data_out, &ship_data_content),
-        ] {
-            let existing = std::fs::read_to_string(path).unwrap_or_default();
-            if existing != *expected {
-                eprintln!("Out of date: {}", path.display());
-                stale = true;
-            }
-        }
-        eprintln!("Types are up-to-date.");
-        return;
-    }
-    std::fs::write(&ui_out, &ui_content).expect("failed to write ui generated.ts");
-    eprintln!("Wrote {}", ui_out.display());
-    std::fs::write(&cloud_out, &cloud_content).expect("failed to write cloud generated.ts");
-    eprintln!("Wrote {}", cloud_out.display());
-    std::fs::write(&ship_data_out, &ship_data_content)
-        .expect("failed to write ship-data generated.ts");
-    eprintln!("Wrote {}", ship_data_out.display());
-}
-
-/// Build the cloud-side generated.ts: EventEnvelope struct + all event-type
-/// string constants read from `ship-types/src/event_types/mod.rs`. Cloud's TS
-/// surface must mirror Rust's event taxonomy exactly.
-fn build_cloud_types(ts: &Typescript, root: &Path) -> String {
-    let mut c = TypeCollection::default();
-    c.register::<ship_types::EventEnvelope>();
-    let struct_ts = ts
-        .export(&c)
-        .expect("specta-typescript export failed (cloud)");
-
-    let event_types_src = root.join("crates/core/ship-substrate/crates/ship-types/src/event_types/mod.rs");
-    let src = std::fs::read_to_string(&event_types_src)
-        .unwrap_or_else(|e| panic!("read {}: {e}", event_types_src.display()));
-    let mut consts = String::new();
-    for line in src.lines() {
-        let trimmed = line.trim();
-        // pub const NAME: &str = "value";
-        let Some(rest) = trimmed.strip_prefix("pub const ") else { continue };
-        let Some((name, rest)) = rest.split_once(": &str =") else { continue };
-        let rest = rest.trim().trim_end_matches(';').trim();
-        if !rest.starts_with('"') || !rest.ends_with('"') {
-            continue;
-        }
-        consts.push_str(&format!(
-            "export const {name} = {value} as const;\n",
-            name = name.trim(),
-            value = rest,
-        ));
-    }
-
-    format!("{struct_ts}\n// ── Event-type constants (mirrored from crates/core/ship-substrate/crates/ship-types/src/event_types/mod.rs) ──\n\n{consts}")
-}

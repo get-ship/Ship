@@ -5,7 +5,7 @@
 //!
 //! Covers (job spec numbering):
 //!   (1) EventEnvelope row round-trip — insert_event_row ↔ envelope_from_row.
-//!   (3) reconcile_events_scope_columns / _author_columns — idempotent + backfill.
+
 //!   (4) new_for_scope key invariant — Space requires a key; Runtime/Account none.
 //!   (5) sqlite_url path encoding round-trips through SqliteConnectOptions::from_str.
 
@@ -91,6 +91,9 @@ prop_compose! {
             author_account_id,
             author_device_id,
             signature,
+            sig: None,
+            writer: None,
+            causality: None,
         }
     }
 }
@@ -241,128 +244,6 @@ proptest! {
         let acct = SqliteEventStore::new_for_scope(ship, EventScope::Account, k).unwrap();
         let acct_expected = crate::db::account_db_path(ship);
         prop_assert_eq!(acct.db_path(), acct_expected.as_path());
-    }
-}
-
-// ── (3) reconcile idempotency + backfill ───────────────────────────────────────
-
-proptest! {
-    #![proptest_config(ProptestConfig::with_cases(40))]
-
-    /// Reconcile is idempotent (apply twice == once) AND backfills the
-    /// `(scope, scope_key)` tuple correctly from a legacy `space_id` column:
-    /// keyed rows → (space, key); keyless rows → runtime (fail-closed default).
-    /// Then the additive author/signature reconcile adds its three columns
-    /// idempotently. Run over arbitrary legacy rows.
-    #[test]
-    fn reconcile_is_idempotent_and_backfills(
-        // Event-types are `test.*` (unregistered): a keyless row therefore
-        // backfills to the fail-closed Runtime default, never the Account
-        // family — keeps the keyless→runtime assertion exact without
-        // depending on which random names the generator picks.
-        rows in proptest::collection::vec(
-            ("test\\.[a-z][a-z0-9_]{1,16}", opt_text()),
-            0..6,
-        ),
-    ) {
-        use super::events_scope_reconcile::{
-            reconcile_events_author_columns, reconcile_events_scope_columns,
-        };
-
-        let tmp = tempdir().unwrap();
-        let db = tmp.path().join("legacy.db");
-        let mut conn = open(&db);
-
-        // A legacy events table: single `space_id` key column, no scope tuple.
-        block_on(async {
-            sqlx::query(
-                "CREATE TABLE events (id TEXT PRIMARY KEY, event_type TEXT, \
-                 space_id TEXT, created_at TEXT)",
-            )
-            .execute(&mut conn)
-            .await
-        })
-        .unwrap();
-
-        // Insert the generated legacy rows with unique ids.
-        let inserted: Vec<(String, Option<String>)> = rows
-            .iter()
-            .map(|(et, space)| {
-                let id = crate::gen_ulid();
-                block_on(async {
-                    sqlx::query(
-                        "INSERT INTO events (id, event_type, space_id, created_at) \
-                         VALUES (?,?,?,?)",
-                    )
-                    .bind(&id)
-                    .bind(et)
-                    .bind(space)
-                    .bind("2026-05-14T00:00:00Z")
-                    .execute(&mut conn)
-                    .await
-                })
-                .unwrap();
-                (id, space.clone())
-            })
-            .collect();
-
-        // First reconcile pass.
-        reconcile_events_scope_columns(&mut conn).unwrap();
-        reconcile_events_author_columns(&mut conn).unwrap();
-
-        let snapshot = |conn: &mut SqliteConnection| -> Vec<(String, Option<String>)> {
-            block_on(async {
-                sqlx::query_as::<_, (String, Option<String>)>(
-                    "SELECT scope, scope_key FROM events ORDER BY id",
-                )
-                .fetch_all(&mut *conn)
-                .await
-            })
-            .unwrap()
-        };
-        let after_once = snapshot(&mut conn);
-
-        // Backfill correctness: a row that carried a space_id → (space, key);
-        // a keyless row → runtime (the fail-closed default; none of the
-        // generated event-types are Account-registered).
-        for (id, space) in &inserted {
-            let (sc, key): (String, Option<String>) = block_on(async {
-                sqlx::query_as("SELECT scope, scope_key FROM events WHERE id = ?")
-                    .bind(id)
-                    .fetch_one(&mut conn)
-                    .await
-            })
-            .unwrap();
-            match space {
-                Some(s) => {
-                    prop_assert_eq!(sc.as_str(), "space");
-                    prop_assert_eq!(key.as_deref(), Some(s.as_str()));
-                }
-                None => {
-                    prop_assert_eq!(sc.as_str(), "runtime");
-                    prop_assert_eq!(key, None);
-                }
-            }
-        }
-
-        // Idempotent: a second pass changes nothing.
-        reconcile_events_scope_columns(&mut conn).unwrap();
-        reconcile_events_author_columns(&mut conn).unwrap();
-        let after_twice = snapshot(&mut conn);
-        prop_assert_eq!(after_once, after_twice);
-
-        // Author columns present after reconcile (idempotently).
-        for col in ["author_account_id", "author_device_id", "signature"] {
-            let present: i64 = block_on(async {
-                sqlx::query_scalar(&format!(
-                    "SELECT COUNT(*) FROM pragma_table_info('events') WHERE name='{col}'"
-                ))
-                .fetch_one(&mut conn)
-                .await
-            })
-            .unwrap();
-            prop_assert_eq!(present, 1, "{} must be present after reconcile", col);
-        }
     }
 }
 

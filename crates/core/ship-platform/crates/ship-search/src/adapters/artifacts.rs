@@ -42,7 +42,10 @@ impl EntitySearchAdapter for ArtifactsAdapter {
                     kind: EntityKind::Artifact,
                     id: a.id.clone(),
                     label: a.name.clone(),
-                    path: format!("/api/v1/artifacts/{}", a.id),
+                    // The artifact id is the op-shaped reference — consumers
+                    // call `GetBlob` with it. (The previous shape synthesized
+                    // `/api/v1/artifacts/<id>` but no route serves that.)
+                    path: a.id.clone(),
                     icon: Some("file".into()),
                     snippet: a.mime.clone(),
                     score,

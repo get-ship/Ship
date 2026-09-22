@@ -1,9 +1,8 @@
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
 // jemalloc global allocator. Replaces the glibc malloc_trim(0) FFI the
-// bundler was calling per build (the band-aid lived in
-// /home/madvib/dev/sui/crates/deck/deck-bundler/src/arena.rs, deleted as part of cut 4).
-// jemalloc returns freed arenas to the OS by default — no per-build
+// bundler was calling per build (the band-aid lived in the deck-bundler
+// crate in the sui repo's deck-bundler/src/arena.rs, deleted as part of
 // trim required. The earlier glibc leak would have manifested in the
 // daemon's RSS after sustained build/watch cycles; jemalloc keeps the
 // heap trimmed. (musl, macOS, and Windows manage their heaps differently
@@ -27,19 +26,20 @@ fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
-    let global_dir = ship_substrate::project::get_global_dir()?;
+    let _global_dir = ship_substrate::project::get_global_dir()?;
 
-    let logs_dir = ship_substrate::ShipHome::at(global_dir.clone())
-        .machine_dir()
+    let logs_dir = ship_substrate::ShipHome::from_env()
+        .state_dir()
         .join("logs");
     let _ = std::fs::create_dir_all(&logs_dir);
 
     // Rotate log file if >10 MB.
     let log_path = logs_dir.join("shipd.log");
     if let Ok(meta) = std::fs::metadata(&log_path)
-        && meta.len() > 10 * 1024 * 1024 {
-            let _ = std::fs::rename(&log_path, logs_dir.join("shipd.log.old"));
-        }
+        && meta.len() > 10 * 1024 * 1024
+    {
+        let _ = std::fs::rename(&log_path, logs_dir.join("shipd.log.old"));
+    }
 
     // File appender — JSON-structured logs for crash forensics.
     let file_appender = tracing_appender::rolling::never(&logs_dir, "shipd.log");
@@ -49,19 +49,20 @@ fn main() -> anyhow::Result<()> {
         .with_filter(EnvFilter::new("info"));
 
     // Stderr layer — human-readable for interactive use.
-    let stderr_layer = tracing_subscriber::fmt::layer()
-        .with_filter(EnvFilter::from_default_env());
+    let stderr_layer = tracing_subscriber::fmt::layer().with_filter(EnvFilter::from_default_env());
 
     tracing_subscriber::registry()
         .with(file_layer)
         .with(stderr_layer)
         .init();
 
-    // --port is optional — None means "auto-derive from path_hash, honoring
-    // local.jsonc:worktrees.ports pins". See `ship_substrate::home::worktree_port_for`.
+    // --port is optional — None means "auto-derive from path_hash".
+    // See `ship_substrate::home::worktree_port_for`.
     let port = extract_u16_arg(&args, "--port");
     let host = extract_str_arg(&args, "--host").unwrap_or_else(|| "127.0.0.1".to_string());
-    let dev = args.iter().any(|a| a == "--dev");
+    // `--unsafe-skip-auth` — the contributor-only token-less loopback auth bypass.
+    // The bypass itself is compiled out of release builds.
+    let unsafe_skip_auth = args.iter().any(|a| a == "--unsafe-skip-auth");
 
     // --mode development|production (default: development).
     // SHIP_DAEMON_MODE env var is a fallback when --mode is not passed.
@@ -92,17 +93,17 @@ fn main() -> anyhow::Result<()> {
     // `<worktree>/apps/shipd/apps.jsonc` (set inside `run_network`); the
     // flag is for non-default layouts (a marketing site, docs, a customer
     // shipd install that doesn't ship the Ship apps).
-    let apps_config_override = extract_str_arg(&args, "--apps-config")
-        .map(std::path::PathBuf::from);
+    let apps_config_override =
+        extract_str_arg(&args, "--apps-config").map(std::path::PathBuf::from);
     // `--apps-base-dir <path>` — base dir for the `AppSource` resolver
     // (Phase 1 node resolution). Default: the project root. In dev the
-    // `start.sh` script sets this to the ship-apps workspace so the
-    // resolver finds `<ship-apps>/node_modules/@ship/hub` without
-    // dragging the ship monorepo into the package graph. The flag is
-    // for ops that ship apps via a non-default layout (a customer
+    // `start.sh` script sets this to the ship workspace root so the
+    // resolver finds `<ship>/node_modules/@ship/hub` (j-12: hub/spaces
+    // live in ship/apps; root package.json self-declares them). The flag
+    // is for ops that ship apps via a non-default layout (a customer
     // install whose `node_modules/` lives outside the worktree).
-    let apps_base_dir_override = extract_str_arg(&args, "--apps-base-dir")
-        .map(std::path::PathBuf::from);
+    let apps_base_dir_override =
+        extract_str_arg(&args, "--apps-base-dir").map(std::path::PathBuf::from);
 
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
@@ -110,7 +111,7 @@ fn main() -> anyhow::Result<()> {
     rt.block_on(shipd::run_network(
         host,
         port,
-        dev,
+        unsafe_skip_auth,
         workspace,
         daemon_mode,
         apps_config_override,
@@ -125,16 +126,14 @@ fn extract_u16_arg(args: &[String], flag: &str) -> Option<u16> {
 }
 
 fn extract_str_arg(args: &[String], flag: &str) -> Option<String> {
-    args.windows(2)
-        .find(|w| w[0] == flag)
-        .map(|w| w[1].clone())
+    args.windows(2).find(|w| w[0] == flag).map(|w| w[1].clone())
 }
 
 /// Walk up from CWD looking for a `.ship/` directory. Returns the project
 /// root (the dir containing `.ship/`), not `.ship/` itself.
 fn discover_workspace() -> Option<std::path::PathBuf> {
     let cwd = std::env::current_dir().ok()?;
-    let ship_dir = ship_substrate::project::resolve_project_ship_dir(&cwd)?;
+    let ship_dir = ship_substrate::project::resolve_stack_root(&cwd)?;
     ship_dir.parent().map(std::path::Path::to_path_buf)
 }
 
@@ -147,8 +146,8 @@ USAGE:
 
 OPTIONS:
     --host <HOST>                  Bind address (default: 127.0.0.1)
-    --port <PORT>                  Port to listen on (default: auto-derived)
-    --dev                          Enable dev mode: relaxed auth, auto-pair
+    --unsafe-skip-auth             DANGER: token-less loopback auth (contributor
+                                   dev only; compiled out of release builds)
     --mode <development|production>
                                    Operating mode (default: development).
                                    production: immutable cache headers, HMR
@@ -199,9 +198,9 @@ fn install_panic_hook() {
         // (no ship_dir, no perm, etc.) fall back to stderr. The
         // crash is the artifact — get it onto disk even if we have
         // to do it badly.
-        if let Ok(global_dir) = ship_substrate::project::get_global_dir() {
-            let logs_dir = ship_substrate::ShipHome::at(global_dir)
-                .machine_dir()
+        if let Ok(_global_dir) = ship_substrate::project::get_global_dir() {
+            let logs_dir = ship_substrate::ShipHome::from_env()
+                .state_dir()
                 .join("logs");
             let _ = std::fs::create_dir_all(&logs_dir);
             let crash_path = logs_dir.join("shipd.crash.json");

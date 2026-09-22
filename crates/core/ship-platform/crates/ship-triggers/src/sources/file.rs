@@ -16,9 +16,8 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use serde_json::json;
-use ship_substrate::ports::{
-    ChangeKind, FsCap, FsMode, FsRoot, FsWatch, LocalFsWatch, SpaceId, WatchOpts,
-};
+use ship_substrate::ports::{FsCap, FsMode, FsRoot, SpaceId};
+use fs_watch::{ChangeKind, FsWatch, LocalFsWatch, WatchOpts};
 use tokio::sync::mpsc::UnboundedSender;
 
 use ship_substrate::events::{EmitContext, EventEnvelope, KernelRouter};
@@ -291,8 +290,8 @@ fn resolve_path(watch: &str, ship_dir: &Path) -> PathBuf {
     if p.is_absolute() {
         p.to_path_buf()
     } else {
-        // Resolve relative to the project root (parent of .ship/).
-        ship_dir.parent().unwrap_or(ship_dir).join(watch)
+        // Resolve relative to the stack root (the anchor itself).
+        ship_dir.join(watch)
     }
 }
 

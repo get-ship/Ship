@@ -38,6 +38,9 @@ fn sample_envelope(id: &str, event_type: &str, space_id: &str) -> EventEnvelope 
         author_account_id: None,
         author_device_id: None,
         signature: None,
+        sig: None,
+        writer: None,
+        causality: None,
     }
 }
 

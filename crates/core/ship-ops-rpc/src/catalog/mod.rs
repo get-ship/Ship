@@ -5,11 +5,11 @@
 //! depending on the daemon. The daemon's `schema::serve_schema()` handler sources
 //! from this module.
 
-mod types;
 mod commands;
+mod types;
 
-pub use types::{OpDescriptor, ArgDescriptor, CommandDescriptor};
 pub use commands::COMMANDS;
+pub use types::{ArgDescriptor, CommandDescriptor, OpDescriptor};
 
 /// Read-side op catalog. All domains have migrated to typed Connect RPCs;
 /// this slice is empty and kept only for xtask / SDK codegen compatibility.

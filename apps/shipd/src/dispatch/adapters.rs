@@ -2,15 +2,24 @@
 //!
 //! `GitWorktreeIsolation` — creates git worktrees, writes phase specs, compiles agent config.
 //! The git/tmux/worktree subprocess helpers it calls live in
-//! `ship_agents::runtime::helpers`; the executors in `ship_agents::runtime::executors`.
-
+//! `bridge::helpers`; the executors in `bridge::executors`.
+//!
+//! `prepare` delegates the worktree-create step to `ship_git::write::create_worktree`
+//! (the libgit2-direct leaf also backing the `ship.internal.v1.GitService/CreateWorktree`
+//! RPC). ship-code's older `create_worktree` helper was removed — its reimplementation
+//! of `git worktree add` shell logic is subsumed by the leaf.
 use anyhow::Result;
 use async_trait::async_trait;
-use ship_code::dispatch_ports::{IsolationStrategy, SessionContext};
-use ship_pipeline_runtime::orchestrator::isolation::write_phase_spec_from_context;
+use bridge::dispatch_ports::{IsolationStrategy, SessionContext};
+use ship_git::write::{self, WorktreeOutcome};
+use ship_substrate::events::KernelRouter;
+use ship_substrate::ports::KernelLog;
 use std::path::PathBuf;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
-use ship_agents::runtime::helpers::{compile_agent_config, create_worktree, worktrees_dir};
+use bridge::helpers::{repo_dir, worktrees_dir};
+use ship_agents::services::agents::compile_dispatch::compile_agent_config;
 
 /// Serializes `git worktree add` across concurrent dispatches. git takes a
 /// lock on the main repo's index/worktrees during `worktree add`, so two
@@ -20,15 +29,47 @@ use ship_agents::runtime::helpers::{compile_agent_config, create_worktree, workt
 static WORKTREE_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 /// Isolation strategy that creates git worktrees and compiles agent configs.
-pub(crate) struct GitWorktreeIsolation;
+///
+/// Holds the daemon's shared event log so dispatch-time compile emits
+/// `compile.completed` on the same kernel as the rest of the runtime.
+pub(crate) struct GitWorktreeIsolation {
+    kernel: Arc<KernelLog>,
+}
+
+impl GitWorktreeIsolation {
+    pub(crate) fn new(kernel: Arc<Mutex<KernelRouter>>) -> Self {
+        Self {
+            kernel: Arc::new(KernelLog::new(kernel)),
+        }
+    }
+}
 
 #[async_trait]
 impl IsolationStrategy for GitWorktreeIsolation {
     async fn prepare(&self, job: &SessionContext) -> Result<PathBuf> {
-        let worktree_path = worktrees_dir().join(&job.slug);
+        let worktree_path = worktrees_dir()?.join(&job.slug);
         {
             let _guard = WORKTREE_LOCK.lock().await;
-            create_worktree(&worktree_path, &job.branch, None)?;
+            // Dispatch retries should be idempotent: a worktree at the same
+            // path on the same branch re-uses cleanly (Reused); a path occupied
+            // by a different branch refuses loudly (Failed → bubble up). The
+            // leaf's `WorktreeOutcome` matches the `Created / Reused / Failed`
+            // Per-call fork source: the dispatch's `repo_path` is the
+            // absolute path the worktree forks from; `base_ref` is the
+            // ref the new branch starts from. `None` / empty falls back
+            // to the daemon default + that repo's HEAD, matching the
+            // proto's empty-string = default convention. Consumed
+            // in-call; never persisted.
+            let repo_root = job.repo_path.clone().unwrap_or_else(repo_dir);
+            let base_ref = job.base_ref.as_deref().unwrap_or("");
+            let outcome =
+                write::create_worktree(&repo_root, &worktree_path, &job.branch, base_ref, true);
+            if let WorktreeOutcome::Failed { error, .. } = outcome {
+                return Err(anyhow::anyhow!(
+                    "git worktree add failed for '{}': {error}",
+                    worktree_path.display()
+                ));
+            }
         }
         let session_dir = worktree_path.join(".artifacts");
         std::fs::create_dir_all(&session_dir)?;
@@ -36,25 +77,38 @@ impl IsolationStrategy for GitWorktreeIsolation {
         // serving a dispatched agent when SHIP_ACTOR_ID env gets stripped
         // by the harness's MCP subprocess spawn. Worktree-scoped; the
         // project root never has this marker.
-        let _ = std::fs::write(session_dir.join(".dispatched"), &job.slug);
-        write_phase_spec_from_context(&worktree_path, job)?;
-        // Run steps (pure shell) carry no agent — there's nothing to
-        // compile, and an empty/placeholder agent would fail profile
-        // resolution. Only compile when a real agent is named (every
-        // agent step and bare dispatch sets one).
+        std::fs::write(session_dir.join(".dispatched"), &job.slug).map_err(|e| {
+            // hardening-r2 §5.4: the .dispatched marker is what the MCP tool
+            // gate reads to detect a dispatched context (vs interactive).
+            // A silent miss leaves the agent gated as interactive with no
+            // record why — propagate so the dispatch aborts loudly.
+            anyhow::anyhow!("write .dispatched marker (slug={}) failed: {}", job.slug, e)
+        })?;
+        // Per-step "phase spec" writer was retired with the engine cut
+        // (2026-07-10): code-mode steps author their own artifacts. The
+        // bare agent-session dispatch leaves only the worktree + .dispatched
+        // marker as the dispatch evidence.
+        // Run steps (pure shell) carry no agent — there's nothing to compile.
+        // Agent dispatches inject the daemon KernelLog so compile.completed
+        // lands on the shared event log (not a process-global lookup).
         if !job.agent.is_empty() {
-            compile_agent_config(&worktree_path, &job.agent)?;
+            compile_agent_config(&worktree_path, &job.agent, Some(self.kernel.clone()))?;
         }
         Ok(worktree_path)
     }
 
     async fn cleanup(&self, job: &SessionContext) -> Result<()> {
-        let worktree_path = worktrees_dir().join(&job.slug);
+        let worktree_path = worktrees_dir()?.join(&job.slug);
         if worktree_path.exists() {
-            ship_agents::runtime::helpers::remove_worktree(&worktree_path)?;
+            write::remove_worktree(&repo_dir(), &worktree_path, true).map_err(|e| {
+                anyhow::anyhow!(
+                    "git worktree remove failed for '{}': {e}",
+                    worktree_path.display()
+                )
+            })?;
         }
-        ship_agents::runtime::helpers::delete_branch(&job.branch)?;
+        write::delete_branch(&repo_dir(), &job.branch, false)
+            .map_err(|e| anyhow::anyhow!("git branch -D failed for `{}`: {e}", job.branch))?;
         Ok(())
     }
 }
-

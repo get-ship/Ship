@@ -45,7 +45,7 @@ fn parse_app_id() -> Option<String> {
 
 /// Resolve the loopback port the webview should target, starting the daemon if
 /// it isn't already up. `daemon_status` is read-only — on a cold launch its port
-/// is `None`, so we must drive `daemon_start` (which spawns `ship daemon start`
+/// is `None`, so we must drive `daemon_start` (which spawns `shipctl daemon start`
 /// and polls ~5s for the handshake). The whole discover→start→re-discover cycle
 /// is retried a bounded number of times so a slow or racing launch self-heals;
 /// `None` is returned only after every attempt is exhausted, letting the caller
@@ -95,6 +95,44 @@ fn connect_url(app_id: &Option<String>) -> Option<String> {
     resolve_daemon_port().map(|port| format!("http://127.0.0.1:{port}{}", target_path(app_id)))
 }
 
+/// The in-bootstrap error URL: the given page URL with its fragment set to
+/// `error`, which the bootstrap page's `:target` rule turns into the visible
+/// error block. Built from the webview's *actual* URL because `navigate`
+/// requires an absolute `tauri::Url` (a relative string never parses) and the
+/// bundled-page origin is platform-dependent — `tauri://localhost` on
+/// macOS/Linux, `http://tauri.localhost` on Windows — so no scheme/host may be
+/// hardcoded here.
+fn error_url(page: &tauri::Url) -> tauri::Url {
+    let mut url = page.clone();
+    url.set_fragment(Some("error"));
+    url
+}
+
+/// One tick of the passive daemon-watcher policy: how long to sleep before the
+/// next read-only `daemon_status` probe, and whether the in-bootstrap `#error`
+/// state should be surfaced *now*. Pure so the schedule is unit-testable; the
+/// loop in `run`'s setup thread just executes it.
+struct WatchTick {
+    delay: Duration,
+    surface_error: bool,
+}
+
+/// Poll fast (2s) through the generous startup window where a slow handshake
+/// or an out-of-band start is likely to land, surface `#error` exactly once
+/// when that window closes, then keep watching forever at a slower cadence —
+/// the probe is a cheap handshake-file read, and a daemon appearing at any
+/// later time (e.g. after the user's Retry starts one) must still be picked
+/// up and navigated to.
+fn watch_tick(tick: u32) -> WatchTick {
+    const FAST_TICKS: u32 = 20;
+    const FAST: Duration = Duration::from_secs(2);
+    const SLOW: Duration = Duration::from_secs(5);
+    WatchTick {
+        delay: if tick < FAST_TICKS { FAST } else { SLOW },
+        surface_error: tick == FAST_TICKS,
+    }
+}
+
 /// Build and run the shell. Registers the revived plugin set (updater / dialog /
 /// process / opener) and the shell's native command surface, then launches the
 /// `main` window the SUI frontend is served into. When launched with `--app`,
@@ -134,9 +172,11 @@ pub fn run() {
                 // immediately, and KEEP watching so a slow- or late-starting
                 // daemon self-heals — the window navigates the moment the daemon
                 // is reachable instead of stranding the user on "Connecting…"
-                // with a one-shot that already fired. Only after a generous
-                // window with no daemon at all do we surface the in-bootstrap
-                // `#error` state.
+                // with a one-shot that already fired. The watcher never exits
+                // without a daemon: after a generous window it surfaces the
+                // in-bootstrap `#error` state (where Retry drives the native
+                // daemon commands) but keeps probing, so a daemon appearing at
+                // ANY later time is still picked up and navigated to.
                 let win = window.clone();
                 let app_id = app_id.clone();
                 std::thread::spawn(move || {
@@ -147,11 +187,20 @@ pub fn run() {
                         }
                         return;
                     }
-                    // Passive self-heal: the active start didn't land a handshake;
-                    // keep watching (~40s, read-only) for a daemon to appear — a
-                    // slow handshake or one started out-of-band — before giving up.
-                    for _ in 0..20 {
-                        std::thread::sleep(Duration::from_secs(2));
+                    // Passive self-heal: read-only probes on the `watch_tick`
+                    // schedule, forever. `win.url()` (not a hardcoded origin)
+                    // anchors the `#error` navigation because the bundled-page
+                    // origin differs per platform; if the window can't report a
+                    // URL it's being torn down and navigation is moot.
+                    let mut tick: u32 = 0;
+                    loop {
+                        let step = watch_tick(tick);
+                        if step.surface_error {
+                            if let Ok(page) = win.url() {
+                                let _ = win.navigate(error_url(&page));
+                            }
+                        }
+                        std::thread::sleep(step.delay);
                         if let Some(port) = crate::daemon::daemon_status().port {
                             let url =
                                 format!("http://127.0.0.1:{port}{}", target_path(&app_id));
@@ -160,9 +209,7 @@ pub fn run() {
                             }
                             return;
                         }
-                    }
-                    if let Ok(u) = "index.html#error".parse() {
-                        let _ = win.navigate(u);
+                        tick = tick.saturating_add(1);
                     }
                 });
             }

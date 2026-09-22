@@ -1,26 +1,20 @@
-//! ConnectRPC surface for the Ship operation registry (`ship.ops.v1`).
+//! ConnectRPC surface helpers for the Ship operation registry (`ship.ops.v1`).
 //!
-//! The proto bindings are generated once in the published `ship-proto` crate
-//! (ship-contracts is the single source of truth for op **shapes and policy**,
-//! decision #67, option a) and re-exported here. `ship-proto` emits both the
-//! server-side `OpsService` trait (implemented by the daemon — compile-time
-//! 1-1 dispatch conformance) and a typed client (CLI/GUI). The daemon mounts
-//! the service on its existing axum router via `connectrpc`'s `axum` integration
-//! (enabled graph-wide by shipd via feature-unification); the surface is
-//! additive beside the REST/SSE routes. The hand-written `policy` + `catalog`
-//! modules below are Ship implementation, not contract, and stay here.
-
-// Proto bindings are produced once in the published `ship-proto` crate
-// (ship-contracts is the SSOT) and re-exported here so existing consumers keep
-// importing `ship_ops_rpc::ship::ops::v1::*` and the crate-root glob unchanged.
-pub use ship_proto::ship;
-pub use ship_proto::ship::ops::v1::*;
+//! **Proto types live in `ship_proto`** (ship-contracts SSOT). This crate no
+//! longer re-exports them — consumers import `ship_proto::ship::ops::v1::*`
+//! (and `ship_proto::ship::code::v1` / gateway / internal) directly.
+//!
+//! What stays here is Ship implementation, not contract:
+//! - [`policy`] — BlastRadius + FDS-backed method policy reader
+//! - [`catalog`] — hand-authored COMMANDS/OPS descriptors for schema/MCP/codegen
+//! - [`FILE_DESCRIPTOR_SET`] — ops descriptor bytes (also at
+//!   `ship_proto::OPS_FILE_DESCRIPTOR_SET`)
 
 pub mod policy;
 pub use policy::BlastRadius;
 
 pub mod catalog;
-pub use catalog::{OpDescriptor, ArgDescriptor, CommandDescriptor, COMMANDS, OPS};
+pub use catalog::{ArgDescriptor, COMMANDS, CommandDescriptor, OPS, OpDescriptor};
 
 /// The compiled `FileDescriptorSet`, including the custom method options
 /// (`capability`, `blast_radius`, `op_sensitive`). The daemon gate reads policy

@@ -1,31 +1,44 @@
 //! `ship-space` — SpaceService over substrate ports (L1).
 //!
-//! A space = the unit of isolation/coordination/config (one `.ship/` directory).
-//! This crate owns three capabilities and nothing else (window management lives
-//! in the ship-device topic — the carve split it out):
+//! A space = THE unit of isolation/coordination/config. Identity is owned by
+//! the space, never derived from a path. The runtime tracks location as
+//! device-local state on the `spaces` Runtime-scoped projection.
 //!
-//! - **registry** ([`registry`]) — list / active / add / activate. The
-//!   `projects` table is Runtime-scoped (read daemon-wide, no space in hand).
-//!   The registry emits `project.registered` / `project.seen` /
-//!   `project.switched` through `KernelLog`; `ProjectsProjection` folds them
-//!   into the `projects` SQL table (the SOLE record-read source post-dissolution
-//!   — the `space_registry` DataStore table was retired in 2026-06-10 as part of
-//!   the keystone-A dual-read-model dissolution). The [`projection`] module now
-//!   only manages the `space_active` single-row pointer.
-//! - **info** ([`info`]) — identity (id/root/name from `projects`). The per-space
-//!   settings overlay moved to the unified `settings_overlay` (S4), read via
-//!   `ship_config::overlay`; the legacy `space_overlay` writer/reader is gone.
+//! This crate owns three capabilities:
 //!
+//! - **registry** ([`spaces`]) — list / get / find_by_path. The `spaces`
+//!   table is Runtime-scoped (read daemon-wide). [`identity`] mints identity
+//!   and emits `space.opened` / `space.seen`; [`spaces_projection`] folds
+//!   them into the `spaces` SQL table.
+//! - **identity** ([`identity`]) — the SINGLE mint-once accessor
+//!   (`ensure_identity_for_root`) every caller reaches. Identity's exact
+//!   on-disk home hides here so a future fenced space-config session can
+//!   relocate it.
+//! - **rules** ([`rules`]) — runtime policy rows persisted as
+//!   `rules.<name>` rows in the per-space `settings_overlay` partition;
+//!   see [`crate::rules::SpaceRule`].
+//! - **info** — lives on the per-request `Service::info` (returns the
+//!   served-space identity from the live `SpaceContext`).
+//!
+//! What died with the 2026-07-09 cutover: `Active`, the `active_id` field
+//! on `SpaceList`, the single-row `space_active` pointer, and the path-mint
+//! semantics (identity is owned by the space, never derived from the path).
+//!
+//! What was added 2026-07-13: [`rules`] — the runtime policy rows for a
+//! space, read here and consumed by the harness compile flow.
+
 pub mod error;
 pub mod event_registrations;
 pub mod helpers;
-pub mod info;
-pub mod projection;
-pub mod projects_projection;
-pub mod registry;
+pub mod identity;
+pub mod rules;
 pub mod service;
-pub mod types;
+pub mod spaces;
+pub mod spaces_projection;
+pub mod stacks_projection;
 pub mod wire;
+pub mod types;
 
-pub use projects_projection::ProjectsProjection;
+pub use spaces_projection::SpacesProjection;
+pub use stacks_projection::SpaceStacksProjection;
 pub use wire::SpaceWire;

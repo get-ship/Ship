@@ -1,77 +1,74 @@
-use std::collections::BTreeMap;
 use std::path::Path;
 
 use anyhow::Context;
 
-/// Files excluded from content hashing.
-fn should_exclude(rel_path: &str) -> bool {
-    let parts: Vec<&str> = rel_path.split('/').collect();
-    // Exclude anything under .git/
-    if parts.first() == Some(&".git") {
-        return true;
-    }
-    // Exclude ship.lock (registry lockfile, not part of package content)
-    if rel_path == "ship.lock" {
-        return true;
-    }
-    // Exclude .ship/state/ — user/project variable state, not package content.
-    // state files carry local config and must not affect the published content hash.
-    if parts.first() == Some(&"state") {
-        return true;
-    }
-    // Exclude OS / editor noise files.
-    let filename = parts.last().unwrap_or(&"");
-    matches!(*filename, ".DS_Store" | "Thumbs.db") || filename.ends_with(".swp")
-}
-
-/// Compute a deterministic SHA-256 content hash for the file tree at `root`.
+/// Compute a deterministic SHA-256 content hash for the stack tree at `root`.
 ///
-/// Algorithm:
-/// 1. Collect all files recursively, excluding `.git/`, `.DS_Store`,
-///    `Thumbs.db`, `*.swp`, and `ship.lock`.
-/// 2. Sort file paths lexicographically (relative to root, using `/` separators).
-/// 3. For each file accumulate: `"<rel-path>\0<byte-length>\0<sha256-of-content>"`.
-/// 4. SHA-256 of the full accumulated string.
-/// 5. Return `"sha256:<lowercase-hex>"`.
+/// The hash is the union of:
+/// 1. The manifest file at the stack root (`stack.config.ts`).
+/// 2. Every file under one of the domain dirs in
+///    `stack_model::DOMAIN_DIRS` (the SAME allow-list pack walks).
+///
+/// Entries are sorted lexicographically by relative path. For each, the
+/// accumulator is `"<rel-path>\0<byte-length>\0<sha256-of-content>"`. The
+/// accumulator is itself SHA-256-hashed, and the result is returned as
+/// `"sha256:<lowercase-hex>"`.
+///
+/// The hash and the pack allow-list MUST agree, or the content hash
+/// recorded in `ship.json` would diverge from the bytes the install side
+/// recomputes from the extracted tree (the `unpack_stack` re-hash
+/// check).
 pub fn compute_tree_hash(root: &Path) -> anyhow::Result<String> {
     let mut file_entries: Vec<(String, u64, String)> = Vec::new();
 
-    for entry in walkdir::WalkDir::new(root)
-        .sort_by_file_name()
-        .into_iter()
-        .filter_entry(|e| e.file_name() != ".git")
-    {
-        let entry = entry.context("walking package tree")?;
-        if !entry.file_type().is_file() {
-            continue;
-        }
-
-        let rel = entry
-            .path()
-            .strip_prefix(root)
-            .context("stripping root prefix")?;
-
-        // Normalize to forward-slash separators for cross-platform determinism.
-        let rel_str = rel
-            .components()
-            .map(|c| c.as_os_str().to_string_lossy().into_owned())
-            .collect::<Vec<_>>()
-            .join("/");
-
-        if should_exclude(&rel_str) {
-            continue;
-        }
-
-        let content = std::fs::read(entry.path())
-            .with_context(|| format!("reading {}", entry.path().display()))?;
-
-        let byte_len = content.len() as u64;
-        let file_hash = hex::encode_sha256(&content);
-        file_entries.push((rel_str, byte_len, file_hash));
+    let manifest_full = root.join(crate::archive::MANIFEST_PATH);
+    if manifest_full.is_file() {
+        // Cap the per-file read at MAX_BUNDLE_FILE — a single huge
+        // manifest must not be slurped into memory.
+        let content = read_file_capped(&manifest_full)?;
+        file_entries.push((
+            crate::archive::MANIFEST_PATH.to_string(),
+            content.len() as u64,
+            hex::encode_sha256(&content),
+        ));
     }
 
-    // Lexicographic sort by relative path (walkdir sorts by filename within each
-    // directory; re-sort globally to ensure full-path ordering).
+    for domain in stack_model::DOMAIN_DIRS {
+        let dir = root.join(domain);
+        if !dir.is_dir() {
+            continue;
+        }
+        for entry in walkdir::WalkDir::new(&dir).sort_by_file_name().into_iter() {
+            let entry = entry.with_context(|| format!("walking package tree {}", dir.display()))?;
+            if !entry.file_type().is_file() {
+                continue;
+            }
+            let rel = entry
+                .path()
+                .strip_prefix(root)
+                .context("stripping root prefix")?;
+
+            // Normalize to forward-slash separators for cross-platform
+            // determinism.
+            let rel_str = rel
+                .components()
+                .map(|c| c.as_os_str().to_string_lossy().into_owned())
+                .collect::<Vec<_>>()
+                .join("/");
+
+            // Cap the per-file read at MAX_BUNDLE_FILE — a single
+            // multi-GB member must not be slurped into a single
+            // allocation.
+            let content = read_file_capped(entry.path())?;
+            let byte_len = content.len() as u64;
+            let file_hash = hex::encode_sha256(&content);
+            file_entries.push((rel_str, byte_len, file_hash));
+        }
+    }
+
+    // Lexicographic sort by relative path (walkdir sorts by filename
+    // within each directory; re-sort globally to ensure full-path
+    // ordering across the manifest + the union of domain dir walks).
     file_entries.sort_by(|a, b| a.0.cmp(&b.0));
 
     let mut accumulator = String::new();
@@ -83,93 +80,38 @@ pub fn compute_tree_hash(root: &Path) -> anyhow::Result<String> {
         accumulator.push_str(file_hash);
     }
 
-    let tree_hash = hex::encode_sha256(accumulator.as_bytes());
-    Ok(format!("sha256:{tree_hash}"))
+    Ok(format!(
+        "sha256:{}",
+        hex::encode_sha256(accumulator.as_bytes())
+    ))
 }
 
 /// Compute SHA-256 hash of a single file.
 /// Returns `"sha256:<lowercase-hex>"`.
 pub fn compute_file_hash(path: &Path) -> anyhow::Result<String> {
-    let content = std::fs::read(path).with_context(|| format!("reading {}", path.display()))?;
+    let content = read_file_capped(path)?;
     Ok(format!("sha256:{}", hex::encode_sha256(&content)))
 }
 
-
-/// Per-export content hashes and a combined top-level hash.
-#[derive(Debug, Clone, PartialEq)]
-pub struct ExportHashes {
-    /// Map from export path (e.g. `"agents/skills/my-skill"`) to `"sha256:<hex>"`.
-    pub per_export: BTreeMap<String, String>,
-    /// Combined hash: SHA-256 of the sorted per-export hashes concatenated.
-    pub combined: String,
-}
-
-/// Compute per-export content hashes for a package.
-///
-/// For each export path in `skill_exports` and `agent_exports`, hashes the
-/// corresponding subtree or file under `ship_dir`. Returns per-export hashes
-/// plus a combined hash derived only from exported artifacts.
-///
-/// Export paths are relative to `.ship/` (e.g. `"agents/skills/my-skill"`).
-/// Skill exports are directories (hashed with `compute_tree_hash`).
-/// Agent exports are single files (hashed with `compute_file_hash`).
-pub fn compute_export_hashes(
-    ship_dir: &Path,
-    skill_exports: &[String],
-    agent_exports: &[String],
-) -> anyhow::Result<ExportHashes> {
-    let mut per_export = BTreeMap::new();
-
-    for skill_path in skill_exports {
-        let full = ship_dir.join(skill_path);
-        if !full.is_dir() {
-            anyhow::bail!(
-                "exported skill '{}' not found at {}",
-                skill_path,
-                full.display()
-            );
+/// Read a file's contents with the install pipeline's per-file ceiling
+/// (a multi-GB member must not be read into one allocation). Centralised
+/// so the cap is named once and the streaming helper is the only path
+/// the install side uses for slurping.
+fn read_file_capped(path: &Path) -> anyhow::Result<Vec<u8>> {
+    let f = std::fs::File::open(path).with_context(|| format!("opening {}", path.display()))?;
+    match bundle_limits::read_capped(f, bundle_limits::MAX_BUNDLE_FILE) {
+        Ok(bytes) => Ok(bytes),
+        Err(e) => {
+            // Surface the bound name in the top-level error message so
+            // the failure points at the policy, not the symptom.
+            Err(anyhow::anyhow!(
+                "reading {} exceeded MAX_BUNDLE_FILE ({} bytes): {}",
+                path.display(),
+                bundle_limits::MAX_BUNDLE_FILE,
+                e
+            ))
         }
-        let hash = compute_tree_hash(&full)
-            .with_context(|| format!("hashing exported skill '{}'", skill_path))?;
-        per_export.insert(skill_path.clone(), hash);
     }
-
-    for agent_path in agent_exports {
-        let full = ship_dir.join(agent_path);
-        if !full.is_file() {
-            anyhow::bail!(
-                "exported agent '{}' not found at {}",
-                agent_path,
-                full.display()
-            );
-        }
-        let hash = compute_file_hash(&full)
-            .with_context(|| format!("hashing exported agent '{}'", agent_path))?;
-        per_export.insert(agent_path.clone(), hash);
-    }
-
-    let combined = combine_export_hashes(&per_export);
-    Ok(ExportHashes {
-        per_export,
-        combined,
-    })
-}
-
-/// Derive a combined hash from sorted per-export hashes.
-///
-/// Concatenates `"<path>\0<hash>"` for each export in sorted order,
-/// then SHA-256s the result. Returns `"sha256:<hex>"`.
-fn combine_export_hashes(hashes: &BTreeMap<String, String>) -> String {
-    let mut acc = String::new();
-    for (path, hash) in hashes {
-        acc.push_str(path);
-        acc.push('\0');
-        acc.push_str(hash);
-    }
-    if acc.is_empty() {
-        return format!("sha256:{}", hex::encode_sha256(b""));
-    }
-    format!("sha256:{}", hex::encode_sha256(acc.as_bytes()))
 }
 
 mod hex {

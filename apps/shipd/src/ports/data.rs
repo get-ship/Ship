@@ -45,15 +45,6 @@ impl DataPort for ShipDataPort {
         let resolve_fn = self.state.live_resolvers().resolve_fn(domain, op, args)?;
         Some(resolve_fn(&self.state))
     }
-
-    fn is_provisioned(&self) -> bool {
-        // The host is provisioned once at least one active workspace exists —
-        // the exact check the retired `setup.rs::has_any_workspace()` used.
-        // Drives deck's first-run routing (serve_index / serve_setup).
-        ship_substrate::db::projects::list_active()
-            .map(|p| !p.is_empty())
-            .unwrap_or(false)
-    }
 }
 
 /// shipd's `ChangeSource` impl — opens a kernel `config` subscription per
@@ -92,15 +83,17 @@ impl ChangeSource for ShipChangeSource {
                 let mut kernel = state.kernel().lock().await;
                 kernel
                     .spawn_actor(&actor_id, config)
-                    .map(|(_store, mb)| mb)
+                    .map(|mb| mb)
                     .map_err(|e| format!("spawn multiplex actor: {e}"))?
             };
             let guard = ActorGuard {
                 actor_id: actor_id.clone(),
                 kernel: state.kernel().clone(),
             };
-            Ok(Box::new(ShipChangeFeed { mailbox, _guard: Some(guard) })
-                as Box<dyn ChangeFeed>)
+            Ok(Box::new(ShipChangeFeed {
+                mailbox,
+                _guard: Some(guard),
+            }) as Box<dyn ChangeFeed>)
         })
     }
 }

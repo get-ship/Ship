@@ -1,7 +1,7 @@
 //! Per-machine device identity — on-disk read + mint.
 //!
 //! The device id lives at `<ShipHome::device_id_path()>` (i.e.
-//! `~/.ship/machine/device-id`), outside `library/` so it does not
+//! `state_dir()/device-id`), outside `library/` so it does not
 //! sync across machines and outside `machine/daemons/<hash>/` so it
 //! survives per-worktree daemon churn. Mint-once: the first call
 //! installs a fresh ULID; every subsequent call reads the same value
@@ -24,7 +24,7 @@ use super::ShipHome;
 /// file is missing or empty.
 ///
 /// The minted id is a monotonic ULID prefixed with `dev_` so it stays
-/// human-recognizable in logs and `~/.ship/machine/`. The parent
+/// human-recognizable in logs and `state_dir()`. The parent
 /// machine directory is created (mode 0700 on Unix) and the id file is
 /// written with mode 0600 on Unix; non-Unix targets get the file
 /// un-chmodded but the rest of the path is identical.
@@ -61,12 +61,12 @@ fn mint() -> DeviceId {
 }
 
 fn write_atomic(home: &ShipHome, path: &std::path::Path, id: &str) -> io::Result<()> {
-    let machine_dir = home.machine_dir();
-    std::fs::create_dir_all(&machine_dir)?;
+    let state_dir = home.state_dir();
+    std::fs::create_dir_all(&state_dir)?;
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&machine_dir, std::fs::Permissions::from_mode(0o700))?;
+        std::fs::set_permissions(&state_dir, std::fs::Permissions::from_mode(0o700))?;
     }
     std::fs::write(path, id)?;
     #[cfg(unix)]
@@ -108,7 +108,7 @@ mod tests {
         let tmp = tempdir().unwrap();
         let home = ShipHome::for_test(tmp.path());
         let path = home.device_id_path();
-        std::fs::create_dir_all(home.machine_dir()).unwrap();
+        std::fs::create_dir_all(home.state_dir()).unwrap();
         std::fs::write(&path, "").unwrap();
 
         let id = read_or_generate_device_id(&home).expect("empty file → mint");

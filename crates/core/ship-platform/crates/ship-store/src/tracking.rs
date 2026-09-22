@@ -5,13 +5,14 @@
 //! This is non-blocking: a detached thread runs the POST in the background.
 //! Failures are silently ignored — tracking must never slow down or break installs.
 //!
-//! Implementation note: this uses [`ureq`] running in-process on a worker thread
-//! rather than shelling out to `curl(1)`. The behavior is *almost* identical
-//! for the happy path (POST with 5 s timeout, silently discard the response),
-//! but the failure modes differ: `ureq` runs in-process, so if the daemon is
-//! killed mid-POST the in-flight request is abandoned; `curl` runs in its own
-//! process and would survive a daemon SIGKILL. We accept that edge case —
-//! install tracking is best-effort telemetry, never a correctness boundary.
+//! Implementation note: this uses [`reqwest::blocking`] running in-process on a
+//! worker thread rather than shelling out to `curl(1)`. The behavior is
+//! *almost* identical for the happy path (POST with 5 s timeout, silently
+//! discard the response), but the failure modes differ: the blocking client
+//! runs in-process, so if the daemon is killed mid-POST the in-flight request
+//! is abandoned; `curl` runs in its own process and would survive a daemon
+//! SIGKILL. We accept that edge case — install tracking is best-effort
+//! telemetry, never a correctness boundary.
 
 use std::time::Duration;
 
@@ -21,7 +22,7 @@ const TRACK_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// Fire-and-forget POST to track a package install.
 ///
-/// Spawns a detached thread that performs a `ureq::post` with a 5 s timeout.
+/// Spawns a detached thread that performs a blocking POST with a 5 s timeout.
 /// Returns immediately. Never errors — all failures are silently swallowed.
 ///
 /// Skipped when:
@@ -45,11 +46,16 @@ pub fn track_install(package_path: &str, offline: bool) {
     let endpoint = format!("{}/api/registry/{}/install", base_url, encoded);
 
     std::thread::spawn(move || {
-        let agent = ureq::Agent::config_builder()
-            .timeout_global(Some(TRACK_TIMEOUT))
+        let Ok(client) = reqwest::blocking::Client::builder()
+            .timeout(TRACK_TIMEOUT)
             .build()
-            .new_agent();
-        let _ = agent.post(&endpoint).header("User-Agent", "ship-pkg/0.1").send_empty();
+        else {
+            return;
+        };
+        let _ = client
+            .post(&endpoint)
+            .header("User-Agent", "ship-pkg/0.1")
+            .send();
     });
 }
 
@@ -72,7 +78,9 @@ mod tests {
         unsafe { ship_substrate::env::set(ship_substrate::env::Var::RegistryUrl, "") };
         track_install("github.com/test/pkg", false);
         match prev {
-            Some(val) => unsafe { ship_substrate::env::set(ship_substrate::env::Var::RegistryUrl, &val) },
+            Some(val) => unsafe {
+                ship_substrate::env::set(ship_substrate::env::Var::RegistryUrl, &val)
+            },
             None => unsafe { ship_substrate::env::remove(ship_substrate::env::Var::RegistryUrl) },
         }
     }
@@ -87,12 +95,16 @@ mod tests {
         // blocking wait on the caller side.
         // SAFETY: test is single-threaded; env var is restored immediately after.
         let prev = ship_substrate::env::read_raw(ship_substrate::env::Var::RegistryUrl).ok();
-        unsafe { ship_substrate::env::set(ship_substrate::env::Var::RegistryUrl, "http://127.0.0.1:1") };
+        unsafe {
+            ship_substrate::env::set(ship_substrate::env::Var::RegistryUrl, "http://127.0.0.1:1")
+        };
         let start = std::time::Instant::now();
         track_install("github.com/test/pkg", false);
         let elapsed = start.elapsed();
         match prev {
-            Some(val) => unsafe { ship_substrate::env::set(ship_substrate::env::Var::RegistryUrl, &val) },
+            Some(val) => unsafe {
+                ship_substrate::env::set(ship_substrate::env::Var::RegistryUrl, &val)
+            },
             None => unsafe { ship_substrate::env::remove(ship_substrate::env::Var::RegistryUrl) },
         }
         assert!(

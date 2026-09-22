@@ -7,8 +7,7 @@
 // collections, drive pipelines. Pointed at prod they pollute day-to-day state.
 //
 // run.mjs already guarded its own path (#185), but running a spec directly
-//   bun test tests/loops/collections-roundtrip.spec.mjs
-//   node tests/loops/collections-roundtrip.spec.mjs
+//   bun test tests/agents/<spec>.test.ts
 // bypasses run.mjs entirely, and tests/agents/_helpers.ts had no guard at all.
 // This module is the single chokepoint both paths import so the refusal fires
 // on DIRECT spec runs too, mirroring the Rust fail-loud guard in

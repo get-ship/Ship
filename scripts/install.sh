@@ -176,7 +176,7 @@ register_path() {
     path_append_fish
 }
 
-# Service registration delegates to the `ship daemon install-service`
+# Service registration delegates to the `shipctl daemon install-service`
 # subcommand. That command owns the systemd unit / launchd plist /
 # Task Scheduler entry shapes — install.sh is not the place to keep a
 # parallel copy of that logic.
@@ -188,11 +188,11 @@ register_service() {
     kernel="$(detect_kernel)"
     case "$kernel" in
         linux|darwin)
-            if "${INSTALL_DIR}/ship" daemon install-service \
+            if "${INSTALL_DIR}/shipctl" daemon install-service \
                     --shipd-path "${INSTALL_DIR}/shipd"; then
-                say "service: registered via ship daemon install-service"
+                say "service: registered via shipctl daemon install-service"
             else
-                warn "ship daemon install-service returned non-zero — run it manually to enable autostart"
+                warn "shipctl daemon install-service returned non-zero — run it manually to enable autostart"
             fi
             ;;
         windows) warn "Windows service registration via install.sh is not supported — use the .msi installer" ;;
@@ -265,15 +265,15 @@ main() {
 
     # The archive extracts to a `ship-<ver>-<target>/` staging directory.
     # Fall back to finding the binaries directly in case the layout changes.
-    ship_bin="$(find "$tmpdir" -name 'ship' -type f -perm -u+x 2>/dev/null | head -1)"
-    [ -z "$ship_bin" ] && ship_bin="$(find "$tmpdir" -name 'ship' -type f 2>/dev/null | head -1)"
-    [ -z "$ship_bin" ] && ship_bin="$(find "$tmpdir" -name 'ship.exe' -type f 2>/dev/null | head -1)"
+    shipctl_bin="$(find "$tmpdir" -name 'shipctl' -type f -perm -u+x 2>/dev/null | head -1)"
+    [ -z "$shipctl_bin" ] && shipctl_bin="$(find "$tmpdir" -name 'shipctl' -type f 2>/dev/null | head -1)"
+    [ -z "$shipctl_bin" ] && shipctl_bin="$(find "$tmpdir" -name 'shipctl.exe' -type f 2>/dev/null | head -1)"
     shipd_bin="$(find "$tmpdir" -name 'shipd' -type f -perm -u+x 2>/dev/null | head -1)"
     [ -z "$shipd_bin" ] && shipd_bin="$(find "$tmpdir" -name 'shipd' -type f 2>/dev/null | head -1)"
     [ -z "$shipd_bin" ] && shipd_bin="$(find "$tmpdir" -name 'shipd.exe' -type f 2>/dev/null | head -1)"
 
-    if [ -z "$ship_bin" ] || [ -z "$shipd_bin" ]; then
-        err "archive is missing ship and/or shipd. Report at: https://github.com/${REPO}/issues"
+    if [ -z "$shipctl_bin" ] || [ -z "$shipd_bin" ]; then
+        err "archive is missing shipctl and/or shipd. Report at: https://github.com/${REPO}/issues"
     fi
 
     install_file() {
@@ -285,9 +285,9 @@ main() {
         chmod +x "${dest}.new"
         mv -f "${dest}.new" "$dest"
     }
-    install_file "$ship_bin" "${INSTALL_DIR}/ship"
+    install_file "$shipctl_bin" "${INSTALL_DIR}/shipctl"
     install_file "$shipd_bin" "${INSTALL_DIR}/shipd"
-    say "installed: ${INSTALL_DIR}/ship"
+    say "installed: ${INSTALL_DIR}/shipctl"
     say "installed: ${INSTALL_DIR}/shipd"
 
     register_path
@@ -297,7 +297,6 @@ main() {
     say ""
     say "done. Next:"
     say "  * open a new shell so PATH picks up $INSTALL_DIR"
-    say "  * run 'ship init' inside a project to scaffold .ship/"
     say "  * visit http://localhost:${DEFAULT_PORT}/setup in your browser"
     say ""
 }

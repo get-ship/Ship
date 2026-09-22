@@ -13,7 +13,7 @@ use std::time::Duration;
 use tokio::sync::Mutex;
 
 use crate::scopes::{
-    DaemonSession, Scope, SessionRegistry, generate_session_token, persist_session,
+    DaemonSession, SessionRegistry, generate_session_token, persist_session,
     remove_persisted_session,
 };
 use crate::session::{
@@ -33,9 +33,7 @@ fn persisted_session(token: &str) -> DaemonSession {
     DaemonSession {
         token: token.to_string(),
         agent_id: "test-agent".to_string(),
-        scopes: vec![Scope::ReadWorkspace],
         grants: vec![],
-        workspace_id: None,
         space_id: None,
         pid: None,
         created_at: std::time::Instant::now(),
@@ -93,7 +91,7 @@ async fn auth_session_browser_issue_then_lookup_succeeds() {
     let reg = empty_registry();
     let id = issue_browser_session(&reg).await;
     let session = lookup_browser_session(&reg, &id).await.expect("session present");
-    assert!(session.scopes.contains(&Scope::Full));
+    assert!(session.grants.is_empty());
     assert!(session.expires_at_unix.is_some());
     let ttl = session.expires_at_unix.unwrap() - chrono::Utc::now().timestamp();
     // Allow ±1 second tolerance.
@@ -123,9 +121,7 @@ fn auth_session_is_expired_no_expiry_never_expires() {
     let s = DaemonSession {
         token: "t".to_string(),
         agent_id: "a".to_string(),
-        scopes: vec![],
         grants: vec![],
-        workspace_id: None,
         space_id: None,
         pid: None,
         created_at: std::time::Instant::now(),
@@ -142,9 +138,7 @@ fn auth_session_is_expired_future_expiry_not_expired() {
         expires_at_unix: Some(chrono::Utc::now().timestamp() + 3600),
         token: "t".to_string(),
         agent_id: "a".to_string(),
-        scopes: vec![],
         grants: vec![],
-        workspace_id: None,
         space_id: None,
         pid: None,
         created_at: std::time::Instant::now(),
@@ -160,9 +154,7 @@ fn auth_session_is_expired_past_expiry_is_expired() {
         expires_at_unix: Some(chrono::Utc::now().timestamp() - 1),
         token: "t".to_string(),
         agent_id: "a".to_string(),
-        scopes: vec![],
         grants: vec![],
-        workspace_id: None,
         space_id: None,
         pid: None,
         created_at: std::time::Instant::now(),

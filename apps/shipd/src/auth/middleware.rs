@@ -1,5 +1,15 @@
-//! Bearer / cookie / dev-loopback auth middleware, plus the authority
-//! projection layer for crate-owned Connect wires.
+//! Cookie / dev-loopback / session-token auth middleware, plus the
+//! authority-projection layer for crate-owned Connect wires.
+//!
+//! The host unix socket's peer-cred layer (see `peer_socket`) runs OUTSIDE
+//! this middleware and inserts `AuthContext` directly — that path is
+//! honored unconditionally. The middleware below handles the rest:
+//!
+//! 1. Session token (`ship_sess_` prefix) — MCP agents, provisioned grants,
+//!    pid-attested when bound
+//! 2. Browser session cookie — paired browser session, no pid binding
+//! 3. `--unsafe-skip-auth` loopback bypass — contributor dev only,
+//!    compiled out of release builds
 
 use axum::{
     body::Body,
@@ -9,21 +19,15 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use ship_substrate::events::CallerKind;
-use std::sync::Arc;
 
 use super::context::AuthContext;
-use super::scopes::{Scope, SessionRegistry, is_session_token};
-use super::token::{is_daemon_token, tokens_equal};
+use super::scopes::{SessionRegistry, is_session_token};
 
-/// Axum middleware that validates `Authorization: Bearer <token>` on every
-/// request. Injects `AuthContext` into request extensions on success.
-///
-/// Accepts three token types:
-/// 1. **Daemon token** (64-char hex) — CLI/Studio/hooks, gets `Scope::Full`
-/// 2. **Session token** (`ship_sess_` prefix) — MCP agents, gets scoped access
-/// 3. **SDK token** (`ship_` prefix) — external SDK callers
+/// Axum middleware that authenticates a request via session token, browser
+/// cookie, or the loopback bypass. Injects `AuthContext` into request
+/// extensions on success. The peer-cred layer (host socket) inserts the
+/// context BEFORE this runs and is honored as-is.
 pub async fn auth_middleware(
-    expected_token: Arc<String>,
     session_registry: SessionRegistry,
     mut req: Request<Body>,
     next: Next,
@@ -38,18 +42,15 @@ pub async fn auth_middleware(
         return next.run(req).await;
     }
 
-    // 0.5 DEV MODE token-less loopback bypass — the local dev loop.
-    //     `--dev` advertises "relaxed auth, auto-pair", but the only relaxation
-    //     was auto-APPROVING a pairing the browser still had to initiate — and
-    //     nothing in the shell ever calls pairInit, so every data request 401'd
-    //     and the dev app couldn't load its own data. A token-less dev loop is
-    //     the intended DX ("a flag → no token"): when `--dev` is set, treat a
-    //     LOOPBACK peer as an authenticated paired browser session (the same
-    //     identity dev auto-pair would mint) with no token/cookie. Gated on BOTH
-    //     `is_dev_mode()` (which prints the "auth relaxed" boot banner) AND a
-    //     loopback peer, so widening `--host` to a LAN/0.0.0.0 bind can never
-    //     relax auth for a remote request — only same-machine clients.
-    if super::pairing::is_dev_mode() {
+    // `--unsafe-skip-auth` token-less loopback bypass — the contributor dev override.
+    //     Treat a LOOPBACK peer as an authenticated capped client (the broad C2
+    //     authoring set, never the operator) with no token/cookie. Gated on BOTH
+    //     `is_unsafe_skip_auth_mode()` (which prints the "auth relaxed" boot banner)
+    //     AND a loopback peer, so widening `--host` to a LAN/0.0.0.0 bind can
+    //     never relax auth for a remote request — only same-machine clients.
+    //     Compiled out of release builds: a shipped daemon can never relax auth.
+    #[cfg(debug_assertions)]
+    if super::unsafe_skip_auth::is_unsafe_skip_auth_mode() {
         let loopback = req
             .extensions()
             .get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()
@@ -59,13 +60,14 @@ pub async fn auth_middleware(
             let auth = AuthContext {
                 caller_kind: CallerKind::Cli,
                 agent_id: None,
-                workspace_id: None,
                 space_id: None,
                 session_id: None,
-                scopes: super::pairing::paired_session_scopes(),
-                grants: vec![],
-                // A dev loopback paired-session is not a pid-attested operator
-                // cred — it grants no elevation (S6), same as a browser cookie.
+                // Broad C2 authoring set — never the operator (operator authority
+                // lives only in the Hub, never in a local connection).
+                grants: ["agents", "skills", "mcp", "create", "view"]
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect(),
                 operator_cred: false,
             };
             req.extensions_mut().insert(auth);
@@ -76,30 +78,32 @@ pub async fn auth_middleware(
     // 1. Cookie check — browser sessions.
     if let Some(cookie_header) = req.headers().get("cookie").and_then(|v| v.to_str().ok())
         && let Some(session_id) = super::session::parse_session_cookie(cookie_header)
-            && super::session::is_browser_session_id(&session_id) {
-                match super::session::lookup_browser_session(&session_registry, &session_id).await {
-                    Some(session) => {
-                        let auth = AuthContext {
-                            caller_kind: CallerKind::Cli,
-                            agent_id: None,
-                            workspace_id: session.workspace_id.clone(),
-                            space_id: session.space_id.clone(),
-                            session_id: None,
-                            scopes: session.scopes.clone(),
-                            grants: session.grants.clone(),
-                            // A browser cookie is NOT a pid-attested operator
-                            // cred — it grants no elevation (S6).
-                            operator_cred: false,
-                        };
-                        req.extensions_mut().insert(auth);
-                        return next.run(req).await;
-                    }
-                    None => {
-                        return (StatusCode::UNAUTHORIZED, "invalid or expired session cookie")
-                            .into_response();
-                    }
-                }
+        && super::session::is_browser_session_id(&session_id)
+    {
+        match super::session::lookup_browser_session(&session_registry, &session_id).await {
+            Some(session) => {
+                let auth = AuthContext {
+                    caller_kind: CallerKind::Cli,
+                    agent_id: None,
+                    space_id: session.space_id.clone(),
+                    session_id: None,
+                    grants: session.grants.clone(),
+                    // A browser cookie is NOT a pid-attested operator
+                    // cred — it grants no elevation (S6).
+                    operator_cred: false,
+                };
+                req.extensions_mut().insert(auth);
+                return next.run(req).await;
             }
+            None => {
+                return (
+                    StatusCode::UNAUTHORIZED,
+                    "invalid or expired session cookie",
+                )
+                    .into_response();
+            }
+        }
+    }
 
     let header_token = req
         .headers()
@@ -126,19 +130,21 @@ pub async fn auth_middleware(
         );
     }
 
-    let token_string = match header_token {
+    let token = match header_token {
         Some(t) => t,
         None => {
-            return (StatusCode::UNAUTHORIZED, "missing or malformed Authorization header")
+            return (
+                StatusCode::UNAUTHORIZED,
+                "missing or malformed Authorization header",
+            )
                 .into_response();
         }
     };
-    let token = token_string.as_str();
 
     // Session tokens are validated against the session registry.
-    if is_session_token(token) {
+    if is_session_token(&token) {
         let registry = session_registry.lock().await;
-        return match registry.get(token) {
+        return match registry.get(&token) {
             Some(session) => {
                 // Pid-binding: a pid-bound token (a space window OR an operator
                 // cred, S6 #124) is bound to its registering process. The kernel
@@ -167,12 +173,10 @@ pub async fn auth_middleware(
                 let auth = AuthContext {
                     caller_kind: CallerKind::Mcp,
                     agent_id: Some(session.agent_id.clone()),
-                    workspace_id: session.workspace_id.clone(),
                     // The session's space — for a space-window token this is the
                     // window's own space, so its emits land in that space.
                     space_id: session.space_id.clone(),
                     session_id,
-                    scopes: session.scopes.clone(),
                     // The minted restricted grants — the gate's grant axis.
                     grants: session.grants.clone(),
                     // Operator authority comes SOLELY from a pid-attested
@@ -186,57 +190,15 @@ pub async fn auth_middleware(
                 req.extensions_mut().insert(auth);
                 next.run(req).await
             }
-            None => {
-                (StatusCode::UNAUTHORIZED, "invalid session token").into_response()
-            }
+            None => (StatusCode::UNAUTHORIZED, "invalid session token").into_response(),
         };
     }
 
-    // Daemon token and SDK tokens are validated against the expected token.
-    if !tokens_equal(token, expected_token.as_str()) {
-        return (StatusCode::UNAUTHORIZED, "invalid token").into_response();
-    }
-
-    let (caller_kind, scopes) = if is_daemon_token(token) {
-        // The daemon token is a local bootstrap credential carrying the dying
-        // REST `Scope::Full` axis. It is NOT a pid-attested operator cred (S6):
-        // `CallerKind::Cli` is a transport label only — it grants NO elevation.
-        // Operator authority comes solely from a pid-attested operator session.
-        (CallerKind::Cli, vec![Scope::Full])
-    } else if token.starts_with("ship_") {
-        (CallerKind::Sdk, vec![Scope::Full])
-    } else {
-        // The token equals `expected_token` but matches neither the daemon-token
-        // format (64-char hex) nor an SDK prefix — an anomalous/misconfigured
-        // credential. Fail closed rather than granting Cli + Full. A correct
-        // daemon token always takes the first branch, so this never fires in
-        // normal operation.
-        return (StatusCode::UNAUTHORIZED, "unrecognized credential format").into_response();
-    };
-
-    let agent_id = header_string(&req, "x-ship-agent-id");
-    let workspace_id = header_string(&req, "x-ship-workspace-id");
-    let session_id = header_string(&req, "x-ship-session-id");
-
-    let auth = AuthContext {
-        caller_kind,
-        agent_id,
-        workspace_id,
-        // Daemon/SDK tokens carry no session space; emits key None (no
-        // home-space fallback on the emit path, S2).
-        space_id: None,
-        session_id,
-        scopes,
-        // No restricted grants on this path.
-        grants: vec![],
-        // The daemon/SDK token is NOT a pid-attested operator cred (S6): it
-        // grants no operator authority. The dying `Scope::Full` it carries
-        // clears the REST route-auth axis only, never the gate's operator path.
-        operator_cred: false,
-    };
-
-    req.extensions_mut().insert(auth);
-    next.run(req).await
+    // No on-disk daemon token — the only Bearer tokens the daemon accepts
+    // are session tokens (above). Any other presented credential is
+    // rejected: the cut removed the legacy 64-hex daemon token and the
+    // `ship_`-prefix SDK token path.
+    (StatusCode::UNAUTHORIZED, "invalid or unsupported token").into_response()
 }
 
 fn header_string(req: &Request<Body>, name: &str) -> Option<String> {
@@ -248,9 +210,9 @@ fn header_string(req: &Request<Body>, name: &str) -> Option<String> {
 
 /// Project the authenticated caller's resolved [`Authority`] into the request
 /// extensions, so crate-owned Connect wires (e.g. `ship-account`) can gate on
-/// the shared `ship_types::Authority` without depending on shipd's
+/// the shared `agent_schema::Authority` without depending on shipd's
 /// `AuthContext`. Mirrors how `rpc::settings` passes `is_operator` into
-/// `ship-config`: the authority is resolved in shipd (the SOLE minter) and
+/// `ship-settings`: the authority is resolved in shipd (the SOLE minter) and
 /// handed across the crate boundary as the shared type. Runs INSIDE
 /// `auth_middleware` (which has already populated `AuthContext`); a request with
 /// no `AuthContext` inserts nothing, and the wire fails closed (unauthenticated).

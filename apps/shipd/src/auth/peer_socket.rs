@@ -41,9 +41,15 @@ pub struct PeerCredInfo {
 impl Connected<IncomingStream<'_, UnixListener>> for PeerCredInfo {
     fn connect_info(stream: IncomingStream<'_, UnixListener>) -> Self {
         use std::os::unix::io::AsRawFd;
-        match ship_substrate_host::peer_cred(stream.io().as_raw_fd()) {
-            Some(c) => PeerCredInfo { pid: Some(c.pid), uid: Some(c.uid) },
-            None => PeerCredInfo { pid: None, uid: None },
+        match host_adapter::peer_cred(stream.io().as_raw_fd()) {
+            Some(c) => PeerCredInfo {
+                pid: Some(c.pid),
+                uid: Some(c.uid),
+            },
+            None => PeerCredInfo {
+                pid: None,
+                uid: None,
+            },
         }
     }
 }
@@ -94,14 +100,12 @@ pub async fn peer_cred_auth_middleware(
         // No peer credentials → can't attribute the caller at all. Fail closed.
         _ => PeerIdentity::Unresolved,
     };
-    // An agent's authority is its provisioned grant baseline (#85). Role refinement
-    // (looking up the agent's declared role for the fallback path) is a follow-up;
-    // `None` already yields the provisioned set for any provisioned agent.
+    // An agent's authority is its provisioned grant baseline (#85).
     let grants = match &identity {
-        PeerIdentity::Agent(id) => ship_auth::scopes::resolve_grants(id, None),
+        PeerIdentity::Agent(id) => ship_auth::scopes::resolve_grants(id),
         _ => Vec::new(),
     };
-    match auth_context_from_peer(&identity, None, grants) {
+    match auth_context_from_peer(&identity, grants) {
         Some(ctx) => {
             req.extensions_mut().insert(ctx);
             next.run(req).await
@@ -137,8 +141,7 @@ pub fn spawn_host_socket(
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        if let Err(e) =
-            std::fs::set_permissions(&sock_path, std::fs::Permissions::from_mode(0o600))
+        if let Err(e) = std::fs::set_permissions(&sock_path, std::fs::Permissions::from_mode(0o600))
         {
             tracing::warn!(path = %sock_path.display(), error = %e,
                 "shipd: could not restrict ship.sock permissions to 0600");
@@ -176,7 +179,9 @@ mod tests {
     /// request through (it must not).
     async fn whoami(auth: Option<Extension<crate::auth::AuthContext>>) -> String {
         match auth {
-            Some(Extension(ctx)) => ctx.agent_id.map_or("operator".into(), |id| format!("agent:{id}")),
+            Some(Extension(ctx)) => ctx
+                .agent_id
+                .map_or("operator".into(), |id| format!("agent:{id}")),
             None => "none".into(),
         }
     }

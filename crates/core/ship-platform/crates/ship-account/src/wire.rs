@@ -11,20 +11,16 @@
 //! Connect router does not run a per-route auth middleware, so the gate is read
 //! here from the resolved authority the daemon installs as a `RequestContext`
 //! extension. This crate cannot see shipd's `AuthContext` type, so the daemon
-//! projects the operator verdict into the shared `ship_types::Authority` and
+//! projects the operator verdict into the shared `agent_schema::Authority` and
 //! inserts it; the wire checks `Authority::Operator`. The CLI transport and the
 //! local peer-uid grant NO elevation — only the operator cred clears this gate.
 
 use std::sync::Arc;
 
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
-use ship_types::Authority;
+use agent_schema::Authority;
 
-use ship_ops_rpc::{
-    AccountService as AccountWireTrait, AccountState as ProtoState, LoginCompleted, LoginStarted,
-    LogoutResult, Me, OwnedLoginCompleteRequestView, OwnedLoginRequestView, OwnedLogoutRequestView,
-    OwnedStateRequestView,
-};
+use ship_proto::ship::ops::v1::{AccountService as AccountWireTrait, AccountState as ProtoState, LoginCompleted, LoginStarted, LogoutResult, Me, OwnedLoginCompleteRequestView, OwnedLoginRequestView, OwnedLogoutRequestView, OwnedStateRequestView};
 
 use crate::service::AccountService;
 use crate::types::{AccountState, MeView};
@@ -44,7 +40,7 @@ impl AccountWire {
 /// dangerous, so they require operator authority — granted SOLELY by a verified
 /// operator cred (S6, #124). The daemon resolves the caller's authority and
 /// installs it as a `RequestContext` extension; the wire reads the shared
-/// `ship_types::Authority` (no coupling to shipd's `AuthContext`). Absence ⟹ no
+/// `agent_schema::Authority` (no coupling to shipd's `AuthContext`). Absence ⟹ no
 /// auth context (unauthenticated); any non-operator authority ⟹ denied.
 fn require_operator(ctx: &RequestContext) -> Result<(), ConnectError> {
     match ctx.extensions.get::<Authority>() {
@@ -67,7 +63,7 @@ fn me_to_proto(me: MeView) -> Me {
 }
 
 fn state_to_proto(state: AccountState) -> ProtoState {
-    use ship_ops_rpc::account_state::Status;
+    use ship_proto::ship::ops::v1::account_state::Status;
     match state {
         AccountState::LoggedOut => ProtoState {
             status: buffa::EnumValue::Known(Status::LOGGED_OUT),

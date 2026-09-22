@@ -34,8 +34,7 @@ const NEEDS_AUTHOR_PAYLOADS: &[&str] = &[
 /// Only payload types that can be generated fully automatically are here.
 /// NEEDS_AUTHOR types get a generic stub with the marker comment embedded
 /// in the `_note` field of the JSON.
-fn payload_stub(payload_type: &str, event_name: &str) -> Value {
-    let slug = event_name.replace('.', "-");
+fn payload_stub(payload_type: &str) -> Value {
     match payload_type {
         // ── Empty-payload events (unit structs) ───────────────────────────────
         "ActorWoke"
@@ -50,7 +49,6 @@ fn payload_stub(payload_type: &str, event_name: &str) -> Value {
         "DaemonOwnerBound" => json!({ "source": "cli-login", "bound_at_unix": 1717200000_i64 }),
         "AuthSessionCreated" => json!({
             "agent_id": "test-agent",
-            "scopes_json": "[\"ship.git.read\"]",
             "created_at_unix": 1717200000_i64,
             "expires_at_unix": 1717286400_i64,
             "source": "operator"
@@ -146,8 +144,6 @@ fn payload_stub(payload_type: &str, event_name: &str) -> Value {
 
 
         // ── Mesh events ──────────────────────────────────────────────────────
-        "MeshMessage" => json!({ "from": "actor-a", "to": "actor-b", "message_type": "test.msg" }),
-        "MeshRegister" => json!({ "actor_id": "test-actor", "namespace": "test-ns" }),
 
         // ── Permission events ────────────────────────────────────────────────
         "PermissionsUpdated" => json!({
@@ -179,11 +175,9 @@ fn payload_stub(payload_type: &str, event_name: &str) -> Value {
         // ── Process events ───────────────────────────────────────────────────
         "ProcessOrphaned" => json!({ "pid": 99999, "cmd": "claude", "last_known_slug": null, "detected_by": "sweep" }),
 
-        // ── Project events ───────────────────────────────────────────────────
-        "ProjectRegistered" => json!({ "path": "/home/user/projects/test", "name": "test", "created_at": "2026-01-01T00:00:00Z" }),
-        "ProjectSeen" => json!({ "seen_at": "2026-01-01T00:00:00Z" }),
-        "ProjectArchived" => json!({ "archived_at": "2026-01-01T00:00:00Z" }),
-        "ProjectSwitched" => json!({ "space_id": "test-space", "name": "test", "path": "/home/user/projects/test", "at": "2026-01-01T00:00:00Z" }),
+        // ── Space events ─────────────────────────────────────────────────────
+        "SpaceOpened" => json!({ "path": "/home/user/spaces/test", "name": "test", "opened_at": "2026-01-01T00:00:00Z" }),
+        "SpaceSeen" => json!({ "seen_at": "2026-01-01T00:00:00Z" }),
 
         // ── Rule events ──────────────────────────────────────────────────────
         "RuleCreated" => json!({ "file_name": "test-rule.md", "content_hash": "sha256-test" }),
@@ -208,15 +202,7 @@ fn payload_stub(payload_type: &str, event_name: &str) -> Value {
         "SkillUpdated" => json!({ "scope": "space", "content_hash": "sha256-test" }),
         "SkillDeleted" => json!({ "scope": "space" }),
         "SkillChanged" => json!({ "path": ".ship/skills/test.md", "content_hash": "sha256-test" }),
-        "SkillStarted" => json!({ "skill_id": "test-skill" }),
-        "SkillCompleted" => json!({ "skill_id": "test-skill", "duration_ms": 1234 }),
         "SkillFailed" => json!({ "skill_id": "test-skill", "error": "test failure" }),
-
-        // ── Studio events ────────────────────────────────────────────────────
-        "StudioAnnotationCreated" => json!({ "annotation_id": "test-annotation", "session_id": "test-session", "text": "test annotation" }),
-        "StudioFeedbackCreated" => json!({ "feedback_id": "test-feedback", "rating": 5, "comment": "great" }),
-        "StudioChatTurn" => json!({ "session_id": "test-session", "text": "tell me about this code" }),
-        "StudioReply" => json!({ "actor_id": "test-actor", "text": "here is the analysis" }),
 
         // ── Supervisor events ────────────────────────────────────────────────
         "SupervisorShuttingDown" => json!({ "reason": "graceful-shutdown" }),
@@ -309,6 +295,7 @@ fn scope_str(scope: &EventScope) -> &'static str {
 fn retention_str(retention: &Retention) -> &'static str {
     match retention {
         Retention::Durable => "durable",
+        Retention::Windowed { .. } => "windowed",
         Retention::Ephemeral => "ephemeral",
     }
 }
@@ -327,7 +314,7 @@ fn is_needs_author(payload_type: &str) -> bool {
 
 /// Build the payload fixture JSON for one event.
 fn make_payload_fixture(event: &EventEntry) -> Value {
-    let payload = payload_stub(event.payload_type, event.name);
+    let payload = payload_stub(event.payload_type);
     json!({
         "_meta": {
             "event": event.name,
@@ -343,7 +330,7 @@ fn make_payload_fixture(event: &EventEntry) -> Value {
 
 /// Build the EventEnvelope fixture JSON for one event.
 fn make_envelope_fixture(event: &EventEntry) -> Value {
-    let payload = payload_stub(event.payload_type, event.name);
+    let payload = payload_stub(event.payload_type);
     json!({
         "_meta": {
             "event": event.name,

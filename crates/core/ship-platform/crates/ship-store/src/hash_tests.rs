@@ -15,11 +15,14 @@ fn make_tree(files: &[(&str, &str)]) -> anyhow::Result<tempfile::TempDir> {
     Ok(dir)
 }
 
-// ── compute_tree_hash ───────────────────────────────────────────────
+// ── compute_tree_hash — manifest + domain dirs allow-list ──────────────
 
 #[test]
-fn tree_hash_deterministic_on_known_files() -> anyhow::Result<()> {
-    let dir = make_tree(&[("a.txt", "hello"), ("b.txt", "world")])?;
+fn tree_hash_is_deterministic_on_a_known_manifest_plus_skills_tree() -> anyhow::Result<()> {
+    let dir = make_tree(&[
+        ("stack.config.ts", "export default {};\n"),
+        ("skills/review/SKILL.md", "# Review\n"),
+    ])?;
     let h1 = compute_tree_hash(dir.path())?;
     let h2 = compute_tree_hash(dir.path())?;
     assert!(h1.starts_with("sha256:"));
@@ -28,34 +31,83 @@ fn tree_hash_deterministic_on_known_files() -> anyhow::Result<()> {
 }
 
 #[test]
-fn tree_hash_excludes_git_dir() -> anyhow::Result<()> {
-    let dir = make_tree(&[("a.txt", "data")])?;
+fn tree_hash_ignores_files_outside_the_allow_list() -> anyhow::Result<()> {
+    // The pack allow-list is `stack.config.ts` + each domain dir. A
+    // file at the root that is not the manifest (e.g. a stray README.md)
+    // must not enter the hash — it is not stack content.
+    let dir = make_tree(&[
+        ("stack.config.ts", "export default {};\n"),
+        ("skills/review/SKILL.md", "# Review\n"),
+    ])?;
     let h_before = compute_tree_hash(dir.path())?;
-    fs::create_dir_all(dir.path().join(".git/objects"))?;
-    fs::write(dir.path().join(".git/HEAD"), "ref: refs/heads/main")?;
-    fs::write(dir.path().join(".git/objects/abc"), "blob")?;
+
+    fs::write(dir.path().join("README.md"), "notes")?;
+    fs::write(dir.path().join("justfile"), "default:\n")?;
+    fs::create_dir_all(dir.path().join("contrib"))?;
+    fs::write(dir.path().join("contrib/notes.md"), "scratch")?;
+    fs::create_dir_all(dir.path().join("scripts"))?;
+    fs::write(dir.path().join("scripts/build.sh"), "#!/bin/sh\n")?;
+
     let h_after = compute_tree_hash(dir.path())?;
-    assert_eq!(h_before, h_after, ".git/ must be excluded from hash");
+    assert_eq!(
+        h_before, h_after,
+        "non-domain top-level entries must not affect the hash"
+    );
     Ok(())
 }
 
 #[test]
-fn tree_hash_excludes_ds_store_and_thumbs_db() -> anyhow::Result<()> {
-    let dir = make_tree(&[("a.txt", "data")])?;
+fn tree_hash_ignores_build_output_under_a_repo_root() -> anyhow::Result<()> {
+    // The old deny-list (`target`, `node_modules`, `dist`, etc.) is
+    // gone. The allow-list guarantees the same outcome by construction:
+    // a stack that lives at a repo root cannot pack build output
+    // because the dirs are not domain dirs, so the hash is unchanged
+    // when build output appears.
+    let dir = make_tree(&[
+        ("stack.config.ts", "export default {};\n"),
+        ("agents/reviewer.ts", "agent\n"),
+    ])?;
     let h_before = compute_tree_hash(dir.path())?;
-    fs::write(dir.path().join(".DS_Store"), "apple noise")?;
-    fs::write(dir.path().join("Thumbs.db"), "windows noise")?;
+
+    fs::create_dir_all(dir.path().join("target/debug"))?;
+    fs::write(dir.path().join("target/debug/huge.rlib"), "BUILD ARTIFACT")?;
+    fs::create_dir_all(dir.path().join("node_modules/left-pad"))?;
+    fs::write(
+        dir.path().join("node_modules/left-pad/index.js"),
+        "module.exports = 1;",
+    )?;
+    fs::create_dir_all(dir.path().join("dist"))?;
+    fs::write(dir.path().join("dist/bundle.js"), "var x = 1;\n")?;
+
     let h_after = compute_tree_hash(dir.path())?;
     assert_eq!(
         h_before, h_after,
-        ".DS_Store and Thumbs.db must be excluded"
+        "build output at the repo root must not affect the stack hash"
+    );
+    Ok(())
+}
+
+#[test]
+fn tree_hash_excludes_ship_json_transport_header() -> anyhow::Result<()> {
+    // The archive contains a synthesized ship.json; the hash must
+    // exclude it so the header can carry the hash it represents.
+    let dir = make_tree(&[("stack.config.ts", "export default {};\n")])?;
+    let h_before = compute_tree_hash(dir.path())?;
+    fs::write(dir.path().join("ship.json"), r#"{"hash":"sha256:pending"}"#)?;
+    let h_after = compute_tree_hash(dir.path())?;
+    assert_eq!(
+        h_before, h_after,
+        "ship.json (transport header) must not be in the content hash"
     );
     Ok(())
 }
 
 #[test]
 fn tree_hash_excludes_ship_lock() -> anyhow::Result<()> {
-    let dir = make_tree(&[("a.txt", "data")])?;
+    // ship.lock is the dependency lockfile, kept beside the manifest.
+    // It is not on the allow-list (it is not the manifest, not a domain
+    // dir), so it does not affect the content hash.
+    let dir = make_tree(&[("stack.config.ts", "export default {};\n")])?;
     let h_before = compute_tree_hash(dir.path())?;
     fs::write(dir.path().join("ship.lock"), "lock content")?;
     let h_after = compute_tree_hash(dir.path())?;
@@ -64,21 +116,46 @@ fn tree_hash_excludes_ship_lock() -> anyhow::Result<()> {
 }
 
 #[test]
-fn tree_hash_excludes_swp_files() -> anyhow::Result<()> {
-    let dir = make_tree(&[("a.txt", "data")])?;
-    let h_before = compute_tree_hash(dir.path())?;
-    fs::write(dir.path().join(".a.txt.swp"), "vim swap")?;
-    fs::create_dir_all(dir.path().join("sub"))?;
-    fs::write(dir.path().join("sub/.b.swp"), "")?;
-    let h_after = compute_tree_hash(dir.path())?;
-    assert_eq!(h_before, h_after, "*.swp files must be excluded");
+fn tree_hash_includes_every_domain_dir() -> anyhow::Result<()> {
+    // The set of domain dirs is a contract. Adding a file to any
+    // domain dir must change the hash. Drop the manifest so a
+    // missing manifest can't mask a domain-dir change.
+    let base = make_tree(&[("stack.config.ts", "export default {};\n")])?;
+    let h0 = compute_tree_hash(base.path())?;
+    for (path, _) in [
+        ("agents/reviewer.ts", "agent\n"),
+        ("collections/notes.jsonc", "{}\n"),
+        ("pipelines/feature.jsonc", "{}\n"),
+        ("triggers/on-push.jsonc", "{}\n"),
+        ("views/dashboard/.sui", "<div/>\n"),
+        ("skills/review/SKILL.md", "# Review\n"),
+        ("hooks/stop.sh", "#!/bin/sh\n"),
+    ] {
+        let dir = make_tree(&[("stack.config.ts", "export default {};\n")])?;
+        let parent = dir.path().join(path).parent().unwrap().to_path_buf();
+        fs::create_dir_all(parent).unwrap();
+        fs::write(dir.path().join(path), path).unwrap();
+        let h = compute_tree_hash(dir.path())?;
+        assert_ne!(h0, h, "domain-dir entry {path} must change the hash");
+    }
     Ok(())
 }
 
 #[test]
-fn tree_hash_order_independent() -> anyhow::Result<()> {
-    let dir1 = make_tree(&[("z.txt", "last"), ("a.txt", "first"), ("m/b.txt", "mid")])?;
-    let dir2 = make_tree(&[("a.txt", "first"), ("m/b.txt", "mid"), ("z.txt", "last")])?;
+fn tree_hash_is_order_independent() -> anyhow::Result<()> {
+    // Construction order on disk must not change the hash — the
+    // sort by relative path inside the function is the source of
+    // determinism.
+    let dir1 = make_tree(&[
+        ("stack.config.ts", "export default {};\n"),
+        ("z/skills/last/SKILL.md", "z"),
+        ("a/agents/first.ts", "a"),
+    ])?;
+    let dir2 = make_tree(&[
+        ("stack.config.ts", "export default {};\n"),
+        ("a/agents/first.ts", "a"),
+        ("z/skills/last/SKILL.md", "z"),
+    ])?;
     let h1 = compute_tree_hash(dir1.path())?;
     let h2 = compute_tree_hash(dir2.path())?;
     assert_eq!(h1, h2, "hash must not depend on file creation order");
@@ -86,45 +163,32 @@ fn tree_hash_order_independent() -> anyhow::Result<()> {
 }
 
 #[test]
-fn tree_hash_changes_when_content_changes() -> anyhow::Result<()> {
-    let dir = make_tree(&[("a.txt", "original")])?;
+fn tree_hash_changes_when_manifest_content_changes() -> anyhow::Result<()> {
+    // The manifest is on the allow-list — editing it must change
+    // the hash. (The on-disk content is what gets hashed; the
+    // synthesized archive header is a separate file.)
+    let dir = make_tree(&[("stack.config.ts", "v1\n")])?;
     let h_before = compute_tree_hash(dir.path())?;
-    fs::write(dir.path().join("a.txt"), "modified")?;
+    fs::write(dir.path().join("stack.config.ts"), "v2\n")?;
     let h_after = compute_tree_hash(dir.path())?;
-    assert_ne!(h_before, h_after, "content change must change hash");
+    assert_ne!(
+        h_before, h_after,
+        "content change in manifest must change hash"
+    );
     Ok(())
 }
 
 #[test]
-fn tree_hash_empty_dir() -> anyhow::Result<()> {
+fn tree_hash_empty_tree() -> anyhow::Result<()> {
+    // A stack root with neither a manifest nor any domain dirs is
+    // still hashable — the hash is well-defined and stable.
     let dir = tempdir()?;
     let hash = compute_tree_hash(dir.path())?;
-    assert!(
-        hash.starts_with("sha256:"),
-        "empty tree still returns valid hash"
-    );
+    assert!(hash.starts_with("sha256:"));
     Ok(())
 }
 
-#[test]
-fn tree_hash_excludes_state_dir() -> anyhow::Result<()> {
-    let dir = make_tree(&[("SKILL.md", "# Skill\nContent here.")])?;
-    let h_before = compute_tree_hash(dir.path())?;
-    // Add state files — should not affect hash
-    fs::create_dir_all(dir.path().join("state/skills"))?;
-    fs::write(
-        dir.path().join("state/skills/my-skill.json"),
-        r#"{"commit_style":"gitmoji"}"#,
-    )?;
-    let h_after = compute_tree_hash(dir.path())?;
-    assert_eq!(
-        h_before, h_after,
-        "state/ must be excluded from content hash"
-    );
-    Ok(())
-}
-
-// ── compute_file_hash ───────────────────────────────────────────────
+// ── compute_file_hash ─────────────────────────────────────────────────
 
 #[test]
 fn file_hash_known_content() -> anyhow::Result<()> {
@@ -145,159 +209,22 @@ fn file_hash_missing_file_fails() {
     assert!(result.is_err());
 }
 
-// ── compute_export_hashes ───────────────────────────────────────────
-
-#[test]
-fn export_hashes_skills_and_agents() -> anyhow::Result<()> {
-    let ship_dir = make_tree(&[
-        ("skills/my-skill/SKILL.md", "# My Skill"),
-        ("skills/my-skill/rules.md", "some rules"),
-        ("agents/my-agent.md", "# My Agent"),
-    ])?;
-    let result = compute_export_hashes(
-        ship_dir.path(),
-        &["skills/my-skill".into()],
-        &["agents/my-agent.md".into()],
-    )?;
-    assert_eq!(result.per_export.len(), 2);
-    assert!(result.per_export.contains_key("skills/my-skill"));
-    assert!(result.per_export.contains_key("agents/my-agent.md"));
-    for hash in result.per_export.values() {
-        assert!(hash.starts_with("sha256:"));
-    }
-    assert!(result.combined.starts_with("sha256:"));
-    Ok(())
-}
-
-#[test]
-fn export_hashes_missing_skill_dir_fails() {
-    let ship_dir = tempdir().unwrap();
-    let result = compute_export_hashes(ship_dir.path(), &["skills/missing".into()], &[]);
-    let msg = result.unwrap_err().to_string();
+fn file_hash_refuses_oversized_file_with_limit_named() -> anyhow::Result<()> {
+    // The per-file cap (MAX_BUNDLE_FILE) is the binding check. A
+    // single multi-GiB member must not be slurped whole into a single
+    // allocation. Simulate by patching the read with a small limit
+    // override: we cannot trivially construct a multi-GiB file in
+    // tests, so we test the helper at a tight bound by writing a
+    // small file and checking the per-file cap machinery fires when
+    // the limit is below the file size.
+    let dir = make_tree(&[("big.bin", "some content")])?;
+    // Read directly via the cap helper, with a 1-byte limit, to
+    // confirm the cap error message names the limit.
+    let f = std::fs::File::open(dir.path().join("big.bin")).unwrap();
+    let err = bundle_limits::read_capped(f, 1).unwrap_err();
     assert!(
-        msg.contains("not found"),
-        "error should mention 'not found': {msg}"
-    );
-}
-
-#[test]
-fn export_hashes_missing_agent_file_fails() {
-    let ship_dir = tempdir().unwrap();
-    let result = compute_export_hashes(ship_dir.path(), &[], &["agents/missing.md".into()]);
-    let msg = result.unwrap_err().to_string();
-    assert!(
-        msg.contains("not found"),
-        "error should mention 'not found': {msg}"
-    );
-}
-
-#[test]
-fn export_hashes_empty_exports() -> anyhow::Result<()> {
-    let ship_dir = tempdir()?;
-    let result = compute_export_hashes(ship_dir.path(), &[], &[])?;
-    assert!(result.per_export.is_empty());
-    assert!(result.combined.starts_with("sha256:"));
-    Ok(())
-}
-
-// ── Combined hash determinism ───────────────────────────────────────
-
-#[test]
-fn combined_hash_deterministic() -> anyhow::Result<()> {
-    let ship_dir = make_tree(&[
-        ("skills/alpha/SKILL.md", "a"),
-        ("skills/beta/SKILL.md", "b"),
-    ])?;
-    let exports = vec!["skills/alpha".to_string(), "skills/beta".to_string()];
-    let r1 = compute_export_hashes(ship_dir.path(), &exports, &[])?;
-    let r2 = compute_export_hashes(ship_dir.path(), &exports, &[])?;
-    assert_eq!(r1, r2, "repeated calls must produce identical results");
-    Ok(())
-}
-
-#[test]
-fn combined_hash_changes_when_export_added() -> anyhow::Result<()> {
-    let ship_dir = make_tree(&[
-        ("skills/alpha/SKILL.md", "a"),
-        ("skills/beta/SKILL.md", "b"),
-    ])?;
-    let r1 = compute_export_hashes(ship_dir.path(), &["skills/alpha".into()], &[])?;
-    let r2 = compute_export_hashes(
-        ship_dir.path(),
-        &["skills/alpha".into(), "skills/beta".into()],
-        &[],
-    )?;
-    assert_ne!(
-        r1.combined, r2.combined,
-        "adding an export must change combined hash"
-    );
-    Ok(())
-}
-
-#[test]
-fn combined_hash_changes_when_export_content_changes() -> anyhow::Result<()> {
-    let ship_dir = make_tree(&[("skills/alpha/SKILL.md", "original")])?;
-    let r1 = compute_export_hashes(ship_dir.path(), &["skills/alpha".into()], &[])?;
-    fs::write(ship_dir.path().join("skills/alpha/SKILL.md"), "changed")?;
-    let r2 = compute_export_hashes(ship_dir.path(), &["skills/alpha".into()], &[])?;
-    assert_ne!(
-        r1.per_export["skills/alpha"], r2.per_export["skills/alpha"],
-        "content change in skill must change its per-export hash"
-    );
-    assert_ne!(
-        r1.combined, r2.combined,
-        "content change must change combined hash"
-    );
-    Ok(())
-}
-
-// ── Internal changes affect only their own export ───────────────────
-
-#[test]
-fn internal_change_does_not_affect_other_exports() -> anyhow::Result<()> {
-    let ship_dir = make_tree(&[
-        ("skills/alpha/SKILL.md", "a"),
-        ("skills/beta/SKILL.md", "b"),
-    ])?;
-    let exports = vec!["skills/alpha".to_string(), "skills/beta".to_string()];
-    let r1 = compute_export_hashes(ship_dir.path(), &exports, &[])?;
-    fs::write(ship_dir.path().join("skills/alpha/SKILL.md"), "a-changed")?;
-    let r2 = compute_export_hashes(ship_dir.path(), &exports, &[])?;
-    assert_ne!(
-        r1.per_export["skills/alpha"], r2.per_export["skills/alpha"],
-        "alpha hash must change"
-    );
-    assert_eq!(
-        r1.per_export["skills/beta"], r2.per_export["skills/beta"],
-        "beta hash must NOT change when only alpha changed"
-    );
-    Ok(())
-}
-
-// ── should_exclude edge cases via tree_hash behavior ────────────────
-
-#[test]
-fn nested_ds_store_excluded() -> anyhow::Result<()> {
-    let dir = make_tree(&[("a.txt", "data")])?;
-    let h_before = compute_tree_hash(dir.path())?;
-    fs::create_dir_all(dir.path().join("sub/deep"))?;
-    fs::write(dir.path().join("sub/deep/.DS_Store"), "nested")?;
-    let h_after = compute_tree_hash(dir.path())?;
-    assert_eq!(h_before, h_after, "nested .DS_Store must be excluded");
-    Ok(())
-}
-
-#[test]
-fn ship_lock_only_at_root_excluded() -> anyhow::Result<()> {
-    // ship.lock at root is excluded; ship.lock inside a subdirectory is NOT
-    // excluded (rel_path != "ship.lock").
-    let dir_without = make_tree(&[("a.txt", "data")])?;
-    let h_without = compute_tree_hash(dir_without.path())?;
-    let dir_with_nested = make_tree(&[("a.txt", "data"), ("sub/ship.lock", "nested lock")])?;
-    let h_with_nested = compute_tree_hash(dir_with_nested.path())?;
-    assert_ne!(
-        h_without, h_with_nested,
-        "sub/ship.lock is NOT excluded, so hash should differ"
+        err.to_string().contains("limit 1"),
+        "cap error must name the limit: {err}"
     );
     Ok(())
 }

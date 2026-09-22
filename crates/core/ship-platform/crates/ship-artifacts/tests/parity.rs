@@ -16,9 +16,9 @@ use ship_artifacts::gc::collect_expired;
 use ship_artifacts::service::ArtifactService;
 use ship_artifacts::types::ArtifactScope;
 use ship_substrate::data::DataService;
-use ship_substrate::events::new_isolated_for_test;
+use ship_substrate::events::new_isolated_for_test_with;
 use ship_substrate::home::ShipHome;
-use ship_substrate::ports::{KernelLog, Row, SingleBackendDataStore, SpaceContext, SpaceId};
+use ship_substrate::{KernelLog, Row, SingleBackendDataStore, SpaceContext, SpaceId};
 
 mod common;
 
@@ -34,15 +34,17 @@ const SCOPE_SPACE: &str = "proj1";
 fn make_kernel(tmp: &tempfile::TempDir) -> Arc<KernelLog> {
     // Ensure ArtifactProjection is in the extra-projections factory before
     // any SqliteEventStore (and its default_bus) is constructed.
-    common::install_artifact_projection();
-    let ship_dir = ShipHome::project_ship_dir(tmp.path());
+    let ship_dir = tmp.path().join(".ship");
     std::fs::create_dir_all(&ship_dir).unwrap();
-    let router = new_isolated_for_test(ship_dir).unwrap();
+    let router = new_isolated_for_test_with(ship_dir, common::artifact_projection_factory()).unwrap();
     Arc::new(KernelLog::new(router))
 }
 
 fn make_ctx_for(tmp: &tempfile::TempDir, kernel: Arc<KernelLog>, space: &str) -> Arc<SpaceContext> {
-    let ship_dir = ShipHome::project_ship_dir(tmp.path());
+    let ship_dir = tmp.path().join(".ship");
+    // I-2: register the fabricated space id so `PartitionedSink::route()`
+    // doesn't refuse this suite's Space-scoped `artifact.*` events.
+    ship_substrate::testutil::register_space(&ship_dir, space).unwrap();
     let space_db = ship_substrate::db::space_db_path(&ship_dir, space);
     let svc = DataService::open_at(&space_db).unwrap();
     let store = Arc::new(SingleBackendDataStore::new(svc, space));
@@ -249,7 +251,10 @@ async fn parity_store_run_scope_sets_run_id() {
     let svc = make_service(&tmp, ctx);
 
     // This test reads only the RETURNED record (not via the read store), so the
-    // scope space need not match the ctx space.
+    // scope space need not match the ctx space. The store's event routes on
+    // the SCOPE's own space_id ("proj"), not the ctx's ("proj1") — register it
+    // too so `PartitionedSink::route()` doesn't refuse the emit.
+    ship_substrate::testutil::register_space(tmp.path().join(".ship"), "proj").unwrap();
     let scope = ArtifactScope::Run { space_id: "proj".into(), run_id: "run-001".into() };
     let rec = svc
         .store("out.json", "application/json", b"{}", &scope, None, None, None, None)

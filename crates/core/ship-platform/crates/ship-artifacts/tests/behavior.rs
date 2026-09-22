@@ -10,9 +10,9 @@ use ship_artifacts::service::ArtifactService;
 use ship_artifacts::types::ArtifactScope;
 use ship_reactive::{ReactiveRegistry, WatchKey};
 use ship_substrate::data::DataService;
-use ship_substrate::events::{new_isolated_for_test, EventFilter};
+use ship_substrate::EventFilter;
 use ship_substrate::home::ShipHome;
-use ship_substrate::ports::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
+use ship_substrate::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
 
 mod common;
 
@@ -28,12 +28,13 @@ mod common;
 const SCOPE_SPACE: &str = "proj1";
 
 fn make_kernel(tmp: &tempfile::TempDir) -> Arc<KernelLog> {
-    // Ensure ArtifactProjection is in the extra-projections factory before
-    // any SqliteEventStore (and its default_bus) is constructed.
-    common::install_artifact_projection();
-    let ship_dir = ShipHome::project_ship_dir(tmp.path());
+    let ship_dir = tmp.path().join(".ship");
     std::fs::create_dir_all(&ship_dir).unwrap();
-    let router = new_isolated_for_test(ship_dir).unwrap();
+    let router = ship_substrate::events::new_isolated_for_test_with(
+        ship_dir,
+        common::artifact_projection_factory(),
+    )
+    .unwrap();
     Arc::new(KernelLog::new(router))
 }
 
@@ -41,7 +42,10 @@ fn make_kernel(tmp: &tempfile::TempDir) -> Arc<KernelLog> {
 /// `space` (matching where `ArtifactProjection` writes), with its partition key
 /// set to the same space.
 fn make_ctx_for(tmp: &tempfile::TempDir, kernel: Arc<KernelLog>, space: &str) -> Arc<SpaceContext> {
-    let ship_dir = ShipHome::project_ship_dir(tmp.path());
+    let ship_dir = tmp.path().join(".ship");
+    // I-2: register the fabricated space id so `PartitionedSink::route()`
+    // doesn't refuse this suite's Space-scoped `artifact.*` events.
+    ship_substrate::testutil::register_space(&ship_dir, space).unwrap();
     let space_db = ship_substrate::db::space_db_path(&ship_dir, space);
     let svc = DataService::open_at(&space_db).unwrap();
     let store = Arc::new(SingleBackendDataStore::new(svc, space));

@@ -34,7 +34,10 @@ pub struct Row {
 
 impl Row {
     pub fn new(id: impl Into<String>) -> Self {
-        Self { id: id.into(), fields: IndexMap::new() }
+        Self {
+            id: id.into(),
+            fields: IndexMap::new(),
+        }
     }
 
     pub fn with(mut self, key: impl Into<String>, val: serde_json::Value) -> Self {
@@ -76,7 +79,11 @@ pub struct Predicate {
 impl Predicate {
     /// An equality predicate (`column = value`) — the common case.
     pub fn eq(column: impl Into<String>, value: serde_json::Value) -> Self {
-        Self { column: column.into(), op: FilterOp::Eq, value }
+        Self {
+            column: column.into(),
+            op: FilterOp::Eq,
+            value,
+        }
     }
 
     /// Build a Vec of equality predicates from a key→value map. Migration
@@ -85,7 +92,10 @@ impl Predicate {
     where
         I: IntoIterator<Item = (String, serde_json::Value)>,
     {
-        pairs.into_iter().map(|(c, v)| Predicate::eq(c, v)).collect()
+        pairs
+            .into_iter()
+            .map(|(c, v)| Predicate::eq(c, v))
+            .collect()
     }
 }
 
@@ -114,7 +124,11 @@ pub struct Query {
 
 impl Query {
     pub fn new(table: impl Into<String>) -> Self {
-        Self { table: table.into(), limit: 50, ..Default::default() }
+        Self {
+            table: table.into(),
+            limit: 50,
+            ..Default::default()
+        }
     }
 
     /// Append an equality predicate; chainable for readable call-sites.
@@ -134,7 +148,10 @@ pub struct CountQuery {
 
 impl CountQuery {
     pub fn new(table: impl Into<String>) -> Self {
-        Self { table: table.into(), filters: Vec::new() }
+        Self {
+            table: table.into(),
+            filters: Vec::new(),
+        }
     }
 }
 
@@ -164,7 +181,10 @@ pub struct QueryResult {
 
 impl QueryResult {
     pub fn empty() -> Self {
-        Self { rows: Vec::new(), next_cursor: None }
+        Self {
+            rows: Vec::new(),
+            next_cursor: None,
+        }
     }
 }
 

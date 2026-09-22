@@ -23,9 +23,10 @@ fn spawned_payload(slug: &str, pid: Option<u32>, kind: &str) -> serde_json::Valu
 
 #[test]
 fn spawn_creates_running_record() {
-    let events = vec![
-        make_event("process.spawned", spawned_payload("s1", Some(1234), "process")),
-    ];
+    let events = vec![make_event(
+        "process.spawned",
+        spawned_payload("s1", Some(1234), "process"),
+    )];
     let records = project(&events);
     assert_eq!(records.len(), 1);
     assert_eq!(records[0].status, ProcessStatus::Running);
@@ -37,11 +38,17 @@ fn spawn_creates_running_record() {
 #[test]
 fn spawn_then_exited_transitions_to_exited() {
     let events = vec![
-        make_event("process.spawned", spawned_payload("s1", Some(1234), "process")),
-        make_event("process.exited", serde_json::json!({
-            "slug": "s1", "pid": 1234, "exit_code": 0,
-            "signal": null, "wall_duration_ms": 5000, "executor_kind": "process",
-        })),
+        make_event(
+            "process.spawned",
+            spawned_payload("s1", Some(1234), "process"),
+        ),
+        make_event(
+            "process.exited",
+            serde_json::json!({
+                "slug": "s1", "pid": 1234, "exit_code": 0,
+                "signal": null, "wall_duration_ms": 5000, "executor_kind": "process",
+            }),
+        ),
     ];
     let records = project(&events);
     assert_eq!(records.len(), 1);
@@ -53,15 +60,24 @@ fn spawn_then_exited_transitions_to_exited() {
 #[test]
 fn spawn_signal_then_exited_preserves_signal_history() {
     let events = vec![
-        make_event("process.spawned", spawned_payload("s1", Some(1234), "process")),
-        make_event("process.signal_sent", serde_json::json!({
-            "slug": "s1", "pid": 1234, "signum": "SIGTERM",
-            "reason": "shutdown", "actor": "supervisor",
-        })),
-        make_event("process.exited", serde_json::json!({
-            "slug": "s1", "pid": 1234, "exit_code": null,
-            "signal": "SIGTERM", "wall_duration_ms": 12000, "executor_kind": "process",
-        })),
+        make_event(
+            "process.spawned",
+            spawned_payload("s1", Some(1234), "process"),
+        ),
+        make_event(
+            "process.signal_sent",
+            serde_json::json!({
+                "slug": "s1", "pid": 1234, "signum": "SIGTERM",
+                "reason": "shutdown", "actor": "supervisor",
+            }),
+        ),
+        make_event(
+            "process.exited",
+            serde_json::json!({
+                "slug": "s1", "pid": 1234, "exit_code": null,
+                "signal": "SIGTERM", "wall_duration_ms": 12000, "executor_kind": "process",
+            }),
+        ),
     ];
     let records = project(&events);
     assert_eq!(records.len(), 1);
@@ -74,11 +90,17 @@ fn spawn_signal_then_exited_preserves_signal_history() {
 #[test]
 fn spawn_then_killed_transitions_to_killed() {
     let events = vec![
-        make_event("process.spawned", spawned_payload("s1", Some(1234), "process")),
-        make_event("process.killed", serde_json::json!({
-            "slug": "s1", "pid": 1234, "signal": "SIGKILL",
-            "reason": "cancellation", "actor": "operator",
-        })),
+        make_event(
+            "process.spawned",
+            spawned_payload("s1", Some(1234), "process"),
+        ),
+        make_event(
+            "process.killed",
+            serde_json::json!({
+                "slug": "s1", "pid": 1234, "signal": "SIGKILL",
+                "reason": "cancellation", "actor": "operator",
+            }),
+        ),
     ];
     let records = project(&events);
     assert_eq!(records.len(), 1);
@@ -89,12 +111,21 @@ fn spawn_then_killed_transitions_to_killed() {
 #[test]
 fn multiple_processes_per_slug() {
     let events = vec![
-        make_event("process.spawned", spawned_payload("s1", Some(100), "process")),
-        make_event("process.exited", serde_json::json!({
-            "slug": "s1", "pid": 100, "exit_code": 1,
-            "signal": null, "wall_duration_ms": 1000, "executor_kind": "process",
-        })),
-        make_event("process.spawned", spawned_payload("s1", Some(200), "process")),
+        make_event(
+            "process.spawned",
+            spawned_payload("s1", Some(100), "process"),
+        ),
+        make_event(
+            "process.exited",
+            serde_json::json!({
+                "slug": "s1", "pid": 100, "exit_code": 1,
+                "signal": null, "wall_duration_ms": 1000, "executor_kind": "process",
+            }),
+        ),
+        make_event(
+            "process.spawned",
+            spawned_payload("s1", Some(200), "process"),
+        ),
     ];
     let records = project(&events);
     assert_eq!(records.len(), 2);
@@ -108,10 +139,13 @@ fn multiple_processes_per_slug() {
 fn tmux_process_without_pid() {
     let events = vec![
         make_event("process.spawned", spawned_payload("s1", None, "tmux")),
-        make_event("process.exited", serde_json::json!({
-            "slug": "s1", "pid": null, "exit_code": null,
-            "signal": null, "wall_duration_ms": 60000, "executor_kind": "tmux",
-        })),
+        make_event(
+            "process.exited",
+            serde_json::json!({
+                "slug": "s1", "pid": null, "exit_code": null,
+                "signal": null, "wall_duration_ms": 60000, "executor_kind": "tmux",
+            }),
+        ),
     ];
     let records = project(&events);
     assert_eq!(records.len(), 1);
@@ -123,12 +157,18 @@ fn tmux_process_without_pid() {
 #[test]
 fn orphaned_status() {
     let events = vec![
-        make_event("process.spawned", spawned_payload("s1", Some(999), "process")),
-        make_event("process.orphaned", serde_json::json!({
-            "pid": 999, "cmd": "claude",
-            "last_known_slug": "s1", "detected_by": "sweep",
-            "slug": "s1",
-        })),
+        make_event(
+            "process.spawned",
+            spawned_payload("s1", Some(999), "process"),
+        ),
+        make_event(
+            "process.orphaned",
+            serde_json::json!({
+                "pid": 999, "cmd": "claude",
+                "last_known_slug": "s1", "detected_by": "sweep",
+                "slug": "s1",
+            }),
+        ),
     ];
     let records = project(&events);
     assert_eq!(records.len(), 1);
@@ -139,7 +179,12 @@ fn orphaned_status() {
 fn non_process_events_are_ignored() {
     let events = vec![
         make_event("process.spawned", spawned_payload("s1", Some(1), "process")),
-        EventEnvelope::new("pipeline.run.started", "j1", &serde_json::json!({"pipeline_run_id": "j1"})).unwrap(),
+        EventEnvelope::new(
+            "pipeline.run.started",
+            "j1",
+            &serde_json::json!({"pipeline_run_id": "j1"}),
+        )
+        .unwrap(),
     ];
     let records = project(&events);
     assert_eq!(records.len(), 1);

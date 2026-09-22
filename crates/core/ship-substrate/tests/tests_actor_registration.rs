@@ -4,13 +4,13 @@
 //! op cut. These tests exercise KernelRouter directly.
 
 use std::sync::Arc;
-use tokio::sync::Mutex;
 use tempfile::TempDir;
+use tokio::sync::Mutex;
 
 use ship_substrate::events::{ActorConfig, CallerKind, EmitContext, EventEnvelope, KernelRouter};
 
 fn make_kernel(dir: &TempDir) -> KernelRouter {
-    let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
+    let ship_dir = dir.path().join(".ship");
     std::fs::create_dir_all(&ship_dir).unwrap();
     KernelRouter::new(ship_dir).unwrap()
 }
@@ -29,7 +29,7 @@ fn cli_ctx() -> EmitContext {
     EmitContext {
         caller_kind: CallerKind::Cli,
         skill_id: None,
-        binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
+        binding: ship_types::ScopeBinding::daemon_internal(None, agent_schema::Authority::Sdk),
         session_id: None,
     }
 }
@@ -40,7 +40,9 @@ fn cli_ctx() -> EmitContext {
 fn spawn_actor_fails_if_actor_exists() {
     let dir = TempDir::new().unwrap();
     let mut kernel = make_kernel(&dir);
-    kernel.spawn_actor("agent.x", actor_config("agent.x")).unwrap();
+    kernel
+        .spawn_actor("agent.x", actor_config("agent.x"))
+        .unwrap();
     let err = kernel
         .spawn_actor("agent.x", actor_config("agent.x"))
         .expect_err("second spawn must fail when actor already exists");
@@ -54,17 +56,24 @@ fn spawn_actor_fails_if_actor_exists() {
 fn stop_then_respawn_succeeds() {
     let dir = TempDir::new().unwrap();
     let mut kernel = make_kernel(&dir);
-    kernel.spawn_actor("agent.x", actor_config("agent.x")).unwrap();
+    kernel
+        .spawn_actor("agent.x", actor_config("agent.x"))
+        .unwrap();
     kernel.stop_actor("agent.x").unwrap();
-    kernel.spawn_actor("agent.x", actor_config("agent.x")).unwrap();
-    assert!(kernel.has_actor("agent.x"), "actor must be present after stop + respawn");
+    kernel
+        .spawn_actor("agent.x", actor_config("agent.x"))
+        .unwrap();
+    assert!(
+        kernel.has_actor("agent.x"),
+        "actor must be present after stop + respawn"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn stop_removes_from_subscriptions() {
     let dir = TempDir::new().unwrap();
     let mut kernel = make_kernel(&dir);
-    let (_store, mut mailbox) = kernel
+    let mut mailbox = kernel
         .spawn_actor("agent.sub", actor_config("agent.sub"))
         .unwrap();
     kernel.stop_actor("agent.sub").unwrap();
@@ -85,7 +94,8 @@ async fn spawn_actor_idempotent_via_stop_respawn() {
     for _ in 0..2 {
         let mut k = kernel.lock().await;
         let _ = k.stop_actor("agent.idem");
-        k.spawn_actor("agent.idem", actor_config("agent.idem")).unwrap();
+        k.spawn_actor("agent.idem", actor_config("agent.idem"))
+            .unwrap();
     }
     assert!(
         kernel.lock().await.has_actor("agent.idem"),
@@ -106,7 +116,7 @@ async fn stop_actor_cleans_subscriptions_completely() {
     };
     kernel.spawn_actor("agent.dup", config.clone()).unwrap();
     kernel.stop_actor("agent.dup").unwrap();
-    let (_store, mut mailbox) = kernel.spawn_actor("agent.dup", config).unwrap();
+    let mut mailbox = kernel.spawn_actor("agent.dup", config).unwrap();
 
     let ev = EventEnvelope::new("mesh.ping", "src", &serde_json::json!({})).unwrap();
     let _ = kernel.emit(ev, &cli_ctx()).await;

@@ -1,198 +1,178 @@
-//! agents.* + agent.* mount — crate-owned AgentsWire (ship-agents).
+//! agents.* + agent.* mount — thin shipd shim over the crate-owned
+//! `ship_agents::services::agents::host` module.
 //!
-//! Replaces `impl AgentsService for OpsImpl` (deleted; the policy/gate
-//! conformance tests live on in `crate::rpc::agent`).
-//! All 23 methods: profile reads (C0) + runtime reads (C0) + profile writes (C2)
-//! + orchestration control (C2/C3) + Watch stream. agent.grant keeps its C3 gate.
+//! `ship-agents` owns the wiring (closure construction + port adapters +
+//! `AgentsWire::new` + `AgentsServiceExt::register`). Shipd's only job here is
+//! to (a) implement [`AgentsHost`] (the core trait), plus the opt-in
+//! capability traits [`AgentsGrantHost`] (for `agent.grant`) and
+//! [`AgentsWatchHost`] (for `agent.*.Watch`), and (b) expose a
+//! `mount(router, &state, gate)` that forwards to the crate-side entry point.
+//! Shipd always calls [`ship_agents::services::agents::host::mount_full`] —
+//! a read-only consumer (e.g. helmd) would call `mount` instead and only
+//! implement the core trait.
+//!
+//! All 23 methods, the C3 grant gate, and the ship-code on/off arms are
+//! preserved verbatim — they live in `ship-agents` now.
 
+use std::path::PathBuf;
 use std::sync::Arc;
 
-use connectrpc::ConnectError;
+use connectrpc::{ConnectError, RequestContext, Router as ConnectRouter};
+use ship_agents::services::agents::dispatch_core::AgentDispatchPort;
+#[cfg(feature = "bridge")]
+use ship_agents::services::agents::host::DispatchHandlePort;
+use ship_agents::services::agents::host::mount_full as host_mount_full;
+use ship_agents::services::agents::host::{AgentsGrantHost, AgentsHost, AgentsWatchHost};
+use ship_agents::services::agents::service::AgentsService;
 use ship_agents::services::rules::wire::GateFn;
+use ship_reactive::ReactiveRegistry;
+use ship_substrate::events::KernelRouter;
+use ship_substrate::ports::KernelLog;
+use tokio::sync::Mutex;
 
+use crate::auth::SessionRegistry;
+use crate::ports::agent_events::AgentDispatchAdapter;
 use crate::ship_runtime::ApiState;
 
-pub(super) fn mount(
-    router: connectrpc::Router,
-    state: &ApiState,
-    gate: GateFn,
-) -> connectrpc::Router {
-    let agents_kernel = Arc::new(ship_substrate::ports::KernelLog::new(state.kernel().clone()));
-    // SessionsFn returns the raw items list as a Value — the wire wraps it in {"items": ...}.
-    // Reads from canonical_sessions (runtime.db) — canonical-only posture (Floki sessions
-    // only until #20 migrates ship-code emitters to canonical session.* events).
-    let agents_sessions_fn: ship_agents::services::agents::rpc_wire::SessionsFn =
-        Arc::new(move || {
-            let sessions =
-                ship_agents::services::sessions::canonical_projection::load_sessions()
-                    .unwrap_or_default();
-            serde_json::to_value(sessions).unwrap_or(serde_json::Value::Array(vec![]))
-        });
-    let notify_saved_state = state.clone();
-    let notify_saved_fn: ship_agents::services::agents::rpc_wire::NotifySavedFn =
-        Arc::new(move |id: String, scope_str: String| {
-            let st = notify_saved_state.clone();
-            Box::pin(async move {
-                use ship_files::files::Scope;
-                use ship_substrate::ShipHome;
-                use ship_types::SpaceId;
-                use ship_substrate::ports::{KernelLog, LocalFsBroker};
-                let scope = match scope_str.as_str() {
-                    "project" => Scope::Project,
-                    _ => Scope::User,
-                };
-                let (ship_dir, space) = match scope {
-                    Scope::Project => {
-                        let Some(ws) = st.workspace_dir() else { return };
-                        let project_ship_dir = ShipHome::project_ship_dir(ws);
-                        // Use the CONTENT-ID (ship.jsonc#id) as the space-id
-                        // so agent-def events route to the same
-                        // spaces/<content-id>/space.db every other path uses.
-                        let space = ship_substrate::project::ensure_space_id(&project_ship_dir)
-                            .ok()
-                            .map(SpaceId::new);
-                        (project_ship_dir, space)
-                    }
-                    Scope::User => (st.ship_dir().to_path_buf(), None),
-                };
-                let kernel = match st.agent_def_kernel() {
-                    Some(shared) => shared.clone(),
-                    None => Arc::new(KernelLog::new(st.kernel().clone())),
-                };
-                let fs = LocalFsBroker::new();
-                ship_platform::config::notify_agent_def_saved(
-                    &kernel, &fs, &ship_dir, &id, space,
-                )
-                .await;
-            })
-        });
-    let dispatch_port: std::sync::Arc<dyn ship_agents::services::agents::dispatch_core::AgentDispatchPort> =
-        Arc::new(crate::ports::agent_events::AgentDispatchAdapter::new(state.clone()));
-    // stop_fn: kill a running agent via the dispatch process registry.
-    // Gated: dispatch_handle() only exists when ship-code feature is on.
-    #[cfg(feature = "ship-code")]
-    let stop_fn: ship_agents::services::agents::rpc_wire::StopFn = {
-        let stop_state = state.clone();
-        Arc::new(move |slug: String| {
-            let st = stop_state.clone();
-            Box::pin(async move {
-                let dh = st.dispatch_handle()
-                    .ok_or_else(|| ConnectError::internal("dispatch service not initialized"))?;
-                let handle = {
-                    let mut reg = dh.registry.lock().await;
-                    reg.take(&slug)
-                }
-                .ok_or_else(|| {
-                    ConnectError::not_found(format!("no running agent with slug '{slug}'"))
-                })?;
-                dh.executor
-                    .stop(&handle)
-                    .await
-                    .map_err(|e| ConnectError::internal(format!("failed to stop agent: {e}")))?;
-                Ok(serde_json::json!({ "slug": slug, "stopped": true }))
-            })
-        })
-    };
-    #[cfg(not(feature = "ship-code"))]
-    let stop_fn: ship_agents::services::agents::rpc_wire::StopFn =
-        Arc::new(|_slug: String| Box::pin(async { Err(ConnectError::internal("dispatch not available")) }));
+pub(super) fn mount(router: ConnectRouter, state: &ApiState, gate: GateFn) -> ConnectRouter {
+    // shipd keeps full behavior — identical to the prior single-mount body —
+    // so we wire mount_full here, not the lean `mount`.
+    host_mount_full(&StateHost(state.clone()), gate, router)
+}
 
-    // steer_fn: send a message to a running agent via the dispatch process registry.
-    // Gated: dispatch_handle() only exists when ship-code feature is on.
-    #[cfg(feature = "ship-code")]
-    let steer_fn: ship_agents::services::agents::rpc_wire::SteerFn = {
-        let steer_state = state.clone();
-        Arc::new(move |slug: String, message: String| {
-            let st = steer_state.clone();
-            Box::pin(async move {
-                let dh = st.dispatch_handle()
-                    .ok_or_else(|| ConnectError::internal("dispatch service not initialized"))?;
-                let reg = dh.registry.lock().await;
-                let handle = reg.get(&slug).ok_or_else(|| {
-                    ConnectError::not_found(format!("no running agent with slug '{slug}'"))
-                })?;
-                dh.executor
-                    .send(handle, &message)
-                    .await
-                    .map_err(|e| ConnectError::internal(format!("failed to steer agent: {e}")))?;
-                Ok(serde_json::json!({ "slug": slug, "steered": true }))
-            })
+/// Newtype around `ApiState` so we can `impl AgentsHost for StateHost` —
+/// orphan rule forbids impl'ing a foreign trait on `Arc<ShipRuntime>` (which is
+/// what `ApiState` is), but a local newtype satisfies it without a single byte
+/// of behavior change.
+#[derive(Clone)]
+struct StateHost(ApiState);
+
+impl AgentsHost for StateHost {
+    fn agents_arc(&self) -> Arc<dyn AgentsService> {
+        self.0.agents_arc()
+    }
+
+    fn ship_dir(&self) -> PathBuf {
+        self.0.ship_dir().to_path_buf()
+    }
+
+    fn kernel_router(&self) -> Arc<Mutex<KernelRouter>> {
+        self.0.kernel().clone()
+    }
+
+    fn workspace_dir(&self) -> Option<PathBuf> {
+        self.0.workspace_dir().map(|p| p.to_path_buf())
+    }
+
+    fn agent_def_kernel(&self) -> Option<Arc<KernelLog>> {
+        self.0.agent_def_kernel().map(|a| a.clone())
+    }
+
+    fn agent_def_index(&self) -> Option<Arc<ship_settings::agents_index::AgentDefIndex>> {
+        self.0.agent_def_index().map(|a| a.clone())
+    }
+
+    fn dispatch_port(&self) -> Arc<dyn AgentDispatchPort> {
+        Arc::new(AgentDispatchAdapter::new(self.0.clone()))
+    }
+
+    fn extract_approver(&self, ctx: &RequestContext) -> Result<Option<String>, ConnectError> {
+        let auth = ctx
+            .extensions
+            .get::<crate::auth::AuthContext>()
+            .cloned()
+            .ok_or_else(|| ConnectError::unauthenticated("auth context required"))?;
+        Ok(auth.agent_id)
+    }
+
+    #[cfg(feature = "bridge")]
+    fn dispatch_handle(&self) -> Option<Arc<dyn DispatchHandlePort>> {
+        ShipCodeDispatchHandle::from_runtime(&self.0)
+            .map(|h| Arc::new(h) as Arc<dyn DispatchHandlePort>)
+    }
+}
+
+impl AgentsGrantHost for StateHost {
+    fn session_registry(&self) -> SessionRegistry {
+        self.0.session_registry().clone()
+    }
+}
+
+impl AgentsWatchHost for StateHost {
+    fn agent_reactive(&self) -> Option<Arc<ReactiveRegistry>> {
+        self.0.agent_reactive().map(|a| a.clone())
+    }
+}
+
+// ── ship-code-only DispatchHandle bridge ─────────────────────────────────────
+
+/// Mirror of shipd's `DispatchHandle`, kept because the underlying value
+/// lives behind a `OnceLock` (we can't move it), and we need a stable
+/// owned handle to clone into `Arc<dyn DispatchHandlePort>`. All fields are
+/// `Arc`s so we clone them one by one.
+#[cfg(feature = "bridge")]
+struct ShipCodeDispatchHandle {
+    registry: Arc<Mutex<bridge::process_registry::ProcessRegistry>>,
+    executor: Arc<dyn bridge::dispatch_ports::SessionExecutor>,
+}
+
+#[cfg(feature = "bridge")]
+impl ShipCodeDispatchHandle {
+    fn from_runtime(rt: &ApiState) -> Option<Self> {
+        let dh = rt.dispatch_handle()?;
+        Some(Self {
+            registry: dh.registry.clone(),
+            executor: dh.executor.clone(),
         })
-    };
-    #[cfg(not(feature = "ship-code"))]
-    let steer_fn: ship_agents::services::agents::rpc_wire::SteerFn =
-        Arc::new(|_slug: String, _message: String| Box::pin(async { Err(ConnectError::internal("dispatch not available")) }));
-    let grant_state = state.clone();
-    let grant_fn: ship_agents::services::agents::rpc_wire::GrantFn =
-        Arc::new(move |agent: String, new_grants: Vec<String>, ctx: connectrpc::RequestContext| {
-            let st = grant_state.clone();
-            Box::pin(async move {
-                // C3 gate already enforced by the AgentsWire gate closure before this runs.
-                // Extract approver agent_id from the auth context injected by the middleware.
-                let auth = ctx
-                    .extensions
-                    .get::<crate::auth::AuthContext>()
-                    .cloned()
-                    .ok_or_else(|| ConnectError::unauthenticated("auth context required"))?;
-                let mut baseline: std::collections::BTreeSet<String> =
-                    ship_agents::services::permissions::projection::provisioned_grants_for(&agent)
-                        .ok()
-                        .flatten()
-                        .unwrap_or_default()
-                        .into_iter()
-                        .collect();
-                let mut upgraded = 0usize;
-                {
-                    let mut reg = st.session_registry().lock().await;
-                    for session in reg.values_mut() {
-                        if session.agent_id == agent {
-                            baseline.extend(session.grants.iter().cloned());
-                            for g in &new_grants {
-                                if !session.grants.contains(g) {
-                                    session.grants.push(g.clone());
-                                }
-                            }
-                            upgraded += 1;
-                        }
-                    }
-                }
-                baseline.extend(new_grants.iter().cloned());
-                let provisioned: Vec<String> = baseline.into_iter().collect();
-                ship_auth::scopes::provision_grants(
-                    &agent,
-                    &provisioned,
-                    "operator",
-                    auth.agent_id.as_deref(),
-                )
-                .map_err(|e| ConnectError::internal(format!("failed to persist grants: {e}")))?;
-                Ok(serde_json::json!({
-                    "agent": agent,
-                    "grants": new_grants,
-                    "provisioned": provisioned,
-                    "sessions_upgraded": upgraded,
-                }))
-            })
-        });
-    let feedback_auth = Arc::new(crate::ports::agent_events::FeedbackAuthAdapter);
-    let view_broadcast = Arc::new(crate::ports::agent_events::ViewBroadcastAdapter);
-    let collection = Arc::new(crate::ports::agent_events::CollectionPersistAdapter::new(state.clone()));
-    let agents_wire = Arc::new(ship_agents::services::agents::AgentsWire::new(
-        ship_agents::services::agents::rpc_wire::AgentsWireConfig {
-            svc: state.agents_arc(),
-            ship_dir: state.ship_dir().to_path_buf(),
-            kernel: agents_kernel,
-            gate,
-            sessions_fn: agents_sessions_fn,
-            notify_saved: notify_saved_fn,
-            dispatch_port,
-            stop_fn,
-            steer_fn,
-            grant_fn,
-            agent_reactive: state.agent_reactive().cloned(),
-            feedback_auth,
-            view_broadcast,
-            collection,
-        },
-    ));
-    ship_ops_rpc::AgentsServiceExt::register(agents_wire, router)
+    }
+}
+
+#[cfg(feature = "bridge")]
+impl DispatchHandlePort for ShipCodeDispatchHandle {
+    fn stop(
+        &self,
+        slug: &str,
+    ) -> std::pin::Pin<Box<dyn Future<Output = Result<serde_json::Value, ConnectError>> + Send>>
+    {
+        let registry = self.registry.clone();
+        let executor = self.executor.clone();
+        let slug = slug.to_string();
+        Box::pin(async move {
+            let handle = {
+                let mut reg = registry.lock().await;
+                reg.take(&slug)
+            }
+            .ok_or_else(|| {
+                ConnectError::not_found(format!("no running agent with slug '{slug}'"))
+            })?;
+            executor
+                .stop(&handle)
+                .await
+                .map_err(|e| ConnectError::internal(format!("failed to stop agent: {e}")))?;
+            Ok(serde_json::json!({ "slug": slug, "stopped": true }))
+        })
+    }
+
+    fn steer(
+        &self,
+        slug: &str,
+        message: &str,
+    ) -> std::pin::Pin<Box<dyn Future<Output = Result<serde_json::Value, ConnectError>> + Send>>
+    {
+        let registry = self.registry.clone();
+        let executor = self.executor.clone();
+        let slug = slug.to_string();
+        let message = message.to_string();
+        Box::pin(async move {
+            let reg = registry.lock().await;
+            let handle = reg.get(&slug).ok_or_else(|| {
+                ConnectError::not_found(format!("no running agent with slug '{slug}'"))
+            })?;
+            executor
+                .send(handle, &message)
+                .await
+                .map_err(|e| ConnectError::internal(format!("failed to steer agent: {e}")))?;
+            Ok(serde_json::json!({ "slug": slug, "steered": true }))
+        })
+    }
 }

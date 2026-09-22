@@ -9,17 +9,13 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use ship_substrate::ports::{Query, SpaceContext};
 use ship_search::SearchContext;
 use ship_search::adapters::{
-    agents::AgentSnapshot,
-    artifacts::ArtifactSnapshot,
-    collection_items::CollectionItemSnapshot,
-    collections::CollectionSnapshot,
-    sessions::SessionSnapshot,
-    skills::SkillSnapshot,
+    agents::AgentSnapshot, artifacts::ArtifactSnapshot, collection_items::CollectionItemSnapshot,
+    collections::CollectionSnapshot, sessions::SessionSnapshot, skills::SkillSnapshot,
     views::ViewSnapshot,
 };
+use ship_substrate::ports::{Query, SpaceContext};
 
 use crate::ship_runtime::ApiState;
 
@@ -43,12 +39,18 @@ pub struct ShipdSearchContext {
 impl ShipdSearchContext {
     /// Context bound to the daemon's active space (this-space search).
     pub fn new(state: ApiState) -> Self {
-        Self { state, space_ctx: None }
+        Self {
+            state,
+            space_ctx: None,
+        }
     }
 
     /// Context bound to an explicit space (one leg of a global fan-out).
     pub fn for_space(state: ApiState, space_ctx: Arc<SpaceContext>) -> Self {
-        Self { state, space_ctx: Some(space_ctx) }
+        Self {
+            state,
+            space_ctx: Some(space_ctx),
+        }
     }
 
     /// Build a `CollectionService` over the bound space (explicit when set,
@@ -91,7 +93,9 @@ impl SearchContext for ShipdSearchContext {
         let mut seen: HashSet<String> = HashSet::new();
         let mut out: Vec<ViewSnapshot> = Vec::new();
         for dir in view_search_dirs() {
-            let Ok(entries) = std::fs::read_dir(&dir.path) else { continue };
+            let Ok(entries) = std::fs::read_dir(&dir.path) else {
+                continue;
+            };
             for entry in entries.flatten() {
                 if !entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
                     continue;
@@ -106,7 +110,11 @@ impl SearchContext for ShipdSearchContext {
                 let rail = read_raw_manifest(&entry.path()).and_then(|m| m.rail);
                 let description = rail.as_ref().and_then(|r| r.label.clone());
                 let icon = rail.and_then(|r| r.icon);
-                out.push(ViewSnapshot { name, description, icon });
+                out.push(ViewSnapshot {
+                    name,
+                    description,
+                    icon,
+                });
             }
         }
         out
@@ -120,7 +128,10 @@ impl SearchContext for ShipdSearchContext {
         svc.list()
             .into_iter()
             .filter(|s| !s.system)
-            .map(|s| CollectionSnapshot { id: s.id, name: s.title })
+            .map(|s| CollectionSnapshot {
+                id: s.id,
+                name: s.title,
+            })
             .collect()
     }
 
@@ -148,7 +159,11 @@ impl SearchContext for ShipdSearchContext {
                         Some((name, desc))
                     })
                     .unwrap_or((None, None));
-                AgentSnapshot { id: e.id, name, description }
+                AgentSnapshot {
+                    id: e.id,
+                    name,
+                    description,
+                }
             })
             .collect()
     }
@@ -168,27 +183,15 @@ impl SearchContext for ShipdSearchContext {
     }
 
     fn sessions(&self) -> Vec<SessionSnapshot> {
-        use ship_terminal::types::SessionStatus;
+        use ship_agents::services::sessions::types::SessionStatus;
         let mut out: Vec<SessionSnapshot> = Vec::new();
-        for meta in self.state.pty_sessions().list() {
+        for meta in self.state.live_sessions().list_agent_sessions() {
             if matches!(meta.status, SessionStatus::Ended) {
                 continue;
             }
             out.push(SessionSnapshot {
                 id: meta.id,
-                agent_id: meta.agent_id,
-                workspace_id: meta.workspace_id,
-                status: format!("{:?}", meta.status).to_lowercase(),
-            });
-        }
-        for meta in self.state.actor_sessions().list() {
-            if matches!(meta.status, SessionStatus::Ended) {
-                continue;
-            }
-            out.push(SessionSnapshot {
-                id: meta.id,
-                agent_id: meta.agent_id,
-                workspace_id: meta.workspace_id,
+                agent_id: Some(meta.agent_id),
                 status: format!("{:?}", meta.status).to_lowercase(),
             });
         }
@@ -218,8 +221,7 @@ impl SearchContext for ShipdSearchContext {
                     .or_else(|| item.data.get("name"))
                     .and_then(|v| v.as_str())
                     .map(str::to_string);
-                let searchable_text =
-            stringify_data(&serde_json::Value::Object(item.data.clone()));
+                let searchable_text = stringify_data(&serde_json::Value::Object(item.data.clone()));
                 out.push(CollectionItemSnapshot {
                     collection_id: schema.id.clone(),
                     item_id: item.id,

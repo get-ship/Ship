@@ -7,28 +7,34 @@
 
 #[cfg(test)]
 mod tests {
+    use agent_schema::canonical_session::event_types::{ALL_CANONICAL_OP, ALL_CANONICAL_SESSION};
     use ship_types::{
-        event_types::canonical_session::{ALL_CANONICAL_OP, ALL_CANONICAL_SESSION},
         event_registry,
         event_registry::{EventScope, Retention},
     };
 
     /// EVENT-SCOPE DISCIPLINE — invariant test over the live registry.
     ///
-    /// Rules (from the canonical-session-events ADR):
-    ///   • `session.*` (but NOT `session.turn.*`) → primary scope = Space,
-    ///     retention = Durable. These are coarse-grain session lifecycle events
-    ///     that belong to the Space's replayed history.
-    ///   • `session.turn.*` → primary scope = Runtime, retention = Ephemeral.
-    ///     Turns churn too fast for full history; only the last N are retained.
-    ///   • `op.*` (if any) → primary scope = Runtime, retention = Ephemeral.
-    ///     Fine-grained op events ride the hook stream; not durable.
+    /// Rules (from the canonical-session-events ADR, revised by
+    /// session-scope-routing): the WHOLE `session.*` family — coarse and
+    /// turn events alike — is per-machine execution state, so it all rides
+    /// Runtime. There is no per-session pseudo-space.
+    ///   • `session.*` (but NOT `session.turn.*`) → primary scope = Runtime,
+    ///     retention = Durable. Coarse-grain session lifecycle events feed
+    ///     the `canonical_sessions` projection in `runtime.db`.
+    ///   • `session.turn.*` → primary scope = Runtime, retention =
+    ///     Windowed 7d. Turns churn too fast for full history; the log keeps
+    ///     the retention window and the sweep trims the rest.
+    ///   • `op.*` (if any) → primary scope = Runtime, retention = Windowed 7d.
+    ///     Fine-grained op events feed the analytics projections, which
+    ///     claim the window, not full history.
     ///
     /// This generalises the slice-2 payload guard: rather than checking struct
     /// fields, we check the registry metadata directly. Adding a new `session.*`
     /// event with wrong scope/retention will fail here immediately.
     #[test]
     fn event_scope_discipline() {
+        const WINDOWED_7D: Retention = Retention::Windowed { ttl_days: 7 };
         let mut violations: Vec<String> = Vec::new();
 
         for def in event_registry::registry() {
@@ -36,27 +42,27 @@ mod tests {
             let primary = def.primary_scope();
             let retention = def.retention;
 
-            // session.* but NOT session.turn.* → Space + Durable
+            // session.* but NOT session.turn.* → Runtime + Durable
             if name.starts_with("session.") && !name.starts_with("session.turn.") {
-                if primary != EventScope::Space {
+                if primary != EventScope::Runtime {
                     violations.push(format!(
-                        "event `{name}`: expected primary scope Space (got {:?}); \
-                         coarse session events must be Space-scoped so the Space \
-                         history can replay them",
+                        "event `{name}`: expected primary scope Runtime (got {:?}); \
+                         session.* is per-machine execution state — no per-session \
+                         pseudo-space",
                         primary
                     ));
                 }
                 if retention != Retention::Durable {
                     violations.push(format!(
                         "event `{name}`: expected retention Durable (got {:?}); \
-                         coarse session events must be Durable so they survive \
-                         Space restoration",
+                         coarse session events must be Durable so canonical_sessions \
+                         can rebuild from the log",
                         retention
                     ));
                 }
             }
 
-            // session.turn.* → Runtime + Ephemeral
+            // session.turn.* → Runtime + Windowed 7d
             if name.starts_with("session.turn.") {
                 if primary != EventScope::Runtime {
                     violations.push(format!(
@@ -65,16 +71,17 @@ mod tests {
                         primary
                     ));
                 }
-                if retention != Retention::Ephemeral {
+                if retention != WINDOWED_7D {
                     violations.push(format!(
-                        "event `{name}`: expected retention Ephemeral (got {:?}); \
-                         turns churn too fast for full history",
+                        "event `{name}`: expected retention Windowed 7d (got {:?}); \
+                         turns churn too fast for full history — the sweep keeps \
+                         the retention window",
                         retention
                     ));
                 }
             }
 
-            // op.* → Runtime + Ephemeral
+            // op.* → Runtime + Windowed 7d
             if name.starts_with("op.") {
                 if primary != EventScope::Runtime {
                     violations.push(format!(
@@ -83,19 +90,21 @@ mod tests {
                         primary
                     ));
                 }
-                if retention != Retention::Ephemeral {
+                if retention != WINDOWED_7D {
                     violations.push(format!(
-                        "event `{name}`: expected retention Ephemeral (got {:?}); \
-                         op events are fine-grained and not retained in full history",
+                        "event `{name}`: expected retention Windowed 7d (got {:?}); \
+                         op events are fine-grained — analytics claim the window, \
+                         not full history",
                         retention
                     ));
                 }
             }
 
-            // dispatch.* → Runtime + Ephemeral
+            // dispatch.* → Runtime + Windowed 7d
             // The spawn-intent channel (#26). Runtime-scoped because it drives
-            // machine-local process spawn; Ephemeral because the intent is
-            // fulfilled immediately (the harness is up or the dispatch failed).
+            // machine-local process spawn; Windowed because the intent is
+            // fulfilled immediately — the recent record serves post-mortems,
+            // full history serves nothing.
             if name.starts_with("dispatch.") {
                 if primary != EventScope::Runtime {
                     violations.push(format!(
@@ -104,10 +113,11 @@ mod tests {
                         primary
                     ));
                 }
-                if retention != Retention::Ephemeral {
+                if retention != WINDOWED_7D {
                     violations.push(format!(
-                        "event `{name}`: expected retention Ephemeral (got {:?}); \
-                         dispatch intent is fulfilled immediately — no durable replay needed",
+                        "event `{name}`: expected retention Windowed 7d (got {:?}); \
+                         dispatch intent is fulfilled immediately — the window \
+                         covers post-mortems, no full-history replay needed",
                         retention
                     ));
                 }
@@ -159,19 +169,28 @@ mod tests {
     #[test]
     fn canonical_payload_validators_are_live() {
         use ship_substrate::events::PayloadSchemaValidator;
-        use ship_substrate::events::validator::{CallerKind, EmitContext, EventValidator, ValidationError};
+        use ship_substrate::events::validator::{
+            CallerKind, EmitContext, EventValidator, ValidationError,
+        };
 
         fn ctx() -> EmitContext {
             EmitContext {
                 caller_kind: CallerKind::Runtime,
                 skill_id: None,
-                binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
+                binding: ship_types::ScopeBinding::daemon_internal(
+                    None,
+                    agent_schema::Authority::Sdk,
+                ),
                 session_id: None,
             }
         }
 
         // Malformed canonical payloads are REJECTED at emit time.
-        for event_type in ["session.started", "session.turn.ended", "op.tool_use_started"] {
+        for event_type in [
+            "session.started",
+            "session.turn.ended",
+            "op.tool_use_started",
+        ] {
             let event = ship_substrate::events::EventEnvelope::new(
                 event_type,
                 "sess-1",
@@ -186,7 +205,7 @@ mod tests {
         }
 
         // A well-formed canonical payload passes.
-        let started = crate::canonical_session::SessionStarted {
+        let started = agent_schema::canonical_session::SessionStarted {
             session_id: "01HZX".into(),
             agent_id: "claude".into(),
             harness: "floki".into(),
@@ -196,12 +215,9 @@ mod tests {
             input: None,
             parent: None,
         };
-        let event = ship_substrate::events::EventEnvelope::new(
-            "session.started",
-            "sess-1",
-            &started,
-        )
-        .unwrap();
+        let event =
+            ship_substrate::events::EventEnvelope::new("session.started", "sess-1", &started)
+                .unwrap();
         assert!(
             PayloadSchemaValidator.validate(&event, &ctx()).is_ok(),
             "a well-formed SessionStarted must pass the registration-carried validator"
@@ -212,7 +228,7 @@ mod tests {
     /// ship-substrate when the registration moved (keystone-A Phase A),
     /// and re-pinned in job/transient-events when the kernel started
     /// honoring `Retention` (Durable = persist + deliver, Ephemeral =
-    /// deliver only). The `ship-config` watcher now emits a transient
+    /// deliver only). The `ship-settings` watcher now emits a transient
     /// `config.file_changed` for every config file; the agent-def
     /// domain consumer maps the `agents` subset into a durable
     /// `agent.def.updated` (the read model the read-only agent-def

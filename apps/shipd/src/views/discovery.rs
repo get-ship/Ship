@@ -6,7 +6,7 @@
 //!   matches the `views/` convention used by built-in apps in-tree).
 //! - `<workspace>/.ship/views/<name>/`   — project-scoped views colocated
 //!   with other `.ship/` config.
-//! - `<global>/views/<name>/`            — global views from `~/.ship/`.
+//! - `<global>/views/<name>/`            — global views from `data_dir()`.
 //!
 //! The two project-scoped roots resolve from the daemon's attached
 //! workspace, NOT from the Ship repo root. That's the key delta from
@@ -46,9 +46,11 @@ pub fn view_search_dirs() -> Vec<ViewSearchDir> {
         // resolver, so dep views are discoverable AND servable. Authoring
         // surfaces (source/files/write_api) stay on local `.ship/` — you edit
         // local views, never the composed cache.
-        let project_ship = ship_substrate::ShipHome::project_ship_dir(&workspace);
+        // Marker cutover: composition anchors at the STACK ROOT; the
+        // composed cache overlays it when deps exist, the raw root
+        // otherwise. (`composed_root_for` takes the content root.)
         out.push(ViewSearchDir {
-            path: ship_store::compose::composed_root_for(&project_ship).join("views"),
+            path: ship_store::compose::composed_root_for(&workspace).join("views"),
             source: "project",
         });
     }
@@ -63,16 +65,8 @@ pub fn view_search_dirs() -> Vec<ViewSearchDir> {
 
 /// Best-effort workspace root resolution.
 ///
-/// `get_project_dir` returns either the workspace root (env override
-/// path: `SHIP_DEV_PROJECT_DIR` is the workspace, set by shipd's
-/// `--workspace` flag) or the `<workspace>/.ship` directory (cwd walk).
-/// We normalize by stripping a trailing `.ship` segment so callers can
-/// reliably compose `<workspace>/views/` and `<workspace>/.ship/views/`.
+/// `get_stack_root` returns the stack root (env override or manifest
+/// walk-up) — no normalization needed since the marker cutover.
 fn workspace_root() -> Option<std::path::PathBuf> {
-    let raw = ship_substrate::project::get_project_dir(None).ok()?;
-    if raw.file_name().and_then(|s| s.to_str()) == Some(".ship") {
-        raw.parent().map(|p| p.to_path_buf())
-    } else {
-        Some(raw)
-    }
+    ship_substrate::project::get_stack_root(None).ok()
 }

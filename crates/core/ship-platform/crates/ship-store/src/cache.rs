@@ -36,7 +36,7 @@ pub struct CachedPackage {
     pub dir: PathBuf,
 }
 
-/// Content-addressed package cache stored at `~/.ship/cache/`.
+/// Content-addressed package cache stored at `cache_dir()`.
 ///
 /// Layout:
 /// - `<root>/objects/<sha256-hex>/` — package files stored here.
@@ -46,11 +46,11 @@ pub struct PackageCache {
 }
 
 impl PackageCache {
-    /// Create a cache using the default location `~/.ship/cache/`.
+    /// Create a cache using the default location `cache_dir()`.
     /// Respects `SHIP_HOME` if set.
     pub fn new() -> anyhow::Result<Self> {
         let home = ship_substrate::ShipHome::from_env();
-        Ok(Self::with_root(home.root().join("cache")))
+        Ok(Self::with_root(home.cache_dir().to_path_buf()))
     }
 
     /// Create a cache at an explicit root (useful for testing).
@@ -58,7 +58,7 @@ impl PackageCache {
         Self { root }
     }
 
-    /// The cache root directory (`~/.ship/cache/` by default).
+    /// The cache root directory (`cache_dir()` by default).
     pub fn root(&self) -> &std::path::Path {
         &self.root
     }

@@ -615,6 +615,9 @@ mod tests {
         let names = load_event_names();
         assert!(!names.is_empty(), "event registry must have entries");
         assert!(names.iter().any(|n| n == "actor.created"), "actor.created must be present");
-        assert!(names.iter().any(|n| n == "pipeline.run.completed"));
+        // (Engine cut 2026-07-10: `pipeline.run.completed` was deregistered with
+        // the orchestrator. The surviving verb-emitted event is
+        // `pipeline.run.started` (registered for code-mode re-emission).)
+        assert!(names.iter().any(|n| n == "pipeline.run.started"), "pipeline.run.started must be present");
     }
 }

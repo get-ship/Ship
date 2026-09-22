@@ -10,6 +10,7 @@ ship-substrate = { path = "../../../ship-substrate" }
 ship-types = { path = "../../../ship-substrate/crates/ship-types" }
 ship-reactive = { path = "../ship-reactive" }
 ship-ops-rpc = { path = "../../../ship-ops-rpc" }
+ship-proto = { git = "https://github.com/get-ship/ship-contracts.git", branch = "feat/next" }
 
 sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio-rustls", "migrate", "macros"] }
 anyhow = { workspace = true }
@@ -26,9 +27,14 @@ tracing = { workspace = true }
 futures-util = { workspace = true }
 tokio = { workspace = true, features = ["sync", "rt"] }
 chrono = { workspace = true }
-ulid = { workspace = true }
+specta = { workspace = true, features = ["serde_json"], optional = true }
+
+[features]
+default = []
+specta = ["dep:specta"]
 
 [dev-dependencies]
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "03f917d5e51921754c1a6a12a4aa2beb56b4a405" }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "time"] }
 tempfile = { workspace = true }
 ship-substrate = { path = "../../../ship-substrate" }

@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # check-migration-naming.sh
 #
-# Enforce the migration-authoring discipline across all
-# sqlx-managed migration directories (platform.db, kv.db, ...).
+# Enforce the migration-authoring discipline for the legacy event-db
+# migration set (crates/core/ship-substrate/migrations/). kv.db and the
+# per-scope event dbs are DDL-on-open (no sqlx migration dirs).
 #
 # Rule:
 #   - Baseline schema lives in 0001_schema.sql (squashed once, kept
@@ -21,7 +22,7 @@ set -u
 cd "$(dirname "$0")/../.."
 
 # ship-application was folded into ship-platform; its migrations/ dir is
-# gone. platform.db migrations live under ship-substrate.
+# gone. Per-scope event db migrations live under ship-substrate.
 MIG_DIRS=(
     "crates/core/ship-substrate/migrations"
 )

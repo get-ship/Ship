@@ -8,12 +8,12 @@ use ship_substrate::events::EventEnvelope;
 use crate::engine::HookEngine;
 
 use super::integration_engine::{
-    diff, recent_hook_events, test_kernel, tmp_ship_dir, write_hook,
+    diff, recent_hook_events, test_kernel, tmp_ship_dir, trigger_def,
 };
 
 fn run_failed_envelope() -> EventEnvelope {
     EventEnvelope::new(
-        "pipeline.run.failed",
+        "pipeline.run.started",
         "run-1",
         &json!({ "pipeline_run_id": "run-1", "error": "boom", "status": "failed" }),
     )
@@ -29,22 +29,20 @@ async fn triggers_reload_added_trigger_becomes_live() {
     let engine = HookEngine::new(kernel.clone(), ship_dir.clone());
 
     // Initial reload — no triggers.
-    engine.reload().await;
+    engine.reload(&[]).await;
     assert!(engine.snapshot().await.is_empty());
 
-    // Write a trigger file and reload.
-    write_hook(
-        &ship_dir,
-        "new.jsonc",
+    // Add a trigger and reload.
+    let defs = vec![trigger_def(
         r#"{
-            "name": "new",
-            "trigger": { "event": "pipeline.run.failed" },
+            "id": "new",
+            "trigger": { "event": "pipeline.run.started" },
             "actions": [
                 { "type": "event.emit", "event_type": "hook.tripped", "payload": { "added": true } }
             ]
         }"#,
-    );
-    engine.reload().await;
+    )];
+    engine.reload(&defs).await;
     assert_eq!(engine.snapshot().await.len(), 1, "trigger must be live after reload");
 
     let before = recent_hook_events(&ship_dir);
@@ -64,24 +62,20 @@ async fn triggers_reload_removed_trigger_stops_firing() {
     let engine = HookEngine::new(kernel.clone(), ship_dir.clone());
 
     // Start with one trigger.
-    let hook_path = ship_dir.join("triggers").join("removable.jsonc");
-    std::fs::write(
-        &hook_path,
+    let defs = vec![trigger_def(
         r#"{
-            "name": "removable",
-            "trigger": { "event": "pipeline.run.failed" },
+            "id": "removable",
+            "trigger": { "event": "pipeline.run.started" },
             "actions": [
                 { "type": "event.emit", "event_type": "hook.tripped", "payload": {} }
             ]
         }"#,
-    )
-    .unwrap();
-    engine.reload().await;
+    )];
+    engine.reload(&defs).await;
     assert_eq!(engine.snapshot().await.len(), 1);
 
-    // Remove the file and reload — trigger must stop.
-    std::fs::remove_file(&hook_path).unwrap();
-    engine.reload().await;
+    // Reload with an empty set — trigger must stop.
+    engine.reload(&[]).await;
     assert!(
         engine.snapshot().await.is_empty(),
         "removed trigger must be absent after reload"
@@ -103,27 +97,23 @@ async fn triggers_reload_empty_dir_clears_all_triggers() {
     let engine = HookEngine::new(kernel.clone(), ship_dir.clone());
 
     // Load three triggers.
-    for name in ["t1", "t2", "t3"] {
-        write_hook(
-            &ship_dir,
-            &format!("{name}.jsonc"),
-            &format!(
-                r#"{{ "name": "{name}", "trigger": {{ "event": "pipeline.run.failed" }},
+    let defs: Vec<crate::TriggerDef> = ["t1", "t2", "t3"]
+        .iter()
+        .map(|name| {
+            trigger_def(&format!(
+                r#"{{ "id": "{name}", "trigger": {{ "event": "pipeline.run.started" }},
                        "actions": [] }}"#
-            ),
-        );
-    }
-    engine.reload().await;
+            ))
+        })
+        .collect();
+    engine.reload(&defs).await;
     assert_eq!(engine.snapshot().await.len(), 3);
 
-    // Remove all trigger files.
-    for name in ["t1", "t2", "t3"] {
-        std::fs::remove_file(ship_dir.join("triggers").join(format!("{name}.jsonc"))).unwrap();
-    }
-    engine.reload().await;
+    // Reload with an empty set — all cleared.
+    engine.reload(&[]).await;
     assert!(
         engine.snapshot().await.is_empty(),
-        "all triggers must be cleared after empty-dir reload"
+        "all triggers must be cleared after empty reload"
     );
 }
 
@@ -133,21 +123,17 @@ async fn triggers_reload_replaced_trigger_fires_new_definition() {
     let kernel = test_kernel(&ship_dir);
     let engine = HookEngine::new(kernel.clone(), ship_dir.clone());
 
-    let hook_path = ship_dir.join("triggers").join("mutable.jsonc");
-
     // First definition emits payload version "v1".
-    std::fs::write(
-        &hook_path,
+    let v1 = vec![trigger_def(
         r#"{
-            "name": "mutable",
-            "trigger": { "event": "pipeline.run.failed" },
+            "id": "mutable",
+            "trigger": { "event": "pipeline.run.started" },
             "actions": [
                 { "type": "event.emit", "event_type": "hook.tripped", "payload": { "version": "v1" } }
             ]
         }"#,
-    )
-    .unwrap();
-    engine.reload().await;
+    )];
+    engine.reload(&v1).await;
 
     let before = recent_hook_events(&ship_dir);
     engine.dispatch_event(&run_failed_envelope()).await;
@@ -158,19 +144,17 @@ async fn triggers_reload_replaced_trigger_fires_new_definition() {
         serde_json::from_str(&first_emitted[0].payload_json).unwrap();
     assert_eq!(p["version"], "v1");
 
-    // Overwrite with version "v2" and reload.
-    std::fs::write(
-        &hook_path,
+    // Reload with version "v2".
+    let v2 = vec![trigger_def(
         r#"{
-            "name": "mutable",
-            "trigger": { "event": "pipeline.run.failed" },
+            "id": "mutable",
+            "trigger": { "event": "pipeline.run.started" },
             "actions": [
                 { "type": "event.emit", "event_type": "hook.tripped", "payload": { "version": "v2" } }
             ]
         }"#,
-    )
-    .unwrap();
-    engine.reload().await;
+    )];
+    engine.reload(&v2).await;
 
     let before2 = recent_hook_events(&ship_dir);
     engine.dispatch_event(&run_failed_envelope()).await;
@@ -184,23 +168,26 @@ async fn triggers_reload_replaced_trigger_fires_new_definition() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn triggers_reload_invalid_hook_does_not_discard_valid_hooks() {
-    // A reload that encounters one bad file must still load the good ones.
+    // A reload that encounters one bad def must still load the good ones.
     let (_tmp, ship_dir) = tmp_ship_dir();
     let kernel = test_kernel(&ship_dir);
     let engine = HookEngine::new(kernel.clone(), ship_dir.clone());
 
-    write_hook(
-        &ship_dir,
-        "good.jsonc",
-        r#"{ "name": "good", "trigger": { "event": "pipeline.run.failed" }, "actions": [] }"#,
-    );
-    write_hook(&ship_dir, "bad.jsonc", "not valid json {");
-    engine.reload().await;
+    let defs = vec![
+        trigger_def(
+            r#"{ "id": "good", "trigger": { "event": "pipeline.run.started" }, "actions": [] }"#,
+        ),
+        // Unknown event type — invalid, must be skipped, not fatal.
+        trigger_def(
+            r#"{ "id": "bad", "trigger": { "event": "not.a.real.event" }, "actions": [] }"#,
+        ),
+    ];
+    engine.reload(&defs).await;
 
     assert_eq!(
         engine.snapshot().await.len(),
         1,
-        "valid trigger must survive alongside a bad file"
+        "valid trigger must survive alongside a bad def"
     );
     assert_eq!(engine.snapshot().await[0].name, "good");
 }

@@ -22,5 +22,5 @@ export XDG_RUNTIME_DIR
 su - "$TARGET_USER" -c "\
     XDG_RUNTIME_DIR='${XDG_RUNTIME_DIR}' \
     HOME='${USER_HOME}' \
-    /usr/bin/ship daemon uninstall-service \
+    /usr/bin/shipctl daemon uninstall-service \
 " >/dev/null 2>&1 || true

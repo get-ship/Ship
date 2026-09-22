@@ -6,12 +6,12 @@
 //! (`handle_agent_cancelled`). All run against the public `ship-agents` surface
 //! with port test-doubles — no pipeline-DAG state, no `crate::projections`.
 //!
-//! Gated behind `harness-drivers`: these build ship_code harness port test-doubles
-//! (incl. proving a floki session SKIPS the harness executor). With the feature off
+//! Gated behind `ship-code`: these build ship_code harness port test-doubles
+//! (incl. proving a yoke session SKIPS the harness executor). With the feature off
 //! there is no harness to test against, and `cargo test -p ship-agents` in isolation
 //! must compile without ship_code. The floki routing path itself is ungated code;
 //! the workspace `--all-targets` build (feature unified on via shipd) runs these.
-#![cfg(feature = "harness-drivers")]
+#![cfg(feature = "bridge")]
 
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -20,24 +20,29 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex as StdMutex};
 use tokio::sync::Mutex;
 
-use agent_def::canonical_session::{SessionCancelled, event_types as canonical_session_event_types};
-use agent_def::dispatch_intent::{DispatchRequestedPayload, event_types as dispatch_event_types};
-use ship_agents::services::sessions::{
-    CanonicalSessionProjection, CanonicalSessionStatus, load_canonical_session_by_id,
+use agent_schema::InvocationMode;
+use agent_schema::canonical_session::{
+    SessionCancelled, event_types as canonical_session_event_types,
 };
-use ship_substrate::projections::Projection;
-use ship_substrate::db::block_on;
-use ship_agents::ports::AgentPorts;
-use ship_code::runner::dedup::EventDedup;
-use agent_def::InvocationMode;
-use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
-use ship_substrate::events::process::event_types as process_event_types;
-use ship_substrate::events::process::ProcessKilledPayload;
-use ship_substrate::events::EventEnvelope;
-use ship_code::dispatch_ports::{
+use agent_schema::dispatch_intent::{
+    DispatchRequestedPayload, event_types as dispatch_event_types,
+};
+use bridge::dispatch_ports::{
     AgentPlatform, Authority, ExecutorHandle, IsolationStrategy, ProcessRegistryPort,
     ProjectionReader, SessionContext, SessionExecutor, SpawnPolicy,
 };
+use bridge::lifecycle::NoopLifecycleSink;
+use ship_agents::dispatch_gate::EventDedup;
+use ship_agents::ports::AgentPorts;
+use ship_agents::services::sessions::{
+    CanonicalSessionProjection, CanonicalSessionStatus, load_canonical_session_by_id,
+};
+use ship_substrate::db::block_on;
+use ship_substrate::events::EventEnvelope;
+use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
+use ship_substrate::events::process::ProcessKilledPayload;
+use ship_substrate::projections::Projection;
+use ship_types::event_types as process_event_types;
 
 // ── Port doubles ────────────────────────────────────────────────────────────
 
@@ -64,6 +69,7 @@ struct Captured {
     branch: String,
     env: HashMap<String, String>,
     spec_path: String,
+    autostart_prompt: Option<String>,
 }
 
 struct RecordingExecutor {
@@ -81,6 +87,7 @@ impl SessionExecutor for RecordingExecutor {
             branch: ctx.branch.clone(),
             env: ctx.env.clone(),
             spec_path: ctx.spec_path.clone(),
+            autostart_prompt: ctx.launch.autostart_prompt.clone(),
         });
         Err(anyhow::anyhow!("recording executor: refusing to spawn"))
     }
@@ -124,8 +131,8 @@ struct TestPlatform {
 
 #[async_trait]
 impl AgentPlatform for TestPlatform {
-    fn worktrees_dir(&self) -> PathBuf {
-        self.worktrees.clone()
+    fn worktrees_dir(&self) -> anyhow::Result<PathBuf> {
+        Ok(self.worktrees.clone())
     }
     fn compile_agent_config(&self, _: &std::path::Path, _: &str) -> anyhow::Result<()> {
         Ok(())
@@ -228,7 +235,6 @@ fn started_payload(
     slug: &str,
     harness: Option<&str>,
     model: Option<&str>,
-    parent: Option<&str>,
 ) -> DispatchRequestedPayload {
     DispatchRequestedPayload {
         session_id: session_id.into(),
@@ -236,8 +242,10 @@ fn started_payload(
         agent_id: "rust-lane".into(),
         harness: harness.map(str::to_string),
         model: model.map(str::to_string),
-        workspace: slug.into(),
         branch: format!("job/{slug}"),
+        // Test fixture — no per-call fork source.
+        repo_path: None,
+        base_ref: None,
         source_spec_path: None,
         baseline_sha: None,
         open_tab: false,
@@ -249,7 +257,6 @@ fn started_payload(
         resume_session_id: None,
         depends_on: None,
         vars: None,
-        parent_pipeline_run_id: parent.map(str::to_string),
     }
 }
 
@@ -260,14 +267,16 @@ fn ports_with(
     platform: Arc<dyn AgentPlatform>,
 ) -> AgentPorts {
     AgentPorts {
-        floki_run_fn: None,
+        yoke_run_fn: None,
         isolation,
         executor,
+        lifecycle: Arc::new(NoopLifecycleSink),
         platform,
         registry,
         spawn_policy: Arc::new(TokenSpawnPolicy),
         projections: Arc::new(NeverTerminal),
         event_dedup: Arc::new(EventDedup::new()),
+        dispatch_gate: ship_agents::dispatch_gate::new_dispatch_gate(),
     }
 }
 
@@ -279,14 +288,16 @@ fn ports_with_projection(
     projections: Arc<dyn ProjectionReader>,
 ) -> AgentPorts {
     AgentPorts {
-        floki_run_fn: None,
+        yoke_run_fn: None,
         isolation,
         executor,
+        lifecycle: Arc::new(NoopLifecycleSink),
         platform,
         registry,
         spawn_policy: Arc::new(TokenSpawnPolicy),
         projections,
         event_dedup: Arc::new(EventDedup::new()),
+        dispatch_gate: ship_agents::dispatch_gate::new_dispatch_gate(),
     }
 }
 
@@ -305,8 +316,7 @@ fn find_process_spawned(slug: &str) -> bool {
         .ok()
         .map(|events| {
             events.iter().any(|e| {
-                e.entity_id == slug
-                    && e.event_type == process_event_types::PROCESS_SPAWNED
+                e.entity_id == slug && e.event_type == process_event_types::PROCESS_SPAWNED
             })
         })
         .unwrap_or(false)
@@ -334,10 +344,13 @@ async fn dispatch_and_capture(
     captured: &Arc<StdMutex<Option<Captured>>>,
     payload: &DispatchRequestedPayload,
 ) -> Option<Captured> {
-    let envelope =
-        EventEnvelope::new(dispatch_event_types::DISPATCH_REQUESTED, &payload.session_id, payload)
-            .unwrap()
-            .with_actor_id("test");
+    let envelope = EventEnvelope::new(
+        dispatch_event_types::DISPATCH_REQUESTED,
+        &payload.session_id,
+        payload,
+    )
+    .unwrap()
+    .with_actor_id("test");
     ship_agents::handle_agents_event(kernel, &envelope, ports).await;
     // The detached prep task runs under DISPATCH_GATE; poll briefly.
     for _ in 0..50 {
@@ -370,15 +383,26 @@ async fn bare_session_dispatch_threads_harness_model_branch_and_spawn_env() {
         }),
     );
 
-    let payload = started_payload("s-bare-1", "sess-1", Some("codex"), Some("gpt-5-codex"), None);
+    let payload = started_payload("s-bare-1", "sess-1", Some("codex"), Some("gpt-5-codex"));
     let got = dispatch_and_capture(&kernel, &ports, &captured, &payload)
         .await
         .expect("executor.spawn called");
 
-    assert_eq!(got.harness.as_deref(), Some("codex"), "harness threads into LaunchProfile");
-    assert_eq!(got.model.as_deref(), Some("gpt-5-codex"), "model threads into LaunchProfile");
+    assert_eq!(
+        got.harness.as_deref(),
+        Some("codex"),
+        "harness threads into LaunchProfile"
+    );
+    assert_eq!(
+        got.model.as_deref(),
+        Some("gpt-5-codex"),
+        "model threads into LaunchProfile"
+    );
     assert_eq!(got.branch, "job/sess-1", "branch threads from payload");
-    assert_eq!(got.spec_path, ".artifacts/job-spec.md", "bare session uses the job-spec path");
+    assert_eq!(
+        got.spec_path, "",
+        "no source_spec_path on the payload → no spec pointer for the executor"
+    );
     // The Authority::Agent principal must reach the SpawnPolicy port verbatim.
     assert_eq!(
         got.env.get("SHIP_AGENT_PRINCIPAL").map(String::as_str),
@@ -392,16 +416,22 @@ async fn bare_session_dispatch_threads_harness_model_branch_and_spawn_env() {
     );
 }
 
+/// SPEC (c-2026-07-05T12-36-00-000Z-b2c3d4e5, live-path trace): the dispatch
+/// wire carries the spec body as `prompt` and its origin file as
+/// `source_spec_path`. Both MUST reach the executor — `prompt` as
+/// `launch.autostart_prompt` (the content channel for headless/argv
+/// transports) and `source_spec_path` as `SessionContext.spec_path` (the
+/// pointer channel for interactive TUI panes). The bug: the handler built
+/// the LaunchProfile with `..Default::default()`, dropping the prompt, so
+/// the tmux executor had nothing to send but the adapter's static "go".
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn composed_session_is_not_spawned_here() {
-    // The no-double-spawn invariant: a session carrying parent_pipeline_run_id
-    // is owned by the pipeline composer. service.agents must NOT spawn it.
+async fn bare_session_dispatch_threads_prompt_and_spec_source_to_executor() {
     let tmp = tempfile::TempDir::new().unwrap();
     let kernel = kernel_with_actor();
     let captured = Arc::new(StdMutex::new(None));
     let spawn_calls = Arc::new(AtomicUsize::new(0));
     let ports = ports_with(
-        Arc::new(OkIsolation(tmp.path().join("worktrees/sess-2"))),
+        Arc::new(OkIsolation(tmp.path().join("worktrees/sess-p1"))),
         Arc::new(RecordingExecutor {
             captured: captured.clone(),
             spawn_calls: spawn_calls.clone(),
@@ -413,24 +443,68 @@ async fn composed_session_is_not_spawned_here() {
         }),
     );
 
-    let payload = started_payload("s-comp-1", "sess-2", None, None, Some("run-parent-1"));
-    let envelope = EventEnvelope::new(
-        dispatch_event_types::DISPATCH_REQUESTED,
-        &payload.session_id,
-        &payload,
-    )
-    .unwrap()
-    .with_actor_id("test");
-    ship_agents::handle_agents_event(&kernel, &envelope, &ports).await;
-    // Give any (erroneously) detached task a chance to run.
-    tokio::time::sleep(std::time::Duration::from_millis(80)).await;
+    let spec_body = "# Job Spec\n\nDo the real work.\nThen commit.";
+    let mut payload = started_payload("s-prompt-1", "sess-p1", Some("omp"), None);
+    payload.prompt = Some(spec_body.to_string());
+    payload.spec = Some(spec_body.to_string());
+    payload.source_spec_path =
+        Some("/home/op/dev/Ship/helm/data/missions/m-x/scratch/spec.md".to_string());
+
+    let got = dispatch_and_capture(&kernel, &ports, &captured, &payload)
+        .await
+        .expect("executor.spawn called");
 
     assert_eq!(
-        spawn_calls.load(Ordering::SeqCst),
-        0,
-        "composed session (parent_pipeline_run_id set) must not be spawned by service.agents"
+        got.autostart_prompt.as_deref(),
+        Some(spec_body),
+        "the dispatch prompt must reach the executor as launch.autostart_prompt \
+         — this is the content the agent works on, not the adapter's static kick"
+    );
+    assert_eq!(
+        got.spec_path, "/home/op/dev/Ship/helm/data/missions/m-x/scratch/spec.md",
+        "source_spec_path must reach the executor as the spec pointer for TUI delivery"
     );
 }
+
+/// SPEC: callers that send only `spec` (no `prompt`) still get content
+/// delivery — spec is the fallback body for autostart_prompt.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn bare_session_dispatch_falls_back_to_spec_body_for_prompt() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let kernel = kernel_with_actor();
+    let captured = Arc::new(StdMutex::new(None));
+    let spawn_calls = Arc::new(AtomicUsize::new(0));
+    let ports = ports_with(
+        Arc::new(OkIsolation(tmp.path().join("worktrees/sess-p2"))),
+        Arc::new(RecordingExecutor {
+            captured: captured.clone(),
+            spawn_calls: spawn_calls.clone(),
+        }),
+        Arc::new(NoopRegistry),
+        Arc::new(TestPlatform {
+            worktrees: tmp.path().join("worktrees"),
+            cleanup_calls: Arc::new(AtomicUsize::new(0)),
+        }),
+    );
+
+    let mut payload = started_payload("s-prompt-2", "sess-p2", Some("omp"), None);
+    payload.spec = Some("spec-only body".to_string());
+
+    let got = dispatch_and_capture(&kernel, &ports, &captured, &payload)
+        .await
+        .expect("executor.spawn called");
+
+    assert_eq!(
+        got.autostart_prompt.as_deref(),
+        Some("spec-only body"),
+        "with no prompt, the spec body is the autostart content"
+    );
+}
+// (Engine cut 2026-07-10: `composed_session_is_not_spawned_here` retired
+// with the engine. The no-double-spawn invariant that
+// `parent_pipeline_run_id` set → `service.agents` skips the spawn is gone
+// — sessions never carry pipeline identity post-cut. The bare
+// `dispatch.requested` path is the only path.)
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn dispatch_emits_process_spawned_on_success() {
@@ -441,7 +515,10 @@ async fn dispatch_emits_process_spawned_on_success() {
     #[async_trait]
     impl SessionExecutor for OkExecutor {
         async fn spawn(&self, _: &SessionContext) -> anyhow::Result<ExecutorHandle> {
-            Ok(ExecutorHandle { pid: Some(99), inner: Box::new(()) })
+            Ok(ExecutorHandle {
+                pid: Some(99),
+                inner: Box::new(()),
+            })
         }
         async fn is_alive(&self, _: &ExecutorHandle) -> bool {
             true
@@ -464,7 +541,7 @@ async fn dispatch_emits_process_spawned_on_success() {
         }),
     );
 
-    let payload = started_payload("s-disp-1", "sess-3", None, None, None);
+    let payload = started_payload("s-disp-1", "sess-3", None, None);
     let envelope = EventEnvelope::new(
         dispatch_event_types::DISPATCH_REQUESTED,
         &payload.session_id,
@@ -482,7 +559,10 @@ async fn dispatch_emits_process_spawned_on_success() {
         }
         tokio::time::sleep(std::time::Duration::from_millis(10)).await;
     }
-    assert!(ok, "process.spawned emitted (entity_id=slug) after a successful spawn");
+    assert!(
+        ok,
+        "process.spawned emitted (entity_id=slug) after a successful spawn"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -491,17 +571,24 @@ async fn cancel_stops_registered_handle_and_emits_process_killed() {
     let stop_calls = Arc::new(AtomicUsize::new(0));
     let cleanup_calls = Arc::new(AtomicUsize::new(0));
     let registry = Arc::new(SeededRegistry {
-        handle: Mutex::new(Some(ExecutorHandle { pid: Some(42), inner: Box::new(()) })),
+        handle: Mutex::new(Some(ExecutorHandle {
+            pid: Some(42),
+            inner: Box::new(()),
+        })),
     });
     let ports = ports_with_projection(
         Arc::new(OkIsolation(PathBuf::from("/tmp"))),
-        Arc::new(StoppingExecutor { stop_calls: stop_calls.clone() }),
+        Arc::new(StoppingExecutor {
+            stop_calls: stop_calls.clone(),
+        }),
         registry,
         Arc::new(TestPlatform {
             worktrees: PathBuf::from("/tmp/test-worktrees"),
             cleanup_calls: cleanup_calls.clone(),
         }),
-        Arc::new(FixedSlugProjection { slug: "cancel-1".into() }),
+        Arc::new(FixedSlugProjection {
+            slug: "cancel-1".into(),
+        }),
     );
 
     let slug = "cancel-1";
@@ -519,8 +606,16 @@ async fn cancel_stops_registered_handle_and_emits_process_killed() {
 
     ship_agents::handle_agents_event(&kernel, &envelope, &ports).await;
 
-    assert_eq!(stop_calls.load(Ordering::SeqCst), 1, "executor.stop called once via L0 teardown");
-    assert_eq!(cleanup_calls.load(Ordering::SeqCst), 1, "platform.cleanup_job called once");
+    assert_eq!(
+        stop_calls.load(Ordering::SeqCst),
+        1,
+        "executor.stop called once via L0 teardown"
+    );
+    assert_eq!(
+        cleanup_calls.load(Ordering::SeqCst),
+        1,
+        "platform.cleanup_job called once"
+    );
     let killed = find_process_killed(slug).expect("process.killed emitted");
     assert_eq!(killed.slug, slug);
     assert_eq!(killed.pid, Some(42));
@@ -534,13 +629,17 @@ async fn cancel_without_handle_still_cleans_and_emits() {
     let cleanup_calls = Arc::new(AtomicUsize::new(0));
     let ports = ports_with_projection(
         Arc::new(OkIsolation(PathBuf::from("/tmp"))),
-        Arc::new(StoppingExecutor { stop_calls: Arc::new(AtomicUsize::new(0)) }),
+        Arc::new(StoppingExecutor {
+            stop_calls: Arc::new(AtomicUsize::new(0)),
+        }),
         Arc::new(NoopRegistry),
         Arc::new(TestPlatform {
             worktrees: PathBuf::from("/tmp/test-worktrees"),
             cleanup_calls: cleanup_calls.clone(),
         }),
-        Arc::new(FixedSlugProjection { slug: "cancel-2".into() }),
+        Arc::new(FixedSlugProjection {
+            slug: "cancel-2".into(),
+        }),
     );
 
     let slug = "cancel-2";
@@ -558,33 +657,37 @@ async fn cancel_without_handle_still_cleans_and_emits() {
 
     ship_agents::handle_agents_event(&kernel, &envelope, &ports).await;
 
-    assert_eq!(cleanup_calls.load(Ordering::SeqCst), 1, "cleanup still runs on a registry miss");
+    assert_eq!(
+        cleanup_calls.load(Ordering::SeqCst),
+        1,
+        "cleanup still runs on a registry miss"
+    );
     let killed = find_process_killed(slug).expect("process.killed emitted");
     assert_eq!(killed.pid, None, "no handle → pid None in the audit event");
 }
 
 // ── Floki routing tests ─────────────────────────────────────────────────────
 
-/// SPEC: when `payload.harness == "floki"` and `floki_run_fn` is set,
-/// dispatch routes to the closure and skips the executor entirely.
+/// SPEC: when `payload.harness` is `"floki"` or `"yoke"` and `yoke_run_fn`
+/// is set, dispatch routes to the closure and skips the executor entirely.
 ///
 /// The closure increments a counter so the test can assert it was called.
 /// `spawn_calls` remains zero because the harness-driver path (executor.spawn)
 /// is never entered.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn floki_harness_routes_to_floki_run_fn_and_skips_executor() {
-    use ship_agents::ports::FlokiRunFn;
+async fn floki_harness_routes_to_yoke_run_fn_and_skips_executor() {
+    use ship_agents::ports::YokeRunFn;
     use std::sync::atomic::AtomicBool;
 
     let tmp = tempfile::TempDir::new().unwrap();
     let kernel = kernel_with_actor();
 
-    // Closure flag — set to true when the floki_run_fn fires.
+    // Closure flag — set to true when the yoke_run_fn fires.
     let floki_called = Arc::new(AtomicBool::new(false));
     let floki_called_inner = floki_called.clone();
     let spawn_calls = Arc::new(AtomicUsize::new(0));
 
-    let floki_run_fn: FlokiRunFn = Arc::new(move |_payload| {
+    let yoke_run_fn: YokeRunFn = Arc::new(move |_payload| {
         let flag = floki_called_inner.clone();
         Box::pin(async move {
             flag.store(true, Ordering::SeqCst);
@@ -592,12 +695,13 @@ async fn floki_harness_routes_to_floki_run_fn_and_skips_executor() {
     });
 
     let ports = AgentPorts {
-        floki_run_fn: Some(floki_run_fn),
+        yoke_run_fn: Some(yoke_run_fn),
         isolation: Arc::new(OkIsolation(tmp.path().join("worktrees/fl-sess"))),
         executor: Arc::new(RecordingExecutor {
             captured: Arc::new(StdMutex::new(None)),
             spawn_calls: spawn_calls.clone(),
         }),
+        lifecycle: Arc::new(NoopLifecycleSink),
         platform: Arc::new(TestPlatform {
             worktrees: tmp.path().join("worktrees"),
             cleanup_calls: Arc::new(AtomicUsize::new(0)),
@@ -606,10 +710,11 @@ async fn floki_harness_routes_to_floki_run_fn_and_skips_executor() {
         spawn_policy: Arc::new(TokenSpawnPolicy),
         projections: Arc::new(NeverTerminal),
         event_dedup: Arc::new(EventDedup::new()),
+        dispatch_gate: ship_agents::dispatch_gate::new_dispatch_gate(),
     };
 
     // harness == "floki" is the routing key.
-    let payload = started_payload("s-floki-1", "fl-sess", Some("floki"), None, None);
+    let payload = started_payload("s-floki-1", "fl-sess", Some("floki"), None);
     let envelope = EventEnvelope::new(
         dispatch_event_types::DISPATCH_REQUESTED,
         &payload.session_id,
@@ -620,7 +725,7 @@ async fn floki_harness_routes_to_floki_run_fn_and_skips_executor() {
 
     ship_agents::handle_agents_event(&kernel, &envelope, &ports).await;
 
-    // Poll: the floki_run_fn is spawned as a task; give it time to run.
+    // Poll: the yoke_run_fn is spawned as a task; give it time to run.
     for _ in 0..50 {
         if floki_called.load(Ordering::SeqCst) {
             break;
@@ -630,32 +735,30 @@ async fn floki_harness_routes_to_floki_run_fn_and_skips_executor() {
 
     assert!(
         floki_called.load(Ordering::SeqCst),
-        "floki_run_fn must be called when harness == 'floki'",
+        "yoke_run_fn must be called when harness == 'floki'",
     );
     assert_eq!(
         spawn_calls.load(Ordering::SeqCst),
         0,
-        "executor.spawn must NOT be called when floki_run_fn routes the session",
+        "executor.spawn must NOT be called when yoke_run_fn routes the session",
     );
-}
 
-/// SPEC: a floki-harness session with NO `floki_run_fn` wired falls through to
-/// the regular dispatch path (which calls the executor). This ensures the
-/// guard is `payload.harness == "floki" AND floki_run_fn.is_some()`.
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn floki_harness_without_closure_falls_through_to_executor() {
-    let tmp = tempfile::TempDir::new().unwrap();
-    let kernel = kernel_with_actor();
-    let spawn_calls = Arc::new(AtomicUsize::new(0));
-
-    // floki_run_fn = None — closure not wired.
-    let ports = AgentPorts {
-        floki_run_fn: None,
-        isolation: Arc::new(OkIsolation(tmp.path().join("worktrees/fl-no-fn"))),
+    // harness == "yoke" is an alias for the same native Connect path.
+    let floki_called_yoke = Arc::new(AtomicBool::new(false));
+    let floki_called_yoke_inner = floki_called_yoke.clone();
+    let ports_yoke = AgentPorts {
+        yoke_run_fn: Some(Arc::new(move |_payload| {
+            let flag = floki_called_yoke_inner.clone();
+            Box::pin(async move {
+                flag.store(true, Ordering::SeqCst);
+            })
+        })),
+        isolation: Arc::new(OkIsolation(tmp.path().join("worktrees/yoke-sess"))),
         executor: Arc::new(RecordingExecutor {
             captured: Arc::new(StdMutex::new(None)),
-            spawn_calls: spawn_calls.clone(),
+            spawn_calls: Arc::new(AtomicUsize::new(0)),
         }),
+        lifecycle: Arc::new(NoopLifecycleSink),
         platform: Arc::new(TestPlatform {
             worktrees: tmp.path().join("worktrees"),
             cleanup_calls: Arc::new(AtomicUsize::new(0)),
@@ -664,9 +767,58 @@ async fn floki_harness_without_closure_falls_through_to_executor() {
         spawn_policy: Arc::new(TokenSpawnPolicy),
         projections: Arc::new(NeverTerminal),
         event_dedup: Arc::new(EventDedup::new()),
+        dispatch_gate: ship_agents::dispatch_gate::new_dispatch_gate(),
+    };
+    let payload_yoke = started_payload("s-yoke-1", "yoke-sess", Some("yoke"), None);
+    let env_yoke = EventEnvelope::new(
+        dispatch_event_types::DISPATCH_REQUESTED,
+        &payload_yoke.session_id,
+        &payload_yoke,
+    )
+    .unwrap()
+    .with_actor_id("test");
+    ship_agents::handle_agents_event(&kernel, &env_yoke, &ports_yoke).await;
+    for _ in 0..50 {
+        if floki_called_yoke.load(Ordering::SeqCst) {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+    assert!(
+        floki_called_yoke.load(Ordering::SeqCst),
+        "yoke_run_fn must be called when harness == 'yoke'",
+    );
+}
+
+/// Loud refusal: when harness is native (`floki`/`yoke`) and no closure is
+/// wired, emit typed `session.failed` without touching the executor.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn floki_harness_without_closure_emits_session_failed() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let kernel = kernel_with_actor();
+    let spawn_calls = Arc::new(AtomicUsize::new(0));
+
+    // yoke_run_fn = None — closure not wired.
+    let ports = AgentPorts {
+        yoke_run_fn: None,
+        isolation: Arc::new(OkIsolation(tmp.path().join("worktrees/fl-no-fn"))),
+        executor: Arc::new(RecordingExecutor {
+            captured: Arc::new(StdMutex::new(None)),
+            spawn_calls: spawn_calls.clone(),
+        }),
+        lifecycle: Arc::new(NoopLifecycleSink),
+        platform: Arc::new(TestPlatform {
+            worktrees: tmp.path().join("worktrees"),
+            cleanup_calls: Arc::new(AtomicUsize::new(0)),
+        }),
+        registry: Arc::new(NoopRegistry),
+        spawn_policy: Arc::new(TokenSpawnPolicy),
+        projections: Arc::new(NeverTerminal),
+        event_dedup: Arc::new(EventDedup::new()),
+        dispatch_gate: ship_agents::dispatch_gate::new_dispatch_gate(),
     };
 
-    let payload = started_payload("s-floki-2", "fl-no-fn", Some("floki"), None, None);
+    let payload = started_payload("s-floki-2", "fl-no-fn", Some("floki"), None);
     let envelope = EventEnvelope::new(
         dispatch_event_types::DISPATCH_REQUESTED,
         &payload.session_id,
@@ -676,18 +828,14 @@ async fn floki_harness_without_closure_falls_through_to_executor() {
     .with_actor_id("test");
 
     ship_agents::handle_agents_event(&kernel, &envelope, &ports).await;
-    // Give the dispatch task a moment.
-    for _ in 0..50 {
-        if spawn_calls.load(Ordering::SeqCst) > 0 {
-            break;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-    }
+    // emit_session_failed runs synchronously on the actor's mailbox loop —
+    // no detached task, no need to poll.
 
     assert_eq!(
         spawn_calls.load(Ordering::SeqCst),
-        1,
-        "with no floki_run_fn, harness='floki' falls through to executor.spawn",
+        0,
+        "no floki closure + harness='floki' must NOT route to executor — \
+         the loud-refusal fix lands a typed `session.failed` instead",
     );
 }
 
@@ -748,7 +896,11 @@ async fn stop_rpc_session_cancelled_actor_tears_down_and_projection_shows_cancel
         CanonicalSessionStatus::Active,
         "precondition: session is Active before cancellation"
     );
-    assert_eq!(before.slug.as_deref(), Some(SLUG), "precondition: slug populated");
+    assert_eq!(
+        before.slug.as_deref(),
+        Some(SLUG),
+        "precondition: slug populated"
+    );
 
     // ── 3. Build session.cancelled envelope ───────────────────────────────
     // Matches exactly what stop_fn in apps/shipd/src/ops_rpc.rs emits:
@@ -771,11 +923,16 @@ async fn stop_rpc_session_cancelled_actor_tears_down_and_projection_shows_cancel
     let stop_calls = Arc::new(AtomicUsize::new(0));
     let cleanup_calls = Arc::new(AtomicUsize::new(0));
     let registry = Arc::new(SeededRegistry {
-        handle: Mutex::new(Some(ExecutorHandle { pid: Some(99), inner: Box::new(()) })),
+        handle: Mutex::new(Some(ExecutorHandle {
+            pid: Some(99),
+            inner: Box::new(()),
+        })),
     });
     let ports = ports_with_projection(
         Arc::new(OkIsolation(PathBuf::from("/tmp"))),
-        Arc::new(StoppingExecutor { stop_calls: stop_calls.clone() }),
+        Arc::new(StoppingExecutor {
+            stop_calls: stop_calls.clone(),
+        }),
         registry,
         Arc::new(TestPlatform {
             worktrees: PathBuf::from("/tmp/test-worktrees"),
@@ -787,18 +944,29 @@ async fn stop_rpc_session_cancelled_actor_tears_down_and_projection_shows_cancel
     ship_agents::handle_agents_event(&kernel, &cancel_env, &ports).await;
 
     // Process torn down via L0.
-    assert_eq!(stop_calls.load(Ordering::SeqCst), 1, "executor.stop called once via actor teardown");
-    assert_eq!(cleanup_calls.load(Ordering::SeqCst), 1, "platform.cleanup_job called once");
+    assert_eq!(
+        stop_calls.load(Ordering::SeqCst),
+        1,
+        "executor.stop called once via actor teardown"
+    );
+    assert_eq!(
+        cleanup_calls.load(Ordering::SeqCst),
+        1,
+        "platform.cleanup_job called once"
+    );
     let killed = find_process_killed(SLUG).expect("process.killed emitted for audit");
     assert_eq!(killed.slug, SLUG, "process.killed keyed on slug");
-    assert_eq!(killed.pid, Some(99), "pid from registered handle threads into process.killed");
+    assert_eq!(
+        killed.pid,
+        Some(99),
+        "pid from registered handle threads into process.killed"
+    );
     assert_eq!(killed.reason, "cancellation");
     assert_eq!(killed.actor, "operator");
 
     // ── 5. Projection: session.cancelled → Cancelled read-model ──────────
     // Simulates the KernelRouter routing the same event through
-    // CanonicalSessionProjection (CanonicalSessionProjection::apply opens its
-    // own runtime.db connection internally; _conn is only a placeholder).
+    // CanonicalSessionProjection on the runtime.db bus connection.
     proj.apply(&cancel_env, &mut conn).unwrap();
 
     let after = load_canonical_session_by_id(SESSION_ID)
@@ -809,11 +977,251 @@ async fn stop_rpc_session_cancelled_actor_tears_down_and_projection_shows_cancel
         CanonicalSessionStatus::Cancelled,
         "canonical projection must show Cancelled after session.cancelled applied"
     );
-    assert_eq!(after.outcome.as_deref(), Some("cancelled"), "outcome = cancelled");
+    assert_eq!(
+        after.outcome.as_deref(),
+        Some("cancelled"),
+        "outcome = cancelled"
+    );
     assert_eq!(
         after.reason.as_deref(),
         Some("operator stop"),
         "reason threads from payload into the read-model"
     );
-    assert!(after.ended_at.is_some(), "ended_at must be populated on cancellation");
+    assert!(
+        after.ended_at.is_some(),
+        "ended_at must be populated on cancellation"
+    );
+}
+
+// ── session.failed emit scope ───────────────────────────────────────────────
+//
+// Closes c-2026-07-05T20-30-00-000Z-b8c9d0e1 AND the session-scope-routing
+// job: `session.*` canonical events are Runtime-scoped (per-machine
+// execution state) — the dispatch actor's `emit_session_failed` (in
+// src/dispatch.rs) builds a plain `EventEnvelope::new(SESSION_FAILED, ...)`
+// and hands it to `persist_and_route`; the registry's Runtime default routes
+// it straight into `runtime.db` with no space binding required, and no
+// `spaces/<session_id>/` directory is ever minted for a session id.
+fn read_session_failed_from_runtime_db(
+    ship_dir: &std::path::Path,
+    session_id: &str,
+) -> Option<EventEnvelope> {
+    use ship_substrate::persistence::EventStore;
+    let path = ship_substrate::db::runtime_db_path(ship_dir);
+    if !path.exists() {
+        return None;
+    }
+    let store = ship_substrate::persistence::SqliteEventStore::new_at_db_path(&path).ok()?;
+    let mut found = store
+        .query(&ship_substrate::events::EventFilter {
+            event_type: Some(canonical_session_event_types::SESSION_FAILED.to_string()),
+            entity_id: Some(session_id.to_string()),
+            ..Default::default()
+        })
+        .ok()?;
+    found.pop()
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn failed_dispatch_emits_session_failed_into_runtime_db() {
+    // The `agent_session_failed_nonzero_keys_on_session_id` test (in
+    // ship-code) covers the post-spawn case. This test covers the
+    // prep-failure path in the dispatch actor specifically: isolation
+    // succeeds, executor.spawn errors → the actor must emit
+    // `session.failed` AND the kernel must accept it (Runtime scope needs
+    // no space binding).
+    let tmp = tempfile::TempDir::new().unwrap();
+    let ship_dir = ship_substrate::project::get_global_dir().unwrap();
+    let session_id = "s-sf-bug-1";
+    let slug = "sf-bug-1";
+
+    // Clean any prior state for this session.
+    let _ = block_on(async {
+        let mut conn = ship_substrate::db::open_runtime_db(&ship_dir).unwrap();
+        sqlx::query("DELETE FROM canonical_sessions WHERE session_id = ?")
+            .bind(session_id)
+            .execute(&mut conn)
+            .await
+    });
+    let space_path = ship_substrate::db::space_db_path(&ship_dir, session_id);
+    if space_path.exists() {
+        std::fs::remove_file(&space_path).ok();
+    }
+
+    let kernel = kernel_with_actor();
+    let ports = ports_with(
+        Arc::new(OkIsolation(tmp.path().join("worktrees/sf-bug-1"))),
+        Arc::new(RecordingExecutor {
+            // RecordingExecutor errors on spawn → triggers the
+            // `executor spawn failed` branch in dispatch_agent_session_internal
+            // which calls emit_session_failed.
+            captured: Arc::new(StdMutex::new(None)),
+            spawn_calls: Arc::new(AtomicUsize::new(0)),
+        }),
+        Arc::new(NoopRegistry),
+        Arc::new(TestPlatform {
+            worktrees: tmp.path().join("worktrees"),
+            cleanup_calls: Arc::new(AtomicUsize::new(0)),
+        }),
+    );
+
+    let payload = started_payload(session_id, slug, Some("codex"), Some("gpt-5-codex"));
+    let envelope = EventEnvelope::new(
+        dispatch_event_types::DISPATCH_REQUESTED,
+        session_id,
+        &payload,
+    )
+    .unwrap()
+    .with_actor_id("test");
+    ship_agents::handle_agents_event(&kernel, &envelope, &ports).await;
+
+    // The dispatch prep is detached under DISPATCH_GATE. Poll runtime.db
+    // until the session.failed lands (or we time out).
+    let mut found = false;
+    for _ in 0..50 {
+        if read_session_failed_from_runtime_db(&ship_dir, session_id).is_some() {
+            found = true;
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    assert!(
+        found,
+        "session.failed for {session_id} must land in runtime.db — \
+         a failing dispatch leaves no event trail if the dispatch actor's \
+         emit_session_failed is rejected by the kernel"
+    );
+
+    // The event itself carries the canonical discipline: Runtime scope, no
+    // scope_key, session_id populated. Pinning these guarantees the actor
+    // stays aligned with the canonical builder.
+    let env = read_session_failed_from_runtime_db(&ship_dir, session_id)
+        .expect("just observed the event");
+    assert_eq!(
+        env.event_type,
+        canonical_session_event_types::SESSION_FAILED
+    );
+    assert_eq!(env.entity_id, session_id);
+    assert_eq!(env.scope, ship_types::event_registry::EventScope::Runtime);
+    assert_eq!(env.session_id.as_deref(), Some(session_id));
+
+    // I2: no `spaces/<session_id>/` directory was minted for this session.
+    assert!(
+        !ship_substrate::db::space_db_path(&ship_dir, session_id).exists(),
+        "a session id must never mint a spaces/<id>/space.db directory"
+    );
+}
+
+// ── I1: session-scope-routing job — exit_handler routes through the REAL
+// kernel router into runtime.db, never spaces/<session-id>/ ─────────────────
+//
+// Drives `bridge::lifecycle::exit_handler::start` (the emission site named
+// in the job spec) end to end: a real `KernelRouter` rooted at the test-global
+// ship_dir, a synthetic zero-exit `ExitSignal`. Proves:
+//   1. `session.completed` persists into `runtime.db`, Runtime-scoped.
+//   2. No `spaces/<session_id>/space.db` is ever created.
+//   3. `CanonicalSessionProjection` folds the persisted event into
+//      `canonical_sessions` (status = completed).
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn exit_handler_session_completed_routes_to_runtime_db_not_a_space_dir() {
+    const SESSION_ID: &str = "s-i1-scope-routing";
+    const SLUG: &str = "i1-scope-routing";
+
+    let ship_dir = ship_substrate::project::get_global_dir().unwrap();
+    let mut conn = ship_substrate::db::open_runtime_db(&ship_dir).unwrap();
+
+    // Clean slate for this session.
+    let _ = block_on(async {
+        sqlx::query("DELETE FROM canonical_sessions WHERE session_id = ?")
+            .bind(SESSION_ID)
+            .execute(&mut conn)
+            .await
+    });
+    let space_path = ship_substrate::db::space_db_path(&ship_dir, SESSION_ID);
+    if space_path.exists() {
+        std::fs::remove_file(&space_path).ok();
+    }
+
+    // Seed a session.started row so the terminal transition has something
+    // to land on (mirrors dispatch_core's real session.started emit).
+    let started_env = EventEnvelope::new(
+        canonical_session_event_types::SESSION_STARTED,
+        SESSION_ID,
+        &serde_json::json!({
+            "session_id": SESSION_ID,
+            "agent_id":   "claude",
+            "harness":    "claude",
+            "model":      "claude-sonnet-4-6",
+            "space_id":   "sp-i1",
+            "slug":       SLUG,
+            "input":      "do the work"
+        }),
+    )
+    .unwrap();
+    let proj = CanonicalSessionProjection;
+    proj.apply(&started_env, &mut conn).unwrap();
+
+    // Drive the real exit_handler with a zero-exit signal — the normal
+    // successful-completion path.
+    let kernel = kernel_with_actor();
+    let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+    bridge::lifecycle::exit_handler::start(
+        Arc::new(ship_agents::KernelLifecycleSink::new(kernel.clone())),
+        Arc::new(NoopRegistry),
+        bridge::lifecycle::ExitVocabulary::AgentSession {
+            session_id: SESSION_ID.to_string(),
+        },
+        rx,
+    );
+    tx.send(bridge::dispatch_ports::ExitSignal {
+        slug: SLUG.to_string(),
+        session_id: SESSION_ID.to_string(),
+        exit_code: Some(0),
+        cause: bridge::dispatch_ports::ExitCause::AgentExited,
+    })
+    .unwrap();
+
+    // Poll runtime.db until the routed event lands (or time out).
+    let mut persisted: Option<EventEnvelope> = None;
+    for _ in 0..50 {
+        persisted = {
+            use ship_substrate::persistence::EventStore;
+            let store = ship_substrate::persistence::SqliteEventStore::new_at_db_path(
+                &ship_substrate::db::runtime_db_path(&ship_dir),
+            )
+            .unwrap();
+            store
+                .query(&ship_substrate::events::EventFilter {
+                    event_type: Some(canonical_session_event_types::SESSION_COMPLETED.to_string()),
+                    entity_id: Some(SESSION_ID.to_string()),
+                    ..Default::default()
+                })
+                .ok()
+                .and_then(|mut v| v.pop())
+        };
+        if persisted.is_some() {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    let env = persisted.expect("session.completed must route into runtime.db");
+    assert_eq!(
+        env.scope,
+        ship_types::event_registry::EventScope::Runtime,
+        "session.completed must be Runtime-scoped, not Space"
+    );
+
+    // I2: exit_handler's emit never mints a spaces/<session_id>/ directory.
+    assert!(
+        !ship_substrate::db::space_db_path(&ship_dir, SESSION_ID).exists(),
+        "session.completed must never create spaces/{SESSION_ID}/space.db"
+    );
+
+    // The projection folds the routed event into canonical_sessions.
+    proj.apply(&env, &mut conn).unwrap();
+    let after = load_canonical_session_by_id(SESSION_ID)
+        .unwrap()
+        .expect("session must exist in canonical_sessions");
+    assert_eq!(after.status, CanonicalSessionStatus::Completed);
+    assert!(after.ended_at.is_some());
 }

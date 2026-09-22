@@ -13,12 +13,12 @@
 //! actor.stopped (unconditional supervisor emissions), which keeps analytics_sessions
 //! populated even when no hook fires. hook.tripped in ship-triggers is unrelated.
 
+use agent_schema::canonical_session::event_types as op_event_types;
+use agent_schema::op::{OpToolUseCompleted, OpToolUseDenied, OpToolUseStarted};
 use serde::{Deserialize, Serialize};
 use ship_substrate::events::EventEnvelope;
 use ship_substrate::events::validator::EmitContext;
 use ship_substrate::ports::KernelLog;
-use ship_types::event_types::canonical_session as op_event_types;
-use agent_def::op::{OpToolUseCompleted, OpToolUseDenied, OpToolUseStarted};
 
 // ── Port trait: pty session broadcast ────────────────────────────────────────
 
@@ -40,7 +40,7 @@ pub trait PtyBroadcastPort: Send + Sync {
 /// Normalized hook event sent by Claude HTTP hooks or the `ship hook` adapter.
 ///
 /// Aliases let a RAW harness hook payload deserialize directly — Claude is
-/// already snake_case; codex/gemini/opencode use camelCase / short variants.
+/// already snake_case; codex/opencode use camelCase / short variants.
 #[derive(Debug, Deserialize)]
 pub struct ShipHookEvent {
     #[serde(default, alias = "toolName", alias = "name")]
@@ -79,7 +79,10 @@ pub struct HookResponse {
 
 impl HookResponse {
     pub fn allow() -> Self {
-        Self { action: "allow".to_string(), reason: None }
+        Self {
+            action: "allow".to_string(),
+            reason: None,
+        }
     }
 }
 
@@ -88,7 +91,11 @@ impl HookResponse {
 /// Truncate a JSON value to a printable preview ≤400 chars.
 pub fn preview(v: &serde_json::Value) -> String {
     let s = v.to_string();
-    if s.len() > 400 { s.chars().take(400).collect() } else { s }
+    if s.len() > 400 {
+        s.chars().take(400).collect()
+    } else {
+        s
+    }
 }
 
 pub fn now_iso8601() -> String {
@@ -110,10 +117,13 @@ pub async fn handle_session_start(
     _emit_ctx: EmitContext,
     _event: &ShipHookEvent,
     actor: &str,
-    session: Option<&str>,
+    _session: Option<&str>,
 ) {
     let target = actor;
-    tracing::info!(target, "hook/session-start received (no-op: session lifecycle sourced from actor.created)");
+    tracing::info!(
+        target,
+        "hook/session-start received (no-op: session lifecycle sourced from actor.created)"
+    );
 }
 
 /// Domain logic for POST /hooks/before-tool.
@@ -196,9 +206,12 @@ pub async fn handle_session_end(
     _emit_ctx: EmitContext,
     _event: &ShipHookEvent,
     actor: &str,
-    session: Option<&str>,
+    _session: Option<&str>,
 ) {
-    tracing::info!(actor, "hook/session-end received (no-op: session lifecycle sourced from actor.stopped)");
+    tracing::info!(
+        actor,
+        "hook/session-end received (no-op: session lifecycle sourced from actor.stopped)"
+    );
 }
 
 /// Domain logic for POST /hooks/permission-denied.
@@ -226,7 +239,10 @@ pub async fn handle_permission_denied(
         tool: tool.to_string(),
         input: event.tool_input.clone(),
         reason,
-        denied_by: event.denied_by.clone().unwrap_or_else(|| "ship-gate".to_string()),
+        denied_by: event
+            .denied_by
+            .clone()
+            .unwrap_or_else(|| "ship-gate".to_string()),
         denied_at: now_iso8601(),
     };
     if let Ok(env) = EventEnvelope::new(op_event_types::OP_TOOL_USE_DENIED, actor, &payload) {

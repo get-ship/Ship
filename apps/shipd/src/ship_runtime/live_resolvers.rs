@@ -83,23 +83,25 @@ impl LiveResolverRegistry {
 pub fn build() -> LiveResolverRegistry {
     let mut reg = LiveResolverRegistry::default();
 
-    // git.overview — the prototype for "domain data behind the abstract
-    // registry op". Git is an L0 git2 wrapper (`ship_git`), not an RPC
-    // service; the registry composes the `GitOverview` payload from its read
-    // fns directly. The view subscribes `git.overview` through the multiplex;
-    // there is no GitService on the wire.
+    // git.overview — multiplex snapshot over ship-git leaf reads. The typed
+    // wire is `ship.internal.v1.GitService` (git_wire); this registry op is the
+    // live-data multiplex twin for views that subscribe `git.overview`.
+    // Gated behind bridge: composes against `state.workspace_dir()` which the
+    // ship-standard build may not expose.
+    #[cfg(feature = "bridge")]
     reg.register(
         "git",
         "overview",
         Arc::new(|state: &ApiState, _args: &Value| {
-            let Some(root) = state.workspace_dir() else { return Value::Null };
+            let Some(root) = state.workspace_dir() else {
+                return Value::Null;
+            };
             let buckets = ship_git::read::load_status_buckets(root);
             let branch = ship_git::read::load_branch(root);
             let commits = ship_git::read::load_log(root, None, 20);
             let branches = ship_git::read::load_branches(root);
             let (ahead, behind) = ship_git::read::load_ahead_behind(root).unwrap_or((0, 0));
             let overview = ship_git::state::GitOverview {
-                workspace_id: None,
                 branch,
                 head_short: ship_git::read::load_head_short(root),
                 clean: buckets.clean,
@@ -115,7 +117,6 @@ pub fn build() -> LiveResolverRegistry {
             serde_json::to_value(&overview).unwrap_or(Value::Null)
         }),
     );
-
     // agents.summaries — reuses the agents-wire `Summaries` builder. The
     // wire's `AgentsService::Summaries` rpc calls the same `list_agents`
     // helper; the multiplex's re-resolution loop runs the same call. The
@@ -125,8 +126,7 @@ pub fn build() -> LiveResolverRegistry {
         "agents",
         "summaries",
         Arc::new(|state: &ApiState, _args: &Value| {
-            let items =
-                ship_agents::services::agents::view_state::list_agents(state.ship_dir());
+            let items = ship_agents::services::agents::view_state::list_agents(state.ship_dir());
             serde_json::to_value(serde_json::json!({ "items": items })).unwrap_or(Value::Null)
         }),
     );
@@ -143,7 +143,9 @@ pub fn build() -> LiveResolverRegistry {
         "collections",
         "list",
         Arc::new(|state: &ApiState, _args: &Value| {
-            let Ok(svc) = state.collections() else { return Value::Null };
+            let Ok(svc) = state.collections() else {
+                return Value::Null;
+            };
             let summaries: Vec<Value> = svc
                 .list()
                 .into_iter()
@@ -179,9 +181,7 @@ pub fn build() -> LiveResolverRegistry {
         "state",
         Arc::new(|state: &ApiState, _args: &Value| {
             let token_path = state.account_token_path();
-            let token: Option<AccountToken> = config_doc::read_doc(&token_path)
-                .ok()
-                .flatten();
+            let token: Option<AccountToken> = config_doc::read_doc(&token_path).ok().flatten();
             match token {
                 None => serde_json::json!({ "state": "logged_out" }),
                 Some(t) if t.is_expired() => serde_json::json!({ "state": "logged_out" }),
@@ -203,12 +203,40 @@ mod tests {
     #[test]
     fn registered_ops_resolve_and_unknown_is_none() {
         let reg = build();
-        assert!(reg.has("git", "overview"));
-        assert!(reg.has("agents", "summaries"), "agents.summaries registered (job/livedata-coverage)");
-        assert!(reg.has("collections", "list"), "collections.list registered (job/livedata-coverage)");
-        assert!(reg.has("account", "state"), "account.state registered (job/phase3b-rewires)");
-        assert!(!reg.has("pipelines", "summaries"), "pipelines live resolvers retired (job/livedata-collapse)");
-        assert!(!reg.has("nonsense", "void"), "unregistered op has no resolver");
+        // git.overview only registers in the harness-driver build (ship-code
+        // feature). The default ship-standard build is intentionally git-less —
+        // the resolver composes against state.workspace_dir() which ship-standard
+        // doesn't expose. The test gates the assertion the same way.
+        #[cfg(feature = "bridge")]
+        assert!(
+            reg.has("git", "overview"),
+            "git.overview registered in ship-code build"
+        );
+        #[cfg(not(feature = "bridge"))]
+        assert!(
+            !reg.has("git", "overview"),
+            "git.overview not registered in ship-standard build"
+        );
+        assert!(
+            reg.has("agents", "summaries"),
+            "agents.summaries registered (job/livedata-coverage)"
+        );
+        assert!(
+            reg.has("collections", "list"),
+            "collections.list registered (job/livedata-coverage)"
+        );
+        assert!(
+            reg.has("account", "state"),
+            "account.state registered (job/phase3b-rewires)"
+        );
+        assert!(
+            !reg.has("pipelines", "summaries"),
+            "pipelines live resolvers retired (job/livedata-collapse)"
+        );
+        assert!(
+            !reg.has("nonsense", "void"),
+            "unregistered op has no resolver"
+        );
         assert!(
             reg.resolve_fn("nonsense", "void", &Value::Null).is_none(),
             "resolve_fn returns None for an unregistered op (caller errors, not silent)"

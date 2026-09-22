@@ -1,13 +1,10 @@
-// -- Actor aggregate (v0.2.0 kernel) -------------------------------------------
-
 use serde::{Deserialize, Serialize};
 
+/// Lifecycle event payload emitted when a supervised actor (process) is born.
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct ActorCreated {
     pub kind: String,
     pub environment_type: String,
-    #[serde(default)]
-    pub workspace_id: Option<String>,
     #[serde(default)]
     pub parent_actor_id: Option<String>,
     #[serde(default)]
@@ -56,4 +53,3 @@ pub struct ActorCrashed {
     pub error: String,
     pub restart_count: u32,
 }
-

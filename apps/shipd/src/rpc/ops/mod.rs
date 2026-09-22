@@ -9,19 +9,43 @@
 //! carries the proto-policy introspection map.
 
 mod agents_wire;
+// ship.code.v1.CodeService — the coding-agent capability surface
+// (mount split 2026-07-10). Mounted at router assembly under
+// `--features bridge` (the single conditional). With the feature
+// off, no route is registered — the path is absent (Connect discovers
+// the service by path presence; absence is structural, not a refused
+// call). The mount reuses the same `AgentDispatchAdapter` the in-process
+// `AgentsService.Dispatch` wire uses (one kernel subscription serves
+// both wires).
+#[cfg(feature = "bridge")]
+mod code_wire;
+mod device_wire;
+// ship.internal.v1.GitService — leaf wire over ship-git (moved from helmd,
+// j-02 step 2). Also exposed via `git_wire::axum_router()` without auth.
+mod git_guards;
+pub mod git_wire;
+// ship.internal.v1.HarnessService — leaf wire over harness-config-compiler
+// (moved from helmd, j-02s4a). Unauthed via `harness_wire::axum_router()`.
+pub mod descriptor_cache;
+pub mod harness_wire;
+mod isolation_wire;
 mod pipelines_wire;
 pub mod policy;
+// ship.ops.v1.TerminalService — the PTY/harness Connect adapter, part of
+// the ship-code surface. Compiled and mounted only under
+// `--features bridge`, mirroring `code_wire`: with the feature off no
+// route is registered — the path is absent (structural, not a refused
+// call). The underlying sessions Registry is NOT gated — it serves agent
+// sessions too; only this adapter is.
+#[cfg(feature = "bridge")]
 mod terminal_wire;
-#[cfg(test)]
-mod tests;
 mod ui_wire;
-
 pub use policy::{OP_POLICY, OpPolicy, policy_for};
 
 use std::sync::Arc;
 
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
-use ship_ops_rpc::{MetaResponse, OpsService, OpsServiceExt, OwnedMetaRequestView};
+use ship_proto::ship::ops::v1::{MetaResponse, OpsService, OpsServiceExt, OwnedMetaRequestView};
 
 use crate::ship_runtime::ApiState;
 
@@ -65,7 +89,9 @@ impl OpsService for OpsImpl {
 fn pid_from_ctx(ctx: &connectrpc::RequestContext) -> Option<u32> {
     #[cfg(unix)]
     {
-        ctx.extensions.get::<crate::auth::peer_socket::PeerPid>().and_then(|p| p.0)
+        ctx.extensions
+            .get::<crate::auth::peer_socket::PeerPid>()
+            .and_then(|p| p.0)
     }
     #[cfg(not(unix))]
     {
@@ -84,9 +110,11 @@ fn pid_from_ctx(ctx: &connectrpc::RequestContext) -> Option<u32> {
 /// (authenticated at the edge). This is the "one gate" of
 /// `.artifacts/auth-gate-synthesis.md`.
 pub fn router(state: ApiState) -> axum::Router {
-    let svc = Arc::new(OpsImpl { state: state.clone() });
+    let svc = Arc::new(OpsImpl {
+        state: state.clone(),
+    });
     let router = OpsServiceExt::register(svc.clone(), connectrpc::Router::new());
-    let router = ship_ops_rpc::RuntimeServiceExt::register(svc.clone(), router);
+    let router = ship_proto::ship::ops::v1::RuntimeServiceExt::register(svc.clone(), router);
 
     // window.* — the live-data multiplex (ADR 0001). The Connect wire is
     // deleted; the multiplex now lives in deck-axum (#276), mounted in
@@ -106,11 +134,7 @@ pub fn router(state: ApiState) -> axum::Router {
             let pol = ship_ops_rpc::policy::policy_for(op)
                 .ok_or_else(|| ConnectError::internal(format!("no policy for {op}")))?;
             let caller = crate::auth::gate::caller_from_auth(auth);
-            match crate::auth::gate::decide(
-                pol.blast,
-                crate::auth::gate::service_of(op),
-                &caller,
-            ) {
+            match crate::auth::gate::decide(pol.blast, crate::auth::gate::service_of(op), &caller) {
                 crate::auth::gate::Decision::Deny(m) => {
                     Err(ConnectError::permission_denied(m.to_string()))
                 }
@@ -124,68 +148,86 @@ pub fn router(state: ApiState) -> axum::Router {
         state.rules_arc(),
         gate.clone(),
     ));
-    let router = ship_ops_rpc::RulesServiceExt::register(rules_wire, router);
+    let router = ship_proto::ship::ops::v1::RulesServiceExt::register(rules_wire, router);
     // artifacts.* is served exclusively by the typed `ship-artifacts` wire mounted
     // below (active-space bound). No OpsImpl ArtifactsService mount — the wire is
     // the sole handler. collections.* is likewise served by the typed CollectionWire.
-    // permissions.* — C2_ELEVATED writes (operator-only via the command gate).
-    // Crate-owned PermissionsWire (ship-agents). Replaces impl PermissionsService for OpsImpl.
-    let permissions_wire = Arc::new(ship_agents::services::permissions::PermissionsWire::new(
-        state.permissions_arc(),
-        gate.clone(),
-    ));
-    let router = ship_ops_rpc::PermissionsServiceExt::register(permissions_wire, router);
+    // permissions.* — Slice 3 close-out: the runtime CRUD service
+    // (`ship_agents::services::permissions::PermissionsWire` +
+    // `PermissionsServiceImpl`) was removed — no live UI consumer
+    // invokes it, and the named-preset layer is now sourced from
+    // `defineConfig.agents.permissions.presets` in `stack.config.ts`
+    // (the resolver's `merge_ts_declarations` populates
+    // `ExtensionLibrary::permissions_presets`). The proto remains
+    // in `ship-contracts/proto/ship/ops/v1/permissions.proto` —
+    // the surface is reserved for the environment-design / space-
+    // model work (operator-enabled runtime overrides) that will
+    // re-introduce the CRUD path when runtime permissions become
+    // a real thing. For now the wire is not mounted: any
+    // `permissions.*` Connect-RPC call 404s, the same posture the
+    // REST surface had after its 0d037516d deletion.
     // mcp.* — external MCP server config CRUD.
     // Crate-owned McpWire (ship-agents). Replaces impl McpService for OpsImpl.
     let mcp_wire = Arc::new(ship_agents::services::mcp::McpWire::new(
         state.mcp_arc(),
         gate.clone(),
     ));
-    let router = ship_ops_rpc::McpServiceExt::register(mcp_wire, router);
+    let router = ship_proto::ship::ops::v1::McpServiceExt::register(mcp_wire, router);
     // skills.* (restricted ship-authoring writes + view reads + live streams).
     // Crate-owned SkillsWire (ship-agents). Replaces impl SkillsService for OpsImpl.
-    let skills_kernel = Arc::new(ship_substrate::ports::KernelLog::new(state.kernel().clone()));
+    let skills_kernel = Arc::new(ship_substrate::ports::KernelLog::new(
+        state.kernel().clone(),
+    ));
     let skills_wire = Arc::new(ship_agents::services::skills::SkillsWire::new(
         state.skills_arc(),
         state.ship_dir().to_path_buf(),
         skills_kernel,
         gate.clone(),
     ));
-    let router = ship_ops_rpc::SkillsServiceExt::register(skills_wire, router);
+    let router = ship_proto::ship::ops::v1::SkillsServiceExt::register(skills_wire, router);
     // analytics.* — crate-owned AnalyticsWire (ship-analytics). All four ops are
     // C0 reads; the wire reaches analytics data through ship-analytics' service
     // module (no raw DB in this file — SF-4 preserved).
     let analytics_wire = Arc::new(ship_analytics::wire::AnalyticsWire);
-    let router = ship_ops_rpc::AnalyticsServiceExt::register(analytics_wire, router);
-    // isolation.* — crate-owned IsolationWire (ship-isolation). All ops are C0
-    // reads; the wire calls ship_isolation::decision / decision_ops.
-    let isolation_wire = Arc::new(ship_isolation::wire::IsolationWire);
-    let router = ship_ops_rpc::IsolationServiceExt::register(isolation_wire, router);
-    // device.* — crate-owned DeviceWire (ship-device).
+    let router = ship_proto::ship::ops::v1::AnalyticsServiceExt::register(analytics_wire, router);
+    // isolation.* — IsolationWire (product RPC adapter). All ops are C0
+    // reads; decision inputs loaded from daemon_settings at the composition root.
+    let isolation_load: isolation_wire::DecisionInputsLoader =
+        Arc::new(|rescan| crate::ports::isolation::load_decision_inputs(rescan));
+    let isolation_wire = Arc::new(isolation_wire::IsolationWire::new(isolation_load));
+    let router = ship_proto::ship::ops::v1::IsolationServiceExt::register(isolation_wire, router);
+    // device.* — DeviceWire (product RPC adapter).
     // C0 reads + C3 writes (operator-only); ports injected from shipd.
     let device_gate = gate.clone();
-    let device_sessions: std::sync::Arc<dyn ship_device::WindowSessions> =
-        Arc::new(crate::ports::device::OwnedRegistryWindowSessions::new(state.session_registry().clone()));
+    let device_sessions: std::sync::Arc<dyn ship_device::WindowSessions> = Arc::new(
+        crate::ports::device::OwnedRegistryWindowSessions::new(state.session_registry().clone()),
+    );
     let device_space_reg: std::sync::Arc<dyn ship_device::SpaceRegistry> =
-        Arc::new(crate::ports::device::ProjectsSpaceRegistry);
-    let device_pid: ship_device::wire::PidFn = Arc::new(pid_from_ctx);
-    let device_space_fn: ship_device::wire::SpaceFn = Arc::new(|ctx: &connectrpc::RequestContext| {
+        Arc::new(crate::ports::device::LiveSpaceRegistry::new(state.clone()));
+    let device_actors: std::sync::Arc<dyn ship_device::WindowActors> = Arc::new(
+        crate::ports::device::SubstrateWindowActors::new(state.kernel().clone()),
+    );
+    let device_pid: device_wire::PidFn = Arc::new(pid_from_ctx);
+    let device_space_fn: device_wire::SpaceFn = Arc::new(|ctx: &connectrpc::RequestContext| {
         ctx.extensions
             .get::<crate::auth::AuthContext>()
             .and_then(|a| a.space_id.clone())
     });
-    let device_wire = Arc::new(ship_device::wire::DeviceWire::new(
+    let device_wire = Arc::new(device_wire::DeviceWire::new(
         device_gate,
         device_sessions,
         device_space_reg,
+        device_actors,
         device_pid,
         device_space_fn,
     ));
-    let router = ship_ops_rpc::DeviceServiceExt::register(device_wire, router);
-    // pipelines.* — crate-owned PipelinesWire; closures in `pipelines_wire`.
-    let router = pipelines_wire::mount(router, &state, &gate);
-    // agents.* + agent.* — crate-owned AgentsWire; closures in `agents_wire`.
-    let router = agents_wire::mount(router, &state, gate);
+    let router = ship_proto::ship::ops::v1::DeviceServiceExt::register(device_wire, router);
+    let router = agents_wire::mount(router, &state, gate.clone());
+    // ship.code.v1.CodeService — coding-class dispatch surface; gated
+    // behind `--features bridge` (mount split 2026-07-10). With the
+    // feature off, this compiles to nothing and the route is absent.
+    #[cfg(feature = "bridge")]
+    let router = code_wire::mount(router, &state);
     // account.* — typed AccountService (account.proto), served by the
     // `ship-account` crate (`AccountWire`). Process-global identity: token at
     // rest under `<daemon_dir>/account.jsonc`, `account.*` + `daemon.owner.*`
@@ -193,34 +235,39 @@ pub fn router(state: ApiState) -> axum::Router {
     // account.db). If the gateway client fails to build, the mount is skipped
     // and the four account RPCs return Unimplemented.
     let router = match crate::rpc::account::build_account_wire(
-        std::sync::Arc::new(ship_substrate::ports::KernelLog::new(state.kernel().clone())),
+        std::sync::Arc::new(ship_substrate::ports::KernelLog::new(
+            state.kernel().clone(),
+        )),
         state.daemon_dir().join("account.jsonc"),
-        &std::env::var("SHIP_GATEWAY_URL").unwrap_or_else(|_| "https://api.getship.dev".to_string()),
+        &std::env::var("SHIP_GATEWAY_URL")
+            .unwrap_or_else(|_| "https://api.getship.dev".to_string()),
     ) {
         Some(account_wire) => {
-            ship_ops_rpc::AccountServiceExt::register(account_wire, router)
+            ship_proto::ship::ops::v1::AccountServiceExt::register(account_wire, router)
         }
         None => router,
     };
-    let router = ship_ops_rpc::EventsServiceExt::register(svc.clone(), router);
+    let router = ship_proto::ship::ops::v1::EventsServiceExt::register(svc.clone(), router);
     // ui.* — the unified authoring service (compiler analysis + view authoring
     // + component discovery). Crate-owned `UiWire` (ship-ui); closures in
     // `ui_wire`. Replaces the retired `sui.*` and `view.*` services.
     let router = ui_wire::mount(router, &state);
-    // terminal.* — the L2 Connect adapter over the PTY session domain
-    // (ship-terminal's SessionRegistry + ship-agents's ActorRegistry). Replaces
-    // the legacy `/api/v1/sessions/*` + `/api/v1/pty-sessions` REST routes
-    // (Phase 4 deletes those). All eight methods: Spawn/Stop/List/Get/
-    // SendInput/Resize/SessionBytes/SessionEvents.
+    // pipelines.* — crate-owned PipelinesWire (pipeline-defs): definition
+    // CRUD (List/Get/Put/Patch/Delete) over the engine-shaped surface.
+    let router = pipelines_wire::mount(router, &state, &gate);
+    // terminal.* — the L2 Connect adapter over the unified live-session
+    // registry (ship_agents::services::sessions::Registry). All eight
+    // methods: Spawn/Stop/List/Get/SendInput/Resize/SessionBytes/SessionEvents.
+    // ship-code surface: gated like code_wire — feature off ⇒ route absent.
+    #[cfg(feature = "bridge")]
     let router = terminal_wire::mount(router, &state);
     // search — ShipdSearchWire (rpc::search) branches on the request scope:
     // THIS_SPACE runs the active-space ShipdSearchContext (the historical
     // single-context path); GLOBAL fans out across reachable spaces via
     // ship_search::run_global. Composition + ranking + merge stay in the
     // scope-blind ship-search crate.
-    let search_wire =
-        std::sync::Arc::new(crate::rpc::search::ShipdSearchWire::new(state.clone()));
-    let router = ship_ops_rpc::SearchServiceExt::register(search_wire, router);
+    let search_wire = std::sync::Arc::new(crate::rpc::search::ShipdSearchWire::new(state.clone()));
+    let router = ship_proto::ship::ops::v1::SearchServiceExt::register(search_wire, router);
     // collection.* / config.* / artifacts.* bind to the active space's per-scope
     // `space.db`. In space-less mode (no active space) there is no context to bind
     // and no `global` pseudo-space to fall back onto (S2 home-space kill), so the
@@ -235,25 +282,26 @@ pub fn router(state: ApiState) -> axum::Router {
         Some(collection_ctx) => {
             let collection_kernel = collection_ctx.kernel.clone();
             let collection_schemas = state.collection_schemas();
-            let collection_wire = std::sync::Arc::new(ship_collection::CollectionWire::with_schemas(
-                collection_kernel,
-                collection_schemas,
-                move |_ctx: &connectrpc::RequestContext| collection_ctx.clone(),
-            ));
-            ship_ops_rpc::CollectionsServiceExt::register(collection_wire, router)
+            let collection_wire =
+                std::sync::Arc::new(ship_collection::CollectionWire::with_schemas(
+                    collection_kernel,
+                    collection_schemas,
+                    move |_ctx: &connectrpc::RequestContext| collection_ctx.clone(),
+                ));
+            ship_proto::ship::ops::v1::CollectionsServiceExt::register(collection_wire, router)
         }
         None => router,
     };
     // settings.* — SettingsService (settings.proto): the unified, scope-
     // discriminated settings keystone (SPACE / ACCOUNT / RUNTIME) served by the
-    // ship-config crate (`SettingsWire`). Replaces the retired ConfigService.
+    // ship-settings crate (`SettingsWire`). Replaces the retired ConfigService.
     // Mounted unconditionally — the wire resolves its own per-request scope
     // context (account.db + the active-space space.db + the operator verdict).
     // SPACE ops error cleanly when no active space; ACCOUNT/RUNTIME always serve.
     // The legacy `SpaceService.SetSetting` stays mounted beside `Set(SPACE)`
     // until S4 repoints callers.
     let settings_wire = crate::rpc::settings::settings_wire(state.clone());
-    let router = ship_ops_rpc::SettingsServiceExt::register(settings_wire, router);
+    let router = ship_proto::ship::ops::v1::SettingsServiceExt::register(settings_wire, router);
     // artifacts.* v2 — ship-artifacts (DataStore + blob backend), overrides
     // OpsImpl's ArtifactsService registration for all 5 RPCs including Watch.
     let router = match state.artifact_ctx() {
@@ -265,7 +313,7 @@ pub fn router(state: ApiState) -> axum::Router {
                 global_dir,
                 move |_ctx: &connectrpc::RequestContext| artifact_ctx.clone(),
             ));
-            ship_ops_rpc::ArtifactsServiceExt::register(artifacts_wire, router)
+            ship_proto::ship::ops::v1::ArtifactsServiceExt::register(artifacts_wire, router)
         }
         None => router,
     };
@@ -273,7 +321,11 @@ pub fn router(state: ApiState) -> axum::Router {
     // overlay + registry + Watch. The SOLE space service (the legacy SpaceService
     // — JsonResponse/ProjectRecord vestiges, *Live twins, window RPCs — was
     // retired in the space cutover; windows moved to DeviceService above).
-    let space_wire = crate::rpc::space::space_wire(state.clone());
-    let router = ship_ops_rpc::SpaceServiceExt::register(space_wire, router);
+    let space_wire = crate::rpc::space::space_wire(state.clone(), gate.clone());
+    let router = ship_proto::ship::ops::v1::SpaceServiceExt::register(space_wire, router);
+    // GitService + HarnessService are mounted separately (unauthed public
+    // leaves) via `git_wire` / `harness_wire` `axum_router()` in
+    // `router::build_router` — not here — so helm browser/server clients
+    // can dial without a session token.
     router.into_axum_router()
 }

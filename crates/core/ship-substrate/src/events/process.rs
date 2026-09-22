@@ -3,13 +3,16 @@
 //! process is an OS resource the supervisor must observe directly.
 
 use serde::{Deserialize, Serialize};
+
+// Event-type string constants live in `ship_types::event_types` (single SSOT).
+// Re-export the process family here for callers that historically imported
+// them via `events::process::event_types::*`.
 pub mod event_types {
-    pub const PROCESS_SPAWNED: &str = "process.spawned";
-    pub const PROCESS_EXITED: &str = "process.exited";
-    pub const PROCESS_SIGNAL_SENT: &str = "process.signal_sent";
-    pub const PROCESS_ORPHANED: &str = "process.orphaned";
-    pub const PROCESS_KILLED: &str = "process.killed";
+    pub use ship_types::event_types::{
+        PROCESS_EXITED, PROCESS_KILLED, PROCESS_ORPHANED, PROCESS_SIGNAL_SENT, PROCESS_SPAWNED,
+    };
 }
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProcessSpawnedPayload {
     /// Slug of the job that owns this process.
@@ -170,6 +173,9 @@ mod tests {
             "DATABASE_URL".to_string(),
         ];
         let result = filter_env_keys(&keys);
-        assert_eq!(result, vec!["SHIP_ACTOR_ID", "SHIP_AGENT_ID", "PATH", "HOME"]);
+        assert_eq!(
+            result,
+            vec!["SHIP_ACTOR_ID", "SHIP_AGENT_ID", "PATH", "HOME"]
+        );
     }
 }

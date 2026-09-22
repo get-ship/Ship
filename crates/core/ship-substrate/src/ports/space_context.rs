@@ -5,25 +5,9 @@ use super::data_store::DataStore;
 use super::kernel_log::KernelLog;
 use super::single_backend::SingleBackendDataStore;
 
-/// Opaque per-space identifier.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct SpaceId(pub String);
-
-impl SpaceId {
-    pub fn new(id: impl Into<String>) -> Self {
-        Self(id.into())
-    }
-
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-impl std::fmt::Display for SpaceId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.0)
-    }
-}
+/// Opaque per-space identifier — the canonical scope-id, owned by `ship-types`
+/// (re-exported here so `ports::SpaceId` keeps resolving). One SpaceId, not two.
+pub use ship_types::SpaceId;
 
 /// Per-request handle bundling space identity, data access, and event log.
 ///
@@ -37,12 +21,12 @@ pub struct SpaceContext {
 }
 
 impl SpaceContext {
-    pub fn new(
-        space_id: SpaceId,
-        data_store: Arc<dyn DataStore>,
-        kernel: Arc<KernelLog>,
-    ) -> Self {
-        Self { space_id, data_store, kernel }
+    pub fn new(space_id: SpaceId, data_store: Arc<dyn DataStore>, kernel: Arc<KernelLog>) -> Self {
+        Self {
+            space_id,
+            data_store,
+            kernel,
+        }
     }
 
     /// Mount a `SpaceContext` whose `DataStore` is backed by this space's OWN
@@ -61,11 +45,14 @@ impl SpaceContext {
     /// still finds a valid db, and `DataStore::ensure_table` self-creates the
     /// relational tables. No migrations.
     ///
-    /// The kernel is the process-global router (one router per daemon, shared
-    /// across all mounted spaces — only the DATA db is per-space); it is
-    /// initialized lazily here rooted at `ship_dir` if startup has not already
-    /// done so.
-    pub fn for_space(ship_dir: &Path, space_id: SpaceId) -> anyhow::Result<Self> {
+    /// `kernel` is the process-shared event log (one router per daemon, shared
+    /// across all mounted spaces — only the DATA db is per-space). Callers
+    /// inject it; this helper never constructs a router of its own.
+    pub fn for_space(
+        ship_dir: &Path,
+        space_id: SpaceId,
+        kernel: Arc<KernelLog>,
+    ) -> anyhow::Result<Self> {
         let db_path = crate::db::space_db_path(ship_dir, space_id.as_str());
         // Self-ensure the per-scope events schema (mirrors `open_space_db`), so
         // the file + its events log exist before either the projection writes or
@@ -74,9 +61,11 @@ impl SpaceContext {
         let data_svc = crate::data::DataService::open_at(&db_path)?;
         let data_store: Arc<dyn DataStore> =
             Arc::new(SingleBackendDataStore::new(data_svc, space_id.as_str()));
-        let router = crate::events::init_kernel_router(ship_dir.to_path_buf())?;
-        let kernel = Arc::new(KernelLog::new(router));
-        Ok(Self { space_id, data_store, kernel })
+        Ok(Self {
+            space_id,
+            data_store,
+            kernel,
+        })
     }
 
     pub fn space_id(&self) -> &SpaceId {

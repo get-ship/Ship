@@ -33,7 +33,10 @@ fn folded_services_are_gone() {
             "{dead} must be collapsed into AgentsService and removed from the proto",
         );
     }
-    assert!(svcs.contains("AgentsService"), "the ONE AgentsService must survive");
+    assert!(
+        svcs.contains("AgentsService"),
+        "the ONE AgentsService must survive"
+    );
 }
 
 #[test]
@@ -42,22 +45,47 @@ fn agent_service_exposes_every_folded_rpc() {
 
     // ── Control (the pre-collapse AgentService surface) ──
     for rpc in ["Dispatch", "Stop", "Steer", "Grant"] {
-        assert!(m.contains(rpc), "AgentsService must keep control rpc `{rpc}`");
+        assert!(
+            m.contains(rpc),
+            "AgentsService must keep control rpc `{rpc}`"
+        );
     }
 
     // ── Profile reads ──
+    // `Harnesses` is NOT here: it moved to ship.code.v1.CodeService with
+    // the 2026-07-10 mount split (coding capability surface).
     for rpc in [
-        "List", "Summaries", "Detail", "Catalogs", "Get", "Wire", "Settings",
-        "Templates", "PermissionPresets", "Harnesses", "CreateCtx",
+        "List",
+        "Summaries",
+        "Detail",
+        "Catalogs",
+        "Get",
+        "Wire",
+        "Settings",
+        "Templates",
+        "PermissionPresets",
+        "CreateCtx",
     ] {
-        assert!(m.contains(rpc), "AgentsService must expose profile read rpc `{rpc}`");
+        assert!(
+            m.contains(rpc),
+            "AgentsService must expose profile read rpc `{rpc}`"
+        );
     }
 
     // ── Profile writes ──
     for rpc in [
-        "Create", "Put", "Patch", "Delete", "Rename", "Duplicate", "MoveScope",
+        "Create",
+        "Put",
+        "Patch",
+        "Delete",
+        "Rename",
+        "Duplicate",
+        "MoveScope",
     ] {
-        assert!(m.contains(rpc), "AgentsService must expose profile write rpc `{rpc}`");
+        assert!(
+            m.contains(rpc),
+            "AgentsService must expose profile write rpc `{rpc}`"
+        );
     }
 
     // ── E5: the 6 def-scoped *Live twins are GONE, replaced by ONE Watch ──
@@ -66,7 +94,11 @@ fn agent_service_exposes_every_folded_rpc() {
         "AgentsService must expose the unified reactive Watch (replaces the *Live twins)",
     );
     for dead in [
-        "SummariesLive", "CatalogsLive", "DetailLive", "WireLive", "SettingsLive",
+        "SummariesLive",
+        "CatalogsLive",
+        "DetailLive",
+        "WireLive",
+        "SettingsLive",
         "CreateCtxLive",
     ] {
         assert!(
@@ -76,8 +108,14 @@ fn agent_service_exposes_every_folded_rpc() {
     }
 
     // ── Sessions read (folded from SessionsService) ──
-    assert!(m.contains("Sessions"), "AgentsService must expose the Sessions read");
-    assert!(m.contains("SessionsLive"), "AgentsService must keep the relocated SessionsLive twin");
+    assert!(
+        m.contains("Sessions"),
+        "AgentsService must expose the Sessions read"
+    );
+    assert!(
+        m.contains("SessionsLive"),
+        "AgentsService must keep the relocated SessionsLive twin"
+    );
 
     // ── E6: chat was gutted entirely (no Chat/ChatLive RPC) ──
     for dead in ["Chat", "ChatLive"] {

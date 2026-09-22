@@ -44,6 +44,11 @@ impl ReactiveRegistry {
     ) -> broadcast::Receiver<PatchFrame> {
         let mut slots = self.slots.lock().unwrap();
 
+        // A key whose resolver has torn down but is never watched again
+        // would otherwise leave a dangling `Weak` in the map forever — prune
+        // any dead slots on each access so an abandoned key doesn't linger.
+        slots.retain(|_, weak| weak.strong_count() > 0);
+
         if let Some(weak) = slots.get(&key) {
             if let Some(sender) = weak.upgrade() {
                 return sender.subscribe();

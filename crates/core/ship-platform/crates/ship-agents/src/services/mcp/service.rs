@@ -10,8 +10,8 @@ use std::sync::Arc;
 
 use serde::Serialize;
 
-use ship_files::files::{FilesService, Scope};
 use super::state;
+use ship_files::files::{FilesService, Scope};
 
 /// Body shape returned by `McpService::get`.
 #[derive(Debug, Clone, Serialize)]
@@ -149,7 +149,7 @@ mod tests {
     fn server_value() -> serde_json::Value {
         serde_json::json!({
             "command": "ship",
-            "args": ["mcp", "serve"]
+            "args": ["run", "server"]
         })
     }
 

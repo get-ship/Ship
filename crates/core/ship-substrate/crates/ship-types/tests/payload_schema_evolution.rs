@@ -23,16 +23,6 @@ fn parse<'de, T: serde::Deserialize<'de>>(json: &'de str, label: &str) -> T {
 // ── Skill aggregate ──────────────────────────────────────────────────────────
 
 #[test]
-fn skill_started_v1_round_trips() {
-    let _: SkillStarted = parse(r#"{"skill_id": "commit"}"#, "SkillStarted");
-}
-
-#[test]
-fn skill_completed_v1_round_trips() {
-    let _: SkillCompleted = parse(r#"{"skill_id": "commit", "duration_ms": 1234}"#, "SkillCompleted");
-}
-
-#[test]
 fn skill_failed_v1_round_trips() {
     let _: SkillFailed = parse(r#"{"skill_id": "commit", "error": "boom"}"#, "SkillFailed");
 }
@@ -44,7 +34,6 @@ fn actor_created_v1_round_trips() {
     let json = r#"{
         "kind": "agent",
         "environment_type": "local",
-        "workspace_id": "ws-1",
         "project_id": "proj-1",
         "cwd": "/tmp/work",
         "parent_actor_id": null,
@@ -60,8 +49,6 @@ fn actor_created_v1_round_trips() {
     }"#;
     let p: ActorCreated = parse(json, "ActorCreated");
     assert_eq!(p.kind, "agent");
-    assert_eq!(p.workspace_id.as_deref(), Some("ws-1"));
-    assert_eq!(p.capabilities, vec!["read", "write"]);
 }
 
 #[test]
@@ -132,8 +119,14 @@ fn agent_def_updated_carries_no_content() {
     assert_eq!(obj.len(), 2, "Format-2 notification has exactly two fields");
     assert!(obj.contains_key("path"));
     assert!(obj.contains_key("content_hash"));
-    assert!(!obj.contains_key("content"), "notification must NOT carry file content");
-    assert!(!obj.contains_key("body"), "notification must NOT carry file content");
+    assert!(
+        !obj.contains_key("content"),
+        "notification must NOT carry file content"
+    );
+    assert!(
+        !obj.contains_key("body"),
+        "notification must NOT carry file content"
+    );
 }
 
 #[test]
@@ -195,7 +188,6 @@ fn rule_deleted_v1_round_trips() {
     let p: RuleDeleted = parse(r#"{"file_name": "0001-rust.md"}"#, "RuleDeleted");
     assert_eq!(p.file_name, "0001-rust.md");
 }
-
 
 #[test]
 fn permissions_updated_v1_round_trips() {

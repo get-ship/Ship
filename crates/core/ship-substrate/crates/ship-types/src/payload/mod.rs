@@ -21,21 +21,19 @@ mod compile;
 mod config;
 mod crud;
 mod daemon;
-mod mesh;
 mod process;
-mod project;
 mod skill;
+mod space;
 
 mod spec6;
-// studio payload structs moved to ship-agents/src/studio_events.rs
-// (keystone-A de-bucket, 2026-06-10): the STUDIO domain owns its events at L1.
-// No re-export shim — consumers import from ship_agents::studio_events.
 mod sync;
 mod watcher;
 
 pub use account::{AccountKeyRefreshed, AccountLoginCompleted, AccountLoginStarted, AccountLogout};
 pub use actor::{ActorCrashed, ActorCreated, ActorSlept, ActorStopped, ActorWoke};
-pub use auth::{AgentGrantsProvisioned, AuthSessionCreated, AuthSessionExpired, AuthSessionRevoked};
+pub use auth::{
+    AgentGrantsProvisioned, AuthSessionCreated, AuthSessionExpired, AuthSessionRevoked,
+};
 // ship-collection/src/events.rs — no re-export here.
 pub use compile::CompileCompleted;
 pub use config::{ConfigChanged, ConfigFileChanged, SettingChanged};
@@ -44,21 +42,12 @@ pub use crud::{
     SkillUpdated,
 };
 pub use daemon::{
-    DaemonCrashed, DaemonOwnerBound, DaemonOwnerUnbound, DaemonPidfileAcquired,
-    DaemonPidfileStaleTaken, DaemonPortBindFailed, DaemonShutdownCompleted, DaemonStartupCompleted,
-    SupervisorShuttingDown,
+    DaemonOwnerBound, DaemonOwnerUnbound, DaemonPortBindFailed, SupervisorShuttingDown,
 };
 // KernelActor* retired (B2, 2026-06-20).
-pub use mesh::{MeshDeregister, MeshMessage, MeshRegister};
-pub use skill::{SkillCompleted, SkillFailed, SkillStarted};
-pub use spec6::{AgentTaskComplete, HumanResponse, PipelineStepRetry};
-// StudioAnnotationCreated / StudioChatTurn / StudioFeedbackCreated / StudioReply
-// moved to ship-agents/src/studio_events.rs — no re-export here.
-pub use sync::{SyncPushCompleted, SyncPushFailed, SyncStarted, SyncStopped};
-pub use watcher::{
-    AgentChanged, AgentDefUpdated, PipelineChanged, RuleChanged, SkillChanged, ViewChanged,
-};
-pub use project::{ProjectArchived, ProjectRegistered, ProjectSeen, ProjectSwitched};
 pub use process::ProcessOrphaned;
-
-
+pub use skill::SkillFailed;
+pub use space::{SpaceOpened, SpaceSeen, StackRegistered};
+pub use spec6::{AgentTaskComplete, HumanResponse, PipelineStepRetry};
+pub use sync::{SyncPushCompleted, SyncPushFailed, SyncStarted, SyncStopped};
+pub use watcher::{AgentDefUpdated, SkillChanged};

@@ -1,0 +1,15 @@
+{
+  "path": "github.com/ship/demo-stack",
+  "version": "1.2.3",
+  "commit": "0123456789abcdef0123456789abcdef01234567",
+  "hash": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "dependencies": {
+    "github.com/ship/base-stack": "^2.0.0"
+  },
+  "recommended_agents": [
+    "reviewer"
+  ],
+  "recommended_skills": [
+    "review"
+  ]
+}

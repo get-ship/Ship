@@ -11,8 +11,8 @@ use std::sync::Arc;
 
 use serde::Serialize;
 
-use ship_files::files::{FilesService, Scope};
 use crate::services::rules::state;
+use ship_files::files::{FilesService, Scope};
 
 /// Body shape returned by `RulesService::get`.
 #[derive(Debug, Clone, Serialize)]
@@ -70,7 +70,7 @@ pub trait RulesService: Send + Sync + 'static {
 /// Production callers go through `new(ship_dir)` which lets
 /// `FilesService::resolve_roots` discover the project from cwd at call
 /// time; tests use `with_roots(user, project)` to pin both and stay
-/// hermetic against the test process's real `~/.ship/`.
+/// hermetic against the test process's real ship home.
 pub struct RulesServiceImpl {
     user_root: PathBuf,
     project_root_override: Option<PathBuf>,
@@ -156,7 +156,7 @@ mod tests {
 
     /// Build a hermetic `RulesServiceImpl` with both user and project
     /// roots pinned at fresh tempdirs. Skips `FilesService::resolve_roots`
-    /// so tests don't pick up the dev's actual `~/.ship/` or the cwd's
+    /// so tests don't pick up the dev's actual ship home or the cwd's
     /// real project.
     fn fresh() -> (TempDir, RulesServiceImpl) {
         let tmp = TempDir::new().unwrap();

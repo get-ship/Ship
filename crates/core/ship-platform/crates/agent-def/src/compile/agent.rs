@@ -2,11 +2,12 @@
 //! project library. The library has already been populated with every
 //! `.ship/agents/*.jsonc` by [`super::loader::load_library`]; this step
 //! pulls the active one out and merges its permissions / hooks / plugins /
-//! harness settings, then injects a flat `AgentConfig` so `resolve()` can
-//! filter harnesses and MCP/skill refs against it.
+//! harness settings, then registers the active profile in `library.agents` so
+//! `resolve()` can filter MCP / skill / rule refs against it.
 
+use agent_schema::{PluginEntry, PluginsManifest};
 use anyhow::Result;
-use compiler::{HookConfig, HookTrigger, PluginEntry, PluginsManifest, ProjectLibrary};
+use stack_model::ExtensionLibrary;
 use std::path::Path;
 
 use super::permissions::apply_agent_permissions;
@@ -14,9 +15,9 @@ use super::permissions::apply_agent_permissions;
 // ── Agent → library ──────────────────────────────────────────────────────────
 
 pub fn apply_agent_to_library(
-    library: &mut ProjectLibrary,
+    library: &mut ExtensionLibrary,
     agent_id: &str,
-    project_root: &Path,
+    space_root: &Path,
 ) -> Result<()> {
     let Some(profile) = library
         .agent_profiles
@@ -27,29 +28,49 @@ pub fn apply_agent_to_library(
         return Ok(());
     };
 
-    let ship_dir = ship_substrate::ShipHome::project_ship_dir(project_root);
-
-    library.permissions =
-        apply_agent_permissions(library.permissions.clone(), &profile, Some(&ship_dir));
+    // Slice 3 close-out: the permission preset layer is now an
+    // in-memory lookup against `library.permissions_presets`
+    // (populated by the resolver from
+    // `defineConfig.agents.permissions.presets` — the
+    // `ship_dir`-keyed disk read died with `.ship/permissions.jsonc`).
+    // `space_root` stays in the signature because the sibling
+    // team-agent load below still walks a sub-dir of it
+    // (claude/teams/); we don't need it for the permission
+    // resolution.
+    library.permissions = apply_agent_permissions(
+        library.permissions.clone(),
+        &profile,
+        &library.permissions_presets,
+    );
 
     if let Some(inline) = &profile.rules.inline {
         let trimmed = inline.trim();
         if !trimmed.is_empty() {
-            library.rules.push(compiler::Rule {
-                file_name: format!("{agent_id}.md"),
-                content: trimmed.to_string(),
-                always_apply: true,
-                globs: vec![],
-                description: None,
-            });
+            // The agent's inline rule body is already in `library.rules`
+            // under `file_name = {agent_id}.md` — the resolver's TS eval
+            // harvested it from the `defineAgent` call's `rules: { inline }`
+            // block and `merge_ts_declarations` merged it in. Only push
+            // when the harvest didn't (the path where someone constructs
+            // an `ExtensionLibrary` outside the resolver — e.g. an
+            // in-process test stub).
+            let file_name = format!("{agent_id}.md");
+            if !library.rules.iter().any(|r| r.file_name == file_name) {
+                library.rules.push(agent_schema::Rule {
+                    file_name,
+                    content: trimmed.to_string(),
+                    always_apply: true,
+                    globs: vec![],
+                    description: None,
+                });
+            }
         }
     }
 
-    // Inject a flat AgentConfig so resolve() can apply MCP / skill / rule
-    // filtering from the active profile.
-    let mut cfg = profile.to_config();
-    cfg.id = agent_id.to_string();
-    library.agents.push(cfg);
+    // Register the active profile in `library.agents` so resolve() can apply
+    // its MCP / skill / rule filtering.
+    let mut active = profile.clone();
+    active.agent.id = agent_id.to_string();
+    library.agents.push(active);
 
     if !profile.plugins.install.is_empty() {
         library.plugins = PluginsManifest {
@@ -62,20 +83,21 @@ pub fn apply_agent_to_library(
                     harness: "claude".to_string(),
                 })
                 .collect(),
-            scope: profile.plugins.scope.clone().unwrap_or_else(|| "project".to_string()),
+            scope: profile
+                .plugins
+                .scope
+                .clone()
+                .unwrap_or_else(|| "project".to_string()),
         };
     }
 
-    if let Some(cmd) = &profile.hooks.stop {
-        push_hook(library, format!("{agent_id}-stop"), HookTrigger::Stop, cmd);
-    }
-    if let Some(cmd) = &profile.hooks.subagent_stop {
-        push_hook(
-            library,
-            format!("{agent_id}-subagent-stop"),
-            HookTrigger::SubagentStop,
-            cmd,
-        );
+    // Merge the profile's lifecycle hooks into the library (dedup by id) so the
+    // active agent's Stop / SubagentStop / etc. hooks reach the harness emitters.
+    for hook in &profile.hooks {
+        if library.hooks.iter().any(|h| h.id == hook.id) {
+            continue;
+        }
+        library.hooks.push(hook.clone());
     }
 
     if let Some(v) = profile.harness_settings.get("claude") {
@@ -88,31 +110,16 @@ pub fn apply_agent_to_library(
         library.cursor_settings_extra = Some(v.clone());
     }
 
-    library.claude_team_agents = load_team_agents(project_root, "claude");
+    library.claude_team_agents = load_team_agents(space_root, "claude");
 
     Ok(())
 }
 
-fn push_hook(library: &mut ProjectLibrary, id: String, trigger: HookTrigger, command: &str) {
-    if library.hooks.iter().any(|h| h.id == id) {
-        return;
-    }
-    library.hooks.push(HookConfig {
-        id,
-        trigger,
-        command: command.to_string(),
-        matcher: None,
-        cursor_event: None,
-    });
-}
-
 // ── Team agents ──────────────────────────────────────────────────────────────
 
-fn load_team_agents(project_root: &Path, harness_id: &str) -> Vec<(String, String)> {
-    let teams_dir = ship_substrate::ShipHome::project_ship_dir(project_root)
-        .join("agents")
-        .join("teams")
-        .join(harness_id);
+fn load_team_agents(space_root: &Path, harness_id: &str) -> Vec<(String, String)> {
+    // agents/ is a DOMAIN DIR at the stack root (marker cutover).
+    let teams_dir = space_root.join("agents").join("teams").join(harness_id);
     if !teams_dir.exists() {
         return vec![];
     }
@@ -140,7 +147,7 @@ fn load_team_agents(project_root: &Path, harness_id: &str) -> Vec<(String, Strin
 /// `library`. Only dep refs (those starting with `github.com/`) will be resolved
 /// by the caller; local refs are included in the list but filtered in
 /// [`resolve_dep_skills`](ship_store::dep_skills::resolve_dep_skills).
-pub fn collect_all_skill_refs(library: &ProjectLibrary) -> Vec<String> {
+pub fn collect_all_skill_refs(library: &ExtensionLibrary) -> Vec<String> {
     let mut refs: Vec<String> = Vec::new();
 
     for profile in &library.agent_profiles {
@@ -152,7 +159,7 @@ pub fn collect_all_skill_refs(library: &ProjectLibrary) -> Vec<String> {
     }
 
     for agent in &library.agents {
-        for r in &agent.skills {
+        for r in &agent.skills.refs {
             if !refs.contains(r) {
                 refs.push(r.clone());
             }

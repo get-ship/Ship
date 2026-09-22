@@ -1,13 +1,13 @@
 //! Tests for event validators: namespace, elevated, and alignment.
 
-use ship_types::envelope::EventEnvelope;
 use crate::events::validator::*;
+use ship_types::envelope::EventEnvelope;
 
 fn skill_ctx(skill_id: &str) -> EmitContext {
     EmitContext {
         caller_kind: CallerKind::Mcp,
         skill_id: Some(skill_id.to_string()),
-        binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
+        binding: ship_types::ScopeBinding::daemon_internal(None, agent_schema::Authority::Sdk),
         session_id: None,
     }
 }
@@ -16,7 +16,7 @@ fn caller_ctx(kind: CallerKind) -> EmitContext {
     EmitContext {
         caller_kind: kind,
         skill_id: None,
-        binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
+        binding: ship_types::ScopeBinding::daemon_internal(None, agent_schema::Authority::Sdk),
         session_id: None,
     }
 }

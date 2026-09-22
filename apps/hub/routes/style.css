@@ -1,0 +1,150 @@
+/*
+ * Hub home — `/` route stylesheet.
+ *
+ * The home is a desktop: a masked dot-grid background + a primary-tinted
+ * corner glow, a greeting hero + live git-glance stage, and a launcher dock
+ * pinned to the bottom. Page-level layout only — the composed components
+ * (<ship-home-greeting>, <ship-home-dock>) own their internal shadow-DOM
+ * styles.
+ *
+ * Convention: this is the deck-route-css sibling of `routes/page.sui`, linked
+ * by the codegen auto-link and landing in the build as a hashed global
+ * <link>. Because every route's style.css is loaded globally (routes.gen.ts
+ * style_imports), the home-specific fill rule below is scoped with `:has`.
+ *
+ * Height chain — the desktop fills the chrome's scrolling main and pins the
+ * dock to its bottom:
+ *   <main.app-main>        (flex:1; min-height:0; flex col; overflow:auto)  [@ship/chrome]
+ *     └─ [slot="route"]    (the router's mount target — made a filling flex
+ *          column below, scoped to the home route via :has)
+ *          └─ .hub-home    (flex:1; flex col)
+ *               ├─ .home-stage      (flex:1 — greeting + git-glance)
+ *               └─ .home-dock-row   (flex:0 — the dock, centered)
+ *
+ * Tokens only — every color / spacing / radius / shadow / motion value reads
+ * from a `var(--token)`; no hardcoded color literals.
+ */
+
+/* The router mounts the home into a bare `<div slot="route">`. Make that
+   target a filling flex column so .hub-home fills the chrome's main and the
+   dock pins to the bottom. Scoped with `:has` so it's self-contained — it
+   touches only the home's mount target, never another route's. */
+[slot='route']:has(> .hub-home) {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.hub-home {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 100%;
+  width: 100%;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body);
+  overflow: hidden;
+}
+
+/* Desktop backdrop: a dot-grid masked toward the top + a primary corner glow.
+   Token-based, same family as the shell desktop the operator liked. */
+.home-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: var(--background);
+}
+.home-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle at 1px 1px,
+    color-mix(in oklch, var(--foreground) 8%, transparent) 1px, transparent 0);
+  background-size: 22px 22px;
+  -webkit-mask-image: radial-gradient(ellipse 90% 70% at 50% 25%, var(--foreground) 45%, transparent 100%);
+  mask-image: radial-gradient(ellipse 90% 70% at 50% 25%, var(--foreground) 45%, transparent 100%);
+}
+.home-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 55% 45% at 85% 8%,
+    color-mix(in oklch, var(--primary) 13%, transparent), transparent 70%);
+}
+
+/* Stage — greeting + git-glance, centered, takes the remaining height above
+   the dock. Content sits toward the top for the desktop feel. */
+.home-stage {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-6) var(--space-5);
+}
+
+/* Git-glance — a live readout card, not a full panel. */
+.home-glance {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  background: color-mix(in oklch, var(--surface-1) 92%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(10px);
+  align-self: flex-start;
+  min-width: 320px;
+  max-width: 480px;
+}
+.home-glance-h {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  color: var(--muted-foreground);
+}
+.home-git {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  flex-wrap: wrap;
+}
+.home-mono {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+.home-glance-muted { color: var(--muted-foreground); }
+.home-glance-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--warning);
+  flex-shrink: 0;
+}
+.home-glance-dot[data-clean='1'] { background: var(--success); }
+
+/* Dock row — the launcher, centered, pinned to the bottom of the desktop. */
+.home-dock-row {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  padding: 0 var(--space-6) var(--space-6);
+}

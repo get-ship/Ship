@@ -1,13 +1,14 @@
 use crate::db::{block_on, open_db_at, runtime_db_path};
-use ship_types::envelope::EventEnvelope;
-use ship_types::event_registry::EventScope;
 use crate::events::filter::EventFilter;
-use crate::persistence::event_store::{EventStore, SqliteEventStore};
-use crate::events::types::*;
 use crate::events::types::event_types;
+use crate::events::types::*;
+use crate::persistence::event_store::{EventStore, SqliteEventStore};
 use crate::testutil::init_project_minimal as init_project;
+use serde::{Deserialize, Serialize};
+use ship_types::envelope::EventEnvelope;
+use ship_types::Stamped;
+use ship_types::event_registry::EventScope;
 use tempfile::tempdir;
-use serde::{Serialize, Deserialize};
 
 // Local test stand-ins for canonical session types (moved to agent-def)
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -64,14 +65,14 @@ fn session_started(session_id: &str) -> TestSession {
 fn test_round_trip() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
     let mut ev = EventEnvelope::new(
-        event_types::canonical_session::SESSION_STARTED,
+        agent_schema::canonical_session::event_types::SESSION_STARTED,
         "entity-a",
         &session_started("entity-a"),
     )?
     .with_scope(EventScope::Space, Some("ws-1"));
     ev.session_id = Some("sess-1".to_string());
 
-    store.append(&ev)?;
+    store.append(&Stamped::unchecked(ev.clone()))?;
     let got = store.get(&ev.id)?.expect("event not found");
 
     assert_eq!(got.id, ev.id);
@@ -92,11 +93,14 @@ fn test_ordering() -> anyhow::Result<()> {
     let entity = "ordering-entity";
     for i in 0..100 {
         let ev = EventEnvelope::new(
-            event_types::canonical_session::TURN_STARTED,
+            agent_schema::canonical_session::event_types::TURN_STARTED,
             entity,
-            &TestTurn { session_id: entity.into(), idx: i },
+            &TestTurn {
+                session_id: entity.into(),
+                idx: i,
+            },
         )?;
-        store.append(&ev)?;
+        store.append(&Stamped::unchecked(ev.clone()))?;
     }
     let results = store.query_aggregate(entity)?;
     assert_eq!(results.len(), 100);
@@ -110,10 +114,18 @@ fn test_ordering() -> anyhow::Result<()> {
 #[test]
 fn test_filter_by_entity_id() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
-    let ev_a = EventEnvelope::new(event_types::canonical_session::SESSION_STARTED, "entity-a", &session_started("entity-a"))?;
-    let ev_b = EventEnvelope::new(event_types::canonical_session::SESSION_STARTED, "entity-b", &session_started("entity-b"))?;
-    store.append(&ev_a)?;
-    store.append(&ev_b)?;
+    let ev_a = EventEnvelope::new(
+        agent_schema::canonical_session::event_types::SESSION_STARTED,
+        "entity-a",
+        &session_started("entity-a"),
+    )?;
+    let ev_b = EventEnvelope::new(
+        agent_schema::canonical_session::event_types::SESSION_STARTED,
+        "entity-b",
+        &session_started("entity-b"),
+    )?;
+    store.append(&Stamped::unchecked(ev_a.clone()))?;
+    store.append(&Stamped::unchecked(ev_b.clone()))?;
 
     let results = store.query_aggregate("entity-a")?;
     assert_eq!(results.len(), 1);
@@ -125,37 +137,50 @@ fn test_filter_by_entity_id() -> anyhow::Result<()> {
 fn test_filter_by_event_type() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
     let entity = "filter-type-entity";
-    store.append(&EventEnvelope::new(event_types::canonical_session::SESSION_STARTED, entity, &session_started(entity))?)?;
-    store.append(&EventEnvelope::new(event_types::canonical_session::SESSION_COMPLETED, entity, &TestCompleted { session_id: entity.into() })?)?;
+    store.append(&Stamped::unchecked(EventEnvelope::new(
+        agent_schema::canonical_session::event_types::SESSION_STARTED,
+        entity,
+        &session_started(entity),
+    )?))?;
+    store.append(&Stamped::unchecked(EventEnvelope::new(
+        agent_schema::canonical_session::event_types::SESSION_COMPLETED,
+        entity,
+        &TestCompleted {
+            session_id: entity.into(),
+        },
+    )?))?;
 
-    let sess = store.query(&EventFilter { entity_id: Some(entity.into()), event_type: Some(event_types::canonical_session::SESSION_STARTED.into()), ..Default::default() })?;
+    let sess = store.query(&EventFilter {
+        entity_id: Some(entity.into()),
+        event_type: Some(agent_schema::canonical_session::event_types::SESSION_STARTED.into()),
+        ..Default::default()
+    })?;
     assert_eq!(sess.len(), 1);
-    assert_eq!(sess[0].event_type, event_types::canonical_session::SESSION_STARTED);
-    Ok(())
-}
-
-#[test]
-fn test_filter_by_workspace_id() -> anyhow::Result<()> {
-    let (_tmp, store) = setup();
-    let ev = EventEnvelope::new(event_types::canonical_session::SESSION_STARTED, "e1", &session_started("e1"))?
-        .with_scope(EventScope::Space, Some("ws-scoped"));
-    store.append(&ev)?;
-    store.append(&EventEnvelope::new(event_types::canonical_session::SESSION_STARTED, "e2", &session_started("e2"))?)?;
-
-    let results = store.query(&EventFilter { scope_key: Some("ws-scoped".into()), ..Default::default() })?;
-    assert_eq!(results.len(), 1);
-    assert_eq!(results[0].space_id(), Some("ws-scoped"));
+    assert_eq!(
+        sess[0].event_type,
+        agent_schema::canonical_session::event_types::SESSION_STARTED
+    );
     Ok(())
 }
 
 #[test]
 fn test_causation_chain() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
-    let ev_a = EventEnvelope::new(event_types::canonical_session::SESSION_STARTED, "cause-entity", &session_started("cause-entity"))?;
-    store.append(&ev_a)?;
-    let ev_b = EventEnvelope::new(event_types::canonical_session::SESSION_COMPLETED, "cause-entity", &TestCompleted { session_id: "cause-entity".into() })?
-        .with_causation(&ev_a.id);
-    store.append(&ev_b)?;
+    let ev_a = EventEnvelope::new(
+        agent_schema::canonical_session::event_types::SESSION_STARTED,
+        "cause-entity",
+        &session_started("cause-entity"),
+    )?;
+    store.append(&Stamped::unchecked(ev_a.clone()))?;
+    let ev_b = EventEnvelope::new(
+        agent_schema::canonical_session::event_types::SESSION_COMPLETED,
+        "cause-entity",
+        &TestCompleted {
+            session_id: "cause-entity".into(),
+        },
+    )?
+    .with_causation(&ev_a.id);
+    store.append(&Stamped::unchecked(ev_b.clone()))?;
 
     let got_b = store.get(&ev_b.id)?.unwrap();
     assert_eq!(got_b.causation_id.as_deref(), Some(ev_a.id.as_str()));
@@ -165,8 +190,12 @@ fn test_causation_chain() -> anyhow::Result<()> {
 #[test]
 fn test_immutability() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
-    let ev = EventEnvelope::new(event_types::canonical_session::SESSION_STARTED, "immut-entity", &session_started("immut-entity"))?;
-    store.append(&ev)?;
+    let ev = EventEnvelope::new(
+        agent_schema::canonical_session::event_types::SESSION_STARTED,
+        "immut-entity",
+        &session_started("immut-entity"),
+    )?;
+    store.append(&Stamped::unchecked(ev.clone()))?;
 
     let db_p = store.db_path().to_path_buf();
     let mut conn = open_db_at(&db_p)?;
@@ -187,20 +216,59 @@ fn test_payload_round_trip() -> anyhow::Result<()> {
     macro_rules! rt {
         ($etype:expr, $payload:expr) => {{
             let ev = EventEnvelope::new($etype, "rt-entity", &$payload)?;
-            store.append(&ev)?;
+            store.append(&Stamped::unchecked(ev.clone()))?;
             let got = store.get(&ev.id)?.expect("not found");
-            assert_eq!(got.payload_json, ev.payload_json, "payload mismatch: {}", $etype);
+            assert_eq!(
+                got.payload_json, ev.payload_json,
+                "payload mismatch: {}",
+                $etype
+            );
         }};
     }
 
-    rt!(event_types::canonical_session::SESSION_STARTED, session_started("rt-entity"));
-    rt!(event_types::canonical_session::SESSION_COMPLETED, TestCompleted { session_id: "rt-entity".into() });
-    rt!(event_types::canonical_session::SESSION_FAILED, TestFailed { session_id: "rt-entity".into(), reason: "err".into() });
-    rt!(event_types::ACTOR_CREATED,         ActorCreated { kind: "worker".into(), environment_type: "cli".into(), workspace_id: None, parent_actor_id: None, restart_count: 0, ..Default::default() });
-    rt!(event_types::ACTOR_WOKE,            ActorWoke {});
-    rt!(event_types::ACTOR_SLEPT,           ActorSlept { idle_secs: 45 });
-    rt!(event_types::ACTOR_STOPPED,         ActorStopped { reason: "shutdown".into(), ..Default::default() });
-    rt!(event_types::ACTOR_CRASHED,         ActorCrashed { error: "OOM".into(), restart_count: 2 });
+    rt!(
+        agent_schema::canonical_session::event_types::SESSION_STARTED,
+        session_started("rt-entity")
+    );
+    rt!(
+        agent_schema::canonical_session::event_types::SESSION_COMPLETED,
+        TestCompleted {
+            session_id: "rt-entity".into()
+        }
+    );
+    rt!(
+        agent_schema::canonical_session::event_types::SESSION_FAILED,
+        TestFailed {
+            session_id: "rt-entity".into(),
+            reason: "err".into()
+        }
+    );
+    rt!(
+        event_types::ACTOR_CREATED,
+        ActorCreated {
+            kind: "worker".into(),
+            environment_type: "cli".into(),
+            parent_actor_id: None,
+            restart_count: 0,
+            ..Default::default()
+        }
+    );
+    rt!(event_types::ACTOR_WOKE, ActorWoke {});
+    rt!(event_types::ACTOR_SLEPT, ActorSlept { idle_secs: 45 });
+    rt!(
+        event_types::ACTOR_STOPPED,
+        ActorStopped {
+            reason: "shutdown".into(),
+            ..Default::default()
+        }
+    );
+    rt!(
+        event_types::ACTOR_CRASHED,
+        ActorCrashed {
+            error: "OOM".into(),
+            restart_count: 2
+        }
+    );
 
     Ok(())
 }
@@ -219,12 +287,15 @@ fn test_concurrent_appends() -> anyhow::Result<()> {
         let entity = entity.to_string();
         handles.push(std::thread::spawn(move || {
             let ev = EventEnvelope::new(
-                event_types::canonical_session::TURN_STARTED,
+                agent_schema::canonical_session::event_types::TURN_STARTED,
                 &entity,
-                &TestTurn { session_id: entity.clone(), idx: i },
+                &TestTurn {
+                    session_id: entity.clone(),
+                    idx: i,
+                },
             )
             .expect("create envelope");
-            store.append(&ev).expect("append");
+            store.append(&Stamped::unchecked(ev.clone())).expect("append");
         }));
     }
 
@@ -245,7 +316,10 @@ fn test_empty_queries() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
     let results = store.query_aggregate("no-such-entity")?;
     assert!(results.is_empty());
-    let results = store.query(&EventFilter { event_type: Some("nonexistent.type".into()), ..Default::default() })?;
+    let results = store.query(&EventFilter {
+        event_type: Some("nonexistent.type".into()),
+        ..Default::default()
+    })?;
     assert!(results.is_empty());
     Ok(())
 }
@@ -254,15 +328,25 @@ fn test_empty_queries() -> anyhow::Result<()> {
 fn test_version_field() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
 
-    let ev = EventEnvelope::new(event_types::canonical_session::SESSION_STARTED, "ver-entity", &session_started("ver-entity"))?;
+    let ev = EventEnvelope::new(
+        agent_schema::canonical_session::event_types::SESSION_STARTED,
+        "ver-entity",
+        &session_started("ver-entity"),
+    )?;
     assert_eq!(ev.version, 1);
-    store.append(&ev)?;
+    store.append(&Stamped::unchecked(ev.clone()))?;
     let got = store.get(&ev.id)?.unwrap();
     assert_eq!(got.version, 1);
 
-    let mut ev2 = EventEnvelope::new(event_types::canonical_session::SESSION_COMPLETED, "ver-entity", &TestCompleted { session_id: "ver-entity".into() })?;
+    let mut ev2 = EventEnvelope::new(
+        agent_schema::canonical_session::event_types::SESSION_COMPLETED,
+        "ver-entity",
+        &TestCompleted {
+            session_id: "ver-entity".into(),
+        },
+    )?;
     ev2.version = 2;
-    store.append(&ev2)?;
+    store.append(&Stamped::unchecked(ev2.clone()))?;
     let got2 = store.get(&ev2.id)?.unwrap();
     assert_eq!(got2.version, 2);
     Ok(())
@@ -279,9 +363,16 @@ fn test_property_event_ordering() -> anyhow::Result<()> {
 
     for i in 0..n {
         let etype = types[i % types.len()];
-        let ev = EventEnvelope::new(etype, entity, &TestTurn { session_id: entity.into(), idx: i as u32 })?;
+        let ev = EventEnvelope::new(
+            etype,
+            entity,
+            &TestTurn {
+                session_id: entity.into(),
+                idx: i as u32,
+            },
+        )?;
         expected_ids.push(ev.id.clone());
-        store.append(&ev)?;
+        store.append(&Stamped::unchecked(ev.clone()))?;
     }
 
     let results = store.query_aggregate(entity)?;
@@ -314,8 +405,14 @@ fn registry_actor_created_is_runtime_durable() {
         def.allowed_scopes,
         &[ship_types::event_registry::EventScope::Runtime]
     );
-    assert_eq!(def.primary_scope(), ship_types::event_registry::EventScope::Runtime);
-    assert_eq!(def.retention, ship_types::event_registry::Retention::Durable);
+    assert_eq!(
+        def.primary_scope(),
+        ship_types::event_registry::EventScope::Runtime
+    );
+    assert_eq!(
+        def.retention,
+        ship_types::event_registry::Retention::Durable
+    );
 }
 
 // `registry_agent_def_updated_is_space_ephemeral` moved to agent-def
@@ -327,7 +424,10 @@ fn registry_names_are_unique() {
     let names = ship_types::event_registry::all_names();
     let mut set = std::collections::HashSet::new();
     for name in &names {
-        assert!(set.insert(*name), "duplicate event name in registry: {name}");
+        assert!(
+            set.insert(*name),
+            "duplicate event name in registry: {name}"
+        );
     }
 }
 
@@ -339,7 +439,10 @@ fn registry_has_entries() {
     // floor is just a smoke check that the binary isn't empty.
     // Keep WELL below the pin so domain de-buckets never trip the smoke
     // check — only an inventory/linker catastrophe should.
-    assert!(count >= 40, "registry must have at least 40 events; got {count}");
+    assert!(
+        count >= 20,
+        "registry must have at least 20 events; got {count}"
+    );
 }
 
 /// L0 registration ratchet — the successor of the retired `ALL`-mirror test.
@@ -360,16 +463,18 @@ fn registry_has_entries() {
 fn l0_registry_shrinks_under_keystone_a() {
     let n = ship_types::event_registry::all_names().len();
     assert_eq!(
-        n, 44,
+        n, 26,
         "L0-registered event count changed. This pin is a keystone-A RATCHET: \
          it should only move DOWN (a domain de-bucket) — update it with the \
          move that shrinks it; growing it means new domain events were \
          registered at L0 — stop and put them in the owning domain crate \
          instead (genuinely substrate-generic events are the rare \
          sanctioned exception). \
-         (B-wave2 / 2026-06-20: -1 actor.mailbox_full, -3 kernel.actor.* \
-         events; S4: -1 space.setting.changed. 48 - 5 = 43. The extra -1 is \
-         from a de-bucket the pin already hadn't absorbed — see actual list.)"
+         (Facade/-core fold, 2026-07: 44 -> 41. 2026-07-10 engine cut: 41 -> 26. \
+         The engine-emitted `pipeline.*` events were at L0 in payload_registry.rs \
+         and are gone with the orchestrator; the substrate's own registrations \
+         are unchanged. shipd tests/event_vocabulary.rs — the full-linkage guard \
+         — stays green, so nothing was lost globally.)"
     );
 }
 
@@ -378,8 +483,9 @@ fn l0_registry_shrinks_under_keystone_a() {
 #[test]
 fn legacy_families_pinned_until_sever() {
     use std::collections::BTreeSet;
-    let registry: BTreeSet<&str> =
-        ship_types::event_registry::all_names().into_iter().collect();
+    let registry: BTreeSet<&str> = ship_types::event_registry::all_names()
+        .into_iter()
+        .collect();
 
     // hook.* — SEVERED (#25b, 2026-06-10): all 6 hook.* events deregistered.
     // Emitters converted to op.* (tool-use) and session.turn.ended (turns).

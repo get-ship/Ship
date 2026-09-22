@@ -1,0 +1,128 @@
+/*
+ * /settings route stylesheet.
+ *
+ * The page is composed from @ship/sail-primitives (sui-card, sui-stack,
+ * sui-cluster, sui-input, sui-avatar, sui-badge, sui-code, sui-separator,
+ * sui-switch, sui-status-dot, sui-collapsible, sui-link, sui-button). What
+ * remains here is the residue the primitives can't express: the page chrome
+ * (centered column + gradient-ruled header), section header/body insets on
+ * the padding="none" cards, row label/description typography, the form-column
+ * input width, and the transient "Saved" badge fade.
+ *
+ * Route page.sail templates render into the light DOM and the deck bundler
+ * drops inline <style> blocks from a route template (FW-4) — it only
+ * auto-links a co-located style.css. Selectors stay namespaced under
+ * .ship-view-settings. Tokens only for themed values; raw px is geometry.
+ */
+
+.ship-view-settings {
+  color: var(--foreground);
+  font-family: var(--font-body);
+}
+
+/* Centered content column — coherent with the studio surfaces, sized
+   narrower for a single-column form so label/control rows stay dense. */
+.ship-view-settings .settings-wrap {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: var(--space-7) var(--space-6) var(--space-8);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Page header — display heading + muted subline + short gradient rule. */
+.ship-view-settings .settings-header {
+  margin-bottom: var(--space-6);
+}
+.ship-view-settings .settings-header h1 {
+  font-family: var(--heading-font);
+  font-size: var(--text-2xl);
+  font-weight: var(--heading-weight);
+  letter-spacing: var(--heading-tracking);
+  line-height: 1.1;
+  margin: 0;
+}
+.ship-view-settings .settings-header p {
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--muted-foreground);
+  margin: var(--space-1) 0 0;
+}
+.ship-view-settings .settings-header::after {
+  content: '';
+  display: block;
+  width: 72px;
+  height: 3px;
+  margin-top: var(--space-3);
+  border-radius: var(--radius-full);
+  background: linear-gradient(90deg, var(--primary), transparent);
+}
+
+/* Section header/body insets — the cards use padding="none" so the slotted
+   header + body own the density. */
+.ship-view-settings .section-head {
+  padding: var(--space-3) var(--space-4);
+}
+.ship-view-settings .section-title {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--foreground);
+}
+.ship-view-settings .section-body {
+  padding: var(--space-2) var(--space-4) var(--space-4);
+}
+
+/* Setting row — the label/description block grows so sui-cluster's
+   justify="between" pins the control to the trailing edge. */
+.ship-view-settings .row-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+/* text-align:start defends against FW-5: sui-cluster reflects align="center"
+   by default, which the browser maps to the legacy text-align presentational
+   hint and inherits into raw text. */
+.ship-view-settings .row-label {
+  font-size: var(--text-sm);
+  color: var(--foreground);
+  text-align: start;
+}
+.ship-view-settings .row-label.err { color: var(--destructive); }
+.ship-view-settings .row-label.muted { color: var(--muted-foreground); }
+.ship-view-settings .row-desc {
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--muted-foreground);
+  text-align: start;
+}
+.ship-view-settings .status-text {
+  font-size: var(--text-xs);
+  color: var(--foreground);
+  text-align: start;
+}
+
+/* The form column control width (sui-input is width:100% by default). */
+.ship-view-settings .set-input { width: 200px; }
+
+/* Transient confirmation — primitives can't express the timed fade. */
+.ship-view-settings .saved-badge {
+  opacity: 0;
+  transition: opacity var(--duration-slow) var(--ease-out);
+}
+.ship-view-settings .saved-badge.visible { opacity: 1; }
+
+/* Advanced — collapsible trigger + chevron. */
+.ship-view-settings .collapse-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+}
+.ship-view-settings .chevron {
+  transition: transform var(--duration-medium) var(--ease-out);
+}
+.ship-view-settings .chevron.open { transform: rotate(180deg); }
+
+@media (max-width: 640px) {
+  .ship-view-settings .set-input { width: 100%; }
+}

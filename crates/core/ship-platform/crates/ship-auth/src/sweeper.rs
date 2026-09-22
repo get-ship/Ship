@@ -67,7 +67,7 @@ fn emit_expired(expired: &[DaemonSession]) {
         };
         if let Some(ref s) = store {
             if let Err(e) =
-                ship_substrate::persistence::event_store::EventStore::append(s, &envelope)
+                s.append_enforced(&envelope, &ship_types::ScopeBinding::daemon_sdk())
             {
                 tracing::warn!("session sweep: append failed: {e}");
             }
@@ -92,7 +92,7 @@ pub fn spawn_session_sweeper(registry: SessionRegistry) -> tokio::task::JoinHand
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scopes::{DaemonSession, Scope};
+    use crate::scopes::DaemonSession;
     use std::collections::HashMap;
     use std::sync::Arc;
     use tokio::sync::Mutex;
@@ -105,9 +105,7 @@ mod tests {
         DaemonSession {
             token: token.to_string(),
             agent_id: "agent".to_string(),
-            scopes: vec![Scope::ReadWorkspace],
             grants: vec![],
-            workspace_id: None,
             space_id: None,
             pid: None,
             created_at: std::time::Instant::now(),

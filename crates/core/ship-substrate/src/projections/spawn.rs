@@ -11,8 +11,8 @@ use anyhow::Result;
 use sqlx::SqliteConnection;
 use tokio::task::JoinHandle;
 
-use ship_kernel::Mailbox;
 use crate::projections::AsyncProjection;
+use ship_kernel::Mailbox;
 
 /// Handle for a running async projection task.
 pub struct ProjectionHandle {
@@ -35,7 +35,10 @@ pub fn spawn_with_failure_counter<P: AsyncProjection>(
 
     let handle = tokio::spawn(async move {
         while let Some(event) = mailbox.recv().await {
-            if !projection.event_types().contains(&event.event_type.as_str()) {
+            if !projection
+                .event_types()
+                .contains(&event.event_type.as_str())
+            {
                 continue;
             }
             match db_opener() {
@@ -52,15 +55,15 @@ pub fn spawn_with_failure_counter<P: AsyncProjection>(
                 }
                 Err(e) => {
                     counter.fetch_add(1, Ordering::Relaxed);
-                    tracing::warn!(
-                        "[projection:{}] db_opener error: {}",
-                        projection.name(),
-                        e,
-                    );
+                    tracing::warn!("[projection:{}] db_opener error: {}", projection.name(), e,);
                 }
             }
         }
     });
 
-    ProjectionHandle { name, handle, failure_count }
+    ProjectionHandle {
+        name,
+        handle,
+        failure_count,
+    }
 }

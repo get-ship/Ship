@@ -19,59 +19,69 @@ path = "src/main.rs"
 
 [dependencies]
 agent-def = { path = "../../crates/core/ship-platform/crates/agent-def" }
+space-resolver = { path = "../../crates/core/space-resolver" }
 ship-substrate = { path = "../../crates/core/ship-substrate" }
+journal-sqlite = { git = "https://github.com/get-ship/ship-infra.git", rev = "24de79282f45b05fdcdb07f7daa66c7346bdeb33" }
 ship-platform = { path = "../../crates/core/ship-platform" }
-ship-code = { path = "../../crates/core/ship-platform/crates/ship-code", features = ["harness-drivers"], optional = true }
+bridge = { git = "https://github.com/get-ship/fleet.git", rev = "03f917d5e51921754c1a6a12a4aa2beb56b4a405", default-features = false, features = ["runtime"], optional = true }
+process-supervisor = { git = "https://github.com/get-ship/ship-infra.git", rev = "24de79282f45b05fdcdb07f7daa66c7346bdeb33" }
+bounded-spawn = { git = "https://github.com/get-ship/ship-infra.git", rev = "24de79282f45b05fdcdb07f7daa66c7346bdeb33" }
 ship-agents = { path = "../../crates/core/ship-platform/crates/ship-agents" }
 ship-auth = { path = "../../crates/core/ship-platform/crates/ship-auth" }
-ship-terminal = { path = "../../crates/core/ship-platform/crates/ship-terminal" }
+
 ship-files = { path = "../../crates/core/ship-platform/crates/ship-files" }
-ship-harnesses = { path = "../../crates/core/ship-platform/crates/ship-harnesses" }
-ship-messaging = { path = "../../crates/core/ship-platform/crates/ship-messaging" }
 ship-store = { path = "../../crates/core/ship-platform/crates/ship-store" }
 ship-triggers = { path = "../../crates/core/ship-platform/crates/ship-triggers" }
 ship-ui = { path = "../../crates/core/ship-platform/crates/ship-ui" }
-ship-isolation = { path = "../../crates/core/ship-platform/crates/ship-isolation", default-features = false }
-ship-substrate-host = { path = "../../crates/core/ship-substrate/crates/ship-substrate-host" }
-ship-pipelines = { path = "../../crates/core/ship-substrate/crates/ship-pipelines" }
-ship-pipeline-runtime = { path = "../../crates/ship-pipeline-runtime" }
+ship-isolation = { git = "https://github.com/get-ship/ship-infra.git", rev = "24de79282f45b05fdcdb07f7daa66c7346bdeb33", default-features = false }
+host-adapter = { git = "https://github.com/get-ship/ship-infra.git", rev = "24de79282f45b05fdcdb07f7daa66c7346bdeb33" }
+pipeline-defs = { path = "../../crates/core/ship-substrate/crates/pipeline-defs" }
 # Dispatch composition root (supervisor split — `shipd::dispatch`):
-#   ship-runner      — process/executor lifecycle emit helpers used by
-#                      ShipdPlatform + orphan cleanup.
+#   ship-agents       — process/executor lifecycle emit helpers
+#                      (`ship_agents::emit::*`) used by ShipdPlatform +
+#                      orphan cleanup; dispatch_gate for AgentPorts.
 #   ship-auth-types  — DaemonSession + session-token mint in ShipdPlatform.
-ship-runner = { path = "../../crates/core/ship-substrate/crates/ship-runner" }
 ship-auth-types = { path = "../../crates/core/ship-substrate/crates/ship-auth-types" }
 ship-types = { path = "../../crates/core/ship-substrate/crates/ship-types" }
 ship-analytics = { path = "../../crates/core/ship-platform/crates/ship-analytics" }
 ship-search = { path = "../../crates/core/ship-platform/crates/ship-search" }
 ship-collection = { path = "../../crates/core/ship-platform/crates/ship-collection" }
 ship-cloud = { path = "../../crates/core/ship-cloud" }
-ship-git = { path = "../../crates/core/ship-git" }
+# Always-on: GitService (ship.internal.v1) mounts on shipd HTTP (j-02 step 2).
+# Dispatch adapters still use it under `--features bridge`.
+# Home: ship-infra (j-04).
+ship-git = { git = "https://github.com/get-ship/ship-infra.git", rev = "24de79282f45b05fdcdb07f7daa66c7346bdeb33" }
+# GitService trait + message types (ship.internal.v1) live in ship-proto.
+ship-proto = { git = "https://github.com/get-ship/ship-contracts.git", branch = "feat/next" }
 ship-artifacts = { path = "../../crates/core/ship-platform/crates/ship-artifacts" }
 ship-space = { path = "../../crates/core/ship-platform/crates/ship-space" }
-ship-device = { path = "../../crates/core/ship-platform/crates/ship-device" }
-ship-config = { path = "../../crates/core/ship-platform/crates/ship-config" }
+ship-device = { git = "https://github.com/get-ship/ship-infra.git", rev = "24de79282f45b05fdcdb07f7daa66c7346bdeb33" }
+ship-settings = { path = "../../crates/core/ship-platform/crates/ship-settings" }
 ship-account = { path = "../../crates/core/ship-platform/crates/ship-account" }
-compiler = { path = "../../crates/core/compiler" }
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "03f917d5e51921754c1a6a12a4aa2beb56b4a405" }
+stack-model = { path = "../../crates/core/stack-model" }
+# HarnessService (ship.internal.v1) — list_harnesses + compile (j-02s4a; was helmd).
+harness-config-compiler = { git = "https://github.com/get-ship/fleet.git", rev = "03f917d5e51921754c1a6a12a4aa2beb56b4a405" }
+# `.ts` agent-config eval — evaluates `.ship/agents/<id>.ts` (defineAgent) in a
+# locked-down ship-js isolate. Pulls V8 (deno_core), which is WHY the eval is
+# confined to this ingest layer and never reaches the V8-free config/compiler
+# crates. Only shipd (which populates the AgentDefIndex) deps it.
 build-info = { path = "../../crates/build-info" }
 ship-ops-rpc = { path = "../../crates/core/ship-ops-rpc" }
 ship-reactive = { path = "../../crates/core/ship-platform/crates/ship-reactive" }
 connectrpc = { version = "0.4", features = ["axum", "client"] }
-# Descriptor decode for the op-policy gate (reads proto custom options).
-buffa = "0.5"
-buffa-descriptor = "0.5"
+# Named by GitService status enum mappings (`::buffa::EnumValue::from`).
+buffa = { version = "0.5", features = ["json"] }
 http = "1"
-# deck* + sui-compiler crates live in the external sui repo post-carve.
-# TEMP: absolute paths → ../sui/... after layout reshuffle.
-deck = { path = "/home/madvib/dev/sui/crates/deck/deck" }
-deck-core = { path = "/home/madvib/dev/sui/crates/deck/deck-core" }
-deck-ssr = { path = "/home/madvib/dev/sui/crates/deck/deck-ssr", optional = true }
-sui-compiler = { path = "/home/madvib/dev/sui/crates/sui/compiler" }
+# deck* live in the external sail repo (post-carve). Git branch pins —
+# machine-independent; deck-ssr's ship-js edge is rev-pinned to ship-infra
+# on sail feat/next (06cc82e3+).
+deck = { git = "https://github.com/get-ship/sail.git", branch = "feat/next", features = ["specta"] }
+deck-core = { git = "https://github.com/get-ship/sail.git", branch = "feat/next" }
+deck-ssr = { git = "https://github.com/get-ship/sail.git", branch = "feat/next", optional = true }
 chrono = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tokio-util = { workspace = true, features = ["full"] }
-tokio-stream = { version = "0.1", features = ["sync"] }
-futures-util = { workspace = true }
 anyhow = { workspace = true }
 getrandom = { workspace = true }
 libc = { workspace = true }
@@ -83,7 +93,6 @@ libc = { workspace = true }
 tikv-jemallocator = "0.6"
 serde = { workspace = true }
 base64 = { workspace = true }
-serde_yaml = { workspace = true }
 serde_json = { workspace = true }
 # RFC 6902 JSON Patch — FilesService.patch_jsonc applies these against
 # the current document. No shims; callers that want partial edits use
@@ -96,55 +105,34 @@ axum = { workspace = true, features = ["http1", "tokio", "ws", "multipart"] }
 async-trait = { workspace = true }
 async-stream = "0.3"
 futures = "0.3"
-notify = { workspace = true }
 tower = { version = "0.5", features = ["timeout", "util"] }
-# L1 floki agent runtime — shipd (L2) implements floki::Gateway via ShipdGateway.
-# The floki crate gains no shipd dependency; this is the sole seam.
-floki = { path = "../../crates/core/ship-platform/crates/floki" }
-# Stage-2: durable-execution journal store and execute/resume API used directly
-# by dispatch_floki_session to drive FlokiProgram durably.
-durable-execution = { path = "../../crates/core/ship-substrate/crates/durable-execution" }
+# Native harness (embeddable). Path dep until engines monorepo publish.
+yoke = { git = "https://github.com/get-ship/fleet.git", rev = "03f917d5e51921754c1a6a12a4aa2beb56b4a405" }
+# ship.yoke.v1 Connect client types — fleet's published contract crate (j-08).
+yoke-proto = { git = "https://github.com/get-ship/fleet.git", rev = "03f917d5e51921754c1a6a12a4aa2beb56b4a405" }
+# Durable journal used by in-process yoke embed (apps/shipd/src/yoke/embed).
+durable-execution = { git = "https://github.com/get-ship/ship-infra.git", rev = "24de79282f45b05fdcdb07f7daa66c7346bdeb33" }
 tower-http = { version = "0.6", features = ["catch-panic", "limit", "timeout"] }
-datastar = { version = "=0.3.1", features = ["axum"] }
-jsonwebtoken = "9"
 reqwest = { workspace = true, features = ["rustls-tls", "json"] }
-minijinja = { workspace = true, features = ["loader", "builtins", "json"] }
-ulid = { workspace = true }
-thiserror = { workspace = true }
-# HTML sanitizer — allowlist-based DOM cleaner used for agent-supplied
-# canvas HTML (see apps/shipd/src/views/sanitize.rs).
-ammonia = "4"
-form_urlencoded = "1"
 git2 = { version = "0.19" }
-include_dir = "0.7"
-# JSON Schema validator (Draft 2020-12). Used to validate pipeline
-# documents on write — catches structural errors beyond parse errors.
-jsonschema = { version = "0.46", default-features = false }
-# Regex used by the SFC pipeline (apps/shipd/src/views/sfc) for block
-# splitting and signal-attribute rewriting. The patterns are small and
-# anchored — full PCRE features are not required.
-regex = { workspace = true }
 # Enable derive(Type) on every public daemon data struct so xtask can
 # emit TypeScript bindings via `cargo xtask gen-types`. Production
 # binaries omit this feature; specta isn't pulled into the daemon.
 specta = { workspace = true, features = ["chrono", "serde_json"], optional = true }
 
 [features]
-# Default feature set — normal daemon build with full harness machinery.
-default = ["ship-code"]
-# ship-code: harness-driver stack (dispatch, sessions, hooks, job routes).
+# Default feature set — ship-standard shipd. Builds without the harness-driver
+# stack: dispatch goes through the floki closure only. To run shipd with the
+# coding-agent dispatch stack — worktree management, hooks, job routes — opt in
+# with `--features bridge`.
+default = []
+# bridge: bridge runtime integration (sessions, hooks, job routes).
 # Turn off with --no-default-features to get a harness-free shipd build.
-# Forwarded into ship-pipeline-runtime so the orchestrator (which depends on
-# ship-code) is gated out of the harness-free build; the dispatch entry path
-# (run_core::dispatch_one + loader::{pipeline_loader, git_helpers}) stays
-# compiled without ship-code so the pipeline envelope can still be built and
-# persisted.
-ship-code = ["dep:ship-code", "harness-drivers", "ship-pipeline-runtime/ship-code"]
-# harness-drivers: propagate down to ship-agents and ship-platform so their
-# cfg gates align with shipd's ship-code gate. When ship-code is ON, both
-# ship-agents and ship-platform get harness-drivers. With --no-default-features
-# all three compile flag-off (ship-code is absent, harness-driver stack gone).
-harness-drivers = ["ship-agents/harness-drivers", "ship-platform/harness-drivers"]
+bridge = [
+    "dep:bridge",
+    "ship-agents/bridge",
+    "ship-platform/bridge",
+]
 unstable = ["ship-platform/unstable"]
 # ship-js-ssr: compile in deck-ssr (deno_core/V8) so the daemon can serve the
 # synthetic ship-js SSR path. OFF by default — keeps V8 out of the normal build.
@@ -158,7 +146,7 @@ ship-js-ssr = ["dep:deck-ssr"]
 # in the kernel router, so `soak` forwards to `unstable`.
 #   cargo test -p shipd --features soak --test rss_soak -- --nocapture
 soak = ["unstable"]
-specta = ["dep:specta", "deck/specta", "ship-pipeline-runtime/specta"]
+specta = ["dep:specta", "deck/specta"]
 # Compile the `example()` fixture constructors for the daemon-side wire
 # shapes so `cargo xtask gen-fixtures` can serialize them to committed JSON.
 # Forwards to ship-platform/fixtures so shared builders (e.g.
@@ -167,7 +155,6 @@ fixtures = ["ship-platform/fixtures"]
 
 [dev-dependencies]
 tempfile = { workspace = true }
-ctor = "0.2"
 http-body-util = "0.1"
 tower = { version = "0.5", features = ["util"] }
 chrono = { workspace = true }
@@ -176,7 +163,6 @@ cookie = "0.18"
 reqwest = { workspace = true, features = ["json"] }
 tokio = { workspace = true, features = ["full", "test-util"] }
 tokio-tungstenite = "0.28"
-futures-util = "0.3"
 serde_json = { workspace = true }
 # first-light smoke tests: mock model + mock event sink
 rig = { version = "0.38.1", package = "rig-core", features = ["test-utils"] }

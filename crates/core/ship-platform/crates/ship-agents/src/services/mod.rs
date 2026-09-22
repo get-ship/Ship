@@ -1,10 +1,6 @@
 pub mod agents;
-// compile moved to the agent-def crate (Floki carve D2a.2); re-exported so
-// `crate::services::compile::*` callers keep resolving (back-compat shim).
-pub use agent_def::compile;
 pub mod errors;
 pub mod mcp;
-pub mod permissions;
 pub mod rules;
 pub mod sessions;
 pub mod skills;
@@ -15,6 +11,5 @@ pub fn data_op_examples() -> Vec<(&'static str, serde_json::Value)> {
     out.extend(agents::fixtures::examples());
     out.extend(rules::fixtures::examples());
     out.extend(mcp::fixtures::examples());
-    out.extend(permissions::fixtures::examples());
     out
 }

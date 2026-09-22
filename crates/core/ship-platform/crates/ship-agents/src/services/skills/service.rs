@@ -9,8 +9,8 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use ship_files::files::{FilesService, Scope};
 use super::state;
+use ship_files::files::{FilesService, Scope};
 
 /// Map a KV-vars failure into the one typed service error. Display of
 /// `Error::Vars` is the message verbatim, so transport-layer error text is
@@ -31,23 +31,15 @@ pub struct CreateArgs {
 
 pub trait SkillsService: Send + Sync + 'static {
     fn list(&self) -> Vec<state::IndexEntry>;
-    fn get(
-        &self,
-        id: &str,
-        scope: Option<Scope>,
-    ) -> Result<state::SkillDetail, state::Error>;
+    fn get(&self, id: &str, scope: Option<Scope>) -> Result<state::SkillDetail, state::Error>;
     fn write_frontmatter(
         &self,
         id: &str,
         scope: Option<Scope>,
         frontmatter: &serde_json::Value,
     ) -> Result<Scope, state::Error>;
-    fn write_body(
-        &self,
-        id: &str,
-        scope: Option<Scope>,
-        body: &str,
-    ) -> Result<Scope, state::Error>;
+    fn write_body(&self, id: &str, scope: Option<Scope>, body: &str)
+    -> Result<Scope, state::Error>;
     fn write_file(
         &self,
         id: &str,
@@ -63,24 +55,14 @@ pub trait SkillsService: Send + Sync + 'static {
     ) -> Result<Scope, state::Error>;
     fn create(&self, args: CreateArgs) -> Result<Scope, state::Error>;
     fn delete(&self, id: &str, scope: Option<Scope>) -> Result<Scope, state::Error>;
-    fn rename(
-        &self,
-        id: &str,
-        new_id: &str,
-        scope: Option<Scope>,
-    ) -> Result<Scope, state::Error>;
+    fn rename(&self, id: &str, new_id: &str, scope: Option<Scope>) -> Result<Scope, state::Error>;
     fn duplicate(
         &self,
         id: &str,
         new_id: &str,
         scope: Option<Scope>,
     ) -> Result<Scope, state::Error>;
-    fn move_scope(
-        &self,
-        id: &str,
-        from: Scope,
-        to: Scope,
-    ) -> Result<(), state::Error>;
+    fn move_scope(&self, id: &str, from: Scope, to: Scope) -> Result<(), state::Error>;
 
     /// Validate an id without touching state. Useful for the vars
     /// endpoints which guard before the KV call.
@@ -93,12 +75,7 @@ pub trait SkillsService: Send + Sync + 'static {
         &self,
         id: &str,
     ) -> Result<Option<std::collections::HashMap<String, serde_json::Value>>, state::Error>;
-    fn set_var(
-        &self,
-        id: &str,
-        key: &str,
-        value: serde_json::Value,
-    ) -> Result<(), state::Error>;
+    fn set_var(&self, id: &str, key: &str, value: serde_json::Value) -> Result<(), state::Error>;
     /// Returns `true` when the key was present before the delete.
     fn delete_var(&self, id: &str, key: &str) -> Result<bool, state::Error>;
 }
@@ -140,11 +117,7 @@ impl SkillsService for SkillsServiceImpl {
         state::list(&self.files())
     }
 
-    fn get(
-        &self,
-        id: &str,
-        scope: Option<Scope>,
-    ) -> Result<state::SkillDetail, state::Error> {
+    fn get(&self, id: &str, scope: Option<Scope>) -> Result<state::SkillDetail, state::Error> {
         state::load(&self.files(), id, scope)
     }
 
@@ -202,12 +175,7 @@ impl SkillsService for SkillsServiceImpl {
         state::delete(&self.files(), id, scope)
     }
 
-    fn rename(
-        &self,
-        id: &str,
-        new_id: &str,
-        scope: Option<Scope>,
-    ) -> Result<Scope, state::Error> {
+    fn rename(&self, id: &str, new_id: &str, scope: Option<Scope>) -> Result<Scope, state::Error> {
         state::rename(&self.files(), id, new_id, scope)
     }
 
@@ -220,12 +188,7 @@ impl SkillsService for SkillsServiceImpl {
         state::duplicate(&self.files(), id, new_id, scope)
     }
 
-    fn move_scope(
-        &self,
-        id: &str,
-        from: Scope,
-        to: Scope,
-    ) -> Result<(), state::Error> {
+    fn move_scope(&self, id: &str, from: Scope, to: Scope) -> Result<(), state::Error> {
         state::move_scope(&self.files(), id, from, to)
     }
 
@@ -236,25 +199,16 @@ impl SkillsService for SkillsServiceImpl {
     fn get_vars(
         &self,
         id: &str,
-    ) -> Result<Option<std::collections::HashMap<String, serde_json::Value>>, state::Error>
-    {
-        crate::agent_domain::skill_vars::get_skill_vars(&self.user_root, id)
-            .map_err(vars_err)
+    ) -> Result<Option<std::collections::HashMap<String, serde_json::Value>>, state::Error> {
+        agent_def::skill_vars::get_skill_vars(&self.user_root, id).map_err(vars_err)
     }
 
-    fn set_var(
-        &self,
-        id: &str,
-        key: &str,
-        value: serde_json::Value,
-    ) -> Result<(), state::Error> {
-        crate::agent_domain::skill_vars::set_skill_var(&self.user_root, id, key, value)
-            .map_err(vars_err)
+    fn set_var(&self, id: &str, key: &str, value: serde_json::Value) -> Result<(), state::Error> {
+        agent_def::skill_vars::set_skill_var(&self.user_root, id, key, value).map_err(vars_err)
     }
 
     fn delete_var(&self, id: &str, key: &str) -> Result<bool, state::Error> {
-        crate::agent_domain::skill_vars::delete_skill_var(&self.user_root, id, key)
-            .map_err(vars_err)
+        agent_def::skill_vars::delete_skill_var(&self.user_root, id, key).map_err(vars_err)
     }
 }
 
@@ -299,7 +253,11 @@ mod tests {
         // a non-empty body is preserved verbatim. Just verify the
         // detail loads with the expected id and a non-empty body.
         assert_eq!(detail.id, "test-skill");
-        assert!(!detail.body.is_empty(), "loaded body was empty: {:?}", detail.body);
+        assert!(
+            !detail.body.is_empty(),
+            "loaded body was empty: {:?}",
+            detail.body
+        );
     }
 
     #[test]

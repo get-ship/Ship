@@ -3,16 +3,16 @@
 
 use anyhow::Result;
 use async_trait::async_trait;
-use ship_substrate::events::executor::DestructionCause;
+use bridge::dispatch_ports::{AgentPlatform, SessionExecutor};
+use bridge::process_registry::ProcessRegistry;
+use ship_agents::emit::emit_executor_session_destroyed;
 use ship_substrate::events::KernelRouter;
-use ship_code::dispatch_ports::{AgentPlatform, SessionExecutor};
-use ship_runner::emit::emit_executor_session_destroyed;
-use ship_code::process_registry::ProcessRegistry;
+use ship_substrate::events::executor::DestructionCause;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use ship_agents::runtime::helpers;
+use bridge::helpers;
 
 /// Shipd's concrete implementation of `AgentPlatform`.
 ///
@@ -23,7 +23,7 @@ pub struct ShipdPlatform {
     pub executor: Arc<dyn SessionExecutor>,
     pub kernel: Arc<Mutex<KernelRouter>>,
     /// Daemon session-token registry — mint_session_token inserts a scoped
-    /// token here so the agent's daemon-hosted MCP calls authenticate.
+    /// token here so the agent's ship-code CLI calls authenticate.
     pub session_registry: ship_auth_types::SessionRegistry,
     /// Daemon base URL (e.g. `http://127.0.0.1:8080`) injected as
     /// `$SHIP_DAEMON_URL`. Empty string when the daemon URL is unknown.
@@ -32,21 +32,33 @@ pub struct ShipdPlatform {
 
 #[async_trait]
 impl AgentPlatform for ShipdPlatform {
-    fn worktrees_dir(&self) -> PathBuf {
+    fn worktrees_dir(&self) -> Result<PathBuf> {
         helpers::worktrees_dir()
     }
 
     fn compile_agent_config(&self, worktree_path: &Path, agent_id: &str) -> Result<()> {
-        helpers::compile_agent_config(worktree_path, agent_id)
+        let kernel =
+            std::sync::Arc::new(ship_substrate::ports::KernelLog::new(self.kernel.clone()));
+        ship_agents::services::agents::compile_dispatch::compile_agent_config(
+            worktree_path,
+            agent_id,
+            Some(kernel),
+        )
     }
 
     async fn graceful_agent_exit(&self, slug: &str, harness: Option<&str>) {
-        ship_agents::runtime::agent_lifecycle::graceful_agent_exit(slug, harness).await;
+        bridge::agent_lifecycle::graceful_agent_exit(slug, harness).await;
     }
 
     async fn cleanup_job(&self, slug: &str, branch: &str) {
         let tmux_session = format!("job-{slug}");
-        let worktree_path = helpers::worktrees_dir().join(slug);
+        let worktree_path = match helpers::worktrees_dir() {
+            Ok(root) => root.join(slug),
+            Err(e) => {
+                tracing::warn!(slug, "platform: worktree cleanup skipped: {e}");
+                return;
+            }
+        };
 
         if let Err(e) = helpers::kill_tmux_session(&tmux_session) {
             tracing::warn!(slug, "platform: tmux cleanup failed: {e}");
@@ -61,16 +73,19 @@ impl AgentPlatform for ShipdPlatform {
             DestructionCause::External,
         )
         .await;
-        if let Err(e) = helpers::remove_worktree(&worktree_path) {
+        if worktree_path.exists()
+            && let Err(e) =
+                ship_git::write::remove_worktree(&helpers::repo_dir(), &worktree_path, true)
+        {
             tracing::warn!(slug, "platform: worktree cleanup failed: {e}");
         }
-        if let Err(e) = helpers::delete_branch(branch) {
+        if let Err(e) = ship_git::write::delete_branch(&helpers::repo_dir(), branch, false) {
             tracing::warn!(slug, "platform: branch cleanup failed: {e}");
         }
     }
 
     fn git_merge(&self, branch: &str) -> Result<bool> {
-        let merge_result = ship_substrate::spawn_bounded::Cmd::new("git")
+        let merge_result = bounded_spawn::Cmd::new("git")
             .args(["merge", branch, "--no-edit"])
             .current_dir(helpers::repo_dir())
             .timeout_secs(60)
@@ -90,8 +105,8 @@ impl AgentPlatform for ShipdPlatform {
         super::orphan_cleanup::cleanup_orphaned_worktrees(&self.kernel).await;
     }
 
-    async fn mint_session_token(&self, agent_id: &str, role: Option<&str>) -> Option<String> {
-        use ship_auth_types::{DaemonSession, generate_session_token, scopes_for_role};
+    async fn mint_session_token(&self, agent_id: &str) -> Option<String> {
+        use ship_auth_types::{DaemonSession, generate_session_token};
         let token = match generate_session_token() {
             Ok(t) => t,
             Err(e) => {
@@ -102,10 +117,8 @@ impl AgentPlatform for ShipdPlatform {
         let session = DaemonSession {
             token: token.clone(),
             agent_id: agent_id.to_string(),
-            scopes: scopes_for_role(role),
-            // L1 (projection-aware): keep on ship-platform's L1 path.
-            grants: ship_auth::scopes::resolve_grants(agent_id, role),
-            workspace_id: None,
+            // L1 (projection-aware): the agent's provisioned grant baseline.
+            grants: ship_auth::scopes::resolve_grants(agent_id),
             // Agent sessions carry no resolved space — keyed `None` at emit,
             // never a fabricated home/global space (S2 home-space kill). See
             // spec 128-multi-space-emit.
@@ -144,10 +157,16 @@ pub struct MockPlatform;
 
 #[async_trait]
 impl AgentPlatform for MockPlatform {
-    fn worktrees_dir(&self) -> PathBuf { PathBuf::from("/tmp/test-worktrees") }
-    fn compile_agent_config(&self, _: &Path, _: &str) -> Result<()> { Ok(()) }
+    fn worktrees_dir(&self) -> Result<PathBuf> {
+        Ok(PathBuf::from("/tmp/test-worktrees"))
+    }
+    fn compile_agent_config(&self, _: &Path, _: &str) -> Result<()> {
+        Ok(())
+    }
     async fn graceful_agent_exit(&self, _: &str, _: Option<&str>) {}
     async fn cleanup_job(&self, _: &str, _: &str) {}
-    fn git_merge(&self, _: &str) -> Result<bool> { Ok(true) }
+    fn git_merge(&self, _: &str) -> Result<bool> {
+        Ok(true)
+    }
     async fn cleanup_orphaned_worktrees(&self) {}
 }

@@ -23,13 +23,12 @@ pub enum PeerIdentity {
     /// Not inside any agent container — the local owner's own process (the
     /// human session that owns the daemon).
     ///
-    /// IDENTITY, NOT AUTHORITY (S6, #124): this no longer confers operator
-    /// elevation. `auth_context_from_peer` maps it to a non-elevated context
-    /// (`operator_cred: false`) — sharing the daemon's uid is not operator
-    /// authority. Operator authority comes SOLELY from a verified, pid-attested
-    /// operator cred. This variant only marks "local owner, not an agent" for
-    /// the non-elevated peer context.
-    Operator,
+    /// IDENTITY, NOT AUTHORITY: sharing the daemon's uid confers NO elevation.
+    /// `auth_context_from_peer` maps this to a **capped, non-operator** context
+    /// (no grants, `operator_cred: false`). Operator authority lives ONLY in the
+    /// Hub, never in a local connection. This variant marks "local owner, not an
+    /// agent" — a capped client identity, nothing more.
+    LocalOwner,
     /// The host backend can't report the peer's container (dead process, or a
     /// platform whose `ship-substrate-host` backend isn't built yet). The gate MUST treat
     /// this as least-privilege — fail closed; never promote an unknown peer to
@@ -41,25 +40,25 @@ pub enum PeerIdentity {
 /// from the connection's peer credentials). Reads the OS process container via
 /// `ship-substrate-host` and decides per [`decide`].
 pub fn resolve(peer_pid: u32, peer_uid: u32) -> PeerIdentity {
-    let host = ship_substrate_host::host();
+    let host = host_adapter::host();
     decide(
         host.process_container(peer_pid).as_deref(),
         host.containers_supported(),
         peer_uid,
-        ship_substrate_host::current_uid(),
+        host_adapter::current_uid(),
     )
 }
 
 /// The pure resolution policy (unit-tested independent of the OS):
 ///
 /// - **agent container** (`ship-agent-<id>`) → [`PeerIdentity::Agent`].
-/// - **container present but not an agent** → the operator's own process tree,
-///   confirmed by same-owner uid.
+/// - **container present but not an agent** → the local owner's own process
+///   tree, confirmed by same-owner uid → [`PeerIdentity::LocalOwner`].
 /// - **no container, backend NOT supported** (macOS/Windows today) → a
-///   same-owner peer is the operator; no agent could have been containerized.
+///   same-owner peer is the local owner; no agent could have been containerized.
 /// - **no container, backend IS supported** (Linux) → [`PeerIdentity::Unresolved`]:
 ///   fail closed. An unreadable cgroup could be a transient race on a real
-///   agent — never silently promote it to operator.
+///   agent — never silently attribute it to the owner.
 /// - **different owner uid** anywhere → [`PeerIdentity::Unresolved`] (defense in
 ///   depth; the `0600` socket already restricts to our uid).
 fn decide(
@@ -80,10 +79,10 @@ fn decide(
     owner_or_unresolved(peer_uid, host_uid)
 }
 
-/// A peer running as our own uid is the operator; anyone else is unresolved.
+/// A peer running as our own uid is the local owner; anyone else is unresolved.
 fn owner_or_unresolved(peer_uid: u32, host_uid: u32) -> PeerIdentity {
     if peer_uid == host_uid {
-        PeerIdentity::Operator
+        PeerIdentity::LocalOwner
     } else {
         PeerIdentity::Unresolved
     }
@@ -143,9 +142,9 @@ mod tests {
     }
 
     #[test]
-    fn non_agent_container_same_owner_is_operator() {
+    fn non_agent_container_same_owner_is_local_owner() {
         let id = decide(Some("/user.slice/session-2.scope"), true, ME, ME);
-        assert_eq!(id, PeerIdentity::Operator);
+        assert_eq!(id, PeerIdentity::LocalOwner);
     }
 
     #[test]
@@ -155,9 +154,9 @@ mod tests {
     }
 
     #[test]
-    fn no_backend_same_owner_is_operator() {
-        // macOS/Windows today: no named container, same-uid peer is the operator.
-        assert_eq!(decide(None, false, ME, ME), PeerIdentity::Operator);
+    fn no_backend_same_owner_is_local_owner() {
+        // macOS/Windows today: no named container, same-uid peer is the local owner.
+        assert_eq!(decide(None, false, ME, ME), PeerIdentity::LocalOwner);
     }
 
     #[test]

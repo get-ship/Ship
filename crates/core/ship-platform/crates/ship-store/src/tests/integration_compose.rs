@@ -8,7 +8,7 @@ use std::fs;
 use std::path::Path;
 use tempfile::tempdir;
 
-use compiler::lockfile::{LockPackage, ShipLock};
+use stack_model::lockfile::{LockPackage, Rails, ShipLock};
 
 use crate::compose::{composed_root_for, materialize_space};
 
@@ -28,13 +28,18 @@ fn lock_pkg(path: &str, hex: &str) -> LockPackage {
         version: "1.0.0".into(),
         commit: "a".repeat(40),
         hash: format!("sha256:{hex}"),
-        export_hashes: BTreeMap::new(),
+        rails: Rails::Stack,
     }
 }
 
 fn write_lock(ship_dir: &Path, pkgs: Vec<LockPackage>) {
-    let lock = ShipLock { version: 1, packages: pkgs };
-    lock.write_atomic(&ship_dir.join("ship.lock")).unwrap();
+    let lock = ShipLock {
+        version: 1,
+        packages: pkgs,
+    };
+    // Lockfile at the STACK ROOT (parent of the .ship-shaped anchor).
+    let root = ship_dir.parent().expect("anchor has a parent");
+    lock.write_atomic(&root.join("ship.lock")).unwrap();
 }
 
 // ── depless space: returns ship_dir unchanged ─────────────────────────────────
@@ -85,7 +90,9 @@ fn registry_compose_dep_pipeline_namespaced_under_package_path() -> anyhow::Resu
         "local pipeline preserved"
     );
     assert!(
-        composed.join("pipelines/github.com/x/y/dep.jsonc").is_file(),
+        composed
+            .join("pipelines/github.com/x/y/dep.jsonc")
+            .is_file(),
         "dep pipeline namespaced under package path"
     );
     Ok(())
@@ -106,8 +113,14 @@ fn registry_compose_same_inputs_reuse_cached_dir() -> anyhow::Result<()> {
     fs::write(first.join("MARKER"), "sentinel")?;
 
     let second = materialize_space(&ship_dir, Some(&cache_root))?;
-    assert_eq!(first, second, "identical inputs must yield same composed dir path");
-    assert!(second.join("MARKER").is_file(), "cached dir reused — MARKER still present");
+    assert_eq!(
+        first, second,
+        "identical inputs must yield same composed dir path"
+    );
+    assert!(
+        second.join("MARKER").is_file(),
+        "cached dir reused — MARKER still present"
+    );
     Ok(())
 }
 
@@ -142,7 +155,10 @@ fn registry_compose_collection_schema_collision_returns_error() -> anyhow::Resul
     fs::create_dir_all(&ship_dir)?;
     write_lock(
         &ship_dir,
-        vec![lock_pkg("github.com/a/one", hex_a), lock_pkg("github.com/b/two", hex_b)],
+        vec![
+            lock_pkg("github.com/a/one", hex_a),
+            lock_pkg("github.com/b/two", hex_b),
+        ],
     );
 
     let err = materialize_space(&ship_dir, Some(&cache_root)).expect_err("collision must error");
@@ -163,7 +179,10 @@ fn registry_compose_composed_root_for_depless_returns_ship_dir() {
     fs::create_dir_all(&ship_dir).unwrap();
     // No ship.lock → depless fallback.
     let result = composed_root_for(&ship_dir);
-    assert_eq!(result, ship_dir, "depless space must return ship_dir unchanged");
+    assert_eq!(
+        result, ship_dir,
+        "depless space must return ship_dir unchanged"
+    );
 }
 
 #[test]
@@ -172,8 +191,14 @@ fn registry_compose_composed_root_for_empty_lock_returns_ship_dir() {
     let ship_dir = tmp.path().join(".ship");
     fs::create_dir_all(&ship_dir).unwrap();
     // Write a lock with no packages — still depless.
-    let lock = ShipLock { version: 1, packages: vec![] };
-    lock.write_atomic(&ship_dir.join("ship.lock")).unwrap();
+    let lock = ShipLock {
+        version: 1,
+        packages: vec![],
+    };
+    lock.write_atomic(&tmp.path().join("ship.lock")).unwrap(); // lockfile at the stack root
     let result = composed_root_for(&ship_dir);
-    assert_eq!(result, ship_dir, "empty lock must return ship_dir unchanged");
+    assert_eq!(
+        result, ship_dir,
+        "empty lock must return ship_dir unchanged"
+    );
 }

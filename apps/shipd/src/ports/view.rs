@@ -38,14 +38,12 @@ impl ViewToolPort for ViewToolAdapter {
                 deck::bundler::BundlerError::UnknownTarget(t) => {
                     BundlerBuildError::UnknownTarget(t)
                 }
-                deck::bundler::BundlerError::Bundle { message, .. } => {
-                    BundlerBuildError::Bundle {
-                        message,
-                        file: None,
-                        line: None,
-                        col: None,
-                    }
-                }
+                deck::bundler::BundlerError::Bundle { message, .. } => BundlerBuildError::Bundle {
+                    message,
+                    file: None,
+                    line: None,
+                    col: None,
+                },
             })
     }
 
@@ -65,8 +63,8 @@ impl ViewToolPort for ViewToolAdapter {
         self.state.collections()
     }
 
-    fn project_slug(&self) -> Option<String> {
-        self.state.project_slug()
+    fn active_space_id(&self) -> Option<String> {
+        self.state.active_space_id()
     }
 
     fn resolve_theme_css(&self) -> String {
@@ -77,8 +75,12 @@ impl ViewToolPort for ViewToolAdapter {
     }
 
     fn resolve_view_source(&self, name: &str) -> Result<(String, std::path::PathBuf), String> {
-        let resolved = deck::resolver::resolve(name, None)
-            .map_err(|e| e.message.clone())?;
+        let root = self
+            .state
+            .workspace_dir()
+            .ok_or_else(|| "no workspace root for view resolution".to_string())?;
+        let resolved =
+            deck::resolver::resolve(root, name, None).map_err(|e| e.message.clone())?;
         let path = resolved
             .source_path
             .ok_or_else(|| "view has no on-disk source".to_string())?;
@@ -87,10 +89,13 @@ impl ViewToolPort for ViewToolAdapter {
 
     fn preview_view_html(&self, name: &str) -> Result<String, ship_ui::view_ports::PreviewError> {
         use ship_ui::view_ports::PreviewError;
-        let resolved = deck::resolver::resolve(name, None)
-            .map_err(|e| PreviewError::ViewNotFound(e.message.clone()))?;
-        let rendered = deck::resolver::render_resolved(&resolved, name)
-            .map_err(PreviewError::RenderFailed)?;
-        Ok(rendered.html)
+        let root = self.state.workspace_dir().ok_or_else(|| {
+            PreviewError::ViewNotFound(format!("view {name} not found or has no source"))
+        })?;
+        // Mount-scoped: source lives under the workspace root. None when
+        // the route cannot be located (view-not-found path).
+        deck::render_helpers::render_route_source(root, name).ok_or_else(|| {
+            PreviewError::ViewNotFound(format!("view {name} not found or has no source"))
+        })
     }
 }

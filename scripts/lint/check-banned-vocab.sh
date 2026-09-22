@@ -2,7 +2,7 @@
 # check-banned-vocab.sh
 #
 # The banned-vocabulary gate: a regression fence against deleted concepts
-# crawling back into the tree. Reads `.ship/lint/banned-vocab.txt` and, for
+# crawling back into the tree. Reads `scripts/lint/banned-vocab.txt` and, for
 # each non-comment entry, ripgreps the term across hand-authored source,
 # proto, and tests. Any hit fails the build — the whole point is that a
 # stale test reintroducing a dead word breaks the gate.
@@ -19,7 +19,7 @@ set -u
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 cd "$ROOT" || exit 2
 
-BANLIST=".ship/lint/banned-vocab.txt"
+BANLIST="scripts/lint/banned-vocab.txt"
 SELF="scripts/lint/check-banned-vocab.sh"
 
 if [ ! -f "$BANLIST" ]; then

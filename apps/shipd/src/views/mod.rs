@@ -2,57 +2,22 @@
 //!
 //! What remains of the daemon's view layer after the UI purge (deck owns all
 //! serving): the search-dir walker (`discovery`) and manifest reader
-//! (`resolve`) that back the search index (`rpc::search_context`), plus the
-//! specta-typegen contract types below (registered by `crates/xtask/src/
-//! types.rs`, projected into `packages/sui/runtime/src/generated.ts`).
+//! (`resolve`) that back the search index (`rpc::search_context`).
 //!
-//! Deleted as purge residue: the agent-canvas `ViewSessionRegistry`
-//! (`session`/`session_types`), its Datastar SSE plumbing (`stream`), the
-//! HTML sanitizer it fed (`sanitize`), and the `state` re-export shim — no
-//! surface could create or watch a session once `view.open` and the SSE
-//! subscribe route were cut.
+//! **Phase-4 J2 (STOP-AND-SURFACE, 2026-07-06):** the dump-bucket
+//! `ViewManifest` / `ViewListEntry` / `RailMeta` types are removed — no live
+//! consumer outside `apps/shipd/src/views/**` (verified across the repo).
+//! The remaining `discovery` + `resolve` modules HAVE a live consumer
+//! (`rpc::search_context::views()`), so they're NOT deleted here: the spec
+//! explicitly says "STOP and surface (do not redesign — deck owns consumption)".
+//! Future work: deck (the views-feature owner per
+//! `decision-views-deck-boundary.md`) re-derives a view source; until then
+//! the daemon's `views()` returns the empty `view_search_dirs()` walk.
+//!
+//! Deleted as prior purge residue: the agent-canvas `ViewSessionRegistry`
+//! (`session`/`session_types`), the HTML sanitizer it fed (`sanitize`),
+//! and the `state` re-export shim — no surface could create or watch a
+//! session once `view.open` and the SSE subscribe route were cut.
 
 pub mod discovery;
 pub mod resolve;
-
-use serde::Serialize;
-
-#[derive(Serialize, Clone)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
-pub struct ViewManifest {
-    pub name: String,
-    #[serde(rename = "type")]
-    pub view_type: String,
-    #[serde(rename = "elementName", skip_serializing_if = "Option::is_none")]
-    pub element_name: Option<String>,
-    #[serde(rename = "bundleUrl", skip_serializing_if = "Option::is_none")]
-    pub bundle_url: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub claims: Option<Vec<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub entry: Option<String>,
-}
-
-#[derive(Serialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
-pub struct ViewListEntry {
-    pub name: String,
-    #[serde(rename = "type")]
-    pub view_type: String,
-    pub source: String,
-    /// Optional shell display metadata — label, icon, default_pinned,
-    /// order. Populated from the view's manifest `rail:` block (or
-    /// equivalent). Absent = view has no pinned/launcher presence.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub rail: Option<RailMeta>,
-}
-
-/// Per-view shell display metadata. Maps to `<ship-rail>` /
-/// `<ship-launcher>`. Identity only — pin state and ordering are user
-/// settings (tier 2, daemon-persisted), not view config.
-#[derive(Serialize, Clone)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
-pub struct RailMeta {
-    pub label: String,
-    pub icon: String,
-}

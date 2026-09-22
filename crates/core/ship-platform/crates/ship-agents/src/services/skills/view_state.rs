@@ -1,6 +1,6 @@
 //! Skill discovery for the `skills` view. Scans global + project scopes,
 //! deduplicates by id (project wins). Callers pass the daemon's global
-//! ship_dir; project scope resolved via `ship_substrate::project::get_project_dir`.
+//! ship_dir; project scope resolved via `ship_substrate::project::get_stack_root`.
 
 use serde::Serialize;
 use std::collections::HashSet;
@@ -44,7 +44,7 @@ pub struct SkillDetail {
 
 /// Source label applied to project-scoped skills (enclosing `.ship/` of cwd).
 pub const SOURCE_PROJECT: &str = "PROJECT SKILLS";
-/// Source label applied to global-scoped skills (`~/.ship/skills/`).
+/// Source label applied to global-scoped skills (`data_dir()/library/skills/`).
 pub const SOURCE_GLOBAL: &str = "USER SKILLS";
 
 pub(crate) fn parse_skill_md(content: &str) -> (std::collections::HashMap<String, String>, String) {
@@ -53,7 +53,9 @@ pub(crate) fn parse_skill_md(content: &str) -> (std::collections::HashMap<String
         return (map, content.to_string());
     }
     let rest = &content[3..];
-    let Some(end) = rest.find("---") else { return (map, content.to_string()) };
+    let Some(end) = rest.find("---") else {
+        return (map, content.to_string());
+    };
     let fm = &rest[..end];
     let body = rest[end + 3..].trim_start_matches('\n').to_string();
     for line in fm.lines() {
@@ -83,14 +85,26 @@ pub(crate) fn parse_yaml_list(val: &str) -> Vec<String> {
 pub(crate) fn scan_files(skill_dir: &Path) -> Vec<String> {
     let mut out = Vec::new();
     fn walk(dir: &Path, prefix: &str, out: &mut Vec<String>) {
-        let Ok(entries) = std::fs::read_dir(dir) else { return };
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return;
+        };
         let mut sorted: Vec<_> = entries.flatten().collect();
         sorted.sort_by_key(|e| e.file_name());
         for e in sorted {
             let name = e.file_name().to_string_lossy().to_string();
-            if name.starts_with('.') { continue; }
-            let rel = if prefix.is_empty() { name.clone() } else { format!("{prefix}/{name}") };
-            if e.path().is_dir() { walk(&e.path(), &rel, out); } else { out.push(rel); }
+            if name.starts_with('.') {
+                continue;
+            }
+            let rel = if prefix.is_empty() {
+                name.clone()
+            } else {
+                format!("{prefix}/{name}")
+            };
+            if e.path().is_dir() {
+                walk(&e.path(), &rel, out);
+            } else {
+                out.push(rel);
+            }
         }
     }
     walk(skill_dir, "", &mut out);
@@ -111,28 +125,31 @@ pub(crate) struct SkillScopes {
 }
 
 fn resolve_scopes(ship_dir: &Path) -> SkillScopes {
-    let project_ship = ship_substrate::project::get_project_dir(None)
+    let project_root = ship_substrate::project::get_stack_root(None)
         .ok()
         .filter(|p| p != ship_dir);
-    scopes_from(ship_dir, project_ship.as_deref())
+    scopes_from(ship_dir, project_root.as_deref())
 }
 
-pub(crate) fn scopes_from(
-    ship_dir: &Path,
-    project_ship_dir: Option<&Path>,
-) -> SkillScopes {
-    let global_parent = ship_dir.parent().unwrap_or(ship_dir);
-    let global_dirs = crate::agent_domain::skill_paths::read_skill_paths(ship_dir, global_parent);
+pub(crate) fn scopes_from(ship_dir: &Path, project_ship_dir: Option<&Path>) -> SkillScopes {
+    // LEGACY-COMPETITOR nuance (pending the catalog fold): the global tier
+    // still derives parent-of-home — the shape this scanner always had and
+    // its tests encode. The catalog work replaces this scanner wholesale.
+    let space_root = ship_dir.parent().unwrap_or(ship_dir);
+    let global_dirs = agent_def::skill_paths::read_skill_paths(space_root);
 
     let project_dirs = match project_ship_dir {
-        Some(project_ship) if project_ship != ship_dir => {
-            let project_root = project_ship.parent().unwrap_or(project_ship);
-            crate::agent_domain::skill_paths::read_skill_paths(project_ship, project_root)
+        Some(project_root) if project_root != ship_dir => {
+            // Marker cutover: the resolved value IS the stack root.
+            agent_def::skill_paths::read_skill_paths(project_root)
         }
         _ => Vec::new(),
     };
 
-    SkillScopes { global_dirs, project_dirs }
+    SkillScopes {
+        global_dirs,
+        project_dirs,
+    }
 }
 
 pub(crate) fn scan_skill_dir(skills_root: &Path, source: &str) -> Vec<SkillSummary> {
@@ -140,7 +157,9 @@ pub(crate) fn scan_skill_dir(skills_root: &Path, source: &str) -> Vec<SkillSumma
     if !skills_root.exists() {
         return out;
     }
-    let Ok(entries) = std::fs::read_dir(skills_root) else { return out };
+    let Ok(entries) = std::fs::read_dir(skills_root) else {
+        return out;
+    };
     for entry in entries.flatten() {
         let path = entry.path();
         if !path.is_dir() {
@@ -155,7 +174,10 @@ pub(crate) fn scan_skill_dir(skills_root: &Path, source: &str) -> Vec<SkillSumma
         let dir_name = entry.file_name().to_string_lossy().to_string();
         let id = fm.get("name").cloned().unwrap_or_else(|| dir_name.clone());
         let description = fm.get("description").cloned().unwrap_or_default();
-        let tags = fm.get("tags").map(|v| parse_yaml_list(v)).unwrap_or_default();
+        let tags = fm
+            .get("tags")
+            .map(|v| parse_yaml_list(v))
+            .unwrap_or_default();
         let files = scan_files(&path);
         let has_vars = files.iter().any(|f| f.ends_with("vars.json"));
         let has_refs = files.iter().any(|f| f.starts_with("references/"));
@@ -177,16 +199,22 @@ pub(crate) fn scan_skill_dir(skills_root: &Path, source: &str) -> Vec<SkillSumma
 }
 
 fn find_skill_subdir(skills_root: &Path, id: &str) -> Option<(PathBuf, String)> {
-    if !skills_root.exists() { return None; }
+    if !skills_root.exists() {
+        return None;
+    }
     let entries = std::fs::read_dir(skills_root).ok()?;
     for entry in entries.flatten() {
         let path = entry.path();
-        if !path.is_dir() || !path.join("SKILL.md").is_file() { continue; }
+        if !path.is_dir() || !path.join("SKILL.md").is_file() {
+            continue;
+        }
         let content = std::fs::read_to_string(path.join("SKILL.md")).unwrap_or_default();
         let (fm, _) = parse_skill_md(&content);
         let dn = entry.file_name().to_string_lossy().to_string();
         let candidate = fm.get("name").cloned().unwrap_or_else(|| dn.clone());
-        if candidate == id || dn == id { return Some((path, dn)); }
+        if candidate == id || dn == id {
+            return Some((path, dn));
+        }
     }
     None
 }
@@ -196,9 +224,18 @@ fn load_detail_from_dir(skills_root: &Path, id: &str, source: &str) -> Option<Sk
     let content = std::fs::read_to_string(path.join("SKILL.md")).unwrap_or_default();
     let (fm, body) = parse_skill_md(&content);
     let candidate = fm.get("name").cloned().unwrap_or_else(|| dir_name.clone());
-    let tags = fm.get("tags").map(|v| parse_yaml_list(v)).unwrap_or_default();
-    let authors = fm.get("authors").map(|v| parse_yaml_list(v)).unwrap_or_default();
-    let artifacts = fm.get("artifacts").map(|v| parse_yaml_list(v)).unwrap_or_default();
+    let tags = fm
+        .get("tags")
+        .map(|v| parse_yaml_list(v))
+        .unwrap_or_default();
+    let authors = fm
+        .get("authors")
+        .map(|v| parse_yaml_list(v))
+        .unwrap_or_default();
+    let artifacts = fm
+        .get("artifacts")
+        .map(|v| parse_yaml_list(v))
+        .unwrap_or_default();
     let mut variables = Vec::new();
     if let Ok(vs) = std::fs::read_to_string(path.join("assets").join("vars.json"))
         && let Ok(v) = serde_json::from_str::<serde_json::Value>(&vs)
@@ -214,7 +251,12 @@ fn load_detail_from_dir(skills_root: &Path, id: &str, source: &str) -> Option<Sk
         description: fm.get("description").cloned().unwrap_or_default(),
         kind: kind_from_path(&path),
         source: source.to_string(),
-        tags, authors, variables, artifacts, files, body,
+        tags,
+        authors,
+        variables,
+        artifacts,
+        files,
+        body,
     })
 }
 
@@ -250,10 +292,7 @@ pub fn load_skill(ship_dir: &Path, id: &str) -> Option<SkillDetail> {
     load_skill_with_scopes(&resolve_scopes(ship_dir), id)
 }
 
-pub(crate) fn load_skill_with_scopes(
-    scopes: &SkillScopes,
-    id: &str,
-) -> Option<SkillDetail> {
+pub(crate) fn load_skill_with_scopes(scopes: &SkillScopes, id: &str) -> Option<SkillDetail> {
     for dir in &scopes.project_dirs {
         if let Some(d) = load_detail_from_dir(dir, id, SOURCE_PROJECT) {
             return Some(d);

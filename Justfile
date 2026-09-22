@@ -5,69 +5,38 @@
 # if you reach for one, ask whether a recipe should exist instead.
 #
 # Per devx-04, `just dev` and friends operate on a per-worktree daemon at
-# ~/.ship/machine/daemons/<hash>/, with stashed binaries that survive
+# state_dir()/daemons/<hash>/, with stashed binaries that survive
 # subsequent rebuilds until you run `just dev-restart`.
 
 set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
+
+# Path resolution for cross-repo dev layouts. The ship repo consumes
+# crates from the sui repo (deck, sui-compiler) and the proto/ tree
+# from the ship-contracts repo. Both are pinned to the right path via
+# these helpers. Set SUI_PATH / SHIP_CONTRACTS_PATH env vars to
+# override; otherwise the recipes assume the canonical sibling layout
+# (sui/, ship-contracts/ as siblings of ship/).
+#
+# The repo no longer has a hardcoded /home/madvib/dev/Ship/sail default;
+# these are env-var-only. The operator must set SUI_PATH for any
+# recipe that needs the sui binary (deck-cli, sui-compiler, sui-lsp).
+# Recipes that need sui will fail loudly with 'sui_path() returned
+# empty' if SUI_PATH is unset.
+sui_path := env_var_or_default('SUI_PATH', '')
+ship_contracts_path := env_var_or_default('SHIP_CONTRACTS_PATH', '')
 
 default:
     @just --list
 
 # ── Daily ────────────────────────────────────────────────────────────────────
 
-# One-shot fresh-clone setup. Order matters and is dependency-driven: the
-# gitignored generated assets (sdk-*.json, the FFI cdylib, the wasm pkg) must
-# exist before the cargo + bun builds that consume them, or a cold clone
-# fails at compile/bundle time. On dispatched worktrees these are copied from
-# the launch repo by dispatch.sh; this recipe generates them.
-# (lucide-icons.json is committed source — regenerate via
-# `cargo run -p xtask -- gen-icons` after a lucide-static version bump.)
-[group('daily')]
-bootstrap:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    command -v bun  >/dev/null || { echo "bun not on PATH — install via 'curl -fsSL https://bun.sh/install | bash'" >&2; exit 1; }
-    bun install
-    cargo run -p xtask --quiet -- gen-types
-    # sdk-*.json bootstrap cycle: shipd include_str!s these, and gen-sdk runs
-    # *through* shipd (via xtask). Seed empty placeholders so shipd compiles,
-    # then gen-sdk overwrites them with real content.
-    mkdir -p packages/sdk/src/generated
-    for f in sdk-urls sdk-view-contexts sdk-views sdk-collections sdk-triggers; do
-        [ -s "packages/sdk/src/generated/$f.json" ] || echo '{}' > "packages/sdk/src/generated/$f.json"
-    done
-    cargo run -p xtask --quiet -- gen-sdk
-    # sui-compiler cdylib — the .so the bun asset builds load over FFI.
-    cargo build -p sui-compiler
-    # sui-compiler-wasm pkg — the in-browser compiler the sui-code-editor
-    # component bundles against.
-    bun run wasm
-    cargo build -p ship-cli
-    # Deck is the only bundler: bake the framework singletons + sui-components
-    # umbrella + islands + marketing/arcade in-process (rolldown). No per-pack
-    # pre-compile step — components compile from source on demand.
-    cargo run -p deck-cli --quiet -- build-assets
-    # App scaffolds: the daemon-served `/` and `/space/<id>` HTML apps. The app
-    # list lives ONLY in `apps/shipd/apps.jsonc` (read by shipd at startup);
-    # build each from its registry `root` via the per-app bundler. The
-    # root-mounted app gets `--bundle-framework` so its `.deck/` is
-    # self-contained.
-    just _build-apps
-    just dev-runtime-install
-    echo "bootstrap complete — 'just dev' to start the daemon"
 
 # Build + stash + start the dev daemon for this worktree (headless / browser dev).
 [group('daily')]
 dev:
     @scripts/dev/start.sh
 
-# The whole desktop loop in ONE command: rebuild the hub scaffold, ensure the
-# dev daemon, build + launch the native shell window. Always rebuilds the
-# scaffold so a stale `.deck/hub-scaffold` can't silently blank the shell.
-# Pass `--app=<id>` to open a space window. Daemon-only loop: `just dev`.
-[group('daily')]
-shell *ARGS:
-    @scripts/dev/shell.sh {{ARGS}}
+
 
 # Bakes every bundle via the in-process Rolldown bundler (#163) — the same
 # engine shipd runs, and the ONLY bundler. Framework singletons + the
@@ -84,7 +53,7 @@ shell *ARGS:
 # the single registry (also read by shipd at startup), never duplicated here.
 [group('daily')]
 dev-build-all: _sui-compiler-lib _deck-cli
-    @cargo run --manifest-path /home/madvib/dev/sui/Cargo.toml -p deck-cli --quiet -- build-assets
+    @cargo run --manifest-path {{sui_path}}/Cargo.toml -p deck-cli --quiet -- build-assets
     @just _build-apps
 
 # Build every app in the registry from its `root` via `deck build --project`.
@@ -100,7 +69,7 @@ dev-build-all: _sui-compiler-lib _deck-cli
 # points the bundler at sui's `crates/deck/deck-core/assets/` (where
 # the staged framework bundles live post-carve) so cross-repo invocations
 # find the assets their `bundle_framework: true` step needs. The
-# path is TEMP — gets relativized to `../sui/...` in the layout-reshuffle
+# path is TEMP — gets relativized to `../sail/...` in the layout-reshuffle
 # capstone.
 _build-apps:
     #!/usr/bin/env bash
@@ -111,11 +80,11 @@ _build-apps:
             [ -z "$root" ] && continue
             abs_root="$(realpath -m "$root")"
             if [ "$route" = "/" ]; then
-                DECK_FRAMEWORK_ASSETS_DIR=/home/madvib/dev/sui/crates/deck/deck-core/assets \
-                    cargo run -q --manifest-path /home/madvib/dev/sui/Cargo.toml -p deck-cli -- build --project "$abs_root" --bundle-framework
+                DECK_FRAMEWORK_ASSETS_DIR={{sui_path}}/crates/deck/deck-core/assets \
+                    cargo run -q --manifest-path {{sui_path}}/Cargo.toml -p deck-cli -- build --project "$abs_root" --bundle-framework
             else
-                DECK_FRAMEWORK_ASSETS_DIR=/home/madvib/dev/sui/crates/deck/deck-core/assets \
-                    cargo run -q --manifest-path /home/madvib/dev/sui/Cargo.toml -p deck-cli -- build --project "$abs_root"
+                DECK_FRAMEWORK_ASSETS_DIR={{sui_path}}/crates/deck/deck-core/assets \
+                    cargo run -q --manifest-path {{sui_path}}/Cargo.toml -p deck-cli -- build --project "$abs_root"
             fi
         done
 
@@ -139,18 +108,21 @@ status:
 doctor:
     ship doctor
 
-# Populate ~/.ship/runtime/ from local sources for dev: bun from $BUN_PATH
+# Populate runtime_dir() from local sources for dev: bun from $BUN_PATH
 # (defaulting to a `bun` on PATH), sui-compiler from target/release/.
 # Idempotent. Run once after a fresh clone.
+#
+# shipd installs the pre-push + pre-commit guards into the shared
+# git-common-dir on every `GitService/Overview` call (and at dispatch), so
+# no `core.hooksPath` setup is needed here. (Historical: helmd exposed
+# `--install-hooks`; that binary was removed j-02 step 4 — dial shipd
+# Overview or call shipd's git_guards install path instead.)
 [group('daily')]
 dev-runtime-install:
     #!/usr/bin/env bash
     set -euo pipefail
-    # Activate the tracked git hooks (.artifacts boundary guard). Local config,
-    # so a fresh clone needs this once — hence here.
-    git config core.hooksPath .githooks
     cargo build -p sui-compiler --release
-    cargo build -p ship-cli
+    cargo build -p shipctl
     BUN_BIN="${BUN_PATH:-$(command -v bun || true)}"
     if [ -z "$BUN_BIN" ] || [ ! -x "$BUN_BIN" ]; then
         echo "no bun on PATH; install via \`curl -fsSL https://bun.sh/install | bash\` or set BUN_PATH" >&2
@@ -158,13 +130,13 @@ dev-runtime-install:
     fi
     ./target/debug/ship runtime install --bun "$BUN_BIN" --sui-compiler target/release/sui-compiler
 
-# Same as dev-runtime-install but wipes ~/.ship/runtime/ first.
+# Same as dev-runtime-install but wipes runtime_dir() first.
 [group('daily')]
 dev-runtime-update:
     #!/usr/bin/env bash
     set -euo pipefail
     cargo build -p sui-compiler --release
-    cargo build -p ship-cli
+    cargo build -p shipctl
     BUN_BIN="${BUN_PATH:-$(command -v bun || true)}"
     if [ -z "$BUN_BIN" ] || [ ! -x "$BUN_BIN" ]; then
         echo "no bun on PATH; install via \`curl -fsSL https://bun.sh/install | bash\` or set BUN_PATH" >&2
@@ -244,8 +216,8 @@ smoke-deploy:
 init-worktree branch:
     #!/usr/bin/env bash
     set -euo pipefail
-    base=$(ship config get worktrees.dir 2>/dev/null \
-           || echo "$HOME/dev/$(basename "$PWD")-worktrees")
+    base=$(ship config get worktrees.dir 2>/dev/null)
+    if [ -z "$base" ] || [ "$base" = "(unset)" ]; then echo "worktrees.dir/SHIP_WORKTREE_DIR is required" >&2; exit 1; fi
     target="$base/$(echo "{{ branch }}" | tr / -)"
     git worktree add "$target" -b "{{ branch }}" 2>/dev/null \
         || git worktree add "$target" "{{ branch }}"
@@ -265,22 +237,10 @@ clean-deep:
     cargo clean
     rm -rf node_modules apps/*/node_modules packages/*/node_modules
 
-# Capture a fresh perf baseline. Rebuilds the SUI bench bundle, runs the
-# js-framework-benchmark suite against SUI + comparison frameworks, and
-# writes tests/perf/baselines/<date>-<label>.json. Commit the result.
-# `label` is required — pass e.g. `just bench baseline` or `just bench post-d5`
-# (passes through to `--label`). No implicit overwrite of the date's anchor.
-[group('occasional')]
-bench label:
-    @scripts/dev/bench-run.mjs --label {{label}}
-
-# Compare current SUI perf vs the latest committed baseline. Exits non-zero
-# if any op regresses by more than 15% (override with
-# BENCH_REGRESSION_THRESHOLD). Manual gate before merging large runtime
-# changes.
-[group('occasional')]
-bench-check:
-    @scripts/dev/bench-check.mjs
+# bench + bench-check — moved to the sui repo's Justfile. tests/perf/ +
+# the keyed/sui bench app live there now (sui owns the framework; the
+# perf harness exercises sui against comparison frameworks). Run from
+# the sui repo: `just bench <label>` and `just bench-check`.
 
 # Format Rust.
 [group('occasional')]
@@ -299,10 +259,6 @@ fmt-check:
 doc-check:
     RUSTDOCFLAGS="-D rustdoc::broken_intra_doc_links" cargo doc --workspace --exclude ship-host --no-deps
 
-# Lint Ship views (no inline <script>, style budget, undefined signals).
-[group('occasional')]
-lint-views:
-    cargo run --features unstable -p ship-cli --quiet -- lint views --format json
 
 # License audit gate — walks the resolved dependency tree (node_modules/.bun)
 # and fails on copyleft (GPL/AGPL/LGPL/EPL/MPL/CDDL…). Replaces hand-copied
@@ -333,25 +289,9 @@ lint-imports:
 lint-anti-theater:
     cargo run -p xtask --quiet -- lint-anti-theater
 
-# Build docs site (Astro static).
-[group('occasional')]
-docs:
-    cd apps/docs && bun scripts/collect-skill-docs.ts && bun run build
-
-# Dev docs site.
-[group('occasional')]
-docs-dev:
-    cd apps/docs && bun run dev --port 4321 --host
-
-# Regenerate the Astro reference tree from docs/<skill>/references/docs/.
-[group('occasional')]
-docs-regen:
-    cd apps/docs && AUDIENCE=internal bun run collect
-
-# Fail if the on-disk Astro reference tree disagrees with the collector.
-[group('occasional')]
-docs-check-drift:
-    cd apps/docs && bun run docs:check-drift
+# docs site recipes (docs, docs-dev, docs-regen, docs-check-drift) —
+# historical: lived under ship-apps; site ownership is elsewhere post
+# dissolution (j-12). Not re-homed here.
 
 # The sui-compiler cdylib lives in the external sui repo post-carve. The
 # deck bundler dlopens it for FFI compilation; the build needs the
@@ -361,15 +301,15 @@ docs-check-drift:
 # dev-build-all). cargo no-ops in ~2s when fresh, so it's effectively
 # free.
 _sui-compiler-lib:
-    cargo build --manifest-path /home/madvib/dev/sui/Cargo.toml -p sui-compiler
+    cargo build --manifest-path {{sui_path}}/Cargo.toml -p sui-compiler
 
 # Same as _sui-compiler-lib for deck-cli (the build-assets + app-scaffold
 # runner that ship's `just build` invokes). Lives in the external sui
 # repo post-carve; ship runs it via the explicit manifest path.
 _deck-cli:
-    cargo build --manifest-path /home/madvib/dev/sui/Cargo.toml -p deck-cli
+    cargo build --manifest-path {{sui_path}}/Cargo.toml -p deck-cli
 
-# One-shot production build: gen-types, every pack + ui-components rebuild,
+# One-shot production build: every pack + ui-components rebuild,
 # catalog regeneration, cargo --release, then verify outputs. Equivalent to
 # `ship build`.
 [group('daily')]
@@ -380,36 +320,32 @@ build: _sui-compiler-lib _deck-cli
     command -v jq >/dev/null || { echo "build: jq not on PATH" >&2; exit 1; }
     command -v cargo >/dev/null || { echo "build: cargo not on PATH" >&2; exit 1; }
     # Sui repo must be present for the deck-cli / sui-compiler invocations
-    # to resolve. TEMP absolute path — gets relativized to `../sui/...` in
-    # the layout-reshuffle capstone.
-    [ -f /home/madvib/dev/sui/Cargo.toml ] || {
-        echo "build: /home/madvib/dev/sui/Cargo.toml not found — clone sui alongside ship" >&2
+    # to resolve. The SUI_PATH env var points at the sui repo root.
+    [ -n "{{sui_path}}" ] && [ -f "{{sui_path}}/Cargo.toml" ] || {
+        echo "build: SUI_PATH is unset or points to a non-sui directory — set SUI_PATH to the sui repo root" >&2
         exit 1
     }
-    echo "[1/7] gen-types"
-    cargo run -p xtask --quiet -- gen-types
-    echo "[2/7] sui-compiler cdylib (target/debug/libsui_compiler.so — FFI lib the bundler loads)"
-    # Steps 3-7 drive the SUI compiler over Bun FFI against this .so. Nothing
+    echo "[1/4] sui-compiler cdylib (target/debug/libsui_compiler.so — FFI lib the bundler loads)"
+    # The remaining steps drive the SUI compiler over Bun FFI against this .so. Nothing
     # out-of-band — the explicit --manifest-path guarantees the .so is from
     # the same sui checkout. Cheap no-op when fresh.
     # Post-carve: deck-cli is in sui's repo, AND it walks UP from cwd to
     # find its framework singletons (`packages/sui/runtime/...`,
     # `packages/deck/router/...`). Run from the sui repo so the walk
-    # lands at sui's root, not ship's. cwd: /home/madvib/dev/sui.
-    (cd /home/madvib/dev/sui && cargo run -p deck-cli --quiet -- build-assets)
-    echo "[4/7] catalog baked in [3/7] — the duplicate TS producer (@ship/sui-catalog) is retired; deck-bundler is the single source"
+    # lands at sui's root, not ship's. cwd: the SUI_PATH directory.
+
     # App scaffolds (the daemon-served / and /space/<id>). Built from the
     # `apps/shipd/apps.jsonc` registry — the single app list, never duplicated
     # in a recipe; the root-mounted app self-contains the /_deck/* framework
     # surface (`--bundle-framework`).
-    echo "[5/7] app scaffolds (from apps/shipd/apps.jsonc)"
+    echo "[2/4] app scaffolds (from apps/shipd/apps.jsonc)"
     just _build-apps
-    echo "[6/7] cargo build --release (ship-cli + shipd)"
-    cargo build --release -p ship-cli -p shipd
-    echo "[7/7] verify outputs"
+    echo "[3/4] cargo build --release (shipctl + shipd --features bridge)"
+    cargo build --release -p shipctl -p shipd --features bridge
+    echo "[4/4] verify outputs"
     target_dir=$(cargo metadata --format-version 1 --no-deps --offline | grep -o '"target_directory":"[^"]*"' | cut -d'"' -f4)
     missing=0
-    for bin in ship shipd; do
+    for bin in shipctl shipd; do
         if [ ! -x "$target_dir/release/$bin" ]; then
             echo "  ✗ $target_dir/release/$bin missing" >&2
             missing=1
@@ -430,26 +366,27 @@ build: _sui-compiler-lib _deck-cli
     done
     [ "$missing" = "0" ] || { echo "build: outputs incomplete" >&2; exit 1; }
     echo "build complete — release binaries at $target_dir/release/"
-# Build CLI + shipd (unstable dev build).
+# Build CLI + shipd (unstable dev build). shipd defaults to ship-standard
+# (no harness-driver stack); opt in with `--features bridge` for
+# coding-agent dispatch — see apps/shipd/Cargo.toml.
 [group('occasional')]
 build-dev:
-    cargo build --features unstable -p ship-cli -p shipd && cargo build --manifest-path /home/madvib/dev/sui/Cargo.toml -p sui-lsp
-
+    cargo build --features unstable,bridge -p shipctl -p shipd && cargo build --manifest-path {{sui_path}}/Cargo.toml -p sui-lsp
 # Cargo-only release build (no front-end). Use `just build` for the full
 # production artifact set; this recipe is the cargo subset.
-[group('occasional')]
 build-release:
-    cargo build --release -p ship-cli -p shipd
+    cargo build --release -p shipctl -p shipd --features bridge
 
-# Install dev binaries to ~/.local/bin (ship + shipd).
+# Install dev binaries to ~/.local/bin (shipctl + shipd).
 [group('occasional')]
 install-dev: build-dev
     #!/usr/bin/env bash
     set -euo pipefail
     target=$(cargo metadata --format-version 1 --no-deps --offline | grep -o '"target_directory":"[^"]*"' | cut -d'"' -f4)
-    cp -f "$target/debug/ship" ~/.local/bin/ship.new && mv ~/.local/bin/ship.new ~/.local/bin/ship
-    cp -f /home/madvib/dev/sui/target/debug/sui-lsp ~/.local/bin/sui-lsp
-    echo "Installed: ship + shipd + sui-lsp → ~/.local/bin"
+    cp -f "$target/debug/shipctl"  ~/.local/bin/shipctl.new  && mv ~/.local/bin/shipctl.new  ~/.local/bin/shipctl
+    cp -f "$target/debug/shipd"    ~/.local/bin/shipd
+    cp -f "{{sui_path}}/target/debug/sui-lsp" ~/.local/bin/sui-lsp
+    echo "Installed: shipctl + shipd + sui-lsp → ~/.local/bin"
 
 # Install stable binary to ~/.cargo/bin.
 [group('occasional')]
@@ -457,43 +394,31 @@ install: build-release
     #!/usr/bin/env bash
     set -euo pipefail
     target=$(cargo metadata --format-version 1 --no-deps --offline | grep -o '"target_directory":"[^"]*"' | cut -d'"' -f4)
-    cargo install --path apps/ship-cli
+    cargo install --path apps/shipctl
     cp -f "$target/release/shipd" ~/.local/bin/shipd
 
 # Rebuild the in-browser SUI template compiler. The sui-compiler crate
 # lives in the external sui repo post-carve; wasm-pack writes into
-# `/home/madvib/dev/sui/packages/sui/compiler-wasm/pkg/` (gitignored
-# in that repo) so the package's own package.json + .gitignore stay
-# intact; the sui's bun workspace re-exports the generated entry via
+# `<SUI_PATH>/packages/sui/compiler-wasm/pkg/` (gitignored in that
+# repo) so the package's own package.json + .gitignore stay intact;
+# the sui's bun workspace re-exports the generated entry via
 # `main` / `exports`. Required before
-# `cd /home/madvib/dev/sui && bun run build` — the docs playground
-# imports `@ship/sui-compiler-wasm/sui_compiler_bg.wasm?url` to compile
+# `cd $SUI_PATH && bun run build` — the docs playground imports
 # `.sui` edits without a server round-trip. ~640KB wasm + ~9KB JS shim.
 [group('occasional')]
 sui-wasm:
-    wasm-pack build /home/madvib/dev/sui/crates/sui/compiler --target web --out-dir packages/sui/compiler-wasm/pkg --out-name sui_compiler -- --features wasm
+    wasm-pack build {{sui_path}}/crates/sui/compiler --target web --out-dir packages/sui/compiler-wasm/pkg --out-name sui_compiler -- --features wasm
 
 # Build the native Node-API addon the SUI test harness compiles through.
 # The sui-compiler-napi crate moved to the external sui repo with
 # sui-compiler. Build it there. Unlike `sui-wasm`, this is rarely run
 # by hand: the harness loads whatever `cargo build` / `just build`
-# already produced under `/home/madvib/dev/sui/target/`, so a plain
-# build keeps it fresh. This recipe exists for an explicit, isolated
+# already produced under `<SUI_PATH>/target/`, so a plain build
 # rebuild (e.g. after editing the compiler crate while iterating on
 # tests).
 [group('occasional')]
 sui-napi:
-    cargo build --manifest-path /home/madvib/dev/sui/Cargo.toml -p sui-compiler-napi
-
-# Regenerate Specta types (Rust → generated TS bindings).
-[group('occasional')]
-gen-types:
-    cargo run -p xtask -- gen-types
-
-# Regenerate the Ship SDK manifest.
-[group('occasional')]
-gen-sdk:
-    cargo run -p xtask -- gen-sdk
+    cargo build --manifest-path {{sui_path}}/Cargo.toml -p sui-compiler-napi
 
 # Generate per-domain consumer contract guides under docs/contract/.
 [group('occasional')]
@@ -511,14 +436,8 @@ gen-audit-readme:
     cargo run -p xtask -- gen-audit-readme
 
 # Regenerate tier-filtered event proto + TS from the event registry.
-[group('occasional')]
-gen-events:
-    cargo run -p xtask -- gen-events
 
 # Verify generated event artifacts are up-to-date (CI gate — exits 1 on drift).
-[group('occasional')]
-gen-events-check:
-    cargo run -p xtask -- gen-events --check
 
 # Regenerate emit-sites.md + substrate-fns.md citation indexes.
 [group('occasional')]
@@ -529,17 +448,6 @@ gen-indexes:
 [group('occasional')]
 gen-indexes-check:
     cargo run -p xtask -- gen-indexes --check
-
-# Regenerate packages/sdk/src/generated/collections.ts — the typed
-# Database interface derived from .ship/collections/*.jsonc (typed Kysely input).
-[group('occasional')]
-gen-collection-types:
-    cargo run -p xtask -- gen-collection-types
-
-# Verify generated collection types are up-to-date (CI gate — exits 1 on drift).
-[group('occasional')]
-gen-collection-types-check:
-    cargo run -p xtask -- gen-collection-types --check
 
 # Compile the active agent for the current project.
 [group('occasional')]
@@ -563,14 +471,15 @@ logs:
     fi
     tail -f "$log"
 
-# Verify both stable and unstable compile (CI gate).
-[group('occasional')]
+# Verify both stable and unstable compile (CI gate). shipd defaults to
+# ship-standard (no harness-driver stack); opt in with `--features bridge`
+# for the full dispatch path.
 check-gates:
-    cargo build -p ship-cli -p shipd
-    cargo build --features unstable -p ship-cli -p shipd
+    cargo build -p shipctl
+    cargo build --features bridge -p shipctl -p shipd
+    cargo build --features unstable,bridge -p shipctl -p shipd
     just check-no-set-var-global-dir
     @echo "Both gates compile ✓"
-
 # Home-layout grep guards. Hard-fail per devx-06 Tier 6: any raw
 # `.join(".ship")` outside crates/core/runtime/src/home/ blocks the build.
 # Leaf-crate portability check runs as part of the same target — if a
@@ -579,11 +488,12 @@ check-gates:
 [group('occasional')]
 check-raw:
     @scripts/lint/check-raw-ship-paths.sh
+    @scripts/lint/check-dead-db-names.sh
+    @scripts/lint/check-settings-single-owner.sh
     @scripts/lint/check-raw-env-reads.sh
     @scripts/lint/check-leaf-portability.sh
     @scripts/lint/check-runtime-access.sh
     @scripts/lint/check-module-dag.sh
-    @scripts/lint/check-sui-runtime-no-ship-api.sh
     @scripts/lint/check-deck-package-names.sh
     @scripts/lint/check-module-docs.sh
     @just lint-justfile
@@ -613,7 +523,7 @@ lint-justfile:
     echo "lint-justfile: all bash recipe bodies parse"
 
 # Banned-vocabulary gate. Fails when a banned term (deleted concept) appears
-# in hand-authored source/proto/tests. Ban-list: .ship/lint/banned-vocab.txt
+# in hand-authored source/proto/tests. Ban-list: scripts/lint/banned-vocab.txt
 # — a refactor step appends a term only once its last real use is deleted.
 # Empty list ⟹ no-op.
 [group('occasional')]
@@ -654,8 +564,3 @@ publish repo:
       -H "Content-Type: application/json" \
       -H "Cookie: ${AUTH_COOKIE}" \
       -d '{"repo_url": "{{ repo }}"}' | jq .
-
-# TypeScript type check (shell app).
-[group('occasional')]
-typecheck:
-    bun run --filter shell typecheck

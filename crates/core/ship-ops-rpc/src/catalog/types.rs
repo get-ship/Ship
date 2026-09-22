@@ -21,7 +21,9 @@ pub struct ArgDescriptor {
     pub required: bool,
 }
 
-pub(super) fn is_false(v: &bool) -> bool { !v }
+pub(super) fn is_false(v: &bool) -> bool {
+    !v
+}
 
 /// A mutation op. The write-side analog of `OpDescriptor`: same shape minus
 /// `returns` (commands return a status JSON), plus `blast_radius` for the gate

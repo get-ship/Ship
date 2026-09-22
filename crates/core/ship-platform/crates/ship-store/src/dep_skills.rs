@@ -6,14 +6,14 @@
 //! Resolution path:
 //!   dep ref → split package path + within-package path
 //!           → look up package in ship.lock → get `sha256:<hex>` hash
-//!           → cache dir `~/.ship/cache/objects/<hex>/`
+//!           → cache dir `cache_dir()/objects/<hex>/`
 //!           → if `<within-path>/SKILL.md` exists → single skill
 //!           → if `<within-path>/` is a namespace dir (sub-dirs with SKILL.md)
 //!             → expand to all leaf skills within
 
+use agent_schema::skill::{Skill, SkillSource};
 use anyhow::{Context, Result};
-use compiler::lockfile::{LockPackage, ShipLock};
-use compiler::{Skill, SkillSource};
+use stack_model::lockfile::{LockPackage, ShipLock};
 use std::path::{Path, PathBuf};
 
 // ── Dep ref detection ─────────────────────────────────────────────────────────
@@ -97,7 +97,7 @@ pub fn hash_from_lock(lock: &ShipLock, package_path: &str) -> Result<String> {
 
 /// Build the filesystem path to a within-package path under the cache.
 ///
-/// `cache_root` is `~/.ship/cache/` (or a test override).
+/// `cache_root` is `cache_dir()` (or a test override).
 /// Returns `<cache_root>/objects/<hex>/<within_path>`.
 pub fn cache_skill_path(cache_root: &Path, hex: &str, within_path: &str) -> PathBuf {
     cache_root.join("objects").join(hex).join(within_path)
@@ -111,7 +111,7 @@ pub fn cache_skill_path(cache_root: &Path, hex: &str, within_path: &str) -> Path
 ///
 /// `ref_str`    — full dep ref, e.g. `github.com/owner/pkg/better-auth`
 /// `lock`       — parsed ship.lock
-/// `cache_root` — `~/.ship/cache/`
+/// `cache_root` — `cache_dir()`
 pub fn resolve_dep_skill(ref_str: &str, lock: &ShipLock, cache_root: &Path) -> Result<Vec<Skill>> {
     let (package_path, within_path) = parse_dep_ref(ref_str)
         .ok_or_else(|| anyhow::anyhow!("invalid dep skill ref: '{}'", ref_str))?;
@@ -164,14 +164,14 @@ pub fn resolve_dep_skill(ref_str: &str, lock: &ShipLock, cache_root: &Path) -> R
 
 /// Parse a SKILL.md from a dep package, using `dep_ref` as the skill id.
 ///
-/// Delegates to the canonical [`compiler::skill_parser::parse_skill`] — one
+/// Delegates to the canonical [`stack_model::skill_parser::parse_skill`] — one
 /// parser for compile-path, dep-skill cache, and any future consumer. The
 /// earlier hand-rolled parser only handled block-form `grants:` / `requires:`
 /// and silently DROPPED inline `grants: [..]` / `requires: [..]` declarations,
 /// so dep-loaded agents were missing half their declared capability surface
 /// (#106). The canonical parser accepts BOTH forms.
 fn parse_dep_skill(dep_ref: &str, raw: &str) -> Skill {
-    let mut skill = compiler::skill_parser::parse_skill(dep_ref, raw);
+    let mut skill = stack_model::skill_parser::parse_skill(dep_ref, raw);
     // Mark dep-loaded skills as Community so downstream consumers (the gate,
     // the SDK generator) can distinguish them from authored/builtin skills.
     skill.source = SkillSource::Community;
@@ -223,7 +223,7 @@ fn list_available_skills(skills_dir: &Path) -> Vec<String> {
 /// - A missing lock or cache hit causes a hard error with an actionable message.
 ///
 /// `lock_path`  — `.ship/ship.lock`
-/// `cache_root` — `~/.ship/cache/` (pass `None` to use the default)
+/// `cache_root` — `cache_dir()` (pass `None` to use the default)
 pub fn resolve_dep_skills(
     skill_refs: &[String],
     local_skills: &[Skill],
@@ -254,8 +254,13 @@ pub fn resolve_dep_skills(
     let cache_root = match cache_root {
         Some(p) => p,
         None => {
-            let home = home::home_dir().context("cannot determine home directory")?;
-            default_cache = ship_substrate::ShipHome::project_ship_dir(home).join("cache");
+            // Route through `ShipHome::from_env` so SHIP_HOME is honored and
+            // the test-context isolation gate kicks in. A raw `home::home_dir()`
+            // bypass here would let a non-isolated test resolve the operator's
+            // real `cache_dir()` — see datasafety-shiphome.
+            default_cache = ship_substrate::ShipHome::from_env()
+                .cache_dir()
+                .to_path_buf();
             &default_cache
         }
     };
@@ -281,69 +286,16 @@ pub fn resolve_dep_skills(
     Ok(dep_skills)
 }
 
-/// Compose dep AGENTS into the consuming space (composition engine, #122).
-///
-/// Auto-compose model: each locked package's `exports.agents` are loaded from the
-/// content-addressed cache and made available in the space. Each agent's id is
-/// namespaced by the package path so dep agents never collide with local agents
-/// or with each other. Mirrors `resolve_dep_skills`'s lock + cache resolution.
-/// Returns an empty vec when there is no lockfile (no deps installed).
-pub fn resolve_dep_agents(
-    lock_path: &Path,
-    cache_root: Option<&Path>,
-) -> Result<Vec<compiler::AgentProfile>> {
-    if !lock_path.exists() {
-        return Ok(vec![]);
-    }
-    let lock =
-        ShipLock::from_file(lock_path).with_context(|| format!("reading {}", lock_path.display()))?;
-
-    let default_cache: PathBuf;
-    let cache_root = match cache_root {
-        Some(p) => p,
-        None => {
-            let home = home::home_dir().context("cannot determine home directory")?;
-            default_cache = ship_substrate::ShipHome::project_ship_dir(home).join("cache");
-            &default_cache
-        }
-    };
-
-    let mut out = Vec::new();
-    for pkg in &lock.packages {
-        let hex = pkg.hash.strip_prefix("sha256:").unwrap_or(&pkg.hash);
-        let cache_dir = cache_root.join("objects").join(hex);
-        let manifest_path = cache_dir.join("ship.jsonc");
-        if !manifest_path.exists() {
-            continue;
-        }
-        let manifest = match compiler::manifest::ShipManifest::from_file(&manifest_path) {
-            Ok(m) => m,
-            Err(e) => {
-                tracing::warn!("dep agents: skipping {} — manifest parse: {e}", pkg.path);
-                continue;
-            }
-        };
-        for agent_rel in &manifest.exports.agents {
-            let agent_path = cache_dir.join(agent_rel);
-            let content = match std::fs::read_to_string(&agent_path) {
-                Ok(c) => c,
-                Err(e) => {
-                    tracing::warn!("dep agents: {}::{agent_rel} unreadable: {e}", pkg.path);
-                    continue;
-                }
-            };
-            match compiler::jsonc::from_jsonc_str::<compiler::AgentProfile>(&content) {
-                Ok(mut profile) => {
-                    // Namespace by package path — collision-safe + deterministic.
-                    profile.agent.id = format!("{}/{}", pkg.path, profile.agent.id);
-                    out.push(profile);
-                }
-                Err(e) => tracing::warn!("dep agents: {}::{agent_rel} parse: {e}", pkg.path),
-            }
-        }
-    }
-    Ok(out)
-}
+// `resolve_dep_agents` retired with format-migration Wave 5. The
+// `#122` flat dep-agents merge (each locked package's `exports.agents`
+// namespaced by package path, flat-`extend`ed into the compile path)
+// is subsumed by `compose_space`'s precedence law — the
+// `space_resolver::roll_up` flow composes the cache tier, the
+// operator-enabled library tier, and the space's own source under one
+// law (census-format-migration.md §3.1 + §3.2). The W2 coverage test
+// (`space-resolver/src/lib_tests.rs::roll_up_covers_every_case_resolve_dep_agents_covers`)
+// pinned the equivalence. Dep-agent namespacing + shadow tracking
+// both come for free from `compose_space`.
 
 /// Transitive capability surface of the installed dep tree (#119).
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -357,11 +309,17 @@ pub struct TransitiveCapabilities {
     pub unmet: Vec<String>,
 }
 
-/// Compute the transitive capability surface of the dep tree (#119): walk each
-/// locked package's `exports.skills`, load them from the cache (reusing
-/// `resolve_dep_skill`), and union their `requires`/`grants`. `unmet` is what
-/// the tree demands that it doesn't grant itself. Surfaced at install for
-/// approval. Returns empty when there is no lockfile.
+/// Compute the transitive capability surface of the dep tree (#119): walk
+/// each locked package's `skills/` dir, parse every `SKILL.md` via
+/// [`stack_model::skill_parser::parse_skill`] (the canonical parser shared
+/// with the compile path), and union their `requires`/`grants`. `unmet` is
+/// what the tree demands that it doesn't grant itself. Surfaced at install
+/// for approval. Returns empty when there is no lockfile.
+///
+/// The walk is the same shape a member stack's resolver uses
+/// (`space_resolver::space_loader::walk_skills_dir`); the dep cache is a
+/// content-addressed mirror of the same dir tree, so one code path
+/// suffices.
 pub fn transitive_capabilities(
     lock_path: &Path,
     cache_root: Option<&Path>,
@@ -369,15 +327,18 @@ pub fn transitive_capabilities(
     if !lock_path.exists() {
         return Ok(TransitiveCapabilities::default());
     }
-    let lock =
-        ShipLock::from_file(lock_path).with_context(|| format!("reading {}", lock_path.display()))?;
+    let lock = ShipLock::from_file(lock_path)
+        .with_context(|| format!("reading {}", lock_path.display()))?;
 
     let default_cache: PathBuf;
     let cache_root = match cache_root {
         Some(p) => p,
         None => {
-            let home = home::home_dir().context("cannot determine home directory")?;
-            default_cache = ship_substrate::ShipHome::project_ship_dir(home).join("cache");
+            // See `resolve_dep_skills`: route through ShipHome so SHIP_HOME is
+            // honored and the test-context isolation gate kicks in.
+            default_cache = ship_substrate::ShipHome::from_env()
+                .cache_dir()
+                .to_path_buf();
             &default_cache
         }
     };
@@ -386,28 +347,21 @@ pub fn transitive_capabilities(
     let mut granted: Vec<String> = Vec::new();
     for pkg in &lock.packages {
         let hex = pkg.hash.strip_prefix("sha256:").unwrap_or(&pkg.hash);
-        let manifest_path = cache_root.join("objects").join(hex).join("ship.jsonc");
-        if !manifest_path.exists() {
+        let cache_dir = cache_root.join("objects").join(hex);
+        let skills_dir = cache_dir.join("skills");
+        if !skills_dir.is_dir() {
+            // No skills dir — the package may not export any skills, or
+            // the cache may be partially installed. Either way, this
+            // package contributes no capability surface to the union.
             continue;
         }
-        let manifest = match compiler::manifest::ShipManifest::from_file(&manifest_path) {
-            Ok(m) => m,
-            Err(e) => {
-                tracing::warn!("transitive caps: skipping {} — manifest: {e}", pkg.path);
+        for (skill_id, skill_md) in find_leaf_skills(&skills_dir) {
+            let Ok(raw) = std::fs::read_to_string(&skill_md) else {
                 continue;
-            }
-        };
-        for skill_export in &manifest.exports.skills {
-            let ref_str = format!("{}/{}", pkg.path, skill_export);
-            match resolve_dep_skill(&ref_str, &lock, cache_root) {
-                Ok(skills) => {
-                    for s in skills {
-                        required.extend(s.requires.iter().cloned());
-                        granted.extend(s.grants.iter().cloned());
-                    }
-                }
-                Err(e) => tracing::warn!("transitive caps: {ref_str}: {e}"),
-            }
+            };
+            let skill = parse_dep_skill(&skill_id, &raw);
+            required.extend(skill.requires.iter().cloned());
+            granted.extend(skill.grants.iter().cloned());
         }
     }
     required.sort();
@@ -420,7 +374,249 @@ pub fn transitive_capabilities(
         .filter(|r| !granted_set.contains(r.as_str()))
         .cloned()
         .collect();
-    Ok(TransitiveCapabilities { required, granted, unmet })
+    Ok(TransitiveCapabilities {
+        required,
+        granted,
+        unmet,
+    })
+}
+
+// ── Per-package composition bundle (Phase-3 J2) ──────────────────────────────
+
+/// One locked package's contribution to the extension roll-up, loaded from the
+/// content-addressed cache. Each `CachedExtension` is a self-contained bundle
+/// the resolver turns into a single [`stack_model::ExtensionDescriptor`].
+///
+/// The Phase-3 roll-up wants per-package data (each package becomes its own
+/// extension descriptor so the shadow records can identify which package lost
+/// on an id collision). The previous flat dep-loader
+/// ([`resolve_dep_skills`]) flattened every package's contribution into
+/// one vec — fine for the compile path, lossy for the roll-up's
+/// provenance. This function is the additive per-package surface; the
+/// dep-skills flattener stays in place for the compile path (the
+/// dep-agents flattener was retired with Wave 5).
+/// Fields mirror the nouns the composition law composes per package:
+/// `agent_profiles` (id namespaced by `pkg_path`), `skills` (id namespaced),
+/// `views` (route/component_ref per the dep's `view.jsonc` sidecar,
+/// `prefix` set to `pkg_path` so dep views mount under the package's own
+/// namespace and never collide with the on-disk source or with other
+/// packages — `compose_space`'s namespace-prefix merge keys on
+/// `(prefix, route)`), and `content_hash` (the package's sha256 hex from
+/// `ShipLock::hash`, the tier-level identity the shadow record carries on
+/// collision).
+#[derive(Debug, Clone)]
+pub struct CachedExtension {
+    /// The package's path in the lockfile, e.g. `github.com/owner/pkg`.
+    pub pkg_path: String,
+    /// The package's `sha256:<hex>` content hash from the lockfile — the
+    /// cache tier's content hash the roll-up's cache key covers.
+    pub content_hash: String,
+    /// Agent profiles from the package's `exports.agents`, namespaced by
+    /// `pkg_path` so dep agents never collide with the on-disk source or
+    /// with other packages.
+    pub agent_profiles: Vec<agent_schema::AgentProfile>,
+    /// Skills from the package's `exports.skills`, namespaced by `pkg_path`.
+    pub skills: Vec<agent_schema::Skill>,
+    /// Views from the package's `exports.views`, each `prefix` set to
+    /// `pkg_path`. The per-view data (`route`, `component_ref`) reads from
+    /// `<view_dir>/view.jsonc` (the dep sidecar; absent → silently
+    /// skipped, the same lenient contract the other noun loaders have).
+    pub views: Vec<ship_ui::ViewDescriptor>,
+}
+
+/// Load every locked package's content as a per-package bundle, suitable
+/// for the Phase-3 roll-up's `ExtensionDescriptor` construction.
+///
+/// The walk is the same shape a member stack's resolver uses
+/// (`space_resolver::space_loader::PER_NOUN_SOURCE_DIRS` + the `walk_*_dir`
+/// helpers). For each locked package we walk the cache's domain dirs in
+/// `stack_model::DOMAIN_DIRS` order, the same way pack decides what is
+/// content. The manifest's `exports` declaration is dead — the dirs are
+/// the truth. Missing or unreadable files log a `tracing::warn` and the
+/// roll-up continues with the rest.
+///
+/// Returns an empty vec when there is no lockfile (no deps installed).
+///
+/// `lock_path`  — `.ship/ship.lock`
+/// `cache_root` — `cache_dir()` (pass `None` to use the default)
+pub fn load_cached_extensions(
+    lock_path: &Path,
+    cache_root: Option<&Path>,
+) -> Result<Vec<CachedExtension>> {
+    if !lock_path.exists() {
+        return Ok(vec![]);
+    }
+    let lock = ShipLock::from_file(lock_path)
+        .with_context(|| format!("reading {}", lock_path.display()))?;
+
+    let default_cache: PathBuf;
+    let cache_root = match cache_root {
+        Some(p) => p,
+        None => {
+            // See `resolve_dep_skills`: route through ShipHome so SHIP_HOME is
+            // honored and the test-context isolation gate kicks in.
+            default_cache = ship_substrate::ShipHome::from_env()
+                .cache_dir()
+                .to_path_buf();
+            &default_cache
+        }
+    };
+
+    let mut out = Vec::new();
+    for pkg in &lock.packages {
+        let hex = pkg
+            .hash
+            .strip_prefix("sha256:")
+            .unwrap_or(&pkg.hash)
+            .to_string();
+        let cache_dir = cache_root.join("objects").join(&hex);
+        if !cache_dir.is_dir() {
+            // No cache object — the package is partially installed; skip
+            // silently. A follow-on `ship install` fills the gap.
+            continue;
+        }
+
+        // agents: walk `agents/<id>.jsonc` (or `.ts` per the parse
+        // capability), parse each as `AgentProfile`, namespace the id
+        // by `pkg_path` so dep agents never collide with on-disk
+        // source or with other packages.
+        let mut agent_profiles = Vec::new();
+        let agents_dir = cache_dir.join("agents");
+        if agents_dir.is_dir() {
+            for entry in walkdir::WalkDir::new(&agents_dir)
+                .min_depth(1)
+                .max_depth(2)
+                .into_iter()
+                .filter_map(|e| e.ok())
+            {
+                let path = entry.path();
+                if !path.is_file() {
+                    continue;
+                }
+                let is_jsonc = path.extension().and_then(|e| e.to_str()) == Some("jsonc");
+                if !is_jsonc {
+                    continue;
+                }
+                let rel = path.strip_prefix(&cache_dir).unwrap_or(path);
+                let rel_str = rel
+                    .components()
+                    .map(|c| c.as_os_str().to_string_lossy().into_owned())
+                    .collect::<Vec<_>>()
+                    .join("/");
+                let content = match std::fs::read_to_string(path) {
+                    Ok(c) => c,
+                    Err(e) => {
+                        tracing::warn!(
+                            "load_cached_extensions: {}::{rel_str} unreadable: {e}",
+                            pkg.path
+                        );
+                        continue;
+                    }
+                };
+                match agent_schema::jsonc::from_jsonc_str::<agent_schema::AgentProfile>(&content) {
+                    Ok(mut profile) => {
+                        profile.agent.id = format!("{}/{}", pkg.path, profile.agent.id);
+                        agent_profiles.push(profile);
+                    }
+                    Err(e) => {
+                        tracing::warn!("load_cached_extensions: {}::{rel_str} parse: {e}", pkg.path)
+                    }
+                }
+            }
+        }
+
+        // skills: walk `skills/<id>/SKILL.md`, parse each via the
+        // canonical skill parser, namespace the id by `pkg_path`. The
+        // within-package path (`skills/<id>`) is preserved so the
+        // namespaced id format matches the old `manifest.exports.skills`
+        // contract downstream consumers were built against.
+        let mut skills = Vec::new();
+        let skills_dir = cache_dir.join("skills");
+        if skills_dir.is_dir() {
+            for (skill_id, skill_md) in find_leaf_skills(&skills_dir) {
+                let namespaced = format!("{}/skills/{}", pkg.path, skill_id);
+                let Ok(raw) = std::fs::read_to_string(&skill_md) else {
+                    continue;
+                };
+                skills.push(parse_dep_skill(&namespaced, &raw));
+            }
+        }
+
+        // views: each `views/<id>/` dir carries a `view.jsonc` sidecar
+        // with the per-view data (`route`, `component_ref`). The
+        // `prefix` is set to `pkg.path` so dep views mount under the
+        // package's own namespace and never collide with the on-disk
+        // source or with other packages — `compose_space`'s
+        // namespace-prefix merge keys on `(prefix, route)`. A sidecar
+        // that doesn't exist is silently skipped (a dep is
+        // partial-installable; missing sidecars don't break the
+        // roll-up).
+        let mut views = Vec::new();
+        let views_dir = cache_dir.join("views");
+        if views_dir.is_dir() {
+            for entry in walkdir::WalkDir::new(&views_dir)
+                .min_depth(1)
+                .max_depth(1)
+                .into_iter()
+                .filter_map(|e| e.ok())
+            {
+                let view_dir = entry.path();
+                if !view_dir.is_dir() {
+                    continue;
+                }
+                let sidecar_path = view_dir.join("view.jsonc");
+                let content = match std::fs::read_to_string(&sidecar_path) {
+                    Ok(c) => c,
+                    Err(_) => {
+                        // No sidecar — the view directory is the .sui
+                        // bundle only; skip silently. The future
+                        // on-disk view format is its own design pass.
+                        continue;
+                    }
+                };
+                match agent_schema::jsonc::from_jsonc_str::<ViewSidecar>(&content) {
+                    Ok(sidecar) => {
+                        views.push(ship_ui::ViewDescriptor {
+                            prefix: pkg.path.clone(),
+                            route: sidecar.route,
+                            component_ref: sidecar.component_ref,
+                        });
+                    }
+                    Err(e) => tracing::warn!(
+                        "load_cached_extensions: {}::{}/view.jsonc parse: {e}",
+                        pkg.path,
+                        view_dir
+                            .strip_prefix(&cache_dir)
+                            .unwrap_or(view_dir)
+                            .display()
+                    ),
+                }
+            }
+        }
+
+        out.push(CachedExtension {
+            pkg_path: pkg.path.clone(),
+            content_hash: hex,
+            agent_profiles,
+            skills,
+            views,
+        });
+    }
+    Ok(out)
+}
+
+/// The `<view_dir>/view.jsonc` sidecar a dep package ships to name a view
+/// at composition time. Only the fields the composition law needs land
+/// here — the bundle bytes (`.sui` template) are still read by deck at
+/// render time, not at compose time.
+#[derive(serde::Deserialize)]
+struct ViewSidecar {
+    /// The local route under the package's namespace (e.g. `/dashboard`).
+    /// The full mount path is `prefix + route` per `compose_route_tree`.
+    route: String,
+    /// Which `.sui` bundle/element backs the route — a path/tag
+    /// reference, not the bundle bytes.
+    component_ref: String,
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

@@ -19,10 +19,7 @@ pub enum ScopeViolation {
     /// A Space event carried a space key that does not match the binding's
     /// space — the caller tried to write into another space's log.
     #[error("cross-space emit: binding is space {expected:?}, event keyed {got:?}")]
-    CrossSpace {
-        expected: String,
-        got: String,
-    },
+    CrossSpace { expected: String, got: String },
     /// A space-unbound caller (`binding.space_id == None`) tried to emit a
     /// Space event. Fail-closed: an unbound caller cannot emit Space data.
     #[error("space-unbound caller cannot emit a Space-scoped event")]
@@ -35,6 +32,10 @@ pub enum ScopeViolation {
         chosen: EventScope,
         allowed: Vec<EventScope>,
     },
+    /// A Space event was stamped with a `scope_key` that has no registered
+    /// entity in the `spaces` registry. Scope ids must be registered.
+    #[error("unregistered scope id: space `{scope_key}` has no registry row")]
+    UnregisteredScope { scope_key: String },
 }
 
 /// The verb-gate verdict (ring 1). Allow outright, prompt the operator, or deny.

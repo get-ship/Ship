@@ -51,6 +51,9 @@ mod tests {
             author_account_id: None,
             author_device_id: None,
             signature: None,
+            sig: None,
+            writer: None,
+            causality: None,
         }
     }
 

@@ -13,10 +13,10 @@ mod webhook_ext;
 use axum::Router;
 use std::sync::Arc;
 
-use deck::config::DeckConfig;
-use crate::{auth, ship_runtime};
-use crate::auth::{attest, pairing, session};
+use crate::auth::attest;
 use crate::transport::cors;
+use crate::{auth, ship_runtime};
+use deck::config::DeckConfig;
 
 use health::{handle_panic, health_check};
 use middleware::{build_header_middleware, spa_nav_middleware};
@@ -30,14 +30,12 @@ use middleware::{build_header_middleware, spa_nav_middleware};
 /// cutover.
 pub fn build_router(
     rt: Arc<ship_runtime::ShipRuntime>,
-    token: Arc<String>,
     session_registry: auth::SessionRegistry,
-    pairing_registry: pairing::SharedPairingRegistry,
     attestation_verifier: attest::AttestationVerifier,
     daemon_mode: deck::DaemonMode,
     apps: Vec<deck::AppServeConfig>,
+    resolution: Arc<deck::Resolution>,
 ) -> Router {
-    let st = rt.clone();
     // Enumerated routes — one `ApiState`-typed router, registered via
 
     // ONE ShipDataPort for the whole router: deck's serve_index / serve_setup
@@ -78,38 +76,20 @@ pub fn build_router(
     };
 
     // Unauthenticated routes (before auth middleware)
-    let register_registry = session_registry.clone();
     let health_rt = rt.clone();
-    let pair_init_reg = pairing_registry.clone();
-    let pair_init_sessions = session_registry.clone();
-    let pair_status_reg = pairing_registry.clone();
     let attest_verifier = attestation_verifier.clone();
     let attest_sessions = session_registry.clone();
     let public_routes = Router::new()
-        .route(
-            "/auth/pair/init",
-            axum::routing::post(move |
-                peer: axum::extract::ConnectInfo<std::net::SocketAddr>,
-                body: Option<axum::Json<auth::PairInitRequest>>,
-            | {
-                auth::pair_init(pair_init_reg.clone(), pair_init_sessions.clone(), Some(peer), body)
-            }),
-        )
-        .route(
-            "/auth/pair/status",
-            axum::routing::get(move |q: axum::extract::Query<auth::PairStatusQuery>| {
-                auth::pair_status(pair_status_reg.clone(), q)
-            }),
-        )
         .route(
             "/auth/server-attest",
             axum::routing::post(move |body: axum::Json<auth::AttestRequest>| {
                 auth::server_attest(attest_verifier.clone(), attest_sessions.clone(), body)
             }),
         )
-        .route("/api/health", axum::routing::get(move || {
-            health_check(health_rt)
-        }))
+        .route(
+            "/api/health",
+            axum::routing::get(move || health_check(health_rt)),
+        )
         // Drift-detection endpoint (/_deck/meta), the shared CSS/theme assets,
         // first-run `/` + `/setup`, the per-tag source viewer, and the root
         // public-asset catch-all are all owned by `deck::router()` now —
@@ -117,57 +97,30 @@ pub fn build_router(
         // daemon routes here.
         // Bind the runtime state here so the resulting `Router<()>` merges
         // cleanly with the root assembly below.
-        .with_state(rt.clone());
-
-    let auth_token = token;
+        .with_state(rt.clone())
+        // ship.internal.v1.GitService — leaf over ship-git (j-02 step 2).
+        // ship.internal.v1.HarnessService — leaf over compiler (j-02s4a).
+        // Unauthed localhost leaves, same posture as the former helmd mounts:
+        // helm SPA + server-side clients dial without a session token.
+        .merge(crate::rpc::ops::git_wire::axum_router())
+        .merge(crate::rpc::ops::harness_wire::axum_router());
     let auth_registry = session_registry;
-    // Authenticated pair confirm + session register — require daemon.token bearer.
-    let pair_confirm_reg = pairing_registry.clone();
-    let pair_confirm_sessions = auth_registry.clone();
-    let pair_confirm_routes = Router::new()
-        .route(
-            "/auth/pair/confirm",
-            axum::routing::post(move |auth_ext: axum::Extension<auth::AuthContext>, body: axum::Json<auth::PairConfirmRequest>| {
-                auth::pair_confirm(
-                    pair_confirm_reg.clone(),
-                    pair_confirm_sessions.clone(),
-                    auth_ext,
-                    body,
-                )
-            }),
-        )
-        .route("/api/session/register", axum::routing::post(move |
-            auth_ext: axum::Extension<auth::AuthContext>,
-            body: axum::Json<auth::SessionRegisterRequest>,
-        | {
-            auth::session_register(register_registry, auth_ext, body)
-        }));
-    // Space-window registration retired: the launched window now calls
-    // `DeviceService.RegisterWindow` (device.proto, Connect) over the host
-    // socket — same pid-bound C2 mint, kernel-attested pid from `PeerPid`,
-    // operator-only at the transport. The legacy `/api/space-window/register`
-    // REST route + `auth::space_window` were removed in the space cutover.
-
+    // Hook ingress lives at flat `/hooks/*` (authed, but OFF `/api/v1`):
+    // consumed by generated git-hook shell scripts that POST via curl and
+    // can't speak Connect, so it's a permanent ingress holdout. Kept out of
+    // `/api/v1` so that namespace can shrink to just the auth-bootstrap.
+    // Ops Connect surface always mounts (data wires + agents reads). Multiplex
+    // stays available unconditionally; bridge-only wires (code/terminal) are
+    // gated inside `rpc::ops::router` itself.
     let authenticated_routes = Router::new()
-        .nest("/api", pair_confirm_routes)
-        // Hook ingress lives at flat `/hooks/*` (authed, but OFF `/api/v1`):
-        // consumed by generated git-hook shell scripts that POST via curl and
-        // can't speak Connect, so it's a permanent ingress holdout. Kept out of
-        // `/api/v1` so that namespace can shrink to just the auth-bootstrap.
-        // Gated: hooks_api uses ship-agents PTY session state (ship-code feature).
-        ;
-    #[cfg(feature = "ship-code")]
-    let authenticated_routes = authenticated_routes
-        // ConnectRPC op surface (ship.ops.v1) — additive, wrapped by
-        // auth_middleware below so the gate sees AuthContext. See rpc::ops.
-        // The authority-projection layer runs INSIDE auth_middleware (it's
         // applied here, so auth wraps it): it reads the populated AuthContext and
-        // stamps the resolved `ship_types::Authority` into the request, so
+        // stamps the resolved `agent_schema::Authority` into the request, so
         // crate-owned Connect wires (ship-account) gate on the shared authority
         // without coupling to shipd's AuthContext (S6 operator-cred gate).
         .merge(
-            crate::rpc::ops::router(rt.clone())
-                .layer(axum::middleware::from_fn(auth::project_authority_middleware)),
+            crate::rpc::ops::router(rt.clone()).layer(axum::middleware::from_fn(
+                auth::project_authority_middleware,
+            )),
         )
         // Multiplex transport (deck-axum) — same auth-gated group as the
         // Connect ops above: the live-data reads are gated behind
@@ -183,11 +136,10 @@ pub fn build_router(
                 Arc::new(crate::ports::data::ShipChangeSource::new(rt.clone())),
             ))),
         )
-        // Dry-run view interceptor runs INSIDE auth (applied before the
-        // auth layer here, which means outer->inner order wraps it with
-        // auth) so requests must carry a valid bearer before short-circuit.
+        // cookie, or — when the host socket's peer-cred layer ran — a
+        // pre-populated AuthContext.
         .layer(axum::middleware::from_fn(move |req, next| {
-            auth::auth_middleware(auth_token.clone(), auth_registry.clone(), req, next)
+            auth::auth_middleware(auth_registry.clone(), req, next)
         }))
         // Top-level DataPort Extension — deck's serve_index / serve_setup
         // read provisioning via `Option<Extension<Arc<dyn DataPort>>>`
@@ -271,6 +223,8 @@ pub fn build_router(
         // view in-process via Rolldown on a cache miss (controller inlined, no
         // bun). The same instance the watcher drives.
         .layer(axum::Extension(rt.bundler().clone()))
+        // Mount-scoped project root + per-app route outputs for deck handlers.
+        .layer(axum::Extension(resolution))
         // X-Shipd-Build header on every response: build SHA + dirty flag.
         // CLI/shell/browser read this to detect daemon-vs-client skew.
         .layer(axum::middleware::from_fn(build_header_middleware))
@@ -279,7 +233,9 @@ pub fn build_router(
         // JSON / Form extractors still enforce axum's `DefaultBodyLimit`
         // (2 MB) on their own — this layer only sets the outer ceiling.
         // Catch handler panics → 500 instead of connection abort.
-        .layer(tower_http::catch_panic::CatchPanicLayer::custom(handle_panic))
+        .layer(tower_http::catch_panic::CatchPanicLayer::custom(
+            handle_panic,
+        ))
 }
 
 #[cfg(test)]
@@ -306,8 +262,7 @@ mod merge_tests {
         // `/_deck/views/{name}/` prefix with deck's catch-all. (The
         // `/_deck/mutation/{name}` tombstone now lives in `deck::router()`, so
         // it must NOT be re-declared here or the merge would conflict.)
-        let kept: Router = Router::new()
-            .route("/_deck/views/{name}/sse", get(noop));
+        let kept: Router = Router::new().route("/_deck/views/{name}/sse", get(noop));
 
         // Merging deck's surface (catch-all + /space + /_deck/view/{name} + bundles)
         // with the kept routes must not panic, and the union must build into
@@ -330,17 +285,16 @@ mod merge_tests {
         }
         // Real server routes/prefixes → must reach their handlers, never shadowed.
         for p in [
-            "/",                            // serve_index (first-run branch)
-            "/setup",                       // serve_setup
+            "/",      // serve_index (first-run branch)
+            "/setup", // serve_setup
             "/api/health",
             "/api/assets/view-tokens.css",
             "/_deck/views/git",
             "/_deck/runtime.js",
             "/shell/_assets/x.js",
             "/space/abc",
-
             "/hooks/session-start",
-            "/favicon.ico",                 // dotted asset
+            "/favicon.ico",                         // dotted asset
             "/ship.ops.v1.AgentsService/Summaries", // Connect RPC (dotted)
         ] {
             assert!(!is_client_nav(p), "{p} must NOT be treated as client nav");

@@ -1,4 +1,4 @@
-//! Thin transport for `ship-config`'s unified `SettingsService` (settings.proto).
+//! Thin transport for `ship-settings`'s unified `SettingsService` (settings.proto).
 //!
 //! Mirrors the `SpaceWire` / `CollectionWire` mounts in `rpc/ops`: build the
 //! crate's `SettingsWire` with a per-request context factory and register it.
@@ -17,7 +17,7 @@
 use std::sync::Arc;
 
 use connectrpc::ConnectError;
-use ship_config::SettingsCtx;
+use ship_settings::SettingsCtx;
 use ship_substrate::data::DataService;
 use ship_substrate::ports::{DataStore, KernelLog, SingleBackendDataStore};
 
@@ -32,7 +32,10 @@ fn account_store(state: &ApiState) -> Result<Arc<dyn DataStore>, ConnectError> {
     let account_db = ship_substrate::db::account_db_path(state.ship_dir());
     let svc = DataService::open_at(&account_db)
         .map_err(|e| ConnectError::internal(format!("data service over account.db: {e}")))?;
-    Ok(Arc::new(SingleBackendDataStore::new(svc, ACCOUNT_PARTITION)))
+    Ok(Arc::new(SingleBackendDataStore::new(
+        svc,
+        ACCOUNT_PARTITION,
+    )))
 }
 
 /// Build a `DataStore` over the active space's `space.db` (the per-space overlay
@@ -72,16 +75,16 @@ fn resolve_ctx(
 pub fn settings_wire(
     state: ApiState,
 ) -> Arc<
-    ship_config::SettingsWire<
+    ship_settings::SettingsWire<
         impl Fn(&connectrpc::RequestContext) -> Result<SettingsCtx, ConnectError>
-            + Send
-            + Sync
-            + 'static,
+        + Send
+        + Sync
+        + 'static,
     >,
 > {
     let kernel = Arc::new(KernelLog::new(state.kernel().clone()));
     let ctx_state = state.clone();
-    Arc::new(ship_config::SettingsWire::new(
+    Arc::new(ship_settings::SettingsWire::new(
         kernel,
         move |ctx: &connectrpc::RequestContext| resolve_ctx(ctx, &ctx_state),
     ))

@@ -1,4 +1,4 @@
-// Proof for the shared prod-home guard (tests/loops/_prod-guard.mjs).
+// Proof for the shared prod-home guard (tests/_shared/prod-guard.mjs).
 //
 // The guard is the single chokepoint that refuses to point an e2e suite at a
 // daemon whose home is the operator's prod ~/.ship — mirroring the Rust

@@ -22,7 +22,7 @@ use ship_types::envelope::EventEnvelope;
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
 fn make_kernel(tmp: &tempfile::TempDir) -> Arc<KernelLog> {
-    let ship_dir = ShipHome::project_ship_dir(tmp.path());
+    let ship_dir = tmp.path().join(".ship");
     std::fs::create_dir_all(&ship_dir).unwrap();
     let router = new_isolated_for_test(ship_dir).unwrap();
     Arc::new(KernelLog::new(router))
@@ -32,7 +32,7 @@ fn runtime_ctx() -> EmitContext {
     EmitContext {
         caller_kind: CallerKind::Runtime,
         skill_id: None,
-        binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
+        binding: ship_types::ScopeBinding::daemon_internal(None, agent_schema::Authority::Sdk),
         session_id: None,
     }
 }
@@ -127,6 +127,21 @@ fn diff_item_field_change_emits_merge_at_index() {
 fn diff_identical_snapshots_emits_nothing() {
     let v = json!({"a": 1, "items": [{"id": "x", "n": 42}]});
     assert!(diff(&v, &v, "").is_empty());
+}
+
+#[test]
+fn diff_moved_list_item_emits_move() {
+    // Three siblings, no adds/removes, no field changes — the only_moves path
+    // in `diff_arrays` is the one that runs, exercising `emit_moves` directly.
+    let old = json!([{"id": "a"}, {"id": "b"}, {"id": "c"}]);
+    let new = json!([{"id": "b"}, {"id": "a"}, {"id": "c"}]);
+    let patches = diff(&old, &new, "items");
+
+    let moves: Vec<&Patch> = patches.iter().filter(|p| p.op == PatchOp::Move).collect();
+    assert_eq!(moves.len(), 1, "expected exactly one move patch, got {patches:?}");
+    assert_eq!(moves[0].path, "items");
+    assert_eq!(moves[0].from, Some(1), "moved from old index 1 ('b')");
+    assert_eq!(moves[0].to, Some(0), "moved to new index 0");
 }
 
 // ── Resolver tests ────────────────────────────────────────────────────────────

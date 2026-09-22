@@ -13,8 +13,7 @@ use serde_json::Value;
 /// Source of truth: `schemas/skill.schema.json` at the workspace root. Keeping
 /// the schema string embedded means the runtime can validate every SKILL.md
 /// without depending on an installed copy at runtime.
-const SKILL_SCHEMA_JSON: &str =
-    include_str!("../../../../../../../schemas/skill.schema.json");
+const SKILL_SCHEMA_JSON: &str = include_str!("../../../../../../../schemas/skill.schema.json");
 
 fn skill_schema_validator() -> &'static Validator {
     static VALIDATOR: OnceLock<Validator> = OnceLock::new();
@@ -72,7 +71,7 @@ pub enum SkillSource {
 /// and can use `$ARGUMENTS`.
 /// Stored as:
 /// - project scope: `.ship/agents/skills/<id>/SKILL.md`
-/// - user scope: `~/.ship/skills/<id>/SKILL.md`
+/// - user scope: `data_dir()/library/skills/<id>/SKILL.md`
 ///
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Skill {
@@ -101,7 +100,6 @@ pub struct Skill {
     #[serde(default)]
     pub source: SkillSource,
     /// Artifact types this skill produces (e.g. `["html", "adr"]`).
-    /// Used by the runtime to infer event subscriptions — see `events_for_artifact`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub artifacts: Vec<String>,
 }

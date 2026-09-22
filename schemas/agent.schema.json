@@ -46,29 +46,13 @@
         "icon": {
           "type": "string",
           "description": "Display icon — emoji or icon name (e.g. '\ud83e\uddea', 'test-tube')."
-        },
-        "role": {
-          "type": "string",
-          "deprecated": true,
-          "description": "DEPRECATED (Floki D2b): superseded by top-level `capabilities`. The gate enforces capability, not role. Legacy mapping (worker → 'worker'; lead/commander → 'orchestrator') is still honored by the local stdio gate until removed."
-        },
-        "tools_preset": {
-          "type": "string",
-          "deprecated": true,
-          "description": "DEPRECATED (Floki D2b): superseded by top-level `capabilities`. See `role`."
-        },
-        "active_tools": {
-          "type": "array",
-          "items": { "type": "string" },
-          "deprecated": true,
-          "description": "DEPRECATED (Floki D2b): superseded by top-level `capabilities`. See `role`."
         }
       },
       "additionalProperties": false
     },
     "capabilities": {
       "type": "array",
-      "description": "Ship-op authority grants — gate-enforced. Each entry grants the agent ops in `domain` up to the `blast` ceiling. Replaces the deprecated `role`/`tools_preset` derivation. C0 (read) and C1 (workspace-write) are an implicit baseline every agent already has; C3 (critical) is operator-only and NEVER agent-settable (omit it). Mirrors ship_ops_rpc::BlastRadius.",
+      "description": "Ship-op authority grants — gate-enforced. Each entry grants the agent ops in `domain` up to the `blast` ceiling. C0 (read) and C1 (workspace-write) are an implicit baseline every agent already has; C3 (critical) is operator-only and NEVER agent-settable (omit it). Mirrors ship_ops_rpc::BlastRadius.",
       "items": {
         "type": "object",
         "required": ["domain"],
@@ -167,36 +151,46 @@
         "inline": {
           "type": "string",
           "description": "Inline always-on rules. Use \\n for line breaks."
+        },
+        "refs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Rule IDs to filter the project rule pool to (file names without the `NNNN-` prefix / `.md` suffix). Empty = inherit the whole pool."
         }
       },
       "additionalProperties": false
     },
     "hooks": {
-      "type": "object",
-      "description": "Hook commands declared on the agent. The compiler emits each into the active harness's hook registration (e.g. .claude/settings.json:hooks).",
-      "properties": {
-        "stop": {
-          "type": "string",
-          "description": "Command to run when the agent session ends (Claude Code Stop hook)."
+      "type": "array",
+      "description": "Hook commands declared on the agent. The general HookConfig form (carrying a HookTrigger); compile emits each into the active harness's hook registration (e.g. .claude/settings.json:hooks).",
+      "items": {
+        "type": "object",
+        "required": ["id", "trigger", "command"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Stable identifier for this hook entry (used as a key when merging into harness config)."
+          },
+          "trigger": {
+            "type": "string",
+            "enum": ["PreToolUse", "PostToolUse", "Notification", "Stop", "SubagentStop", "PreCompact"],
+            "description": "Lifecycle event that fires this hook. Stop fires on agent session end; SubagentStop on sub-agent end; PreToolUse/PostToolUse gate tool calls; Notification fires on agent notifications; PreCompact fires before context compaction."
+          },
+          "matcher": {
+            "type": ["string", "null"],
+            "description": "Optional tool-name matcher (e.g. \"Bash\", \"Edit\"). When set, the hook only fires for matching tool calls. Ignored for non-PreToolUse/PostToolUse triggers."
+          },
+          "command": {
+            "type": "string",
+            "description": "Shell command to run when the hook fires."
+          },
+          "cursor_event": {
+            "type": "string",
+            "description": "Raw Cursor event name. When set, bypasses trigger mapping and emits directly to Cursor's hooks file."
+          }
         },
-        "subagent_stop": {
-          "type": "string",
-          "description": "Command to run when a sub-agent session ends (SubagentStop hook)."
-        }
-      },
-      "additionalProperties": false
-    },
-    "apps": {
-      "type": "object",
-      "description": "Ship app integrations for this agent.",
-      "properties": {
-        "studio": {
-          "type": "boolean",
-          "default": false,
-          "description": "When true, the compiler emits an HTTP MCP transport pointing at Studio's local endpoint instead of a stdio `ship mcp serve` entry."
-        }
-      },
-      "additionalProperties": false
+        "additionalProperties": false
+      }
     },
     "isolation": {
       "type": "object",
@@ -291,11 +285,6 @@
           ],
           "description": "Codex CLI config pass-through. Ship-managed keys (mcp_servers) must be set via Ship's own fields. Set `model` here."
         },
-        "cursor": {
-          "type": "object",
-          "description": "Cursor settings. No upstream schema published.",
-          "additionalProperties": true
-        },
         "opencode": {
           "allOf": [
             { "$ref": "https://opencode.ai/config.json" },
@@ -311,6 +300,11 @@
         "pi": {
           "type": "object",
           "description": "Pi settings. No upstream schema published — open pass-through.",
+          "additionalProperties": true
+        },
+        "omp": {
+          "type": "object",
+          "description": "omp settings (pi fork). No upstream schema published — open pass-through.",
           "additionalProperties": true
         }
       },

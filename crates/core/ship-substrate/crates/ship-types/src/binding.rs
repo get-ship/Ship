@@ -15,28 +15,11 @@
 //! the daemon mints on their behalf through the auth seam. This removes the
 //! in-process arbitrary-construction path.
 
+use agent_schema::Authority;
+
 use crate::event_registry::EventScope;
 use crate::identity::local_device_id;
 use crate::{AccountId, DeviceId, SpaceId};
-
-/// Operator-class and caller-class of a principal — replaces the
-/// `is_operator: bool` / `Scope::Full` conflation with one named state.
-///
-/// The on-disk daemon/SDK token resolves to a *capped* authority (`Sdk`),
-/// never `Operator`.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Authority {
-    /// Operator-class: the human at the console / fully-trusted local control.
-    Operator,
-    /// Acting within a specific space.
-    Space { space_id: SpaceId },
-    /// An agent actor, identified by its instance id.
-    Agent { id: String },
-    /// The on-disk daemon/SDK token — capped, never operator-class.
-    Sdk,
-    /// The cloud-sync ingest path.
-    CloudSync,
-}
 
 /// Authoritative binding of a principal to its scope keys.
 ///
@@ -73,7 +56,7 @@ impl ScopeBinding {
     /// Only daemon-process code (L0/L1/shipd) can name this; agents/apps go
     /// through RPC and the daemon mints via the auth seam for them. Sets a
     /// stable per-install device id (installed by `set_local_device_id` at
-    /// boot from `~/.ship/machine/device-id`, mode 0600; falls back to the
+    /// boot from `state_dir()/device-id`, mode 0600; falls back to the
     /// `"local-device"` placeholder when no install has happened yet), no
     /// account, the given space + authority.
     pub fn daemon_internal(space: Option<SpaceId>, authority: Authority) -> Self {
@@ -84,6 +67,14 @@ impl ScopeBinding {
             space_id: space,
             authority,
         }
+    }
+
+    /// TRUSTED INTERNAL ONLY — daemon process with `Authority::Sdk`.
+    ///
+    /// Convenience for off-kernel writers that need a daemon-internal
+    /// binding without taking a direct dependency on `agent_schema`.
+    pub fn daemon_sdk() -> Self {
+        Self::daemon_internal(None, Authority::Sdk)
     }
 
     pub fn device_id(&self) -> &DeviceId {

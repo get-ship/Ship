@@ -6,16 +6,13 @@
 //! exists but currently has no users). `registry()` assembles all submissions at
 //! link time, so there is no central aggregation list — but registration entries
 //! themselves are hand-maintained and can drift from their payload structs.
-//!
-//! ## Naming
-//!
-//! `EventScope` (not `Scope`) avoids collision with `ship_types::scope::Scope`
-//! (the authoring-scope enum for vector directories).
 
 /// Which partition the event rides → which `(scope, scope_key)` it belongs to
 /// on the envelope, and what it syncs with. The variant IS the sync boundary:
 /// who OWNS (writes the authoritative truth) defines the partition.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Default, serde::Serialize, serde::Deserialize,
+)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[serde(rename_all = "snake_case")]
 pub enum EventScope {
@@ -62,13 +59,41 @@ impl std::fmt::Display for EventScope {
     }
 }
 
-/// Whether the event is kept in full history or windowed/dropped.
+/// Whether the event is kept in full history, kept for a bounded time
+/// window, or never persisted at all.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Retention {
     /// Persisted forever; replayed during projection bootstrap.
     Durable,
-    /// Windowed; only the last N or a recent time window is retained.
+    /// Persisted exactly like Durable at append time, then deleted by the
+    /// retention sweep once older than `ttl_days`. Projections folding a
+    /// Windowed type must yield correct state from the surviving window
+    /// alone — replay sees only unswept rows.
+    Windowed {
+        /// Retention horizon in days; rows older than this are swept.
+        ttl_days: u16,
+    },
+    /// Deliver-only: routed to live subscribers, NEVER persisted.
+    /// At-most-once, loss-tolerant — a crash or full mailbox drops it and
+    /// nothing replays it.
     Ephemeral,
+}
+
+impl Retention {
+    /// The sweep horizon for Windowed types; `None` for Durable/Ephemeral.
+    pub fn ttl_days(&self) -> Option<u16> {
+        match self {
+            Retention::Windowed { ttl_days } => Some(*ttl_days),
+            _ => None,
+        }
+    }
+
+    /// Whether rows of this retention class are written to the events log
+    /// at route time. Windowed persists exactly like Durable; only
+    /// Ephemeral skips the sink.
+    pub fn persists(&self) -> bool {
+        !matches!(self, Retention::Ephemeral)
+    }
 }
 
 /// Maturity of the event's schema contract.
@@ -117,7 +142,10 @@ impl EventDef {
     pub fn primary_scope(&self) -> EventScope {
         // SAFETY-of-invariant: the registration macros never produce an empty
         // set. Fail-closed to Runtime if a malformed (empty) set ever appears.
-        self.allowed_scopes.first().copied().unwrap_or(EventScope::Runtime)
+        self.allowed_scopes
+            .first()
+            .copied()
+            .unwrap_or(EventScope::Runtime)
     }
 }
 
@@ -147,41 +175,18 @@ inventory::collect!(EventRegistration);
 /// own schema validator (Phase 4a — deserialize-into-the-declared-type), so
 /// registering an event without a real payload type is impossible. The string form
 /// (`$type_name`) stays as the stable identifier the fixture/codegen tools key on.
-///
-/// # Usage
-///
-/// ```ignore
-/// // Single scope (common case):
-/// ship_types::register_event!(
-///     "my.event",
-///     [ship_types::event_registry::EventScope::Space],
-///     ship_types::event_registry::Retention::Durable,
-///     ship_types::event_registry::Stability::Stable,
-///     "MyPayload",
-///     my_crate::MyPayload
-/// );
-/// ```
 #[macro_export]
 macro_rules! register_event {
-    // The scopes are passed as a bracketed, comma-separated list of one-or-more
-    // `EventScope`s (the allowed-SET, Model C). Captured element-by-element so
-    // the array is rebuilt inside the macro — `&[ ... ]` then unsizes to the
-    // `&'static [EventScope]` field. A size-1 set is the single-scope model.
-    // The final argument is the payload TYPE PATH: the registration carries
-    // its own schema validator (Phase 4a — deserialize-into-the-declared-type),
-    // so registering an event without a real payload type is impossible. The
-    // string form ($type_name) stays as the stable identifier the fixture/
-    // codegen tools key on.
     ($name:expr, [$($scope:expr),+ $(,)?], $retention:expr, $stability:expr, $type_name:expr, $payload:ty) => {
-        ::ship_types::inventory::submit! {
-            ::ship_types::event_registry::EventRegistration {
+        $crate::inventory::submit! {
+            $crate::event_registry::EventRegistration {
                 def: || {
                     fn validate(json: &str) -> ::std::result::Result<(), ::std::string::String> {
                         ::serde_json::from_str::<$payload>(json)
                             .map(|_| ())
                             .map_err(|e| e.to_string())
                     }
-                    static DEF: ::ship_types::event_registry::EventDef = ::ship_types::event_registry::EventDef {
+                    static DEF: $crate::event_registry::EventDef = $crate::event_registry::EventDef {
                         name: $name,
                         allowed_scopes: &[$($scope),+],
                         retention: $retention,
@@ -202,7 +207,9 @@ macro_rules! register_event {
 ///
 /// Order is not guaranteed (determined by linker section layout).
 pub fn registry() -> impl Iterator<Item = &'static EventDef> {
-    inventory::iter::<EventRegistration>.into_iter().map(|r| (r.def)())
+    inventory::iter::<EventRegistration>
+        .into_iter()
+        .map(|r| (r.def)())
 }
 
 /// Look up a single event by name.
@@ -248,5 +255,15 @@ mod tests {
                 "duplicate event name in registry: {name}"
             );
         }
+    }
+
+    #[test]
+    fn retention_tiers_split_persist_and_ttl() {
+        assert!(Retention::Durable.persists());
+        assert!(Retention::Windowed { ttl_days: 7 }.persists());
+        assert!(!Retention::Ephemeral.persists());
+        assert_eq!(Retention::Windowed { ttl_days: 7 }.ttl_days(), Some(7));
+        assert_eq!(Retention::Durable.ttl_days(), None);
+        assert_eq!(Retention::Ephemeral.ttl_days(), None);
     }
 }

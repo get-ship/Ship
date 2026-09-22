@@ -4,76 +4,265 @@
 //! go through `SpaceContext.kernel()` (KernelLog port). No sqlite/sqlx/rusqlite
 //! types and no raw fs here.
 //!
-//! Scope split: the registry (`projects` + active pointer) is Runtime-scoped, so
-//! `ctx` binds the Runtime store (runtime.db) — it owns list/active/add/activate
-//! and is the kernel handle for every emit. `info` is identity-only; per-space
-//! settings live on the unified `settings_overlay` (S4) and are owned by
-//! `SettingsService`.
+//! The spoke model after the 2026-07-09 cutover:
 //!
-//! After the dual-read-model dissolution (2026-06-10), record reads go through
-//! `registry::list/get` which use `kernel.try_ship_dir()` to open the `projects`
-//! SQL table; only the active pointer still uses `ctx.data()`.
+//! - **registry** is the `spaces` Runtime-scoped projection — the device-local
+//!   record of opened spaces (LaunchServices analogy). Identity lives in the
+//!   projection, never at the path. `Create` mints identity once (through
+//!   `identity::ensure_identity_for_root`), gated behind the `space.create`
+//!   capability. `Open` reads an already-registered space by path or id —
+//!   unknown path/id is `NotFound`, never a mint.
+//! - **identity** is the served-space read: `Info` returns the runtime's
+//!   served space's identity and name (today resolved through the live
+//!   `ctx`'s `SpaceId`). Per-space settings are read through the unified
+//!   `settings_overlay` (S4) — owned by `SettingsService`.
+//! - **membership** (`register_stack` / `list_stacks`) is the registered
+//!   member set the resolver composes. Content is the computed roll-up over
+//!   those members plus their locked dependencies in the content-addressed
+//!   cache — there is no install act and no stored library tier.
+//!
+//! `Activate` is GONE (multi-window kills the open-one-at-a-time world).
+//! The active pointer table that supported it was retired; only
+//! per-space projection rows remain.
 
 use std::sync::Arc;
 
 use ship_substrate::ports::SpaceContext;
 
 use crate::error::SpaceError;
+use crate::identity;
+use crate::spaces;
 use crate::types::{SpaceInfo, SpaceRecord};
-use crate::{info, registry};
 
-/// Core service — stateless; all state lives in `SpaceContext`.
+/// Core service. Stateless: every read/write reaches through `ctx`'s
+/// DataStore + KernelLog ports.
 pub struct SpaceService {
-    /// Runtime-scoped context: the `projects` registry + active pointer store,
-    /// and the kernel handle for every `project.*` emit.
+    /// The ctx carries the served-space `SpaceId` (entity id) the runtime
+    /// minted at boot via `identity::ensure_identity_for_root`. All reads of
+    /// identity reach through this id; the wire layer wires the request's
+    /// `SpaceContext` per-request so a future per-window model stays
+    /// coherent.
     pub ctx: Arc<SpaceContext>,
 }
 
 impl SpaceService {
+    /// New service bound to a served-space `SpaceContext`.
     pub fn new(ctx: Arc<SpaceContext>) -> Self {
         Self { ctx }
     }
 
-    // ── registry (Runtime-scoped) ───────────────────────────────────────────
+    // ── opened-spaces list (Runtime-scoped) ─────────────────────────────────
 
-    /// List all live (non-archived) spaces, newest first.
-    pub async fn list(&self) -> Result<Vec<SpaceRecord>, SpaceError> {
-        registry::list(self.ctx.kernel()).await
+    /// List every space currently open on this device.
+    pub fn list(&self) -> Result<Vec<SpaceRecord>, SpaceError> {
+        spaces::list(self.ctx.kernel())
     }
 
-    /// The currently-active space, or `None` on cold boot.
-    pub async fn active(&self) -> Result<Option<SpaceRecord>, SpaceError> {
-        registry::active(self.ctx.data(), self.ctx.kernel()).await
+    // ── served-space identity (per-request) ──────────────────────────────────
+
+    /// Compose the served-space identity for THIS request's ctx. Returns an
+    /// empty identity when the ctx is the global/space-less Runtime slot
+    /// (no served space) — the wire then emits an empty `SpaceInfo`.
+    pub fn info(&self) -> Result<SpaceInfo, SpaceError> {
+        // The per-request `SpaceContext` carries the served space's id via
+        // its `SpaceId` slot. Globally-scoped requests (the Runtime
+        // partition) carry an empty id; the wire returns an empty identity
+        // so the FE never invents a `global` pseudo-space.
+        let id = self.ctx.space_id().as_str();
+        if id.is_empty() {
+            Ok(SpaceInfo {
+                space_id: None,
+                root: None,
+                name: None,
+            })
+        } else {
+            // The served-space row lives in the Runtime-scoped `spaces`
+            // projection. Fetch it so the Info reply carries the canonical
+            // path + the projection's recorded name (the user-given name,
+            // not the path-derived default).
+            let rec = spaces::get(self.ctx.kernel(), id)?;
+            Ok(match rec {
+                Some(r) => SpaceInfo {
+                    space_id: Some(r.space_id),
+                    root: Some(r.path),
+                    name: Some(r.name),
+                },
+                None => SpaceInfo {
+                    space_id: Some(id.to_string()),
+                    root: None,
+                    name: None,
+                },
+            })
+        }
     }
 
-    /// The active-space id, or `None` on cold boot (used by `list` to surface
-    /// the active pointer alongside the registry).
-    pub async fn active_id(&self) -> Result<Option<String>, SpaceError> {
-        Ok(crate::projection::get_active_id(self.ctx.data()).await?)
-    }
+    // ── create (mint-once, gated on space.create) ───────────────────────────
 
-    /// Register a directory as a space (idempotent). See [`registry::add`].
-    pub async fn add(
+    /// CREATE a new space at the location `path`. Mints identity once (an
+    /// already-open path re-emits `space.seen`; a fresh one mints a
+    /// nanoid + emits `space.opened`). Idempotent: re-opening an existing
+    /// space returns its existing identity with a bumped `last_seen_at`.
+    ///
+    /// The ONE minting entry point (besides the boot-time re-open path,
+    /// which never mints on a fresh directory — see the shipd boot init).
+    /// The wire gates this behind the `space.create` capability.
+    pub async fn create(
         &self,
         path: &std::path::Path,
         name: Option<&str>,
     ) -> Result<SpaceRecord, SpaceError> {
-        registry::add(self.ctx.kernel(), path, name).await
+        identity::ensure_identity_for_root(self.ctx.kernel(), path, name).await
     }
 
-    /// Switch the active space. See [`registry::activate`].
-    pub async fn activate(&self, id: &str) -> Result<SpaceRecord, SpaceError> {
-        registry::activate(self.ctx.data(), self.ctx.kernel(), id).await
+    // ── open (registered spaces only; never mints) ─────────────────────────
+
+    /// OPEN an already-registered space by `path` or `space_id`. Never
+    /// mints: an unregistered path or unknown id is `NotFound`, not a
+    /// fresh identity. Mirrors `add`'s re-open behavior (bumps
+    /// `last_seen_at` via `space.seen`) without the mint-on-miss fallback.
+    pub async fn open_by_path(&self, path: &std::path::Path) -> Result<SpaceRecord, SpaceError> {
+        let canonical = std::fs::canonicalize(path)
+            .unwrap_or_else(|_| path.to_path_buf());
+        let existing = spaces::find_by_path(self.ctx.kernel(), &canonical)?.ok_or_else(|| {
+            SpaceError::NotFound(format!(
+                "no registered space at path {}",
+                canonical.display()
+            ))
+        })?;
+        self.bump_seen(existing).await
     }
 
-    // ── info (identity only) ────────────────────────────────────────────────
+    /// OPEN an already-registered space by `space_id`. Never mints: an
+    /// unknown id is `NotFound`.
+    pub async fn open_by_id(&self, space_id: &str) -> Result<SpaceRecord, SpaceError> {
+        let existing = spaces::get(self.ctx.kernel(), space_id)?
+            .ok_or_else(|| SpaceError::NotFound(format!("no registered space {space_id}")))?;
+        self.bump_seen(existing).await
+    }
 
-    /// Compose identity (id/root/name from `projects`). Per-space settings
-    /// moved to `SettingsService` (S4). See [`info::compose`].
-    pub async fn info(
+    /// Bump `last_seen_at` on an already-resolved registry row via
+    /// `space.seen` (same event `ensure_identity_for_root`'s re-open path
+    /// emits), without touching the mint path at all.
+    async fn bump_seen(&self, existing: SpaceRecord) -> Result<SpaceRecord, SpaceError> {
+        let now = crate::helpers::now_rfc3339();
+        let envelope = ship_types::envelope::EventEnvelope::new(
+            ship_types::event_types::SPACE_SEEN,
+            &existing.space_id,
+            &ship_types::payload::SpaceSeen { seen_at: now.clone() },
+        )
+        .map_err(|e| SpaceError::Internal(e.to_string()))?;
+        self.ctx
+            .kernel()
+            .emit(envelope, &crate::helpers::runtime_emit_ctx())
+            .await
+            .map_err(|e| SpaceError::Internal(e.to_string()))?;
+        Ok(SpaceRecord {
+            last_seen_at: now,
+            ..existing
+        })
+    }
+
+    // ── stack membership ───────────────────────────────────────────────────
+
+    /// Register `root_path` as a member stack of the space. Membership is
+    /// REGISTRATION — the composed space is exactly the registered set. The
+    /// root must carry the stack marker (`stack.config.ts`); registration is
+    /// idempotent (re-registering bumps `registered_at`).
+    pub async fn register_stack(
         &self,
-        space_id: Option<&str>,
-    ) -> Result<SpaceInfo, SpaceError> {
-        info::compose(self.ctx.kernel(), space_id).await
+        space_id: &str,
+        root_path: &std::path::Path,
+    ) -> Result<ship_types::payload::StackRegistered, SpaceError> {
+        let resolved = resolve_space_id(self.ctx.space_id().as_str(), space_id)?;
+        if !root_path.is_absolute() {
+            return Err(SpaceError::BadArgs(format!(
+                "root_path must be an absolute path: {}",
+                root_path.display()
+            )));
+        }
+        let marker = root_path.join(ship_substrate::project::STACK_CONFIG_FILENAME);
+        if !marker.is_file() {
+            return Err(SpaceError::BadArgs(format!(
+                "not a stack root: no stack.config.ts in {}",
+                root_path.display()
+            )));
+        }
+        let canonical = std::fs::canonicalize(root_path)
+            .map_err(|e| SpaceError::BadArgs(format!("root_path: {e}")))?;
+        let payload = ship_types::payload::StackRegistered {
+            root_path: canonical.to_string_lossy().into_owned(),
+            registered_at: crate::helpers::now_rfc3339(),
+        };
+        let envelope = ship_types::envelope::EventEnvelope::new(
+            ship_types::event_types::STACK_REGISTERED,
+            &resolved,
+            &payload,
+        )
+        .map_err(|e| SpaceError::Internal(e.to_string()))?;
+        self.ctx
+            .kernel()
+            .emit(envelope, &crate::helpers::runtime_emit_ctx())
+            .await
+            .map_err(|e| SpaceError::Internal(e.to_string()))?;
+        Ok(payload)
     }
+
+    /// The stacks registered as members of the space, in registration order.
+    pub fn list_stacks(
+        &self,
+        space_id: &str,
+    ) -> Result<Vec<ship_substrate::db::spaces::StackRow>, SpaceError> {
+        let resolved = resolve_space_id(self.ctx.space_id().as_str(), space_id)?;
+        crate::spaces::list_stacks(self.ctx.kernel(), &resolved)
+    }
+
+    // ── snapshot ────────────────────────────────────────────────────────────
+    //
+    // Resolves `space_id` (the request's explicit id, or the served space's
+    // id when the request leaves it empty — the "active/served space"
+    // fallback the proto documents), validates `target_dir`, and delegates
+    // to the substrate's `snapshot_space` to write the bundle. The wire
+    // layer is the only caller; the helper here exists so the resolution
+    // rule lives next to the rest of the service logic.
+    pub async fn snapshot(
+        &self,
+        space_id: &str,
+        target_dir: &std::path::Path,
+    ) -> Result<ship_substrate::SnapshotResult, SpaceError> {
+        let resolved = resolve_space_id(self.ctx.space_id().as_str(), space_id)?;
+        // target_dir must be an absolute, existing directory — the drill
+        // spec calls this out (typed invalid-argument otherwise).
+        if !target_dir.is_absolute() {
+            return Err(SpaceError::BadArgs(format!(
+                "target_dir must be an absolute path: {}",
+                target_dir.display()
+            )));
+        }
+        if !target_dir.is_dir() {
+            return Err(SpaceError::BadArgs(format!(
+                "target_dir does not exist or is not a directory: {}",
+                target_dir.display()
+            )));
+        }
+        let data_root = ship_substrate::project::get_global_dir().map_err(|e| {
+            SpaceError::Internal(format!("resolve ship data root: {e}"))
+        })?;
+        ship_substrate::snapshot_space(&data_root, &resolved, target_dir)
+            .map_err(|e| SpaceError::Internal(format!("snapshot: {e}")))
+    }
+}
+
+/// Pick the effective space id: the request's `space_id` when present, else
+/// the served space from the request's `SpaceContext`. Both empty is an
+/// invalid request — a snapshot with no target space has no meaning.
+fn resolve_space_id(served: &str, requested: &str) -> Result<String, SpaceError> {
+    if !requested.is_empty() {
+        return Ok(requested.to_string());
+    }
+    if !served.is_empty() {
+        return Ok(served.to_string());
+    }
+    Err(SpaceError::BadArgs(
+        "space_id is empty and the request has no served space; specify one".to_string(),
+    ))
 }

@@ -1,7 +1,7 @@
 //! ConnectRPC wire layer for `ArtifactsService`.
 //!
 //! `ArtifactsWire<F>` wraps the service with a per-request context factory.
-//! It implements the generated `ship_ops_rpc::ArtifactsService` trait so
+//! It implements the generated `ship_proto::ship::ops::v1::ArtifactsService` trait so
 //! shipd can mount it via `ArtifactsServiceExt::register`.
 
 use std::collections::BTreeMap;
@@ -11,14 +11,12 @@ use std::sync::Arc;
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
 use ship_reactive::{ReactiveRegistry, ResolverSpec, WatchKey};
 use ship_substrate::events::EventFilter;
-use ship_substrate::ports::{KernelLog, SpaceContext};
+use ship_substrate::{KernelLog, SpaceContext};
 
-use ship_ops_rpc::{
-    ArtifactRecord as ProtoRecord, ArtifactsListResponse, ArtifactsService as ArtifactsServiceTrait,
-    Deletion, WatchEvent,
-};
+use ship_proto::ship::ops::v1::{ArtifactRecord as ProtoRecord, ArtifactsListResponse, ArtifactsService as ArtifactsServiceTrait, Deletion, WatchEvent};
 
 use crate::error::ArtifactError;
+use crate::error::MAX_PAYLOAD_BYTES;
 use crate::patch::{patch_frame_to_proto, snapshot_for_artifacts};
 use crate::service::ArtifactService;
 use crate::types::ArtifactRecord;
@@ -75,7 +73,7 @@ where
     async fn list(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedListArtifactsRequestView,
+        request: ship_proto::ship::ops::v1::OwnedListArtifactsRequestView,
     ) -> ServiceResult<ArtifactsListResponse> {
         let svc = self.make_svc(&ctx);
         let mut filter = BTreeMap::new();
@@ -112,7 +110,7 @@ where
     async fn watch(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedArtifactsWatchReqView,
+        request: ship_proto::ship::ops::v1::OwnedArtifactsWatchReqView,
     ) -> ServiceResult<ServiceStream<WatchEvent>> {
         let space_id = self.make_svc(&ctx).ctx.space_id().to_string();
         let scope_filter = request.scope.to_string();
@@ -166,7 +164,7 @@ where
     async fn patch(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedPatchArtifactRequestView,
+        request: ship_proto::ship::ops::v1::OwnedPatchArtifactRequestView,
     ) -> ServiceResult<ProtoRecord> {
         let svc = self.make_svc(&ctx);
         let name = ne(request.name);
@@ -182,7 +180,7 @@ where
     async fn promote(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedPromoteArtifactRequestView,
+        request: ship_proto::ship::ops::v1::OwnedPromoteArtifactRequestView,
     ) -> ServiceResult<ProtoRecord> {
         let svc = self.make_svc(&ctx);
         let target = parse_target_scope(
@@ -201,7 +199,7 @@ where
     async fn delete(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedDeleteArtifactRequestView,
+        request: ship_proto::ship::ops::v1::OwnedDeleteArtifactRequestView,
     ) -> ServiceResult<Deletion> {
         let svc = self.make_svc(&ctx);
         let deleted = svc.delete(request.id.as_ref()).await.map_err(ConnectError::from)?;
@@ -210,8 +208,63 @@ where
         }
         Ok(Response::new(Deletion { id: request.id.to_string(), ..Default::default() }))
     }
-}
 
+    /// Store a new artifact. Thin wire layer over `ArtifactService::store`:
+    /// enforces the byte cap, parses the scope, and converts the typed error.
+    async fn create(
+        &self,
+        ctx: RequestContext,
+        request: ship_proto::ship::ops::v1::OwnedCreateArtifactRequestView,
+    ) -> ServiceResult<ProtoRecord> {
+        if request.data.len() > MAX_PAYLOAD_BYTES {
+            return Err(ConnectError::invalid_argument(format!(
+                "payload {} bytes exceeds cap of {} bytes",
+                request.data.len(),
+                MAX_PAYLOAD_BYTES
+            )));
+        }
+        let svc = self.make_svc(&ctx);
+        let scope = parse_target_scope(
+            request.scope,
+            ne(request.run_id),
+            svc.ctx.space_id().as_str(),
+        )
+        .map_err(|e| ConnectError::invalid_argument(e.to_string()))?;
+        let record = svc
+            .store(
+                request.name,
+                request.mime,
+                request.data,
+                &scope,
+                ne(request.collection_id),
+                ne(request.item_id),
+                ne(request.owner_actor),
+                ne(request.expires_at),
+            )
+            .await
+            .map_err(ConnectError::from)?;
+        Ok(Response::new(record_to_proto(record)))
+    }
+
+    /// Read an artifact's record + bytes. Thin wire layer over
+    /// `ArtifactService::get_blob`: a missing id surfaces as `ConnectError::not_found`.
+    async fn get_blob(
+        &self,
+        ctx: RequestContext,
+        request: ship_proto::ship::ops::v1::OwnedGetArtifactBlobRequestView,
+    ) -> ServiceResult<ship_proto::ship::ops::v1::ArtifactBlobResponse> {
+        let svc = self.make_svc(&ctx);
+        let (record, bytes) = svc
+            .get_blob(request.id.as_ref())
+            .await
+            .map_err(ConnectError::from)?;
+        Ok(Response::new(ship_proto::ship::ops::v1::ArtifactBlobResponse {
+            record: ::buffa::MessageField::some(record_to_proto(record)),
+            data: bytes,
+            ..Default::default()
+        }))
+    }
+}
 fn sv(s: String) -> serde_json::Value {
     serde_json::Value::String(s)
 }

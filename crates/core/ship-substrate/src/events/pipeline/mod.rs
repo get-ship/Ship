@@ -36,4 +36,3 @@ mod tests_verdict;
 
 pub use observed::{PipelineStepObservedPayload, StepTrigger, StepVerdict};
 pub use payloads::*;
-

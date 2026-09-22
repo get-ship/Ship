@@ -50,7 +50,12 @@ pub fn build(id: &str, ship_dir: &Path) -> Option<AgentWireCtx> {
     catalogs.skills.retain(|e| !agent.skills.contains(&e.id));
     catalogs.mcp.retain(|e| !agent.mcp_servers.contains(&e.id));
     catalogs.rules.retain(|e| !agent.rules.contains(&e.id));
-    Some(AgentWireCtx { agent, nodes, edges, catalogs })
+    Some(AgentWireCtx {
+        agent,
+        nodes,
+        edges,
+        catalogs,
+    })
 }
 
 /// Compute node positions + bezier edges. Canvas is a 1000x600 viewBox
@@ -73,8 +78,12 @@ pub fn compute_wire_layout(agent: &AgentDetail) -> (Vec<WireNode>, Vec<WireEdge>
     });
 
     fn column(n: usize, y0: f32, y1: f32) -> Vec<f32> {
-        if n == 0 { return vec![] }
-        if n == 1 { return vec![(y0 + y1) / 2.0] }
+        if n == 0 {
+            return vec![];
+        }
+        if n == 1 {
+            return vec![(y0 + y1) / 2.0];
+        }
         let step = (y1 - y0) / (n as f32 - 1.0).max(1.0);
         (0..n).map(|i| y0 + step * i as f32).collect()
     }
@@ -82,7 +91,10 @@ pub fn compute_wire_layout(agent: &AgentDetail) -> (Vec<WireNode>, Vec<WireEdge>
     let node_w: f32 = 160.0;
 
     // Skills — left column.
-    for (i, y) in column(agent.skills.len(), 60.0, 420.0).into_iter().enumerate() {
+    for (i, y) in column(agent.skills.len(), 60.0, 420.0)
+        .into_iter()
+        .enumerate()
+    {
         let s = &agent.skills[i];
         nodes.push(WireNode {
             kind: "skill",
@@ -149,16 +161,20 @@ pub fn compute_wire_layout(agent: &AgentDetail) -> (Vec<WireNode>, Vec<WireEdge>
         let tx;
         let ty = n.y + 30.0;
         if n.x < agent_x {
-            fx = agent_left.0; fy = agent_left.1;
+            fx = agent_left.0;
+            fy = agent_left.1;
             tx = n.x + node_w;
         } else if n.x > agent_x + agent_w {
-            fx = agent_right.0; fy = agent_right.1;
+            fx = agent_right.0;
+            fy = agent_right.1;
             tx = n.x;
         } else if n.y < agent_y {
-            fx = agent_top.0; fy = agent_top.1;
+            fx = agent_top.0;
+            fy = agent_top.1;
             tx = n.x + node_w / 2.0;
         } else {
-            fx = agent_bottom.0; fy = agent_bottom.1;
+            fx = agent_bottom.0;
+            fy = agent_bottom.1;
             tx = n.x + node_w / 2.0;
         }
         let mx = (fx + tx) / 2.0;
@@ -184,8 +200,8 @@ fn capitalize(s: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::view_state::Permissions;
+    use super::*;
 
     fn agent() -> AgentDetail {
         AgentDetail {

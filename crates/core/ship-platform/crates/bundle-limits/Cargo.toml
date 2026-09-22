@@ -1,0 +1,17 @@
+[package]
+name = "bundle-limits"
+version = "0.1.0"
+edition = "2024"
+license-file = "LICENSE"
+publish = false
+description = "Hard ceilings for the install pipeline — one source of truth for the download / unpack / per-file byte caps every bundle site enforces."
+
+[dependencies]
+flate2 = "1"
+tar = "0.4"
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

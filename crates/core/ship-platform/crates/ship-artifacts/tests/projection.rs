@@ -17,7 +17,7 @@
 //! materializes its own `collection_artifacts` rows.
 //!
 //! All tests are isolated via `init_project_minimal` so they never touch
-//! `~/.ship`.
+//! the operator's real ship home.
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -25,8 +25,8 @@ use std::sync::Arc;
 use ship_artifacts::service::ArtifactService;
 use ship_artifacts::types::ArtifactScope;
 use ship_substrate::data::DataService;
-use ship_substrate::events::new_isolated_for_test;
-use ship_substrate::ports::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
+use ship_substrate::events::new_isolated_for_test_with;
+use ship_substrate::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
 use ship_substrate::testutil::init_project_minimal;
 
 mod common;
@@ -42,10 +42,12 @@ mod common;
 fn make_service(ship_dir: &std::path::Path, scope_space: &str) -> ArtifactService {
     // Ensure ArtifactProjection is in the extra-projections factory before
     // any SqliteEventStore (and its default_bus) is constructed.
-    common::install_artifact_projection();
-    let router = new_isolated_for_test(ship_dir.to_path_buf()).unwrap();
+    let router = new_isolated_for_test_with(ship_dir.to_path_buf(), common::artifact_projection_factory()).unwrap();
     let kernel = Arc::new(KernelLog::new(router));
 
+    // I-2: register the fabricated space id so `PartitionedSink::route()`
+    // doesn't refuse this suite's Space-scoped `artifact.*` events.
+    ship_substrate::testutil::register_space(ship_dir, scope_space).unwrap();
     let space_db = ship_substrate::db::space_db_path(ship_dir, scope_space);
     let svc = DataService::open_at(&space_db).unwrap();
     let store = Arc::new(SingleBackendDataStore::new(svc, scope_space));

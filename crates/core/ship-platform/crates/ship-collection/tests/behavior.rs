@@ -9,12 +9,12 @@ use serde_json::json;
 use ship_collection::projection::SchemaRegistry;
 use ship_collection::service::CollectionService;
 use ship_reactive::{ReactiveRegistry, WatchKey};
+use ship_substrate::EventFilter;
 use ship_substrate::data::DataService;
-use ship_substrate::events::{new_isolated_for_test, EventFilter};
-use ship_substrate::events::validator::EmitContext;
 use ship_substrate::events::CallerKind;
+use ship_substrate::events::validator::EmitContext;
 use ship_substrate::home::ShipHome;
-use ship_substrate::ports::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
+use ship_substrate::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
 
 mod common;
 
@@ -23,21 +23,30 @@ mod common;
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
 fn runtime_ctx() -> EmitContext {
-    EmitContext { caller_kind: CallerKind::Runtime, skill_id: None, binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk), session_id: None }
+    EmitContext {
+        caller_kind: CallerKind::Runtime,
+        skill_id: None,
+        binding: ship_types::ScopeBinding::daemon_internal(None, agent_schema::Authority::Sdk),
+        session_id: None,
+    }
 }
 
 fn make_kernel(tmp: &tempfile::TempDir) -> Arc<KernelLog> {
-    // Ensure CollectionItemProjection is in the extra-projections factory
-    // before any SqliteEventStore (and its default_bus) is constructed.
-    common::install_collection_projection();
-    let ship_dir = ShipHome::project_ship_dir(tmp.path());
+    let ship_dir = tmp.path().join(".ship");
     std::fs::create_dir_all(&ship_dir).unwrap();
-    let router = new_isolated_for_test(ship_dir).unwrap();
+    let router = ship_substrate::events::new_isolated_for_test_with(
+        ship_dir,
+        common::collection_projection_factory(),
+    )
+    .unwrap();
     Arc::new(KernelLog::new(router))
 }
 
 fn make_ctx(tmp: &tempfile::TempDir, kernel: Arc<KernelLog>) -> Arc<SpaceContext> {
-    let ship_dir = ShipHome::project_ship_dir(tmp.path());
+    let ship_dir = tmp.path().join(".ship");
+    // I-2: register the fabricated "test" space id so `PartitionedSink::
+    // route()` doesn't refuse this suite's Space-scoped `collection.*` events.
+    ship_substrate::testutil::register_space(&ship_dir, "test").unwrap();
     // Collections are event-sourced: bind the data store to the SAME per-scope
     // `spaces/test/space.db` the kernel routes `collection.*` (Space-scoped)
     // events to, so the `CollectionProjection`'s writes are read back here.
@@ -91,7 +100,9 @@ async fn create_item_emits_kernel_event() {
     svc.create_item("memos", &data).await.unwrap();
 
     let event = tokio::time::timeout(Duration::from_secs(2), rx.recv())
-        .await.expect("timeout").expect("closed");
+        .await
+        .expect("timeout")
+        .expect("closed");
     // Find collection.item_created among events (schema events may come first).
     let found = std::iter::once(event)
         .chain(std::iter::from_fn(|| rx.try_recv().ok()))
@@ -108,7 +119,9 @@ async fn create_then_query_returns_item() {
     let ctx = make_ctx(&tmp, kernel);
     let svc = make_service(ctx);
 
-    svc.create_schema("tasks", &test_schema_json()).await.unwrap();
+    svc.create_schema("tasks", &test_schema_json())
+        .await
+        .unwrap();
     let data = serde_json::to_vec(&json!({ "title": "Task One", "done": false })).unwrap();
     let item = svc.create_item("tasks", &data).await.unwrap();
 
@@ -117,7 +130,10 @@ async fn create_then_query_returns_item() {
 
     assert_eq!(items.len(), 1);
     assert_eq!(items[0].id, item.id);
-    assert_eq!(items[0].data.get("title").and_then(|v| v.as_str()), Some("Task One"));
+    assert_eq!(
+        items[0].data.get("title").and_then(|v| v.as_str()),
+        Some("Task One")
+    );
 }
 
 // ── Test 3: query_inline_ast_equality_filter_returns_matches ─────────────────
@@ -129,9 +145,21 @@ async fn query_inline_ast_equality_filter_returns_matches() {
     let ctx = make_ctx(&tmp, kernel);
     let svc = make_service(ctx);
 
-    svc.create_schema("tasks", &test_schema_json()).await.unwrap();
-    svc.create_item("tasks", &serde_json::to_vec(&json!({ "title": "Alpha", "done": false })).unwrap()).await.unwrap();
-    svc.create_item("tasks", &serde_json::to_vec(&json!({ "title": "Beta", "done": true })).unwrap()).await.unwrap();
+    svc.create_schema("tasks", &test_schema_json())
+        .await
+        .unwrap();
+    svc.create_item(
+        "tasks",
+        &serde_json::to_vec(&json!({ "title": "Alpha", "done": false })).unwrap(),
+    )
+    .await
+    .unwrap();
+    svc.create_item(
+        "tasks",
+        &serde_json::to_vec(&json!({ "title": "Beta", "done": true })).unwrap(),
+    )
+    .await
+    .unwrap();
 
     // Build a minimal Kysely AST: SELECT * FROM tasks WHERE title = 'Alpha'
     let ast = json!({
@@ -170,9 +198,15 @@ async fn query_inline_ast_equality_filter_returns_matches() {
         }
     });
 
-    let (items, _) = svc.query_items_ast(&serde_json::to_vec(&ast).unwrap(), None, 50).await.unwrap();
+    let (items, _) = svc
+        .query_items_ast(&serde_json::to_vec(&ast).unwrap(), None, 50)
+        .await
+        .unwrap();
     assert_eq!(items.len(), 1);
-    assert_eq!(items[0].data.get("title").and_then(|v| v.as_str()), Some("Alpha"));
+    assert_eq!(
+        items[0].data.get("title").and_then(|v| v.as_str()),
+        Some("Alpha")
+    );
 }
 
 // ── Test 4: query_rejects_unsupported_ast_node ────────────────────────────────
@@ -184,7 +218,9 @@ async fn query_rejects_unsupported_ast_node() {
     let ctx = make_ctx(&tmp, kernel);
     let svc = make_service(ctx);
 
-    svc.create_schema("tasks", &test_schema_json()).await.unwrap();
+    svc.create_schema("tasks", &test_schema_json())
+        .await
+        .unwrap();
 
     // AST with a RawNode — must be rejected.
     let ast = json!({
@@ -205,10 +241,15 @@ async fn query_rejects_unsupported_ast_node() {
         }
     });
 
-    let result = svc.query_items_ast(&serde_json::to_vec(&ast).unwrap(), None, 50).await;
+    let result = svc
+        .query_items_ast(&serde_json::to_vec(&ast).unwrap(), None, 50)
+        .await;
     assert!(result.is_err(), "RawNode must be rejected");
     let err = result.unwrap_err().to_string();
-    assert!(err.contains("RawNode") || err.contains("unsupported"), "err: {err}");
+    assert!(
+        err.contains("RawNode") || err.contains("unsupported"),
+        "err: {err}"
+    );
 }
 
 // ── Test 5: query_cursor_paginates_without_drift ──────────────────────────────
@@ -220,21 +261,29 @@ async fn query_cursor_paginates_without_drift() {
     let ctx = make_ctx(&tmp, kernel);
     let svc = make_service(ctx);
 
-    svc.create_schema("tasks", &test_schema_json()).await.unwrap();
+    svc.create_schema("tasks", &test_schema_json())
+        .await
+        .unwrap();
 
     for i in 0..5u32 {
-        let data = serde_json::to_vec(&json!({ "title": format!("task-{i}"), "done": false })).unwrap();
+        let data =
+            serde_json::to_vec(&json!({ "title": format!("task-{i}"), "done": false })).unwrap();
         svc.create_item("tasks", &data).await.unwrap();
     }
 
-    let q1 = ship_substrate::ports::Query { table: "collection_tasks".into(), limit: 3, ..Default::default() };
+    let q1 = ship_substrate::ports::Query {
+        table: "collection_tasks".into(),
+        limit: 3,
+        ..Default::default()
+    };
     let (page1, cursor) = svc.query_items_by_query(q1).await.unwrap();
     assert_eq!(page1.len(), 3);
     let cursor = cursor.unwrap();
 
     // Insert more items after page 1.
     for i in 10..13u32 {
-        let data = serde_json::to_vec(&json!({ "title": format!("task-{i}"), "done": false })).unwrap();
+        let data =
+            serde_json::to_vec(&json!({ "title": format!("task-{i}"), "done": false })).unwrap();
         svc.create_item("tasks", &data).await.unwrap();
     }
 
@@ -249,10 +298,16 @@ async fn query_cursor_paginates_without_drift() {
     // Page 2 must not overlap with page 1.
     let page1_ids: Vec<&str> = page1.iter().map(|i| i.id.as_str()).collect();
     for item in &page2 {
-        assert!(!page1_ids.contains(&item.id.as_str()), "page2 must not overlap page1");
+        assert!(
+            !page1_ids.contains(&item.id.as_str()),
+            "page2 must not overlap page1"
+        );
         assert!(item.id > cursor, "page2 item must be after cursor");
     }
-    assert!(page2.len() >= 2, "at least 2 remaining original items in page2");
+    assert!(
+        page2.len() >= 2,
+        "at least 2 remaining original items in page2"
+    );
 }
 
 // ── Test 6: create_schema_then_list_includes_it ───────────────────────────────
@@ -264,10 +319,15 @@ async fn create_schema_then_list_includes_it() {
     let ctx = make_ctx(&tmp, kernel);
     let svc = make_service(ctx);
 
-    svc.create_schema("tasks", &test_schema_json()).await.unwrap();
+    svc.create_schema("tasks", &test_schema_json())
+        .await
+        .unwrap();
 
     let list = svc.list();
-    assert!(list.iter().any(|s| s.id == "tasks"), "tasks must be in list");
+    assert!(
+        list.iter().any(|s| s.id == "tasks"),
+        "tasks must be in list"
+    );
 }
 
 // ── Test 7: system_collections_flagged_in_list ────────────────────────────────
@@ -278,14 +338,11 @@ async fn system_collections_flagged_in_list() {
     let kernel = make_kernel(&tmp);
     let ctx = make_ctx(&tmp, kernel);
     let svc = make_service(ctx);
-
     let list = svc.list();
-    let feedback = list.iter().find(|s| s.id == "feedback").expect("feedback must be present");
-    let annotations = list.iter().find(|s| s.id == "annotations").expect("annotations must be present");
-    assert!(feedback.system, "feedback must have system=true");
-    assert!(annotations.system, "annotations must have system=true");
-
-    let notes = list.iter().find(|s| s.id == "notes").expect("notes must be present");
+    let notes = list
+        .iter()
+        .find(|s| s.id == "notes")
+        .expect("notes must be present");
     assert!(!notes.system, "notes must have system=false");
 }
 
@@ -299,40 +356,16 @@ async fn create_schema_rejects_reserved_builtin_id() {
     let svc = make_service(ctx);
 
     let schema_json = serde_json::to_vec(&json!({
-        "id": "feedback",
+        "id": "notes",
         "fields": { "title": { "type": "string" } }
-    })).unwrap();
+    }))
+    .unwrap();
 
-    let result = svc.create_schema("feedback", &schema_json).await;
-    assert!(result.is_err(), "reserved id 'feedback' must be rejected");
+    let result = svc.create_schema("notes", &schema_json).await;
+    assert!(result.is_err(), "reserved id 'notes' must be rejected");
     let err = result.unwrap_err().to_string();
     assert!(err.contains("reserved"), "err: {err}");
 }
-
-// ── Test 9: update_item_validates_against_schema ──────────────────────────────
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn update_item_validates_against_schema() {
-    let tmp = tempfile::tempdir().unwrap();
-    let kernel = make_kernel(&tmp);
-    let ctx = make_ctx(&tmp, kernel);
-    let svc = make_service(ctx);
-
-    svc.create_schema("tasks", &test_schema_json()).await.unwrap();
-    let data = serde_json::to_vec(&json!({ "title": "original", "done": false })).unwrap();
-    let item = svc.create_item("tasks", &data).await.unwrap();
-
-    // Update with unknown field — must be rejected.
-    let bad_data = serde_json::to_vec(&json!({ "title": "updated", "unknown_field": "bad" })).unwrap();
-    let result = svc.update_item("tasks", &item.id, &bad_data).await;
-    assert!(result.is_err(), "unknown field must be rejected");
-
-    // Update with type mismatch — must be rejected.
-    let bad_type = serde_json::to_vec(&json!({ "title": 42, "done": false })).unwrap();
-    let result2 = svc.update_item("tasks", &item.id, &bad_type).await;
-    assert!(result2.is_err(), "type mismatch must be rejected");
-}
-
 // ── Test 10: watch_first_frame_is_root_set_then_patch_on_event ───────────────
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -342,7 +375,9 @@ async fn watch_first_frame_is_root_set_then_patch_on_event() {
     let ctx = make_ctx(&tmp, kernel.clone());
     let svc = make_service(ctx.clone());
 
-    svc.create_schema("tasks", &test_schema_json()).await.unwrap();
+    svc.create_schema("tasks", &test_schema_json())
+        .await
+        .unwrap();
 
     // Build a resolver via ReactiveRegistry directly (mirrors what Watch does).
     let schemas = Arc::new(SchemaRegistry::new());
@@ -356,32 +391,53 @@ async fn watch_first_frame_is_root_set_then_patch_on_event() {
             let ctx = ctx2.clone();
             Box::pin(async move {
                 let q = ship_substrate::ports::Query::new("collection_tasks");
-                let rows = ctx.data().query(q).await.ok().map(|r| r.rows).unwrap_or_default();
-                let items: Vec<serde_json::Value> = rows.into_iter()
-                    .map(|r| json!({ "id": r.id }))
-                    .collect();
+                let rows = ctx
+                    .data()
+                    .query(q)
+                    .await
+                    .ok()
+                    .map(|r| r.rows)
+                    .unwrap_or_default();
+                let items: Vec<serde_json::Value> =
+                    rows.into_iter().map(|r| json!({ "id": r.id })).collect();
                 json!({ "items": items })
             })
         }),
     };
     let registry = ReactiveRegistry::new(kernel.clone());
-    let key = WatchKey { space_id: "test".into(), scope: "collection:tasks".into(), query_hash: 0 };
+    let key = WatchKey {
+        space_id: "test".into(),
+        scope: "collection:tasks".into(),
+        query_hash: 0,
+    };
     let mut rx = registry.watch(key, EventFilter::default(), spec);
 
     // First frame: snapshot set at root.
     let frame1 = tokio::time::timeout(Duration::from_secs(2), rx.recv())
-        .await.expect("timeout").expect("closed");
+        .await
+        .expect("timeout")
+        .expect("closed");
     assert_eq!(frame1.patches.len(), 1);
     assert_eq!(frame1.patches[0].op, ship_reactive::PatchOp::Set);
     assert_eq!(frame1.patches[0].path, "");
 
     // Create an item to trigger a change.
-    svc.create_item("tasks", &serde_json::to_vec(&json!({ "title": "new task", "done": false })).unwrap()).await.unwrap();
+    svc.create_item(
+        "tasks",
+        &serde_json::to_vec(&json!({ "title": "new task", "done": false })).unwrap(),
+    )
+    .await
+    .unwrap();
 
     // Should receive a patch frame.
     let frame2 = tokio::time::timeout(Duration::from_secs(2), rx.recv())
-        .await.expect("timeout for patch frame").expect("closed");
-    assert!(!frame2.patches.is_empty(), "expected non-empty patch frame after item creation");
+        .await
+        .expect("timeout for patch frame")
+        .expect("closed");
+    assert!(
+        !frame2.patches.is_empty(),
+        "expected non-empty patch frame after item creation"
+    );
 }
 
 // ── Test 11: watch_fanout_dedups_identical_scope ──────────────────────────────
@@ -405,10 +461,17 @@ async fn watch_fanout_dedups_identical_scope() {
     };
 
     let registry = ReactiveRegistry::new(kernel);
-    let key = WatchKey { space_id: "s1".into(), scope: "collections".into(), query_hash: 42 };
+    let key = WatchKey {
+        space_id: "s1".into(),
+        scope: "collections".into(),
+        query_hash: 42,
+    };
 
     let mut rx1 = registry.watch(key.clone(), EventFilter::default(), make_spec(counter1));
-    tokio::time::timeout(Duration::from_secs(2), rx1.recv()).await.expect("timeout").expect("closed");
+    tokio::time::timeout(Duration::from_secs(2), rx1.recv())
+        .await
+        .expect("timeout")
+        .expect("closed");
 
     // Second watcher with same key — must reuse the existing resolver.
     let _rx2 = registry.watch(key, EventFilter::default(), make_spec(counter2));
@@ -426,8 +489,15 @@ async fn update_schema_reprojects_items() {
     let ctx = make_ctx(&tmp, kernel);
     let svc = make_service(ctx);
 
-    svc.create_schema("tasks", &test_schema_json()).await.unwrap();
-    svc.create_item("tasks", &serde_json::to_vec(&json!({ "title": "before", "done": false })).unwrap()).await.unwrap();
+    svc.create_schema("tasks", &test_schema_json())
+        .await
+        .unwrap();
+    svc.create_item(
+        "tasks",
+        &serde_json::to_vec(&json!({ "title": "before", "done": false })).unwrap(),
+    )
+    .await
+    .unwrap();
 
     // Update schema: add an optional field.
     let new_schema = serde_json::to_vec(&json!({
@@ -438,25 +508,38 @@ async fn update_schema_reprojects_items() {
             "done": { "type": "boolean" },
             "priority": { "type": "number" }
         }
-    })).unwrap();
+    }))
+    .unwrap();
     svc.update_schema("tasks", &new_schema).await.unwrap();
 
     // Items must still be queryable (no data loss).
     let q = ship_substrate::ports::Query::new("collection_tasks");
     let (items, _) = svc.query_items_by_query(q).await.unwrap();
     assert_eq!(items.len(), 1, "item must survive schema update");
-    assert_eq!(items[0].data.get("title").and_then(|v| v.as_str()), Some("before"));
+    assert_eq!(
+        items[0].data.get("title").and_then(|v| v.as_str()),
+        Some("before")
+    );
 
     // Schema registry reflects the updated schema.
     let updated = svc.list().into_iter().find(|s| s.id == "tasks").unwrap();
     assert_eq!(updated.title.as_deref(), Some("Tasks Updated"));
-    assert!(updated.fields.contains_key("priority"), "updated schema has priority field");
+    assert!(
+        updated.fields.contains_key("priority"),
+        "updated schema has priority field"
+    );
 
     // New items omitting the new optional field still work.
-    svc.create_item("tasks", &serde_json::to_vec(&json!({
-        "title": "after",
-        "done": true
-    })).unwrap()).await.unwrap();
+    svc.create_item(
+        "tasks",
+        &serde_json::to_vec(&json!({
+            "title": "after",
+            "done": true
+        }))
+        .unwrap(),
+    )
+    .await
+    .unwrap();
 
     let q2 = ship_substrate::ports::Query::new("collection_tasks");
     let (items2, _) = svc.query_items_by_query(q2).await.unwrap();

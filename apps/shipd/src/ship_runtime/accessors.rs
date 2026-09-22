@@ -3,13 +3,11 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use ship_substrate::task_health::HealthRegistry;
-#[cfg(feature = "ship-code")]
+#[cfg(feature = "bridge")]
 use crate::dispatch::run_dispatch::DispatchHandle;
+use crate::task_health::HealthRegistry;
 
-use super::{
-    ShipRuntime, RuntimeConfig, SharedKernel,
-};
+use super::{RuntimeConfig, SharedKernel, ShipRuntime};
 
 impl ShipRuntime {
     /// Process uptime since the runtime was constructed.
@@ -45,9 +43,10 @@ impl ShipRuntime {
 
     /// Absolute origin (scheme+host+port) the daemon is reachable at.
     ///
-    /// Used by HTML view templates so Datastar `@get`/`@post` calls resolve
-    /// against the daemon regardless of whether the page is inline-mounted
-    /// into another origin (e.g. Studio at :3000).
+    /// Feeds dispatch's `studio_url` and the isolation decision's process-plane
+    /// origin — callers that need an absolute daemon address regardless of
+    /// whether the page is inline-mounted into another origin (e.g. Studio at
+    /// :3000).
     pub fn daemon_origin(&self) -> String {
         let host = if self.config.host == "0.0.0.0" {
             "localhost".to_string()
@@ -69,7 +68,8 @@ impl ShipRuntime {
     /// Mirrors `ShipHome::account_token_path`; typed accessor in place of a
     /// hand-joined path so the live-data resolver matches the wire's path.
     pub fn account_token_path(&self) -> PathBuf {
-        self.daemon_dir.join(ship_substrate::ShipHome::account_token_file())
+        self.daemon_dir
+            .join(ship_substrate::ShipHome::account_token_file())
     }
 
     /// `SkillsService` accessor.
@@ -78,9 +78,7 @@ impl ShipRuntime {
     }
 
     /// `RulesService` as a cloned `Arc` — for wire mounts that need to own the handle.
-    pub fn rules_arc(
-        &self,
-    ) -> Arc<dyn ship_agents::services::rules::service::RulesService> {
+    pub fn rules_arc(&self) -> Arc<dyn ship_agents::services::rules::service::RulesService> {
         self.rules.clone()
     }
 
@@ -89,17 +87,8 @@ impl ShipRuntime {
         self.mcp.clone()
     }
 
-    /// `PermissionsService` as a cloned `Arc` — for wire mounts.
-    pub fn permissions_arc(
-        &self,
-    ) -> Arc<dyn ship_agents::services::permissions::service::PermissionsService> {
-        self.permissions.clone()
-    }
-
     /// `SkillsService` as a cloned `Arc` — for wire mounts.
-    pub fn skills_arc(
-        &self,
-    ) -> Arc<dyn ship_agents::services::skills::service::SkillsService> {
+    pub fn skills_arc(&self) -> Arc<dyn ship_agents::services::skills::service::SkillsService> {
         self.skills.clone()
     }
 
@@ -117,9 +106,7 @@ impl ShipRuntime {
 
     /// `PipelinesService` as a cloned `Arc` — for diagnostic snapshot providers
     /// that need to hold the handle independently of the runtime borrow.
-    pub fn pipelines_arc(
-        &self,
-    ) -> Arc<dyn ship_pipeline_runtime::pipelines::service::PipelinesService> {
+    pub fn pipelines_arc(&self) -> Arc<dyn pipeline_defs::pipelines::service::PipelinesService> {
         self.pipelines.clone()
     }
 
@@ -152,9 +139,7 @@ impl ShipRuntime {
     }
     /// The shared collection schema registry (C-2 UD-7) — used by the wire mount
     /// and any caller that needs the same registry instance.
-    pub fn collection_schemas(
-        &self,
-    ) -> Arc<ship_collection::projection::SchemaRegistry> {
+    pub fn collection_schemas(&self) -> Arc<ship_collection::projection::SchemaRegistry> {
         self.schemas.clone()
     }
 
@@ -171,26 +156,26 @@ impl ShipRuntime {
         self.space_ctx.clone()
     }
 
+    // No `active_space_id` here — see `tasks.rs::active_space_id` (the
+    // workspace-derived one). Adding a second source of truth would force
+    // every call site to disambiguate.
+
     /// Blob root for artifacts (global ship dir).
     pub fn global_blob_dir(&self) -> &std::path::Path {
         &self.global_blob_dir
     }
     /// Store the dispatch handle (set once after job manager init).
-    #[cfg(feature = "ship-code")]
+    #[cfg(feature = "bridge")]
     pub fn set_dispatch_handle(&self, handle: DispatchHandle) {
         let _ = self.dispatch_handle.set(handle);
     }
-    #[cfg(feature = "ship-code")]
+    #[cfg(feature = "bridge")]
     pub fn dispatch_handle(&self) -> Option<&DispatchHandle> {
         self.dispatch_handle.get()
     }
 
-    pub fn pty_sessions(&self) -> &ship_terminal::SessionRegistry {
-        &self.pty_sessions
-    }
-
-    pub fn actor_sessions(&self) -> &ship_agents::services::sessions::ActorRegistry {
-        &self.actor_sessions
+    pub fn live_sessions(&self) -> &ship_agents::services::sessions::Registry {
+        &self.live_sessions
     }
 
     pub fn session_registry(&self) -> &crate::auth::SessionRegistry {
@@ -208,7 +193,9 @@ impl ShipRuntime {
 
     /// The live-read resolver registry — SSOT for snapshot `(domain, op)` reads,
     /// consumed by both the per-op `<Op>Live` streams and the multiplex.
-    pub fn live_resolvers(&self) -> &Arc<crate::ship_runtime::live_resolvers::LiveResolverRegistry> {
+    pub fn live_resolvers(
+        &self,
+    ) -> &Arc<crate::ship_runtime::live_resolvers::LiveResolverRegistry> {
         &self.live_resolvers
     }
 }

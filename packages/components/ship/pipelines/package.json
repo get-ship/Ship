@@ -1,0 +1,24 @@
+{
+  "name": "@ship/pipelines",
+  "version": "0.1.0",
+  "description": "Ship Pipelines pack \u2014 sui-pipeline-* primitives (card \u00b7 dag \u00b7 step \u00b7 run \u00b7 history \u00b7 trigger \u00b7 output \u00b7 definition).",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "customElements": "dist/custom-elements.json",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@ship/sail-dom": "*",
+    "@ship/sail-runtime": "*"
+  },
+  "devDependencies": {
+    "@ship/test-setup": "^0.1.0",
+    "vitest": "^4.1.5"
+  }
+}

@@ -38,11 +38,9 @@
 // Phase 1 (node resolution):
 //   The host sets `SHIP_APPS_BASE_DIR` (or `--apps-base-dir`) to a
 //   directory whose `node_modules/` contains the referenced packages.
-//   Dev: ship-apps workspace (`/home/madvib/dev/ship-apps`). The
-//   workspace's `package.json` self-declares `@ship/hub` + `spaces` as
-//   workspace dependencies so `bun install` materializes them as
-//   `node_modules/@ship/hub` and `node_modules/spaces` symlinks/dirs.
-//   The default in production is the host's installed `node_modules/`.
+//   Dev (j-12): the ship workspace root (package.json self-declares
+//   @ship/hub + spaces so `bun install` materializes node_modules/@ship/hub
+//   and node_modules/spaces). Historical: sibling ship-apps workspace.
 //
 // Phase 2/3: a `Cdn { url, hash }` or `Registry { url }` resolver will
 //   slot into `AppSource` without touching this file or the serve chain.

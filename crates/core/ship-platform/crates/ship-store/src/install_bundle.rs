@@ -15,7 +15,7 @@
 
 use std::path::Path;
 
-use super::bundle_sig::{verify_bundle_attestation, BundleClaim, BundleVerifyError, TrustedKey};
+use super::bundle_sig::{BundleClaim, BundleVerifyError, TrustedKey, verify_bundle_attestation};
 use super::hash::compute_tree_hash;
 
 #[derive(Debug)]
@@ -78,13 +78,11 @@ fn extract_and_verify_inner(
     trusted_keys: &[TrustedKey],
     dest: &Path,
 ) -> Result<BundleClaim, InstallBundleError> {
-    // Extract into the isolated dir. `tar`'s `unpack` rejects `..` and absolute
-    // paths, so a malicious archive can't escape `dest`; anything it does write
-    // is discarded on the verify failure below.
-    let gz = flate2::read::GzDecoder::new(bytes);
-    let mut archive = tar::Archive::new(gz);
-    archive
-        .unpack(dest)
+    // Stream-extract with a decompressed-size cap. `tar::Archive::unpack`
+    // rejects `..` and absolute paths on its own; the cap is the bomb
+    // guard — a 1 MiB tarball that expands to 1 TiB must fail mid-flight,
+    // not after the disk is full.
+    bundle_limits::extract_tar_capped(bytes, dest, bundle_limits::MAX_BUNDLE_UNPACKED)
         .map_err(|e| InstallBundleError::Extract(e.to_string()))?;
 
     // Hash the extracted tree — the canonical content identity.
@@ -108,7 +106,10 @@ mod tests {
     const TEST_PUB_X: &str = "mZAmshQk4uLsAab8Rhqqt9kJGbP9F6hZZ39eyfUncAQ";
 
     fn trusted() -> Vec<TrustedKey> {
-        vec![TrustedKey { kid: TEST_KID.to_string(), x_base64url: TEST_PUB_X.to_string() }]
+        vec![TrustedKey {
+            kid: TEST_KID.to_string(),
+            x_base64url: TEST_PUB_X.to_string(),
+        }]
     }
 
     /// Build an in-memory gzip tarball with one file, returning the bytes.
@@ -120,7 +121,9 @@ mod tests {
             header.set_size(body.len() as u64);
             header.set_mode(0o644);
             header.set_cksum();
-            builder.append_data(&mut header, "views/x/page.sui", body).unwrap();
+            builder
+                .append_data(&mut header, "views/x/page.sui", body)
+                .unwrap();
             builder.finish().unwrap();
         }
         let mut gz = Vec::new();
@@ -166,7 +169,10 @@ mod tests {
         let claim = extract_and_verify_bundle(&bundle, &jwt, &trusted(), dest.path())
             .expect("verified bundle");
         assert_eq!(claim.path, "ship/apps/notes");
-        assert!(dest.path().join("views/x/page.sui").is_file(), "tree extracted + kept");
+        assert!(
+            dest.path().join("views/x/page.sui").is_file(),
+            "tree extracted + kept"
+        );
     }
 
     #[test]
@@ -180,10 +186,74 @@ mod tests {
 
         let err = extract_and_verify_bundle(&tampered, &jwt, &trusted(), dest.path())
             .expect_err("tampered bundle rejected");
-        assert!(matches!(err, InstallBundleError::Verify(BundleVerifyError::HashMismatch)));
+        assert!(matches!(
+            err,
+            InstallBundleError::Verify(BundleVerifyError::HashMismatch)
+        ));
         assert!(
             std::fs::read_dir(dest.path()).unwrap().next().is_none(),
             "unverified content wiped — nothing left to cache"
         );
+    }
+
+    /// Build a gzip-tarball whose declared entry size is huge — the
+    /// decompression-bomb shape the unpack cap must reject without ever
+    /// touching the disk.
+    fn make_oversized_bundle(declared_size: u64) -> Vec<u8> {
+        let mut tar_buf = Vec::new();
+        {
+            let mut builder = tar::Builder::new(&mut tar_buf);
+            let mut header = tar::Header::new_gnu();
+            // Declare a multi-GiB entry, but write a single byte body.
+            // The unpack cap sums declared sizes, so it must reject
+            // BEFORE the body is read.
+            header.set_size(declared_size);
+            header.set_mode(0o644);
+            header.set_cksum();
+            let tiny = b"x";
+            builder
+                .append_data(&mut header, "big.bin", &tiny[..])
+                .unwrap();
+            builder.finish().unwrap();
+        }
+        let mut gz = Vec::new();
+        {
+            use std::io::Write;
+            let mut enc = flate2::write::GzEncoder::new(&mut gz, flate2::Compression::default());
+            enc.write_all(&tar_buf).unwrap();
+            enc.finish().unwrap();
+        }
+        gz
+    }
+
+    #[test]
+    fn decompression_bomb_rejected_with_limit_named() {
+        // A 1 GiB declared entry in a small gzipped tarball.
+        let bomb = make_oversized_bundle(1024 * 1024 * 1024);
+        let dest = tempfile::tempdir().unwrap();
+        // Attestation irrelevant — the extract itself must fail first.
+        let err = extract_and_verify_bundle(&bomb, "any.jwt", &trusted(), dest.path())
+            .expect_err("bomb rejected");
+        match err {
+            InstallBundleError::Extract(msg) => {
+                assert!(
+                    msg.contains("MAX_BUNDLE_UNPACKED") || msg.contains("exceeded limit"),
+                    "err should name the limit: {msg}"
+                );
+            }
+            other => panic!("expected Extract, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn real_bundle_still_extracts_under_the_cap() {
+        // A normal bundle (1 KiB body) must continue to work — the cap
+        // does not interfere with valid inputs.
+        let bundle = make_bundle(b"<real bundle content>");
+        let jwt = sign_tree_hash(&tree_hash_of(&bundle));
+        let dest = tempfile::tempdir().unwrap();
+        let claim = extract_and_verify_bundle(&bundle, &jwt, &trusted(), dest.path())
+            .expect("valid bundle still installs");
+        assert_eq!(claim.path, "ship/apps/notes");
     }
 }

@@ -31,12 +31,11 @@
 //!
 //! # DB placement
 //!
-//! `canonical_sessions` lives in `runtime.db`. Both Space-scoped `session.*`
-//! and Runtime-scoped `session.turn.*` events must aggregate into one table,
-//! so the projection opens a fresh `runtime.db` connection for every write
-//! rather than using the `conn` argument from `Projection::apply()` (which
-//! may point at a space.db for Space-scoped events). This matches the plan
-//! rationale in the implementation spec.
+//! `canonical_sessions` lives in `runtime.db`. The whole `session.*` /
+//! `session.turn.*` family is registered `EventScope::Runtime` (see
+//! agent-def's `event_registrations.rs`), so every event this projection
+//! folds is already appended to `runtime.db` — it folds on the bus
+//! connection like any other runtime projection.
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -45,7 +44,7 @@ use ship_substrate::events::EventEnvelope;
 use ship_substrate::projections::registry::Projection;
 use sqlx::{Row, SqliteConnection};
 
-use agent_def::canonical_session::{
+use agent_schema::canonical_session::{
     SessionCancelled, SessionCompleted, SessionFailed, SessionStarted, SessionSuspended, TurnEnded,
     event_types as canonical_event_types,
 };
@@ -131,9 +130,7 @@ pub fn apply(record: &mut CanonicalSession, event: &EventEnvelope) {
     // Guard: once a terminal status is reached, no further transitions apply.
     // Exception: turn.ended is explicitly blocked by the NOT IN guard in the
     // SQL path; the pure fold mirrors that here.
-    if record.status.is_terminal()
-        && et != canonical_event_types::SESSION_STARTED
-    {
+    if record.status.is_terminal() && et != canonical_event_types::SESSION_STARTED {
         return;
     }
 
@@ -192,9 +189,7 @@ pub fn apply(record: &mut CanonicalSession, event: &EventEnvelope) {
 /// Fold a slice of canonical events into a map of `session_id → CanonicalSession`.
 /// Events must be ordered by `created_at` ascending. Non-canonical events are
 /// silently skipped.
-pub fn project(
-    events: &[EventEnvelope],
-) -> std::collections::HashMap<String, CanonicalSession> {
+pub fn project(events: &[EventEnvelope]) -> std::collections::HashMap<String, CanonicalSession> {
     let mut map: std::collections::HashMap<String, CanonicalSession> =
         std::collections::HashMap::new();
 
@@ -257,15 +252,10 @@ impl Projection for CanonicalSessionProjection {
     }
 
     fn event_types(&self) -> &[&str] {
-        ship_types::event_types::canonical_session::ALL_CANONICAL_SESSION
+        agent_schema::canonical_session::event_types::ALL_CANONICAL_SESSION
     }
 
-    fn apply(&self, event: &EventEnvelope, _conn: &mut SqliteConnection) -> Result<()> {
-        // Open a fresh runtime.db connection — both Space-scoped session.* and
-        // Runtime-scoped session.turn.* events must land in the same table.
-        // The _conn argument may point at a scoped space.db, so we bypass it.
-        let mut conn = open_default_conn()?;
-
+    fn apply(&self, event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<()> {
         let et = event.event_type.as_str();
 
         if et == canonical_event_types::SESSION_STARTED {
@@ -290,7 +280,7 @@ impl Projection for CanonicalSessionProjection {
                 .bind(&p.input)
                 .bind(&p.parent)
                 .bind(event.created_at.to_rfc3339())
-                .execute(&mut conn)
+                .execute(&mut *conn)
                 .await
             })?;
             return Ok(());
@@ -324,7 +314,7 @@ impl Projection for CanonicalSessionProjection {
                            AND status NOT IN ('completed', 'failed', 'cancelled', 'suspended')",
                     )
                     .bind(&session_id)
-                    .execute(&mut conn)
+                    .execute(&mut *conn)
                     .await
                 })?;
             }
@@ -344,7 +334,7 @@ impl Projection for CanonicalSessionProjection {
                     )
                     .bind(&p.checkpoint)
                     .bind(&session_id)
-                    .execute(&mut conn)
+                    .execute(&mut *conn)
                     .await
                 })?;
             }
@@ -359,7 +349,7 @@ impl Projection for CanonicalSessionProjection {
                     )
                     .bind(event.created_at.to_rfc3339())
                     .bind(&session_id)
-                    .execute(&mut conn)
+                    .execute(&mut *conn)
                     .await
                 })?;
             }
@@ -380,7 +370,7 @@ impl Projection for CanonicalSessionProjection {
                     .bind(event.created_at.to_rfc3339())
                     .bind(&p.reason)
                     .bind(&session_id)
-                    .execute(&mut conn)
+                    .execute(&mut *conn)
                     .await
                 })?;
             }
@@ -401,7 +391,7 @@ impl Projection for CanonicalSessionProjection {
                     .bind(event.created_at.to_rfc3339())
                     .bind(&p.reason)
                     .bind(&session_id)
-                    .execute(&mut conn)
+                    .execute(&mut *conn)
                     .await
                 })?;
             }
@@ -412,12 +402,7 @@ impl Projection for CanonicalSessionProjection {
     }
 
     fn truncate(&self, conn: &mut SqliteConnection) -> Result<()> {
-        block_on(async {
-            sqlx::query("DELETE FROM canonical_sessions")
-                .execute(conn)
-                .await
-        })?;
-        Ok(())
+        ship_substrate::db::heal::truncate_or_heal(conn, "canonical_sessions")
     }
 }
 
@@ -427,8 +412,7 @@ impl Projection for CanonicalSessionProjection {
 ///
 /// All five read helpers use this constant so that adding a column requires
 /// one change rather than five.
-const COLS: &str =
-    "session_id, space_id, agent_id, harness, model, status, \
+const COLS: &str = "session_id, space_id, agent_id, harness, model, status, \
      slug, input, parent, turn_count, started_at, ended_at, outcome, reason";
 
 fn row_to_record(row: &sqlx::sqlite::SqliteRow) -> Result<CanonicalSession> {
@@ -477,9 +461,11 @@ pub fn load_sessions_at(ship_dir: &std::path::Path) -> Result<Vec<CanonicalSessi
 
 fn load_all_rows(conn: &mut SqliteConnection) -> Result<Vec<CanonicalSession>> {
     let rows = block_on(async {
-        sqlx::query(&format!("SELECT {COLS} FROM canonical_sessions ORDER BY started_at ASC"))
-            .fetch_all(conn)
-            .await
+        sqlx::query(&format!(
+            "SELECT {COLS} FROM canonical_sessions ORDER BY started_at ASC"
+        ))
+        .fetch_all(conn)
+        .await
     })?;
     rows.iter().map(row_to_record).collect()
 }
@@ -569,9 +555,7 @@ fn load_row_by_slug(slug: &str, conn: &mut SqliteConnection) -> Result<Option<Ca
 /// Forward-compatible infrastructure for pipeline-composed session queries.
 /// Not on the critical path for this migration but required by the
 /// canonical_emitter_migration plan.
-pub fn load_canonical_sessions_by_parent(
-    parent_id: &str,
-) -> Result<Vec<CanonicalSession>> {
+pub fn load_canonical_sessions_by_parent(parent_id: &str) -> Result<Vec<CanonicalSession>> {
     let mut conn = open_default_conn()?;
     let rows = block_on(async {
         sqlx::query(&format!(
@@ -664,15 +648,17 @@ mod tests {
             Some(r) => serde_json::json!({ "session_id": session_id, "reason": r }),
             None => serde_json::json!({ "session_id": session_id }),
         };
-        EventEnvelope::new(canonical_event_types::SESSION_CANCELLED, session_id, &payload).unwrap()
+        EventEnvelope::new(
+            canonical_event_types::SESSION_CANCELLED,
+            session_id,
+            &payload,
+        )
+        .unwrap()
     }
 
     /// Returns a SqliteConnection pointing at the test-global runtime.db.
-    /// The canonical projection's `apply()` opens its own connection via
-    /// `open_default_conn()` (which also resolves to the test-global dir),
-    /// so reads and writes land in the same DB. We pass the returned conn
-    /// as the `_conn` placeholder to satisfy the `Projection::apply` signature;
-    /// it is not used for writes.
+    /// Passed straight through to `Projection::apply()`, which now folds on
+    /// this connection directly (same DB the query API reads from).
     fn fresh_conn() -> SqliteConnection {
         open_default_conn().expect("test: cannot open test-global runtime.db")
     }
@@ -697,9 +683,15 @@ mod tests {
         assert_eq!(rec.status, CanonicalSessionStatus::Completed);
         assert_eq!(rec.outcome.as_deref(), Some("completed"));
         // turn.ended fired once → turn_count = 1.
-        assert_eq!(rec.turn_count, 1, "one turn.ended must increment turn_count to 1");
+        assert_eq!(
+            rec.turn_count, 1,
+            "one turn.ended must increment turn_count to 1"
+        );
         // ended_at must be set on completion.
-        assert!(rec.ended_at.is_some(), "completed session must have ended_at");
+        assert!(
+            rec.ended_at.is_some(),
+            "completed session must have ended_at"
+        );
         // Basic field checks from the started payload.
         assert_eq!(rec.agent_id, "floki");
         assert_eq!(rec.harness, "floki");
@@ -719,7 +711,10 @@ mod tests {
         assert_eq!(rec.status, CanonicalSessionStatus::Suspended);
         assert_eq!(rec.outcome.as_deref(), Some("suspended"));
         assert_eq!(rec.reason.as_deref(), Some("ckpt-abc123"));
-        assert!(rec.ended_at.is_none(), "suspended sessions must NOT have ended_at");
+        assert!(
+            rec.ended_at.is_none(),
+            "suspended sessions must NOT have ended_at"
+        );
         assert_eq!(rec.turn_count, 0);
     }
 
@@ -834,7 +829,9 @@ mod tests {
         proj.apply(&turn_ended(session, 0), &mut conn).unwrap();
         proj.apply(&completed(session), &mut conn).unwrap();
 
-        let rec = load_session_by_id(session).unwrap().expect("session must exist");
+        let rec = load_session_by_id(session)
+            .unwrap()
+            .expect("session must exist");
         assert_eq!(rec.session_id, session);
         assert_eq!(rec.status, CanonicalSessionStatus::Completed);
         assert_eq!(rec.turn_count, 1);
@@ -856,9 +853,12 @@ mod tests {
         });
 
         proj.apply(&started(session), &mut conn).unwrap();
-        proj.apply(&suspended(session, "ckpt-xyz"), &mut conn).unwrap();
+        proj.apply(&suspended(session, "ckpt-xyz"), &mut conn)
+            .unwrap();
 
-        let rec = load_session_by_id(session).unwrap().expect("session must exist");
+        let rec = load_session_by_id(session)
+            .unwrap()
+            .expect("session must exist");
         assert_eq!(rec.status, CanonicalSessionStatus::Suspended);
         assert!(rec.ended_at.is_none());
         assert_eq!(rec.reason.as_deref(), Some("ckpt-xyz"));
@@ -882,9 +882,14 @@ mod tests {
         proj.apply(&started(session), &mut conn).unwrap(); // ON CONFLICT DO NOTHING
 
         // Verify only one row exists by loading and checking there's exactly one.
-        let rec = load_session_by_id(session).unwrap().expect("session must exist");
+        let rec = load_session_by_id(session)
+            .unwrap()
+            .expect("session must exist");
         // Turn count should still be 0 (the second started was ignored).
-        assert_eq!(rec.turn_count, 0, "duplicate started must not create a second row");
+        assert_eq!(
+            rec.turn_count, 0,
+            "duplicate started must not create a second row"
+        );
         assert_eq!(rec.status, CanonicalSessionStatus::Active);
     }
 
@@ -935,13 +940,16 @@ mod tests {
     #[test]
     fn fold_started_with_slug_and_parent() {
         let session = "01SLUG-FOLD-A";
-        let pipeline_run_id = "01PIPELINE-RUN-X";
-        let events = vec![started_with_slug(session, "my-agent::step1", Some(pipeline_run_id))];
+        let events = vec![started_with_slug(
+            session,
+            "my-agent::step1",
+            Some("parent-id"),
+        )];
         let map = project(&events);
         let rec = map.get(session).expect("session must be in projection");
 
         assert_eq!(rec.slug.as_deref(), Some("my-agent::step1"));
-        assert_eq!(rec.parent.as_deref(), Some(pipeline_run_id));
+        assert_eq!(rec.parent.as_deref(), Some("parent-id"));
         assert_eq!(rec.status, CanonicalSessionStatus::Active);
     }
 
@@ -953,7 +961,7 @@ mod tests {
         let mut conn = fresh_conn();
         let proj = CanonicalSessionProjection;
         let session_id = "01SQL-PARENT-A";
-        let pipeline_run_id = "01PIPELINE-RUN-SQL-A";
+        let parent_id = "01PARENT-ID-X";
         let slug = "my-job::step1";
 
         let _ = block_on(async {
@@ -963,22 +971,35 @@ mod tests {
                 .await
         });
 
-        // Emit session.started with parent = pipeline_run_id and a slug.
-        proj.apply(&started_with_slug(session_id, slug, Some(pipeline_run_id)), &mut conn)
-            .unwrap();
-
+        // Emit session.started with a parent id and a slug.
+        proj.apply(
+            &started_with_slug(session_id, slug, Some(parent_id)),
+            &mut conn,
+        )
+        .unwrap();
         // Verify the row was inserted with slug and parent populated.
-        let rec = load_session_by_id(session_id).unwrap().expect("session must exist");
-        assert_eq!(rec.parent.as_deref(), Some(pipeline_run_id),
-            "parent must be stored in canonical_sessions");
-        assert_eq!(rec.slug.as_deref(), Some(slug),
-            "slug must be stored in canonical_sessions");
+        let rec = load_session_by_id(session_id)
+            .unwrap()
+            .expect("session must exist");
+        assert_eq!(
+            rec.parent.as_deref(),
+            Some(parent_id),
+            "parent must be stored in canonical_sessions"
+        );
+        assert_eq!(
+            rec.slug.as_deref(),
+            Some(slug),
+            "slug must be stored in canonical_sessions"
+        );
         assert_eq!(rec.status, CanonicalSessionStatus::Active);
 
         // Verify queryable by parent.
-        let by_parent = load_canonical_sessions_by_parent(pipeline_run_id).unwrap();
-        assert_eq!(by_parent.len(), 1, "must find exactly one session by parent");
-        assert_eq!(by_parent[0].session_id, session_id);
+        let by_parent = load_canonical_sessions_by_parent(parent_id).unwrap();
+        assert_eq!(
+            by_parent.len(),
+            1,
+            "must find exactly one session by parent"
+        );
 
         // Verify queryable by slug.
         let by_slug = load_canonical_session_by_slug(slug).unwrap();
@@ -1002,7 +1023,12 @@ mod tests {
 
         // started() helper has no slug field — exercises the None path.
         proj.apply(&started(session), &mut conn).unwrap();
-        let rec = load_session_by_id(session).unwrap().expect("session must exist");
-        assert!(rec.slug.is_none(), "session without slug must have None slug");
+        let rec = load_session_by_id(session)
+            .unwrap()
+            .expect("session must exist");
+        assert!(
+            rec.slug.is_none(),
+            "session without slug must have None slug"
+        );
     }
 }

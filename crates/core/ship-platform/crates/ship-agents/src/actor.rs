@@ -6,28 +6,29 @@
 //! (cancel teardown), runs the L0 router gate (dedup + terminal-state guard)
 //! before its policy match, then dispatches:
 //!   - `dispatch.requested` → [`crate::dispatch::handle_dispatch_requested`]
-//!     (detached off the loop under the shared L0 `DISPATCH_GATE`);
+//!     (detached off the loop under the injected dispatch-gate semaphore);
 //!   - `session.cancelled` → [`crate::cancel::handle_agent_cancelled`].
 //!
-//! The no-double-spawn invariant: orchestrator deleted its `dispatch.*`
-//! arms, so this actor is the SOLE actor that acts on `dispatch.requested`.
-//! The two actors' separate dedup instances therefore never double-admit a
-//! spawn. orchestrator keeps subscribing to `session.completed/failed`
-//! ONLY to advance composed pipeline sessions — it no longer spawns/cancels.
+//! The no-double-spawn invariant: this actor is the SOLE actor that acts on
+//! `dispatch.requested`.
 //!
 //! `process.*` is in `write_namespaces` because the cancel kill path emits
 //! `process.killed`; the kernel validator rejects emits outside the actor's
 //! write namespaces. `session.*` is in `write_namespaces` because the dispatch
 //! path emits `session.failed` on prep errors.
 
+#[cfg(feature = "bridge")]
+use std::future::Future;
+#[cfg(feature = "bridge")]
+use std::pin::Pin;
 use std::sync::Arc;
 
-#[cfg(feature = "harness-drivers")]
-use ship_code::runner::router::{terminal_guard, Admit};
+#[cfg(feature = "bridge")]
+use crate::dispatch_gate::{Admit, terminal_guard};
 use ship_substrate::events::EventEnvelope;
 use tokio::sync::Mutex;
 
-#[cfg(feature = "harness-drivers")]
+#[cfg(feature = "bridge")]
 use crate::cancel::handle_agent_cancelled;
 use crate::dispatch::handle_dispatch_requested;
 use crate::ports::AgentPorts;
@@ -56,7 +57,7 @@ pub async fn start_agents(kernel: Kernel, ports: Arc<AgentPorts>) {
     let mailbox = {
         let mut k = kernel.lock().await;
         match k.spawn_actor(&actor_id, config) {
-            Ok((_store, mb)) => mb,
+            Ok(mb) => mb,
             Err(e) => {
                 tracing::warn!("service.agents: failed to spawn actor: {e}");
                 return;
@@ -74,33 +75,42 @@ pub async fn start_agents(kernel: Kernel, ports: Arc<AgentPorts>) {
 /// Handle a single `dispatch.*` or `session.*` event. Runs the L0 entry gate
 /// (event-id dedup + terminal-state guard) before the policy match.
 ///
-/// With `harness-drivers` OFF, the terminal-state guard and the `cancelled`
+/// With `ship-code` OFF, the terminal-state guard and the `cancelled`
 /// arm are absent (no process to kill, no dedup registry). The floki dispatch
 /// path in `handle_dispatch_requested` remains active.
 pub async fn handle_agents_event(kernel: &Kernel, envelope: &EventEnvelope, ports: &AgentPorts) {
-    // Runner-mechanism entry gate (L0 `ship_runner::router`): dedup by event id
+    // Runner-mechanism entry gate (`dispatch_gate`): dedup by event id
     // AND the terminal-state guard. The terminal check goes through the
     // ProjectionReader port (primitive `bool`) so this crate never names the
     // projection status enum.
     //
     // Gate: terminal_guard + EventDedup are ship_code-backed; with
-    // harness-drivers OFF these are absent.
-    #[cfg(feature = "harness-drivers")]
-    match terminal_guard(&ports.event_dedup, &*ports.projections, envelope).await {
-        Admit::Proceed => {}
-        Admit::Duplicate | Admit::Terminal => return,
+    // ship-code OFF these are absent.
+    #[cfg(feature = "bridge")]
+    {
+        let projections: Arc<dyn bridge::dispatch_ports::ProjectionReader> =
+            Arc::clone(&ports.projections);
+        let is_terminal = move |entity_id: &str| -> Pin<Box<dyn Future<Output = bool> + Send>> {
+            let p = Arc::clone(&projections);
+            let entity_id = entity_id.to_string();
+            Box::pin(async move { p.is_run_terminal(&entity_id).await })
+        };
+        match terminal_guard(&ports.event_dedup, is_terminal, envelope).await {
+            Admit::Proceed => {}
+            Admit::Duplicate | Admit::Terminal => return,
+        }
     }
 
     match envelope.event_type.as_str() {
         // The dispatch.requested event — the spawn trigger. Owns the spawn /
         // register / exit-handler-attach atom. Detaches the slow prep itself
-        // (under DISPATCH_GATE), so it returns to the loop immediately.
+        // (under the injected dispatch gate), so it returns to the loop immediately.
         "dispatch.requested" => {
             handle_dispatch_requested(kernel, envelope, ports).await;
         }
-        // With harness-drivers OFF: no process to stop, no process.killed to
+        // With ship-code OFF: no process to stop, no process.killed to
         // emit — the cancelled arm is a no-op.
-        #[cfg(feature = "harness-drivers")]
+        #[cfg(feature = "bridge")]
         "session.cancelled" => {
             handle_agent_cancelled(kernel, envelope, ports).await;
         }

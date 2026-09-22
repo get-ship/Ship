@@ -1,0 +1,12 @@
+[package]
+name = "fs-util"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "L0 filesystem helpers — atomic writes + JSONC comment stripping. Pure std + anyhow, no ship deps. The seam every crate routes through instead of raw std::fs for these two operations."
+
+[dependencies]
+anyhow = { workspace = true }
+
+[lints]
+workspace = true

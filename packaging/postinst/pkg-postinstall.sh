@@ -3,23 +3,13 @@
 # files. cargo-dist (or a fallback productbuild invocation) references
 # this script in the component package's Scripts/ payload.
 #
-# Jobs:
-#   1. Copy the Ship.app launcher bundle into /Applications (cargo-dist
-#      installs binaries under /usr/local/bin; the .app is packaged
-#      alongside as a resource).
-#   2. Register the launchd user agent for the target user by running
-#      `ship daemon install-service` in their context.
+# Job: register the launchd user agent for the target user by running
+# `shipctl daemon install-service` in their context. The desktop app is
+# the Tauri shell, shipped by the desktop release — this .pkg carries
+# the CLI + daemon only.
 set -eu
 
 BIN_DIR="/usr/local/bin"
-APP_SRC="${2:-/Applications/Ship.app}"
-APP_DEST="/Applications/Ship.app"
-
-if [ -d "$APP_SRC" ] && [ "$APP_SRC" != "$APP_DEST" ]; then
-    /bin/rm -rf "$APP_DEST"
-    /bin/cp -R "$APP_SRC" "$APP_DEST"
-fi
-/bin/chmod +x "$APP_DEST/Contents/MacOS/Ship" 2>/dev/null || true
 
 # macOS .pkg installs to the machine; autostart / launchctl lives per
 # user. Detect the "console user" — the one logged into the GUI — so
@@ -33,9 +23,9 @@ if [ "$CONSOLE_USER" = "root" ] || [ "$CONSOLE_UID" = "0" ]; then
 fi
 
 /usr/bin/sudo -u "$CONSOLE_USER" \
-    "${BIN_DIR}/ship" daemon install-service \
+    "${BIN_DIR}/shipctl" daemon install-service \
     --shipd-path "${BIN_DIR}/shipd" || {
-        echo "[ship] ship daemon install-service failed; autostart not registered" >&2
+        echo "[ship] shipctl daemon install-service failed; autostart not registered" >&2
         exit 0
     }
 

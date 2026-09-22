@@ -1,17 +1,25 @@
-//! Load a [`ProjectLibrary`] from the `.ship/` directory tree.
+//! Load a [`ExtensionLibrary`] from the `.ship/` directory tree.
 //! No compilation or resolution occurs here — pure filesystem loading.
+//!
+//! **Slice 3 close-out (A3+A4)**: the leaf no longer reads
+//! `.ship/hooks.jsonc` or `.ship/permissions.jsonc` (both files died
+//! with the dot-ship close-out). `permissions` + `hooks` +
+//! `permissions_presets` are populated by the resolver's
+//! `merge_ts_declarations` (the TS declare-form harvest + the
+//! on-disk `<hooks_dir>/<event>.<ext>` walk). The leaf's
+//! `load_permission_preset` is now an in-memory lookup against
+//! `ExtensionLibrary::permissions_presets` — the caller side
+//! ([`apply_agent_permissions`]) passes the map, not a `ship_dir`.
+//! See [`super::permissions`] for the consumer.
 
+use agent_schema::{McpServerConfig, McpServerType};
 use anyhow::Result;
-use compiler::{
-    AgentProfile, HookConfig, HookTrigger, McpServerConfig, McpServerType, Permissions,
-    ProjectLibrary, Rule,
-};
 use serde::{Deserialize, Serialize};
+use stack_model::ExtensionLibrary;
 use std::collections::HashMap;
 use std::path::Path;
 
 use super::permissions::PermissionPreset;
-use super::skill_parser::load_compile_skills;
 
 // ── MCP file types ────────────────────────────────────────────────────────────
 
@@ -73,7 +81,7 @@ impl McpFile {
         }
         let text = std::fs::read_to_string(path)?;
 
-        if let Ok(raw) = compiler::jsonc::from_jsonc_str::<RawMcpFile>(&text)
+        if let Ok(raw) = agent_schema::jsonc::from_jsonc_str::<RawMcpFile>(&text)
             && !raw.mcp.servers.is_empty()
         {
             let servers = raw
@@ -89,7 +97,7 @@ impl McpFile {
                 .collect();
             return Ok(Self { servers });
         }
-        if let Ok(legacy) = compiler::jsonc::from_jsonc_str::<LegacyMcpFile>(&text) {
+        if let Ok(legacy) = agent_schema::jsonc::from_jsonc_str::<LegacyMcpFile>(&text) {
             return Ok(Self {
                 servers: legacy.servers,
             });
@@ -114,19 +122,35 @@ impl McpFile {
 
 // ── Top-level entry point ─────────────────────────────────────────────────────
 
-/// Load a [`ProjectLibrary`] from a `.ship/` directory (flat layout).
+/// Load a [`ExtensionLibrary`] from a `.ship/` directory (flat layout).
 ///
-/// Looks for mcp, permissions, hooks, rules, skills at the `.ship/` root,
-/// and agent profiles under `.ship/agents/`.
-/// Missing files and dirs are silently skipped — an empty library is valid.
-pub fn load_library(ship_dir: &Path) -> Result<ProjectLibrary> {
-    Ok(ProjectLibrary {
+/// Post format-migration Wave 5: reads mcp, permissions, hooks, rules
+/// from disk. Agent profiles and skills no longer arrive from disk —
+/// they land via `stack.config.ts` declare-forms (`defineAgent` /
+/// `defineSkill`) through the resolver's `merge_ts_declarations` step
+/// (census-format-migration.md §4 row 3, last paragraph). The leaf
+/// returns the two noun vectors empty; the roll-up is the only door
+/// for them. Tests that need a pre-merge library should call this fn
+/// to get the disk-side bulk (mcp/permissions/hooks/rules) and merge
+/// in the TS-declared agents/skills separately.
+///
+/// Missing files and dirs are silently skipped — an empty library is
+/// valid (the lenient contract this loader has had).
+pub fn load_library(ship_dir: &Path) -> Result<ExtensionLibrary> {
+    Ok(ExtensionLibrary {
         mcp_servers: load_mcp_servers(ship_dir)?,
-        permissions: load_permissions(ship_dir)?,
-        hooks: load_hooks(ship_dir)?,
-        rules: load_rules(ship_dir)?,
-        skills: load_compile_skills(ship_dir)?,
-        agent_profiles: load_agent_profiles(ship_dir)?,
+        // Slice 3 close-out: permissions, hooks, permissions_presets
+        // are resolver-sourced now (the leaf's per-file disk reads
+        // died with this slice). The leaf returns defaults — the
+        // resolver's `merge_ts_declarations` populates them with
+        // values harvested from the `defineConfig` block + the
+        // on-disk hooks-dir walk.
+        permissions: agent_schema::Permissions::default(),
+        hooks: Vec::new(),
+        permissions_presets: std::collections::BTreeMap::new(),
+        rules: Vec::new(),
+        skills: Vec::new(),
+        agent_profiles: Vec::new(),
         ..Default::default()
     })
 }
@@ -176,167 +200,35 @@ fn load_mcp_servers(ship_dir: &Path) -> Result<Vec<McpServerConfig>> {
         .collect())
 }
 
-// ── Permissions ───────────────────────────────────────────────────────────────
+// ── Permission preset lookup (slice 3 close-out) ───────────────────────────
 
-fn load_permissions(ship_dir: &Path) -> Result<Permissions> {
-    let path = ship_dir.join("permissions.jsonc");
-    if !path.exists() {
-        return Ok(Permissions::default());
-    }
-    let s = std::fs::read_to_string(&path)?;
-    Ok(compiler::jsonc::from_jsonc_str::<Permissions>(&s).unwrap_or_default())
+/// Look up a named permission preset in the descriptor's
+/// `permissions_presets` map. Replaces the pre-slice-3
+/// `load_permission_preset(ship_dir, name)` that read from
+/// `.ship/permissions.jsonc` — the file died with the dot-ship
+/// close-out, and the preset definitions now live in
+/// `defineConfig({ agents: { permissions: { presets: { ... } } } })`
+/// in `stack.config.ts` (harvested by the resolver into
+/// `ExtensionLibrary::permissions_presets`).
+///
+/// Returns `None` if the map has no entry for `name` — the
+/// consumer ([`super::permissions::apply_agent_permissions`])
+/// treats that as "no preset contribution from the file, fall
+/// through to the built-in presets or the agent's overrides."
+pub fn load_permission_preset(
+    presets: &std::collections::BTreeMap<String, PermissionPreset>,
+    preset_name: &str,
+) -> Option<PermissionPreset> {
+    presets.get(preset_name).cloned()
 }
 
-/// Load a named permission preset section (e.g. `"ship-standard"`) from
-/// `<ship_dir>/permissions.jsonc`. Returns `None` if the file or section
-/// is absent.
-pub fn load_permission_preset(ship_dir: &Path, preset_name: &str) -> Option<PermissionPreset> {
-    let path = ship_dir.join("permissions.jsonc");
-    if !path.exists() {
-        return None;
-    }
-    let s = std::fs::read_to_string(&path).ok()?;
-    let val: serde_json::Value = compiler::jsonc::from_jsonc_str(&s).ok()?;
-
-    let section = val.get(preset_name)?.as_object()?;
-
-    let get_str_list = |key: &str| -> Vec<String> {
-        section
-            .get(key)
-            .and_then(|v| v.as_array())
-            .map(|a| {
-                a.iter()
-                    .filter_map(|v| v.as_str().map(str::to_string))
-                    .collect()
-            })
-            .unwrap_or_default()
-    };
-    let default_mode = section
-        .get("default_mode")
-        .and_then(|v| v.as_str())
-        .map(str::to_string);
-
-    Some(PermissionPreset {
-        default_mode,
-        tools_allow: get_str_list("tools_allow"),
-        tools_deny: get_str_list("tools_deny"),
-        tools_ask: get_str_list("tools_ask"),
-    })
-}
-
-// ── Hooks ─────────────────────────────────────────────────────────────────────
-
-#[derive(Deserialize, Default)]
-struct HooksFile {
-    #[serde(default)]
-    hooks: Vec<HookEntry>,
-}
-
-#[derive(Deserialize)]
-struct HookEntry {
-    id: String,
-    trigger: String,
-    command: String,
-    #[serde(default)]
-    matcher: Option<String>,
-}
-
-fn load_hooks(ship_dir: &Path) -> Result<Vec<HookConfig>> {
-    let path = ship_dir.join("hooks.jsonc");
-    if !path.exists() {
-        return Ok(vec![]);
-    }
-    let s = std::fs::read_to_string(&path)?;
-    let file: HooksFile = compiler::jsonc::from_jsonc_str(&s)?;
-    Ok(file
-        .hooks
-        .into_iter()
-        .filter_map(|e| {
-            let trigger = match e.trigger.as_str() {
-                "pre_tool_use" | "PreToolUse" => HookTrigger::PreToolUse,
-                "post_tool_use" | "PostToolUse" => HookTrigger::PostToolUse,
-                "notification" | "Notification" => HookTrigger::Notification,
-                "stop" | "Stop" => HookTrigger::Stop,
-                "subagent_stop" | "SubagentStop" => HookTrigger::SubagentStop,
-                "pre_compact" | "PreCompact" => HookTrigger::PreCompact,
-                _ => return None,
-            };
-            Some(HookConfig {
-                id: e.id,
-                trigger,
-                command: e.command,
-                matcher: e.matcher,
-                cursor_event: None,
-            })
-        })
-        .collect())
-}
-
-// ── Rules ─────────────────────────────────────────────────────────────────────
-
-fn load_rules(ship_dir: &Path) -> Result<Vec<Rule>> {
-    let rules_dir = ship_dir.join("rules");
-    if !rules_dir.exists() {
-        return Ok(vec![]);
-    }
-    let mut rules = Vec::new();
-    let mut entries: Vec<_> = std::fs::read_dir(&rules_dir)?
-        .flatten()
-        .filter(|e| e.path().extension().is_some_and(|x| x == "md"))
-        .collect();
-    entries.sort_by_key(|e| e.file_name());
-    for e in entries {
-        let file_name = e.file_name().to_string_lossy().to_string();
-        let raw = std::fs::read_to_string(e.path())?;
-        rules.push(parse_rule(&file_name, &raw));
-    }
-    Ok(rules)
-}
-
-/// Parse a rule `.md` file, stripping YAML frontmatter if present.
-/// Frontmatter fields: `description`, `globs` (list), `alwaysApply` (bool).
-pub fn parse_rule(file_name: &str, raw: &str) -> Rule {
-    if let Some(rest) = raw.strip_prefix("---\n")
-        && let Some(end) = rest.find("\n---\n")
-    {
-        let fm = &rest[..end];
-        let body = &rest[end + 5..];
-        let mut always_apply = true;
-        let mut globs = vec![];
-        let mut description = None;
-        for line in fm.lines() {
-            if let Some(v) = line.strip_prefix("alwaysApply:") {
-                always_apply = v.trim() != "false";
-            } else if let Some(v) = line.strip_prefix("description:") {
-                description = Some(v.trim().trim_matches('"').to_string());
-            } else if line.trim_start().starts_with("- ") {
-                globs.push(line.trim().trim_start_matches("- ").to_string());
-            }
-        }
-        return Rule {
-            file_name: file_name.to_string(),
-            content: body.trim().to_string(),
-            always_apply,
-            globs,
-            description,
-        };
-    }
-    Rule {
-        file_name: file_name.to_string(),
-        content: raw.trim().to_string(),
-        always_apply: true,
-        globs: vec![],
-        description: None,
-    }
-}
-
-// ── Agent profiles ────────────────────────────────────────────────────────────
-
-fn load_agent_profiles(ship_dir: &Path) -> Result<Vec<AgentProfile>> {
-    // THE agent-def reader (FsBroker, ship-config) is the one door for
-    // `.ship/agents/*.jsonc` — no raw `std::fs` walk here. It returns the FULL
-    // nested `compiler::AgentProfile`, sorted by `agent.id`, skipping malformed
-    // files (the same lenient contract this loader had).
-    let fs = ship_substrate::ports::LocalFsBroker::new();
-    Ok(ship_config::agents::read_agent_profiles(&fs, ship_dir)?)
-}
+// `.ship/agents/*.jsonc` is no longer read by this loader. Post
+// format-migration Wave 5, agent profiles arrive via `defineAgent`
+// declare-forms in the space's `stack.config.ts` and land in
+// `ExtensionLibrary::agent_profiles` through
+// `space_resolver::merge_ts_declarations` — see
+// `census-format-migration.md` §4 row 3 (last paragraph). The
+// ship_settings reader (`ship_settings::agents::read_agent_profiles`)
+// stays in place — it is the S2 READ door for the agent-def write
+// surface (`AgentsService` + the `agents_write` door), not a
+// `.ship/`-shape loader anymore. Disk-authoring is gone.

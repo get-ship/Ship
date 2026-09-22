@@ -27,9 +27,13 @@ impl From<ship_kernel::KernelError> for KernelError {
             ship_kernel::KernelError::ActorAlreadyExists { actor_id } => {
                 KernelError::ActorAlreadyExists { actor_id }
             }
-            ship_kernel::KernelError::NamespaceViolation { namespace, actor_id } => {
-                KernelError::NamespaceViolation { namespace, actor_id }
-            }
+            ship_kernel::KernelError::NamespaceViolation {
+                namespace,
+                actor_id,
+            } => KernelError::NamespaceViolation {
+                namespace,
+                actor_id,
+            },
             ship_kernel::KernelError::MailboxFull { actor_id } => {
                 KernelError::MailboxFull { actor_id }
             }
@@ -39,20 +43,4 @@ impl From<ship_kernel::KernelError> for KernelError {
             ship_kernel::KernelError::Persistence(e) => KernelError::Persistence(e),
         }
     }
-}
-
-#[derive(Debug, Error)]
-pub enum WorkspaceError {
-    #[error("Workspace not found for branch '{branch}'")]
-    NotFound { branch: String },
-    #[error("workspace already exists: branch '{branch}'")]
-    AlreadyExists { branch: String },
-    #[error("invalid status transition: '{current}' → '{attempted}'")]
-    InvalidStatus { current: String, attempted: String },
-    #[error("session already active: '{session_id}'")]
-    SessionActive { session_id: String },
-    #[error("compile failed: {error}")]
-    CompileFailed { error: String },
-    #[error("{0}")]
-    Internal(#[from] anyhow::Error),
 }

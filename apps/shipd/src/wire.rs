@@ -19,4 +19,3 @@ pub struct MeshResponse {
     /// details, etc.).
     pub data: serde_json::Value,
 }
-

@@ -1,17 +1,39 @@
 //! Agent discovery helpers for the `agents` daemon-rendered view.
 //!
-//! Reads agent configs from `<ship_dir>/agents/*.{jsonc,json}` across two
-//! scopes and merges them — project (discovered from cwd via
-//! `ship_substrate::project::get_project_dir`) wins over global on id collision.
-//! Each summary/detail carries a `source` field so the view can group the
-//! rail by scope.
+//! The live daemon path (`list_agents_from_index` / `load_agent_from_index`)
+//! reads the project scope's composed roll-up snapshot from the in-memory
+//! `AgentDefIndex` — see "Index-backed reads" below. `list_agents` /
+//! `load_agent` / `agent_id_exists` are the no-index fallback for a daemon
+//! (helmd) that constructs its `AgentsService` via `with_roots` and never
+//! mounts an `AgentDefIndex`. Post format-migration Wave 5 there is no
+//! `.ship/agents/*.jsonc` two-scope directory scan to fall back to — agents
+//! only exist as `defineAgent` declare-forms in `stack.config.ts`, so the
+//! no-index fallback resolves through the SAME composed world as the
+//! index-backed path: `space_resolver::roll_up_registered_blocking` from the project
+//! space root (the `compile_project` W5 pattern) — there is no separate
+//! global-scope read here.
 //!
-//! JSONC parsing lives in the sibling `agents_jsonc` module.
+//! `state::list` and `state::load_doc` (the C0 Get/List read surface the
+//! `AgentsWire::list` / `AgentsWire::get` handlers ride) go through the
+//! SAME composed roll-up — W5b follow-up. They share the projection
+//! helpers and the resolve/compose helpers below (made `pub(crate)` for
+//! that).
+//!
+//! Each summary/detail carries a `source` field so the view can group the
+//! rail; for both the index-backed and no-index paths it is derived from
+//! the roll-up's own precedence resolution, never an invented scope label.
+//!
+//! Projection helpers (avatar letter + collection-field array) live as
+//! private fns in this module — the old sibling `agents_jsonc.rs` is
+//! retired: its only consumers were the migrated paths (this module's
+//! `summary_from_value` / `detail_from_value`).
 
 use serde::Serialize;
-use std::collections::HashSet;
+use ship_settings::agents_index::AgentDefIndex;
+use stack_model::{ComposedLibrary, ExtSource};
 use std::path::{Path, PathBuf};
-use super::agents_jsonc::{first_letter, resolve_array_field};
+
+use super::state::ScopeTag;
 
 // Re-export `strip_jsonc` so the sibling test file can pull it in via
 // `super::*` (the comment-stripping itself still delegates to
@@ -86,91 +108,181 @@ pub struct Permissions {
 
 /// Source label for project-scoped agents (enclosing `.ship/` of cwd).
 pub const SOURCE_PROJECT: &str = "PROJECT AGENTS";
-/// Source label for user-scope agents (`~/.ship/library/agents/`).
+/// Source label for user-scope agents (`data_dir()/library/agents/`).
 pub const SOURCE_GLOBAL: &str = "USER AGENTS";
-
-/// Resolved search roots for the two scopes.
-pub(crate) struct AgentScopes {
-    pub global_dir: PathBuf,
-    pub project_dir: Option<PathBuf>,
+/// Resolve the enclosing project's space root (the parent of its `.ship/`),
+/// walking up from the current working directory. `None` outside a Ship
+/// project — the no-index posture then has no space to compose (there is no
+/// longer a "global-only, no project" case: the operator-enabled library
+/// tier only reaches a caller THROUGH a space's roll-up).
+pub(crate) fn resolve_space_root() -> Option<PathBuf> {
+    ship_substrate::project::get_stack_root(None).ok()
 }
 
-fn resolve_scopes(ship_dir: &Path) -> AgentScopes {
-    let project_ship = ship_substrate::project::get_project_dir(None)
+/// Compose the project's space root into an [`ExtensionLibrary`][stack_model::ExtensionLibrary]
+/// snapshot — the same `space_resolver::roll_up_registered_blocking` call `compile_project`
+/// makes (format-migration W5). This IS the no-index fallback's read: no
+/// `.ship/agents/*.jsonc` directory scan survives it. `None` on a roll-up
+/// failure (e.g. a TS eval error) — callers treat that the same as "nothing
+/// composed", matching the old scan's "missing dir" tolerance.
+pub(crate) fn compose_space_library(space_root: &Path) -> Option<ComposedLibrary> {
+    space_resolver::roll_up_registered_blocking(space_root, None)
+        .inspect_err(|e| {
+            tracing::warn!("agents view_state: roll_up failed for {space_root:?}: {e}")
+        })
         .ok()
-        .filter(|p| p != ship_dir);
-    scopes_from(ship_dir, project_ship.as_deref())
 }
 
-/// Build scopes for an explicit (global, project) pair. Tests call this to
-/// inject both sides without touching the process-global `SHIP_DEV_PROJECT_DIR` env var.
+/// The rail's `source` label for `id` within a composed roll-up: re-applies
+/// the SAME rank-then-declared-order rule `stack_model::compose_space` used to
+/// pick the winner (mirrors `ship_settings::agents_index::provenance`'s
+/// `agent_profile_owners`, which does the identical re-derivation for the
+/// DataStore-backed index — no parallel precedence law invented here, just
+/// the same read without a DataStore row to carry it in). `Space` (or no
+/// roll-up-inputs audit trail at all) reads as project; every other tier
+/// reads as the (now roll-up-composed) global/user tier.
 ///
-/// `ship_dir` is the user-scope home (`~/.ship/`); user-scope agents live
-/// at `library/agents/` per the home-layout ADR. `project_ship_dir` is the
-/// project-scope `.ship/` directly (no `library/` prefix at project scope).
-pub(crate) fn scopes_from(
-    ship_dir: &Path,
-    project_ship_dir: Option<&Path>,
-) -> AgentScopes {
-    let global_dir = ship_substrate::ShipHome::at(ship_dir.to_path_buf())
-        .vector_dir(ship_types::Scope::User, ship_types::Vector::Agents, None);
-    let project_dir = project_ship_dir
-        .filter(|p| *p != ship_dir)
-        .map(|p| p.join("agents"));
-    AgentScopes { global_dir, project_dir }
-}
-
-fn scan_agents_dir(dir: &Path, source: &str) -> Vec<AgentSummary> {
-    // THE agent-def reader (FsBroker, ship-config) is the one door — no raw
-    // `std::fs` walk here. It yields `(id, value)` for each def; the summary
-    // is projected from the raw value (fields the nested profile drops, e.g.
-    // `rules.refs`, survive).
-    let fs = ship_substrate::ports::LocalFsBroker::new();
-    let Ok(docs) = ship_config::agents::read_agent_docs_in(&fs, dir) else {
-        return Vec::new();
+/// The `ScopeTag` form is the typed return [`state::list`] /
+/// [`state::load_doc`] use to populate `IndexEntry.scope` (and to enforce
+/// the explicit-scope branch of [`state::load_doc`]) — they want the
+/// rank-derived scope as a typed enum, not as a UI string. The
+/// string-form `agent_source_label` derives from this.
+pub(crate) fn agent_source_scope(composed: &ComposedLibrary, id: &str) -> ScopeTag {
+    let Some(rollup) = composed.library.rollup_inputs.as_ref() else {
+        return ScopeTag::Project;
     };
-    let mut out = Vec::new();
-    for (id, parsed) in docs {
-        let Some(agent_obj) = parsed.get("agent") else { continue };
-        let name = agent_obj
-            .get("name")
-            .and_then(|v| v.as_str())
-            .unwrap_or(&id)
-            .to_string();
-        let description = agent_obj
-            .get("description")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string();
-        let skills = resolve_array_field(&parsed, &["skills"], &["refs"]);
-        let mcp = resolve_array_field(&parsed, &["mcp"], &["servers"]);
-        // Schema/UI mismatch: schema says `rules.inline: string`; UI still
-        // wants a list. Reading `rules.refs` until the UI redesign lands.
-        let rules = resolve_array_field(&parsed, &["rules"], &["refs"]);
-        let tags = resolve_array_field(agent_obj, &["tags"], &[]);
-        let letter = first_letter(&name);
-        out.push(AgentSummary {
-            id,
-            name,
-            description,
-            skills_count: skills.len(),
-            mcp_count: mcp.len(),
-            rules_count: rules.len(),
-            letter,
-            source: source.to_string(),
-            tags,
-            active: false,
-        });
+    let mut ranked: Vec<_> = rollup
+        .extensions
+        .iter()
+        .filter_map(|ext| {
+            rollup
+                .precedence
+                .iter()
+                .find(|row| row.kind == ext.source.kind())
+                .map(|row| (row.rank, ext))
+        })
+        .collect();
+    ranked.sort_by_key(|(rank, _)| *rank);
+    let winner = ranked
+        .into_iter()
+        .filter(|(_, ext)| ext.descriptor.agents.iter().any(|a| a.agent.id == id))
+        .next_back()
+        .map(|(_, ext)| ext.source.clone());
+    match winner {
+        None | Some(ExtSource::Space) => ScopeTag::Project,
+        Some(_) => ScopeTag::User,
     }
-    out
 }
 
-fn load_from_dir(dir: &Path, id: &str, source: &str) -> Option<AgentDetail> {
-    // THE agent-def reader (FsBroker, ship-config) is the one door — no raw
-    // `std::fs` lookup here. It resolves `<id>.jsonc` then `<id>.json` and
-    // yields the raw value the detail projects from.
-    let fs = ship_substrate::ports::LocalFsBroker::new();
-    let (file_id, parsed) = ship_config::agents::read_agent_doc_in(&fs, dir, id).ok().flatten()?;
+/// The string-form `source` label (rail-grouping string surfaced in the
+/// `source` field of the wire response) — derived from
+/// [`agent_source_scope`].
+fn agent_source_label(composed: &ComposedLibrary, id: &str) -> &'static str {
+    match agent_source_scope(composed, id) {
+        ScopeTag::Project => SOURCE_PROJECT,
+        ScopeTag::User => SOURCE_GLOBAL,
+    }
+}
+
+/// First character of `s`, upper-cased (or `"?"` for an empty string).
+/// Powers the agent-row "letter avatar" badge.
+fn first_letter(s: &str) -> String {
+    s.chars()
+        .next()
+        .map(|c| c.to_ascii_uppercase().to_string())
+        .unwrap_or_else(|| "?".to_string())
+}
+
+/// Extract a flat `Vec<String>` from a JSON value: string entries of an
+/// array, or empty for anything else.
+fn extract_str_array(v: &serde_json::Value) -> Vec<String> {
+    v.as_array()
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|item| item.as_str().map(str::to_string))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Resolve a collection field from an agent config. Reads either the
+/// top-level array (when `nested_keys` is empty) or a nested sub-key
+/// (e.g. `skills.refs`, `mcp.servers`).
+///
+/// The `nested_keys` parameter lists candidate sub-keys to inspect when the
+/// top-level value is an object; the first one that contains an array wins.
+fn resolve_array_field(
+    obj: &serde_json::Value,
+    top_keys: &[&str],
+    nested_keys: &[&str],
+) -> Vec<String> {
+    for key in top_keys {
+        let Some(v) = obj.get(*key) else { continue };
+        if v.is_array() {
+            return extract_str_array(v);
+        }
+        if let Some(inner) = v.as_object() {
+            for nk in nested_keys {
+                if let Some(arr) = inner.get(*nk)
+                    && arr.is_array()
+                {
+                    return extract_str_array(arr);
+                }
+            }
+        }
+    }
+    Vec::new()
+}
+/// Project a raw agent-def value into a summary. The ONE projection shared by
+/// the composed roll-up read and the index-backed read — the def value has
+/// the same canonical shape whether it comes off a `serde_json::to_value`'d
+/// [`stack_model::AgentProfile`] or out of the index snapshot. `None` when the
+/// value lacks the top-level `agent` block.
+fn summary_from_value(
+    id: String,
+    source: &str,
+    parsed: &serde_json::Value,
+) -> Option<AgentSummary> {
+    let agent_obj = parsed.get("agent")?;
+    let name = agent_obj
+        .get("name")
+        .and_then(|v| v.as_str())
+        .unwrap_or(&id)
+        .to_string();
+    let description = agent_obj
+        .get("description")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let skills = resolve_array_field(parsed, &["skills"], &["refs"]);
+    let mcp = resolve_array_field(parsed, &["mcp"], &["servers"]);
+    // Schema/UI mismatch: schema says `rules.inline: string`; UI still
+    // wants a list. Reading `rules.refs` until the UI redesign lands.
+    let rules = resolve_array_field(parsed, &["rules"], &["refs"]);
+    let tags = resolve_array_field(agent_obj, &["tags"], &[]);
+    let letter = first_letter(&name);
+    Some(AgentSummary {
+        id,
+        name,
+        description,
+        skills_count: skills.len(),
+        mcp_count: mcp.len(),
+        rules_count: rules.len(),
+        letter,
+        source: source.to_string(),
+        tags,
+        active: false,
+    })
+}
+
+/// Project a raw agent-def value into a detail. Shared by the composed
+/// roll-up read and the index-backed read (same canonical shape from either
+/// source). `None` when the value lacks the top-level `agent` block.
+fn detail_from_value(
+    file_id: String,
+    source: &str,
+    parsed: &serde_json::Value,
+) -> Option<AgentDetail> {
     {
         let agent_obj = parsed.get("agent")?;
         let name = agent_obj
@@ -183,9 +295,9 @@ fn load_from_dir(dir: &Path, id: &str, source: &str) -> Option<AgentDetail> {
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_string();
-        let skills = resolve_array_field(&parsed, &["skills"], &["refs"]);
-        let mcp_servers = resolve_array_field(&parsed, &["mcp"], &["servers"]);
-        let rules = resolve_array_field(&parsed, &["rules"], &["refs"]);
+        let skills = resolve_array_field(parsed, &["skills"], &["refs"]);
+        let mcp_servers = resolve_array_field(parsed, &["mcp"], &["servers"]);
+        let rules = resolve_array_field(parsed, &["rules"], &["refs"]);
         let inline_rules = parsed
             .get("rules")
             .and_then(|r| r.get("inline"))
@@ -206,10 +318,16 @@ fn load_from_dir(dir: &Path, id: &str, source: &str) -> Option<AgentDetail> {
         // with a `ship-<tier>` prefix. Strip the prefix to canonicalize.
         let permissions_obj = parsed.get("permissions");
         let permissions_tier = permissions_obj
-            .and_then(|p: &serde_json::Value| p.get("tier").and_then(|t: &serde_json::Value| t.as_str()).map(|s: &str| s.to_string()))
+            .and_then(|p: &serde_json::Value| {
+                p.get("tier")
+                    .and_then(|t: &serde_json::Value| t.as_str())
+                    .map(|s: &str| s.to_string())
+            })
             .or_else(|| {
                 permissions_obj
-                    .and_then(|p: &serde_json::Value| p.get("preset").and_then(|t: &serde_json::Value| t.as_str()))
+                    .and_then(|p: &serde_json::Value| {
+                        p.get("preset").and_then(|t: &serde_json::Value| t.as_str())
+                    })
                     .map(|s: &str| s.trim_start_matches("ship-").to_string())
             })
             .unwrap_or_else(|| "standard".to_string());
@@ -220,15 +338,27 @@ fn load_from_dir(dir: &Path, id: &str, source: &str) -> Option<AgentDetail> {
                 .to_string(),
             tools_allow: permissions_obj
                 .and_then(|p| p.get("tools_allow").and_then(|v| v.as_array()))
-                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|v| v.as_str().map(String::from))
+                        .collect()
+                })
                 .unwrap_or_default(),
             tools_ask: permissions_obj
                 .and_then(|p| p.get("tools_ask").and_then(|v| v.as_array()))
-                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|v| v.as_str().map(String::from))
+                        .collect()
+                })
                 .unwrap_or_default(),
             tools_deny: permissions_obj
                 .and_then(|p| p.get("tools_deny").and_then(|v| v.as_array()))
-                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|v| v.as_str().map(String::from))
+                        .collect()
+                })
                 .unwrap_or_default(),
         };
         Some(AgentDetail {
@@ -250,61 +380,159 @@ fn load_from_dir(dir: &Path, id: &str, source: &str) -> Option<AgentDetail> {
     }
 }
 
-/// List agents from project (if inside a Ship project) and global scopes.
-/// Project entries shadow global on id collision.
+/// List agents visible to the no-index posture: the project space's composed
+/// roll-up (source + cache tier + operator-enabled library tier). `ship_dir`
+/// stays a parameter (unused) only because the wire call site passes it —
+/// same rationale as [`list_agents_from_index`]'s `_ship_dir`; the composed
+/// world already covers the user/global tier (W2), so there is nothing left
+/// for `ship_dir` to add.
 pub fn list_agents(ship_dir: &Path) -> Vec<AgentSummary> {
-    list_agents_with_scopes(&resolve_scopes(ship_dir))
+    let _ = ship_dir;
+    match resolve_space_root() {
+        Some(root) => list_agents_from_space(&root),
+        None => Vec::new(),
+    }
 }
 
 /// Read the workspace-active agent id from `daemon_settings`. The
 /// `/agents` list view dims everything but the active row; activation
 /// happens through `POST /api/v1/settings { key: "shell.agent.active" }`.
 pub fn active_agent_id() -> Option<String> {
-    ship_config::settings::get_setting("shell.agent.active")
+    ship_settings::settings::get_setting("shell.agent.active")
         .ok()
         .flatten()
         .and_then(|v| v.as_str().map(String::from))
 }
 
-pub(crate) fn list_agents_with_scopes(scopes: &AgentScopes) -> Vec<AgentSummary> {
+/// Test/injection seam for [`list_agents`] — takes the space root directly
+/// instead of walking up from the cwd, so parallel tests don't race on the
+/// process-global project-discovery path.
+pub(crate) fn list_agents_from_space(space_root: &Path) -> Vec<AgentSummary> {
+    let Some(composed) = compose_space_library(space_root) else {
+        return Vec::new();
+    };
     let active = active_agent_id();
-    let mut seen: HashSet<String> = HashSet::new();
-    let mut out = Vec::new();
-    if let Some(dir) = scopes.project_dir.as_ref() {
-        for mut a in scan_agents_dir(dir, SOURCE_PROJECT) {
-            if seen.insert(a.id.clone()) {
-                a.active = active.as_deref() == Some(a.id.as_str());
-                out.push(a);
-            }
-        }
-    }
-    for mut a in scan_agents_dir(&scopes.global_dir, SOURCE_GLOBAL) {
-        if seen.insert(a.id.clone()) {
+    let mut out: Vec<AgentSummary> = composed
+        .library
+        .agents
+        .iter()
+        .filter_map(|profile| {
+            let source = agent_source_label(&composed, &profile.agent.id);
+            let value = serde_json::to_value(profile).unwrap_or(serde_json::Value::Null);
+            let mut a = summary_from_value(profile.agent.id.clone(), source, &value)?;
             a.active = active.as_deref() == Some(a.id.as_str());
-            out.push(a);
-        }
-    }
+            Some(a)
+        })
+        .collect();
     out.sort_by(|a, b| a.name.cmp(&b.name));
     out
 }
 
-/// Load a single agent by id. Project scope wins on collision.
+/// Load a single agent by id from the no-index posture's composed roll-up.
+/// `ship_dir` is unused for the same reason as [`list_agents`].
 pub fn load_agent(ship_dir: &Path, id: &str) -> Option<AgentDetail> {
-    load_agent_with_scopes(&resolve_scopes(ship_dir), id)
+    let _ = ship_dir;
+    load_agent_from_space(&resolve_space_root()?, id)
 }
 
-pub(crate) fn load_agent_with_scopes(
-    scopes: &AgentScopes,
+/// Test/injection seam for [`load_agent`] — see [`list_agents_from_space`].
+pub(crate) fn load_agent_from_space(space_root: &Path, id: &str) -> Option<AgentDetail> {
+    let composed = compose_space_library(space_root)?;
+    let profile = composed.library.agents.iter().find(|p| p.agent.id == id)?;
+    let source = agent_source_label(&composed, id);
+    let value = serde_json::to_value(profile).unwrap_or(serde_json::Value::Null);
+    detail_from_value(id.to_string(), source, &value)
+}
+
+/// True when `id` resolves to a known agent in the no-index posture's
+/// composed roll-up. Used by the dispatch wire to reject requests that name
+/// an unknown agent BEFORE any side effect
+/// (c-2026-07-05T12-33-00-000Z-a1b2c3d4). Final (no retry / degraded path;
+/// an agent that doesn't exist cannot be dispatched).
+pub fn agent_id_exists(ship_dir: &Path, id: &str) -> bool {
+    let _ = ship_dir;
+    let Some(root) = resolve_space_root() else {
+        return false;
+    };
+    agent_exists_in_space(&root, id)
+}
+
+/// Test/injection seam for [`agent_id_exists`] — see [`list_agents_from_space`].
+pub(crate) fn agent_exists_in_space(space_root: &Path, id: &str) -> bool {
+    let Some(composed) = compose_space_library(space_root) else {
+        return false;
+    };
+    composed.library.agents.iter().any(|p| p.agent.id == id)
+}
+
+/// True when `id` resolves to a known agent in the project scope served from
+/// the [`AgentDefIndex`] snapshot, or in the user scope served from files.
+/// Companion to [`agent_id_exists`] for daemons that keep the project index
+/// in-memory (so they don't have to re-read the on-disk config on every
+/// dispatch validation).
+pub async fn agent_id_exists_in_index(index: &AgentDefIndex, id: &str) -> bool {
+    if let Ok(Some(_)) = index.get_doc(id, "project").await {
+        return true;
+    }
+    if let Ok(Some(_)) = index.get_doc(id, "user").await {
+        return true;
+    }
+    false
+}
+
+// ─── Index-backed reads (AGENTS domain owns its config) ───────────────────────
+//
+// Served ENTIRELY from the `AgentDefIndex` DataStore snapshot — no re-read of
+// `.ship/agents/*.jsonc` or `data_dir()/library/agents/*.jsonc` per call.
+// `list_docs`'s "project" scope IS `stack_model::compose_space`'s composed
+// answer (`AgentDefIndex::upsert_composed`): a same-id loser is already
+// excluded there, so no precedence law is re-derived here — id set and
+// ranking are entirely the index's. `ship_dir` stays a parameter (unused)
+// only because the wire call site passes it.
+
+/// Map a doc's merged `_provenance.ext_source` (the `ExtSource` tag JSON
+/// `list_docs`/`get_doc` merge in, e.g. `{"kind":"space"}`) to the rail's
+/// `source` label — the extension kind verbatim, never an invented
+/// "project"/"user-global" string. No provenance (pre-roll-up ingest) keeps
+/// `fallback`.
+fn source_from_provenance(doc: &serde_json::Value, fallback: &str) -> String {
+    doc.get("_provenance")
+        .and_then(|p| p.get("ext_source"))
+        .and_then(|v| v.as_str())
+        .and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
+        .and_then(|v| v.get("kind").and_then(|k| k.as_str()).map(str::to_string))
+        .unwrap_or_else(|| fallback.to_string())
+}
+
+/// List agents from the project scope's composed roll-up snapshot.
+pub async fn list_agents_from_index(index: &AgentDefIndex, _ship_dir: &Path) -> Vec<AgentSummary> {
+    let active = active_agent_id();
+    let Ok(docs) = index.list_docs("project").await else {
+        return Vec::new();
+    };
+    let mut out: Vec<AgentSummary> = docs
+        .into_iter()
+        .filter_map(|(id, doc)| {
+            let source = source_from_provenance(&doc, SOURCE_PROJECT);
+            let mut a = summary_from_value(id, &source, &doc)?;
+            a.active = active.as_deref() == Some(a.id.as_str());
+            Some(a)
+        })
+        .collect();
+    out.sort_by(|a, b| a.name.cmp(&b.name));
+    out
+}
+
+/// Load one agent by id from the project scope's composed roll-up snapshot.
+pub async fn load_agent_from_index(
+    index: &AgentDefIndex,
+    _ship_dir: &Path,
     id: &str,
 ) -> Option<AgentDetail> {
-    if let Some(dir) = scopes.project_dir.as_ref() {
-        if let Some(d) = load_from_dir(dir, id, SOURCE_PROJECT) {
-            return Some(d);
-        }
-    }
-    load_from_dir(&scopes.global_dir, id, SOURCE_GLOBAL)
+    let doc = index.get_doc(id, "project").await.ok().flatten()?;
+    let source = source_from_provenance(&doc, SOURCE_PROJECT);
+    detail_from_value(id.to_string(), &source, &doc)
 }
-
 
 // ─── Catalogs (available skills / mcp / rules) ────────────────────────
 //
@@ -349,9 +577,18 @@ pub struct ToolPatternEntry {
 }
 
 /// Enumerate rules via RuleService state. Returns project+user, project-wins.
+///
+/// PRE-EXISTING BUG: this calls `super::state::list_jsonc` (the agents
+/// domain's jsonc directory scan) instead of the rules service's own
+/// state — the rules catalog gets populated with agent ids, not rule
+/// ids. Predates this work (the original PR confused the two modules
+/// when both got their `state` submodules). Out of scope here; we just
+/// point it at the jsonc door (the new composed `state::list` would
+/// return composed agent profiles, which is no closer to "rules"). A
+/// future fix replaces this with the rules service's own reader.
 fn list_rule_files(ship_dir: &Path) -> Vec<CatalogEntry> {
     let files = ship_files::files::FilesService::resolve_roots(ship_dir);
-    super::state::list(&files)
+    super::state::list_jsonc(&files)
         .into_iter()
         .map(|e| CatalogEntry {
             id: e.id.clone(),
@@ -361,29 +598,19 @@ fn list_rule_files(ship_dir: &Path) -> Vec<CatalogEntry> {
         .collect()
 }
 
-/// Enumerate permission presets via PermissionService state. Falls back to
-/// the three canonical tiers when no file exists — so the UI always has
-/// something to pick.
-fn list_permission_presets(ship_dir: &Path) -> Vec<CatalogEntry> {
-    let files = ship_files::files::FilesService::resolve_roots(ship_dir);
-    let entries = crate::services::permissions::state::list(&files);
-    if entries.is_empty() {
-        return fallback_presets();
-    }
-    // Load each preset's doc so we can surface `description` (best-effort).
-    let mut out: Vec<CatalogEntry> = Vec::new();
-    for e in entries {
-        let description = crate::services::permissions::state::load_entry(&files, &e.id, None)
-            .ok()
-            .and_then(|(_, v)| v.get("description").and_then(|d| d.as_str()).map(String::from));
-        out.push(CatalogEntry {
-            id: e.id.clone(),
-            name: e.id,
-            description,
-        });
-    }
-    out.sort_by(|a, b| a.id.cmp(&b.id));
-    out
+/// Enumerate permission presets. Slice 3 close-out: the
+/// runtime CRUD service (`ship_agents::services::permissions`) was
+/// removed — no live UI consumer invokes it, and the named-preset
+/// layer is now sourced from
+/// `defineConfig.agents.permissions.presets` in `stack.config.ts`
+/// (the resolver's `merge_ts_declarations` populates
+/// `ExtensionLibrary::permissions_presets`). This catalog helper
+/// always falls through to the three canonical tiers; the
+/// extension's actual presets land in the resolved descriptor
+/// and are surfaced via the agents.* domain's compose path, not
+/// from a per-service read.
+fn list_permission_presets(_ship_dir: &Path) -> Vec<CatalogEntry> {
+    fallback_presets()
 }
 
 fn fallback_presets() -> Vec<CatalogEntry> {
@@ -415,8 +642,16 @@ fn list_tool_patterns(ship_dir: &Path) -> Vec<ToolPatternEntry> {
 
     // Harness builtins — invariant across projects.
     for t in &[
-        "Read", "Write", "Edit", "Glob", "Grep", "Bash",
-        "NotebookEdit", "WebFetch", "WebSearch", "Task",
+        "Read",
+        "Write",
+        "Edit",
+        "Glob",
+        "Grep",
+        "Bash",
+        "NotebookEdit",
+        "WebFetch",
+        "WebSearch",
+        "Task",
     ] {
         out.push(ToolPatternEntry {
             pattern: t.to_string(),
@@ -429,7 +664,10 @@ fn list_tool_patterns(ship_dir: &Path) -> Vec<ToolPatternEntry> {
     for (p, l) in &[
         ("Bash(git *)", "Bash git · all git subcommands"),
         ("Bash(git reset*)", "Bash git · reset (destructive)"),
-        ("Bash(git push --force*)", "Bash git · force push (destructive)"),
+        (
+            "Bash(git push --force*)",
+            "Bash git · force push (destructive)",
+        ),
         ("Bash(npm *)", "Bash npm · all npm subcommands"),
         ("Bash(bun *)", "Bash bun · all bun subcommands"),
         ("Bash(cargo *)", "Bash cargo"),
@@ -463,7 +701,11 @@ pub fn list_agent_catalogs(ship_dir: &Path) -> AgentCatalogs {
         .map(|s| CatalogEntry {
             id: s.id,
             name: s.name,
-            description: if s.description.is_empty() { None } else { Some(s.description) },
+            description: if s.description.is_empty() {
+                None
+            } else {
+                Some(s.description)
+            },
         })
         .collect();
     let mcp_files = ship_files::files::FilesService::resolve_roots(ship_dir);
@@ -475,13 +717,23 @@ pub fn list_agent_catalogs(ship_dir: &Path) -> AgentCatalogs {
                 .ok()
                 .and_then(|(_, v)| v.get("name").and_then(|n| n.as_str()).map(String::from))
                 .unwrap_or_else(|| e.id.clone());
-            CatalogEntry { id: e.id, name, description: None }
+            CatalogEntry {
+                id: e.id,
+                name,
+                description: None,
+            }
         })
         .collect();
     let rules = list_rule_files(ship_dir);
     let presets = list_permission_presets(ship_dir);
     let tool_patterns = list_tool_patterns(ship_dir);
-    AgentCatalogs { skills, mcp, rules, presets, tool_patterns }
+    AgentCatalogs {
+        skills,
+        mcp,
+        rules,
+        presets,
+        tool_patterns,
+    }
 }
 
 #[cfg(test)]

@@ -6,7 +6,7 @@
 //!
 //! Every field is an L0 type:
 //!   - the core dispatch ports come from
-//!     [`ship_substrate::services::dispatch_ports`] (isolation / executor /
+//!     [`agent_driver::dispatch_ports`] (isolation / executor /
 //!     platform / registry / spawn-policy / projection-reader);
 //!   - `event_dedup` is the L0 runner's [`EventDedup`].
 //!
@@ -18,128 +18,131 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
-use agent_def::dispatch_intent::DispatchRequestedPayload;
-#[cfg(feature = "harness-drivers")]
-use ship_code::runner::dedup::EventDedup;
-#[cfg(feature = "harness-drivers")]
-use ship_code::dispatch_ports::{
+#[cfg(feature = "bridge")]
+use crate::dispatch_gate::EventDedup;
+use agent_schema::dispatch_intent::DispatchRequestedPayload;
+#[cfg(feature = "bridge")]
+use bridge::dispatch_ports::{
     AgentPlatform, IsolationStrategy, ProcessRegistryPort, ProjectionReader, SessionExecutor,
     SpawnPolicy,
 };
+#[cfg(feature = "bridge")]
+use bridge::lifecycle::LifecycleSink;
+#[cfg(feature = "bridge")]
+use tokio::sync::Semaphore;
 
-/// Async callback type for floki-harness dispatch.
+/// Async callback for native Yoke harness dispatch.
 ///
-/// Defined here (ungated) so `AgentPorts` carries it regardless of the
-/// `harness-drivers` feature. The closure captures its own floki + gateway
-/// state; `ship-agents` never imports floki directly. The `DispatchRequestedPayload`
-/// type is L1 (`agent-def`) — the sanctioned driver-edge carrier.
-pub type FlokiRunFn = Arc<
-    dyn Fn(DispatchRequestedPayload) -> Pin<Box<dyn Future<Output = ()> + Send>>
-        + Send
-        + Sync,
->;
+/// Ungated so `AgentPorts` carries it with or without `ship-code`. The
+/// host (shipd) captures gateway/kernel; `ship-agents` never imports yoke.
+/// Payload type is L1 (`agent-def`).
+pub type YokeRunFn =
+    Arc<dyn Fn(DispatchRequestedPayload) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync>;
 
 /// Ports for agent-session orchestration. Cloneable (all `Arc`) so the actor
 /// can hand a snapshot to each detached dispatch task.
 ///
-/// With `harness-drivers` OFF, only `floki_run_fn` is present — the entire
+/// With `ship-code` OFF, only `yoke_run_fn` is present — the entire
 /// harness-driver stack (executor/isolation/registry/etc.) is absent. Callers
 /// that construct `AgentPorts` must wrap every harness field in
-/// `#[cfg(feature = "harness-drivers")]` blocks.
+/// `#[cfg(feature = "bridge")]` blocks.
 #[derive(Clone)]
 pub struct AgentPorts {
-    /// Floki-harness dispatch closure. When `Some` and `payload.harness == "floki"`,
-    /// dispatch routes here and skips the harness-driver stack entirely.
-    /// Not behind any cfg gate — the floki path must always compile.
-    pub floki_run_fn: Option<FlokiRunFn>,
+    /// Native Yoke dispatch. When `Some` and harness is `"yoke"` or `"floki"`,
+    /// routes here and skips the ship-code harness-driver stack.
+    pub yoke_run_fn: Option<YokeRunFn>,
     /// Prepares + tears down the per-session isolated worktree.
-    #[cfg(feature = "harness-drivers")]
+    #[cfg(feature = "bridge")]
     pub isolation: Arc<dyn IsolationStrategy>,
     /// Spawns / stops the harness process.
-    #[cfg(feature = "harness-drivers")]
+    #[cfg(feature = "bridge")]
     pub executor: Arc<dyn SessionExecutor>,
+    /// Host observation port — kernel emission lives here, not in harness code.
+    #[cfg(feature = "bridge")]
+    pub lifecycle: Arc<dyn LifecycleSink>,
     /// Host platform ops (worktrees dir, cleanup, token mint).
-    #[cfg(feature = "harness-drivers")]
+    #[cfg(feature = "bridge")]
     pub platform: Arc<dyn AgentPlatform>,
     /// Live process-handle registry (register / take / tombstone).
-    #[cfg(feature = "harness-drivers")]
+    #[cfg(feature = "bridge")]
     pub registry: Arc<dyn ProcessRegistryPort>,
     /// Spawn/op-invocation policy. The agent dispatch hands a domain-free
-    /// [`ship_types::Authority::Agent`] principal; the impl resolves the
+    /// [`agent_schema::Authority::Agent`] principal; the impl resolves the
     /// scoped spawn env (role + token mint). The concrete impl
     /// (`ConfigSpawnPolicy`) stays in L1 because it reads project config; this
     /// crate sees only the port.
-    #[cfg(feature = "harness-drivers")]
+    #[cfg(feature = "bridge")]
     pub spawn_policy: Arc<dyn SpawnPolicy>,
     /// Primitive projection reads for the L0 router gate's terminal-state
     /// guard + slug_for_session_id lookup for the cancel handler. Agents never
     /// reads `crate::projections` directly.
-    #[cfg(feature = "harness-drivers")]
+    #[cfg(feature = "bridge")]
     pub projections: Arc<dyn ProjectionReader>,
     /// Event-id dedup at the actor entry. Prevents a replayed envelope
     /// (mailbox redelivery, startup replay race, test replay) from
     /// double-admitting a spawn.
-    #[cfg(feature = "harness-drivers")]
+    #[cfg(feature = "bridge")]
     pub event_dedup: Arc<EventDedup>,
+    /// Bounds concurrent agent-session dispatch preps. Constructed by the
+    /// composition root via [`crate::dispatch_gate::new_dispatch_gate`]
+    /// and shared across detached prep tasks — not a process-global.
+    #[cfg(feature = "bridge")]
+    pub dispatch_gate: Arc<Semaphore>,
 }
 impl AgentPorts {
-    /// Construct a flag-off `AgentPorts` carrying ONLY the floki-harness
+    /// Construct a flag-off `AgentPorts` carrying ONLY the yoke-harness
     /// dispatch closure. The harness-driver fields (isolation / executor /
     /// platform / registry / spawn_policy / projections / event_dedup) are
-    /// absent in this build (`#[cfg(feature = "harness-drivers")]`-gated);
+    /// absent in this build (`#[cfg(feature = "bridge")]`-gated);
     /// callers that need them must use the harness-on construction site
     /// (e.g. shipd's `dispatch::run_dispatch::subscribe_job_events`).
     ///
-    /// Wiring the agent-sessions actor with this constructor is what keeps
-    /// floki routable when shipd is built `--no-default-features`. The actor
-    /// is alive, `dispatch.requested` is delivered, and the floki path in
-    /// [`crate::dispatch::handle_dispatch_requested`] dispatches to the
-    /// closure exactly as in the harness-on build.
+    /// Keeps native yoke routable when shipd is built without ship-code.
     ///
-    /// Available only when `harness-drivers` is OFF: with the feature on,
+    /// Available only when `ship-code` is OFF: with the feature on,
     /// the struct literal needs every harness field set, and the canonical
     /// composition root (`dispatch::run_dispatch::subscribe_job_events`)
     /// owns that wiring.
-    #[cfg(not(feature = "harness-drivers"))]
-    pub fn floki_only(floki_run_fn: Option<FlokiRunFn>) -> Self {
-        Self { floki_run_fn }
+    #[cfg(not(feature = "bridge"))]
+    pub fn yoke_only(yoke_run_fn: Option<YokeRunFn>) -> Self {
+        Self { yoke_run_fn }
     }
 }
 
-#[cfg(all(test, not(feature = "harness-drivers")))]
+#[cfg(all(test, not(feature = "bridge")))]
 mod tests {
-    //! Tests for the flag-off `AgentPorts` shape. With `harness-drivers` off,
-    //! only the floki path is reachable; these guard the constructor and the
+    //! Tests for the flag-off `AgentPorts` shape. With `ship-code` off,
+    //! only the yoke path is reachable; these guard the constructor and the
     //! ungated dispatch seam.
     use super::*;
     use std::sync::atomic::{AtomicBool, Ordering};
 
     /// SPEC: when the ship-code feature is off, the composition root needs a
-    /// way to construct `AgentPorts` carrying only the floki-harness closure,
+    /// way to construct `AgentPorts` carrying only the yoke-harness closure,
     /// and the SAME closure must be invocable through the port bundle — the
-    /// dispatch seam calls `ports.floki_run_fn` to fire a floki session.
+    /// dispatch seam calls `ports.yoke_run_fn` to fire a yoke session.
     /// Asserting closure identity by INVOKING it through the seam (not just
     /// `is_some()`, which a bare struct-literal constructor makes a
     /// tautology) pins the regression a future refactor could introduce by
     /// wrapping or swapping the closure.
     #[tokio::test]
-    async fn floki_only_closure_is_invocable_through_the_port_bundle() {
+    async fn yoke_only_closure_is_invocable_through_the_port_bundle() {
         let called = Arc::new(AtomicBool::new(false));
         let called_inner = called.clone();
-        let run_fn: FlokiRunFn = Arc::new(move |_payload: DispatchRequestedPayload| {
+        let run_fn: YokeRunFn = Arc::new(move |_payload: DispatchRequestedPayload| {
             let called = called_inner.clone();
             Box::pin(async move {
                 called.store(true, Ordering::SeqCst);
             })
         });
 
-        let ports = AgentPorts::floki_only(Some(run_fn));
+        let ports = AgentPorts::yoke_only(Some(run_fn));
         let payload: DispatchRequestedPayload = serde_json::from_value(serde_json::json!({
             "session_id": "s-1",
-            "slug": "floki-seam",
+            "slug": "yoke-seam",
             "agent_id": "dev",
             "workspace": "w",
-            "branch": "job/floki-seam",
+            "branch": "job/yoke-seam",
             "open_tab": false,
             "invocation": "print",
             "keepalive": false,
@@ -147,9 +150,9 @@ mod tests {
         .expect("minimal dispatch payload");
 
         ports
-            .floki_run_fn
+            .yoke_run_fn
             .as_ref()
-            .expect("floki_only must preserve the closure")(payload)
+            .expect("yoke_only must preserve the closure")(payload)
         .await;
         assert!(
             called.load(Ordering::SeqCst),

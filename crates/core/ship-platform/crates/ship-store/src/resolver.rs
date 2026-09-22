@@ -49,17 +49,17 @@ pub fn resolve_alias(dep_path: &str) -> anyhow::Result<String> {
 /// Check the static aliases.json hosted on GitHub.
 ///
 /// Resolves `@scope/name` by looking up `@scope` in `namespaces` and
-/// returning the repo path. The skill suffix is appended downstream.
 fn try_static_alias(dep_path: &str) -> Option<String> {
-    let url = "https://raw.githubusercontent.com/madvib/ship/main/registry/aliases.json";
-    let resp = ureq::get(url)
+    let url = "https://raw.githubusercontent.com/<ship-repo-org>/ship/main/registry/aliases.json";
+    let resp = reqwest::blocking::Client::new()
+        .get(url)
         .header("User-Agent", "ship-pkg/0.1")
-        .call()
+        .send()
         .ok()?;
     if resp.status() != 200 {
         return None;
     }
-    let body: serde_json::Value = resp.into_body().read_json().ok()?;
+    let body: serde_json::Value = resp.json().ok()?;
     let slash = dep_path[1..].find('/')?;
     let scope = &dep_path[..slash + 1];
     body["namespaces"][scope].as_str().map(str::to_string)
@@ -72,9 +72,10 @@ fn try_registry_api_alias(dep_path: &str) -> anyhow::Result<String> {
     let encoded = percent_encode(dep_path);
     let url = format!("{base_url}/api/registry/resolve?name={encoded}");
 
-    let resp = ureq::get(&url)
+    let resp = reqwest::blocking::Client::new()
+        .get(&url)
         .header("User-Agent", "ship-pkg/0.1")
-        .call()
+        .send()
         .map_err(|e| anyhow::anyhow!("alias lookup failed for {dep_path}: {e}"))?;
 
     if resp.status() != 200 {
@@ -86,8 +87,7 @@ fn try_registry_api_alias(dep_path: &str) -> anyhow::Result<String> {
     }
 
     let body: serde_json::Value = resp
-        .into_body()
-        .read_json()
+        .json()
         .map_err(|e| anyhow::anyhow!("failed to parse registry response for {dep_path}: {e}"))?;
 
     body["path"]

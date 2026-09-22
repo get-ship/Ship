@@ -46,7 +46,7 @@ scope_id! {
 
 /// Process-wide installation handle for the per-machine device identity.
 /// `set_local_device_id` populates it at daemon boot (mint-once in
-/// `~/.ship/machine/device-id`, mode 0600); the `local_device_id` getter
+/// `state_dir()/device-id`, mode 0600); the `local_device_id` getter
 /// returns that value, falling back to `"local-device"` so tests and
 /// pre-boot callers (e.g. `caller.rs::daemon_internal_space_key_roundtrips`)
 /// keep working without the install step.
@@ -64,21 +64,8 @@ pub fn set_local_device_id(id: DeviceId) -> bool {
 /// by `set_local_device_id` at daemon boot, or the `"local-device"`
 /// fallback when no install has happened yet.
 pub fn local_device_id() -> DeviceId {
-    LOCAL_DEVICE_ID.get().cloned().unwrap_or_else(|| DeviceId::new("local-device"))
-}
-
-/// Actor identity — unique instance IDs and stable labels.
-#[derive(Debug, Clone)]
-pub struct ActorIdentity {
-    pub instance_id: String,
-    pub label: String,
-    pub actor_type: ActorType,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ActorType {
-    Agent,
-    Service,
-    App,
-    Cli,
+    LOCAL_DEVICE_ID
+        .get()
+        .cloned()
+        .unwrap_or_else(|| DeviceId::new("local-device"))
 }

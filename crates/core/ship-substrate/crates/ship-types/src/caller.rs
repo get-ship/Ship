@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-use crate::binding::{Authority, ScopeBinding};
+use agent_schema::Authority;
+
+use crate::binding::ScopeBinding;
 use crate::identity::SpaceId;
 
 /// Who is emitting the event.
@@ -40,7 +42,6 @@ pub struct EmitContext {
 }
 
 impl EmitContext {
-
     /// Convenience constructor for daemon-internal background emits:
     /// `CallerKind::Runtime` + a trusted-internal binding (`Authority::Sdk`).
     pub fn daemon_internal(space: Option<SpaceId>) -> Self {
@@ -101,7 +102,8 @@ mod tests {
         let ctx = EmitContext::daemon_internal(Some(SpaceId::new("space-X")));
         assert_eq!(ctx.caller_kind, CallerKind::Runtime);
         assert_eq!(
-            ctx.binding.key_for(crate::event_registry::EventScope::Space),
+            ctx.binding
+                .key_for(crate::event_registry::EventScope::Space),
             Some("space-X".to_string())
         );
         assert_eq!(ctx.binding.device_id(), &crate::identity::local_device_id());

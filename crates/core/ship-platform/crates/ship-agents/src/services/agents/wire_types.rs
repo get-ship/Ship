@@ -36,9 +36,3 @@ pub struct AgentTemplatesResponse {
 pub struct PermissionPresetsResponse {
     pub items: Vec<PermissionPreset>,
 }
-
-/// Wire shape of `ship.agents.harnesses()` — known harness ids.
-#[derive(Serialize)]
-pub struct HarnessesResponse {
-    pub items: Vec<String>,
-}

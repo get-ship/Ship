@@ -16,8 +16,17 @@ release = []
 
 [dependencies]
 ship-substrate = { path = "../../../ship-substrate" }
+ship-types = { path = "../../../ship-substrate/crates/ship-types" }
 ship-collection = { path = "../ship-collection" }
-compiler = { path = "../../../compiler" }
+ship-ui = { path = "../ship-ui" }
+# `ship-gateway-client` is the typed Connect-RPC surface for the cloud
+# gateway; the install pipeline drives `RegistryService.{ResolveVersion,
+# FetchBundle}` through it (the bundle bytes download from the signed
+# CDN URL the FetchBundle response returns).
+ship-gateway-client = { path = "../../../ship-gateway-client" }
+bundle-limits = { path = "../bundle-limits" }
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "03f917d5e51921754c1a6a12a4aa2beb56b4a405" }
+stack-model = { path = "../../../stack-model" }
 anyhow = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
@@ -25,7 +34,9 @@ semver = { workspace = true, features = ["serde"] }
 sha2 = { workspace = true }
 base64 = { workspace = true }
 tempfile = { workspace = true }
-ureq = { workspace = true, features = ["json"] }
+async-trait = { workspace = true }
+reqwest = { workspace = true, features = ["blocking", "json", "rustls-tls"] }
+thiserror = { workspace = true }
 jsonwebtoken = "9"
 walkdir = "2.3"
 tracing = { workspace = true }
@@ -36,6 +47,8 @@ tar = "0.4"
 
 [dev-dependencies]
 tempfile = { workspace = true }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros"] }
+parking_lot = { workspace = true }
 
 [lints]
 workspace = true

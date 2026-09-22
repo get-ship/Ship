@@ -8,7 +8,7 @@ use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
 
 use ship_substrate::projections::process::{ProcessRecord, ProcessStatus};
 
-use ship_ops_rpc::{
+use ship_proto::ship::ops::v1::{
     ListProcsRequest, ListProcsResponse, RuntimeProcess, RuntimeService, RuntimeSignalEntry,
 };
 
@@ -68,7 +68,7 @@ impl RuntimeService for OpsImpl {
     async fn list_procs(
         &self,
         _ctx: RequestContext,
-        request: ship_ops_rpc::OwnedListProcsRequestView,
+        request: ship_proto::ship::ops::v1::OwnedListProcsRequestView,
     ) -> ServiceResult<ListProcsResponse> {
         let limit = request.limit.unwrap_or(100) as usize;
         let kind_filter = match request.kind {

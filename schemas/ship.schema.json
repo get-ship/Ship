@@ -30,7 +30,7 @@
           "type": "array",
           "items": {
             "type": "string",
-            "enum": ["claude", "cursor", "codex", "opencode", "pi"]
+            "enum": ["claude", "codex", "opencode", "pi"]
           },
           "description": "AI harness targets for this project."
         },
@@ -64,10 +64,6 @@
                 }
               ]
             },
-            "cursor": {
-              "type": "object",
-              "additionalProperties": true
-            },
             "opencode": {
               "allOf": [
                 { "$ref": "https://opencode.ai/config.json" },
@@ -86,14 +82,6 @@
           "type": "array",
           "items": { "$ref": "#/$defs/AgentConfig" },
           "description": "Named agents that filter which MCP servers, skills, rules, and hooks are active. Selected per-workspace via `ship use <id>`."
-        },
-        "skill_paths": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": ["skills/"],
-          "description": "Directories to scan for skills, relative to .ship/. Default: [\"skills/\"]. Each directory is searched for subdirectories containing a SKILL.md file. First path wins when duplicate skill IDs exist across paths."
         }
       },
       "additionalProperties": false
@@ -256,11 +244,6 @@
             }
           },
           "additionalProperties": false
-        },
-        "target_agents": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "Override the project's harnesses list when this mode is active."
         }
       },
       "additionalProperties": false

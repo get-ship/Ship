@@ -41,13 +41,14 @@ impl ShipRuntime {
         })
     }
 
-    /// Stable project slug for the attached workspace. `None` when the daemon
-    /// is in global-only mode — callers that need a project scope should
-    /// surface a clear error rather than inventing one.
-    pub fn project_slug(&self) -> Option<String> {
-        let ws = self.workspace_dir.as_ref()?;
-        let project_ship = ship_substrate::project::get_project_dir(Some(ws.clone())).ok()?;
-        Some(ship_substrate::project::project_slug_from_ship_dir(&project_ship))
+    /// The served-space identity — the mint-once `space_id` the runtime
+    /// assigned at boot through `ship_space::identity::ensure_identity_for_root`
+    /// (or `None` when the daemon booted space-less). Cached: never re-mints,
+    /// never re-resolves per-call. Use this for any reader that wants "what
+    /// space is this daemon serving right now"; use `spaces::list` for the
+    /// full Runtime-scoped device record.
+    pub fn active_space_id(&self) -> Option<String> {
+        self.served_space_id.get().cloned().flatten()
     }
 
     /// Spawn the artifact GC loop. Runs immediately on startup then every hour.
@@ -60,26 +61,22 @@ impl ShipRuntime {
             return;
         };
         let global_dir = self.global_blob_dir.clone();
-        ship_substrate::task_health::spawn_supervised(
-            &self.health_registry,
-            "artifact-gc",
-            move || {
-                let artifact_ctx = space_ctx.clone();
-                let global_dir = global_dir.clone();
-                async move {
-                    loop {
-                        let svc = ship_artifacts::gc::make_service_for_gc(
-                            artifact_ctx.clone(),
-                            global_dir.clone(),
-                        );
-                        if let Err(e) = ship_artifacts::gc::collect_expired(&svc).await {
-                            tracing::warn!("artifact GC run failed: {e}");
-                        }
-                        tokio::time::sleep(std::time::Duration::from_secs(3600)).await;
+        crate::task_health::spawn_supervised(&self.health_registry, "artifact-gc", move || {
+            let artifact_ctx = space_ctx.clone();
+            let global_dir = global_dir.clone();
+            async move {
+                loop {
+                    let svc = ship_artifacts::gc::make_service_for_gc(
+                        artifact_ctx.clone(),
+                        global_dir.clone(),
+                    );
+                    if let Err(e) = ship_artifacts::gc::collect_expired(&svc).await {
+                        tracing::warn!("artifact GC run failed: {e}");
                     }
+                    tokio::time::sleep(std::time::Duration::from_secs(3600)).await;
                 }
-            },
-        );
+            }
+        });
     }
 
     /// Start the window-reaper loop (sweeps every 30s).
@@ -94,18 +91,23 @@ impl ShipRuntime {
     /// `reap_dead_windows` does a durable append (`block_on`), so it runs on a
     /// `spawn_blocking` thread — never inline on this async worker.
     pub fn start_window_reaper(&self) {
-        ship_substrate::task_health::spawn_supervised(
-            &self.health_registry,
-            "window-reaper",
-            move || async move {
+        let kernel = self.kernel.clone();
+        crate::task_health::spawn_supervised(&self.health_registry, "window-reaper", move || {
+            let kernel = kernel.clone();
+            async move {
                 loop {
-                    match tokio::task::spawn_blocking(
-                        ship_substrate::db::actor_events::reap_dead_windows,
-                    )
+                    let kernel = kernel.clone();
+                    match tokio::task::spawn_blocking(move || {
+                        ship_substrate::db::actor_events::reap_dead_windows(Some(&kernel))
+                    })
                     .await
                     {
                         Ok(Ok(reaped)) if !reaped.is_empty() => {
-                            tracing::info!(count = reaped.len(), ?reaped, "window-reaper: closed dead windows")
+                            tracing::info!(
+                                count = reaped.len(),
+                                ?reaped,
+                                "window-reaper: closed dead windows"
+                            )
                         }
                         Ok(Ok(_)) => {}
                         Ok(Err(e)) => tracing::warn!("window-reaper: sweep failed: {e}"),
@@ -113,8 +115,43 @@ impl ShipRuntime {
                     }
                     tokio::time::sleep(std::time::Duration::from_secs(30)).await;
                 }
-            },
-        );
+            }
+        });
+    }
+
+    /// Start the event-retention sweep: deletes event rows of Windowed-
+    /// retention types older than their per-type TTL, across every present
+    /// scope db. Runs immediately at boot, then every
+    /// `ship_substrate::db::retention::SWEEP_PERIOD`.
+    ///
+    /// Maintenance only: the sweep emits nothing through the kernel and
+    /// never touches projection tables. It does durable SQLite work
+    /// (`block_on`), so each pass runs on a `spawn_blocking` thread.
+    pub fn start_retention_sweep(&self) {
+        let ship_dir = self.ship_dir.clone();
+        crate::task_health::spawn_supervised(&self.health_registry, "retention-sweep", move || {
+            let ship_dir = ship_dir.clone();
+            async move {
+                loop {
+                    let dir = ship_dir.clone();
+                    match tokio::task::spawn_blocking(move || {
+                        ship_substrate::db::retention::sweep_windowed_events(&dir)
+                    })
+                    .await
+                    {
+                        Ok(Ok(report)) if report.rows_deleted() > 0 => tracing::info!(
+                            rows = report.rows_deleted(),
+                            dbs = report.dbs_visited,
+                            "retention-sweep: trimmed windowed event rows"
+                        ),
+                        Ok(Ok(_)) => {}
+                        Ok(Err(e)) => tracing::warn!("retention-sweep: sweep failed: {e}"),
+                        Err(e) => tracing::warn!("retention-sweep: join error: {e}"),
+                    }
+                    tokio::time::sleep(ship_substrate::db::retention::SWEEP_PERIOD).await;
+                }
+            }
+        });
     }
 
     /// Start the sandbox reaper: periodically scans the dispatcher
@@ -128,7 +165,7 @@ impl ShipRuntime {
     /// container lifetime tracking happens in the existing
     /// per-actor SandboxOwner.Drop path.
     pub fn start_sandbox_reaper(&self) {
-        ship_substrate::task_health::spawn_supervised(
+        crate::task_health::spawn_supervised(
             &self.health_registry,
             "sandbox-reaper",
             move || async move {
@@ -151,31 +188,53 @@ impl ShipRuntime {
         );
     }
 
-    /// Start the hook engine: spawns external source adapters (webhook, file, cron)
-    /// and the hot-reload watcher. Idempotent — subsequent calls are no-ops.
+    /// Start the hook engine: spawns external source adapters (webhook, file,
+    /// cron) and reloads the trigger set from the active project's descriptor.
+    /// Idempotent — subsequent calls are no-ops.
+    ///
+    /// Format-migration Wave 4 phase A: triggers are sourced from the
+    /// descriptor (`defineTrigger` in `stack.config.ts`), not
+    /// `.ship/triggers/*.jsonc`. There is no live re-roll-up on change —
+    /// hot-reload for triggers is deferred alongside the same gap for
+    /// rules/collections/pipelines (see `ConfigWatcher`'s DOMAINS comment).
+    /// A space-less boot (no workspace) starts with an empty trigger set —
+    /// "globally enabled" (user-scope library) triggers have no roll-up path
+    /// yet (`space_resolver::roll_up_registered`'s deferred `library_dir` wiring, census
+    /// Phase 6), so they aren't loaded either; a real, pre-existing gap, not
+    /// introduced by this cutover.
     pub async fn start_hook_engine(&self) {
         if self.hook_engine.get().is_some() {
             return;
         }
-        // Pass the user-scope library/ dir; engine joins `triggers/` for the
-        // user-scope vector. Project-scope triggers are loaded by the hook
-        // engine when a project workspace activates.
-        let library_dir = ship_substrate::ShipHome::at(self.ship_dir.clone()).library_dir();
-        match ship_triggers::engine::spawn_hook_service(
+        // `template_file` on a `collection.insert` action resolves relative to
+        // the trigger's own space — the STACK ROOT when a workspace is
+        // attached, the daemon's home root otherwise.
+        let (hook_ship_dir, triggers) = match &self.workspace_dir {
+            Some(workspace) => {
+                let project_ship_dir = workspace.clone();
+                let triggers = match space_resolver::roll_up_registered(workspace, None).await {
+                    Ok(composed) => composed.library.triggers,
+                    Err(e) => {
+                        tracing::warn!(
+                            "hooks: project roll-up failed, starting with no triggers: {e}"
+                        );
+                        Vec::new()
+                    }
+                };
+                (project_ship_dir, triggers)
+            }
+            None => (self.ship_dir.clone(), Vec::new()),
+        };
+        match ship_triggers::engine::spawn_hook_service_with_max_depth(
             self.kernel.clone(),
-            library_dir,
+            hook_ship_dir,
             self.schemas.clone(),
+            triggers,
+            ship_settings::resolve_hooks_max_depth(),
         )
         .await
         {
             Ok(engine) => {
-                // Also start the filesystem watcher for hot-reload. Bind it to a
-                // long-lived field — dropping the HookWatcher aborts the reload task,
-                // so it MUST live for the daemon's lifetime.
-                match ship_triggers::watcher::spawn_watcher(engine.clone()) {
-                    Ok(w) => { let _ = self.hook_watcher.set(w); }
-                    Err(e) => tracing::warn!("hook watcher failed to start: {e}"),
-                }
                 let _ = self.hook_engine.set(engine);
                 tracing::info!("hooks: engine started");
             }
@@ -198,12 +257,9 @@ impl ShipRuntime {
         if self.config_watcher.get().is_some() {
             return;
         }
-        let kernel_log = std::sync::Arc::new(ship_substrate::ports::KernelLog::new(self.kernel.clone()));
-        match ship_platform::config::spawn_config_watcher(
-            kernel_log,
-            self.ship_dir.clone(),
-            self.workspace_dir.clone(),
-        ) {
+        let kernel_log =
+            std::sync::Arc::new(ship_substrate::ports::KernelLog::new(self.kernel.clone()));
+        match ship_settings::watcher::spawn_config_watcher(kernel_log, self.workspace_dir.clone()) {
             Ok(w) => {
                 let _ = self.config_watcher.set(w);
                 tracing::info!("config watcher: started");
@@ -230,17 +286,21 @@ impl ShipRuntime {
             tracing::info!("agent-def index: no workspace — skipping live mount");
             return;
         };
-        let project_ship_dir = ship_substrate::ShipHome::project_ship_dir(&workspace);
-        // Active-space identity = CONTENT-ID (`ship.jsonc#id`) of the discovered
-        // project root — the same identity collection/artifact contexts use (init.rs).
-        // Space-less workspace → no index; the daemon owns no home space to fall back on.
-        let Some(space_id) = ship_substrate::project::resolve_active_space(&workspace) else {
+        let project_ship_dir = workspace.clone(); // stack root anchors the index
+        // Served-space identity = the mint-once `space_id` the runtime
+        // assigned at boot through `ship_space::identity::ensure_identity_for_root`.
+        // Space-less workspace → no index; the daemon owns no home space
+        // to fall back on. The cached identity is the SOLE source of truth
+        // here — never re-resolve through `project::resolve_active_space`
+        // (the read-side resolver exists for callers outside the runtime
+        // like helmd's CollectionsService mount; shipd reads its own cache).
+        let Some(space_id) = self.active_space_id() else {
             tracing::info!("agent-def index: workspace is space-less — skipping live mount");
             return;
         };
 
         // The index read-model lives in the active space's per-scope db under the
-        // GLOBAL ship-home (~/.ship | $XDG_DATA_DIR), NEVER the project tree
+        // GLOBAL ship-home (`data_dir()`), NEVER the project tree
         // (#279). `project_ship_dir` is for reading the def FILES (below), not
         // the db; rooting the db there forks a per-space store into the repo.
         let space_db = ship_substrate::db::space_db_path(self.ship_dir(), &space_id);
@@ -252,7 +312,7 @@ impl ShipRuntime {
             }
         };
         let store = std::sync::Arc::new(SingleBackendDataStore::new(data_svc, &space_id));
-        let index = std::sync::Arc::new(ship_platform::config::AgentDefIndex::new(store));
+        let index = std::sync::Arc::new(ship_settings::agents_index::AgentDefIndex::new(store));
         if let Err(e) = index.ensure_table().await {
             tracing::warn!("agent-def index: ensure_table failed: {e}");
             return;
@@ -272,18 +332,45 @@ impl ShipRuntime {
         // scope kernel.
         let _ = self
             .agent_reactive
-            .set(std::sync::Arc::new(ship_reactive::ReactiveRegistry::new(kernel.clone())));
+            .set(std::sync::Arc::new(ship_reactive::ReactiveRegistry::new(
+                kernel.clone(),
+            )));
 
         // Boot rebuild: index every def file on disk for the project scope.
         let fs = ship_substrate::ports::LocalFsBroker::new();
         if let Err(e) =
-            ship_platform::config::agent_index::build_def_index(&index, &fs, &project_ship_dir, "project").await
+            ship_settings::agents_index::build_def_index(&index, &fs, &project_ship_dir, "project")
+                .await
         {
             tracing::warn!("agent-def index: boot rebuild failed: {e}");
         }
 
+        // Ingest the project's Phase-3 extension roll-up (`stack.config.ts`
+        // `defineAgent` / `defineSkill` / `defineMcpServer` / `defineRule`
+        // / `defineCollection` / `defineTrigger` / `definePipeline`
+        // sources + locked cached packages + the operator-enabled library
+        // tier, composed by the precedence law) via space-resolver's
+        // `roll_up` — the resolver owns the V8 `!Send` crossing
+        // internally; shipd upserts the plain-data result. Post Wave 5:
+        // no `.jsonc` agent authoring (the leaf no longer reads it; the
+        // CRUD write door — `agents_write.rs` — is the STOP-point for the
+        // Studio/db-scope authoring surface, Phase-6's question).
+        // `upsert_composed` indexes both the winning profiles AND the
+        // shadow records the law recorded, so the index can answer "where
+        // did this def come from" and "why is it not active". `None, None`
+        // default both the cache root and the library root to their
+        // `ShipHome` accessors.
+        match space_resolver::roll_up_registered(&workspace, None).await {
+            Ok(composed) => index.upsert_composed("project", &composed).await,
+            Err(e) => tracing::warn!("agent-def index: project roll-up failed: {e}"),
+        }
+
+        // Retain the index Arc for the READ path (list/detail/spawn) — a clone,
+        // since `spawn_def_index_consumer` takes ownership of `index` below.
+        let _ = self.agent_def_index.set(index.clone());
+
         // Spawn the live consumer over the shared KernelLog's broadcast.
-        ship_platform::config::agent_index::spawn_def_index_consumer(
+        ship_settings::agents_index::spawn_def_index_consumer(
             index,
             kernel.subscribe(),
             project_ship_dir,
@@ -299,72 +386,19 @@ impl ShipRuntime {
         self.agent_def_kernel.get()
     }
 
+    /// The live agent-def index, when mounted. The profile READ handlers serve
+    /// list/detail/spawn from its DataStore snapshot instead of re-reading the
+    /// `.ship/agents/*.jsonc` files. `None` in space-less boot.
+    pub fn agent_def_index(
+        &self,
+    ) -> Option<&std::sync::Arc<ship_settings::agents_index::AgentDefIndex>> {
+        self.agent_def_index.get()
+    }
     /// The agent `Watch` reactive registry (agents-arc E5), when the live
     /// def-index has been mounted. `None` in space-less boot — the Watch RPC
     /// then returns Unavailable rather than fabricate a registry.
     pub fn agent_reactive(&self) -> Option<&std::sync::Arc<ship_reactive::ReactiveRegistry>> {
         self.agent_reactive.get()
-    }
-
-    /// Stand up the typed pipeline `Watch` reactive registry (pipelines P0.4)
-    /// and its bridge.
-    ///
-    /// The pipeline orchestrator emits `pipeline.*` events through the raw
-    /// `KernelRouter` (no shared `KernelLog`), and child-step `session.*`
-    /// terminals likewise. The registry's resolvers, however, wake off a
-    /// `KernelLog` broadcast. This method bridges the two: it builds a dedicated
-    /// `KernelLog`, mounts a `ReactiveRegistry` on it, and spawns a kernel actor
-    /// subscribed to the `pipeline.` + `session.` namespaces whose mailbox drain
-    /// re-`broadcast()`s each event into the log. N Watch subscribers on one
-    /// `WatchKey` then share one resolver + one kernel subscription. Idempotent;
-    /// non-fatal on actor-spawn failure (the Watch RPC then returns Unavailable).
-    pub async fn start_pipeline_reactive(&self) {
-        use ship_substrate::events::ActorConfig;
-        use ship_substrate::ports::KernelLog;
-
-        let kernel_log = std::sync::Arc::new(KernelLog::new(self.kernel.clone()));
-        if self.pipeline_watch_kernel.set(kernel_log.clone()).is_err() {
-            return; // already started
-        }
-        let _ = self
-            .pipeline_reactive
-            .set(std::sync::Arc::new(ship_reactive::ReactiveRegistry::new(kernel_log.clone())));
-
-        let actor_id = format!("pipeline-watch-bridge-{}", ship_substrate::gen_ulid());
-        let config = ActorConfig {
-            namespace: actor_id.clone(),
-            write_namespaces: vec![],
-            read_namespaces: vec![],
-            // Prefix-matched against event_type (`starts_with`): the run/step
-            // lifecycle + the child-session terminals the projections fold.
-            subscribe_namespaces: vec!["pipeline.".to_string(), "session.".to_string()],
-            // session.* terminals are directed events — opt in to see them.
-            see_directed_events: true,
-        };
-        let mailbox = {
-            let mut kernel = self.kernel.lock().await;
-            match kernel.spawn_actor(&actor_id, config) {
-                Ok((_store, mb)) => mb,
-                Err(e) => {
-                    tracing::warn!("pipeline-watch bridge: actor spawn failed: {e}");
-                    return;
-                }
-            }
-        };
-        tokio::spawn(async move {
-            let mut mb = mailbox;
-            while let Some(event) = mb.recv().await {
-                kernel_log.broadcast(event);
-            }
-        });
-        tracing::info!("pipeline Watch reactive registry + bridge started");
-    }
-
-    /// The pipeline `Watch` reactive registry (pipelines P0.4), when mounted.
-    /// `None` until `start_pipeline_reactive` runs — the Watch RPC then returns
-    /// Unavailable rather than fabricate a registry.
-    pub fn pipeline_reactive(&self) -> Option<&std::sync::Arc<ship_reactive::ReactiveRegistry>> {
-        self.pipeline_reactive.get()
     }
 
     /// Persist event to its scope db and deliver through the kernel.
@@ -380,7 +414,7 @@ impl ShipRuntime {
             skill_id: None,
             binding: ship_types::ScopeBinding::daemon_internal(
                 envelope.space_id().map(ship_types::SpaceId::new),
-                ship_types::Authority::Sdk,
+                agent_schema::Authority::Sdk,
             ),
             session_id: envelope.session_id.clone(),
         };

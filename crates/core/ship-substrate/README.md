@@ -9,7 +9,10 @@ ship-substrate is the event bus, actor model, SQLite persistence, projections re
 - `events/` — the event bus, router, and `SqliteEventStore` (the kernel's truth store).
 - `persistence/` — event store, journal store, actor store, snapshot and partition primitives.
 - `supervisor/` — process/actor lifecycle, space-id resolver seam.
-- `projections/` — the `install_extra_projections_factory` assembly point; each L1 domain registers its own projections here.
+- `projections/` — `EventBus` + L0 defaults; domain projections arrive as a
+  `ProjectionFactory` constructed by ship-platform / shipd and passed into
+  `init_kernel_router_with` / `PartitionedSink` / store constructors (no
+  process-global install step).
 - `ports` (re-exported from `ship-kernel`) — `DataStore`, `BlobStore`, `FsBroker`, `StepExecutor`, and the rest of the I/O port traits.
 - `home/` — `ShipHome`, `Scope`, `Db`, `Vector`; the canonical path-layout for daemons and worktrees.
 

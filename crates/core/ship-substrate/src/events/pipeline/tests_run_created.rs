@@ -91,6 +91,8 @@ fn source_spec_path_absent_in_legacy_events() {
     let p: PipelineRunStartedPayload = serde_json::from_str(legacy_json).unwrap();
     assert!(p.source_spec_path.is_none());
     let reserialized = serde_json::to_string(&p).unwrap();
-    assert!(!reserialized.contains("source_spec_path"),
-        "None must skip serializing, got: {reserialized}");
+    assert!(
+        !reserialized.contains("source_spec_path"),
+        "None must skip serializing, got: {reserialized}"
+    );
 }

@@ -9,8 +9,8 @@
 //! Scope model: project wins by default. Listing returns both scopes with
 //! annotations; on id collision the project entry shadows user.
 
-use ship_files::files::{FilesService, Scope};
 use serde::Serialize;
+use ship_files::files::{FilesService, Scope};
 use std::path::PathBuf;
 
 use crate::services::errors::{ServiceEntity, ServiceError};
@@ -27,16 +27,25 @@ pub type Error = ServiceError<McpEntity>;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
-pub enum ScopeTag { Project, User }
+pub enum ScopeTag {
+    Project,
+    User,
+}
 
 impl From<Scope> for ScopeTag {
     fn from(s: Scope) -> Self {
-        match s { Scope::Project => Self::Project, Scope::User => Self::User }
+        match s {
+            Scope::Project => Self::Project,
+            Scope::User => Self::User,
+        }
     }
 }
 impl From<ScopeTag> for Scope {
     fn from(s: ScopeTag) -> Self {
-        match s { ScopeTag::Project => Self::Project, ScopeTag::User => Self::User }
+        match s {
+            ScopeTag::Project => Self::Project,
+            ScopeTag::User => Self::User,
+        }
     }
 }
 
@@ -50,14 +59,18 @@ pub struct IndexEntry {
 
 fn validate_id(id: &str) -> Result<(), Error> {
     if id.is_empty()
-        || !id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+        || !id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
     {
         return Err(Error::BadId(id.to_string()));
     }
     Ok(())
 }
 
-fn file_rel() -> PathBuf { PathBuf::from("mcp.jsonc") }
+fn file_rel() -> PathBuf {
+    PathBuf::from("mcp.jsonc")
+}
 
 // ── Whole-file load/save ───────────────────────────────────────────
 
@@ -78,11 +91,15 @@ fn empty_root() -> serde_json::Value {
 }
 
 fn save_root(files: &FilesService, scope: Scope, doc: &serde_json::Value) -> Result<(), Error> {
-    files.write_jsonc(scope, &file_rel(), doc).map_err(Into::into)
+    files
+        .write_jsonc(scope, &file_rel(), doc)
+        .map_err(Into::into)
 }
 
 /// Ensure `root.mcp.servers` is an object and return a mutable handle.
-fn servers_mut(root: &mut serde_json::Value) -> Result<&mut serde_json::Map<String, serde_json::Value>, Error> {
+fn servers_mut(
+    root: &mut serde_json::Value,
+) -> Result<&mut serde_json::Map<String, serde_json::Value>, Error> {
     if !root.is_object() {
         *root = empty_root();
     }
@@ -104,7 +121,9 @@ fn servers_mut(root: &mut serde_json::Value) -> Result<&mut serde_json::Map<Stri
 }
 
 fn servers_ref(root: &serde_json::Value) -> Option<&serde_json::Map<String, serde_json::Value>> {
-    root.get("mcp").and_then(|m| m.get("servers")).and_then(|s| s.as_object())
+    root.get("mcp")
+        .and_then(|m| m.get("servers"))
+        .and_then(|s| s.as_object())
 }
 
 // ── Read ───────────────────────────────────────────────────────────
@@ -113,11 +132,20 @@ pub fn list(files: &FilesService) -> Vec<IndexEntry> {
     let mut out: Vec<IndexEntry> = Vec::new();
     let mut seen = std::collections::HashSet::<String>::new();
     for scope in [Scope::Project, Scope::User] {
-        let Ok(root) = load_root(files, scope) else { continue };
-        let Some(servers) = servers_ref(&root) else { continue };
+        let Ok(root) = load_root(files, scope) else {
+            continue;
+        };
+        let Some(servers) = servers_ref(&root) else {
+            continue;
+        };
         for key in servers.keys() {
-            if !seen.insert(key.clone()) { continue }
-            out.push(IndexEntry { id: key.clone(), scope: scope.into() });
+            if !seen.insert(key.clone()) {
+                continue;
+            }
+            out.push(IndexEntry {
+                id: key.clone(),
+                scope: scope.into(),
+            });
         }
     }
     out.sort_by(|a, b| a.id.cmp(&b.id));
@@ -126,7 +154,9 @@ pub fn list(files: &FilesService) -> Vec<IndexEntry> {
 
 pub fn find(files: &FilesService, id: &str) -> Option<Scope> {
     for scope in [Scope::Project, Scope::User] {
-        let Ok(root) = load_root(files, scope) else { continue };
+        let Ok(root) = load_root(files, scope) else {
+            continue;
+        };
         if servers_ref(&root).and_then(|s| s.get(id)).is_some() {
             return Some(scope);
         }
@@ -135,7 +165,8 @@ pub fn find(files: &FilesService, id: &str) -> Option<Scope> {
 }
 
 fn exists_in_scope(files: &FilesService, scope: Scope, id: &str) -> bool {
-    load_root(files, scope).ok()
+    load_root(files, scope)
+        .ok()
         .as_ref()
         .and_then(servers_ref)
         .and_then(|s| s.get(id))

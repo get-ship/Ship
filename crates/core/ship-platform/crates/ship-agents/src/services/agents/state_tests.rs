@@ -11,7 +11,13 @@ use ship_files::files::{FilesService, Scope};
 use std::path::PathBuf;
 use tempfile::tempdir;
 
-fn svc() -> (FilesService, PathBuf, PathBuf, tempfile::TempDir, tempfile::TempDir) {
+fn svc() -> (
+    FilesService,
+    PathBuf,
+    PathBuf,
+    tempfile::TempDir,
+    tempfile::TempDir,
+) {
     let user_tmp = tempdir().unwrap();
     let project_tmp = tempdir().unwrap();
     let user = std::fs::canonicalize(user_tmp.path()).unwrap();
@@ -36,7 +42,7 @@ fn list_dedupes_project_over_user() {
     seed(&s, Scope::Project, "dev", &agent_doc("dev"));
     seed(&s, Scope::User, "user-only", &agent_doc("user-only"));
 
-    let items = list(&s);
+    let items = list_jsonc(&s);
     let ids: Vec<&str> = items.iter().map(|e| e.id.as_str()).collect();
     assert_eq!(ids, vec!["dev", "user-only"]);
     let dev_scope = items.iter().find(|e| e.id == "dev").unwrap().scope;
@@ -46,10 +52,20 @@ fn list_dedupes_project_over_user() {
 #[test]
 fn load_doc_default_prefers_project() {
     let (s, _u, _p, _ut, _pt) = svc();
-    seed(&s, Scope::User, "x", r#"{"agent":{"id":"x","name":"user"}}"#);
-    seed(&s, Scope::Project, "x", r#"{"agent":{"id":"x","name":"proj"}}"#);
+    seed(
+        &s,
+        Scope::User,
+        "x",
+        r#"{"agent":{"id":"x","name":"user"}}"#,
+    );
+    seed(
+        &s,
+        Scope::Project,
+        "x",
+        r#"{"agent":{"id":"x","name":"proj"}}"#,
+    );
 
-    let (scope, doc) = load_doc(&s, "x", None).unwrap();
+    let (scope, doc) = load_doc_jsonc(&s, "x", None).unwrap();
     assert_eq!(scope, Scope::Project);
     assert_eq!(doc["agent"]["name"], "proj");
 }
@@ -57,16 +73,26 @@ fn load_doc_default_prefers_project() {
 #[test]
 fn load_doc_forced_user_scope() {
     let (s, _u, _p, _ut, _pt) = svc();
-    seed(&s, Scope::User, "x", r#"{"agent":{"id":"x","name":"user"}}"#);
-    seed(&s, Scope::Project, "x", r#"{"agent":{"id":"x","name":"proj"}}"#);
-    let (_, doc) = load_doc(&s, "x", Some(Scope::User)).unwrap();
+    seed(
+        &s,
+        Scope::User,
+        "x",
+        r#"{"agent":{"id":"x","name":"user"}}"#,
+    );
+    seed(
+        &s,
+        Scope::Project,
+        "x",
+        r#"{"agent":{"id":"x","name":"proj"}}"#,
+    );
+    let (_, doc) = load_doc_jsonc(&s, "x", Some(Scope::User)).unwrap();
     assert_eq!(doc["agent"]["name"], "user");
 }
 
 #[test]
 fn bad_id_rejected() {
     let (s, _u, _p, _ut, _pt) = svc();
-    let r = load_doc(&s, "BadID", None);
+    let r = load_doc_jsonc(&s, "BadID", None);
     assert!(matches!(r, Err(Error::BadId(_))));
 }
 
@@ -76,9 +102,10 @@ fn patch_applies_and_persists() {
     seed(&s, Scope::Project, "pat", &agent_doc("pat"));
     let patch: json_patch::Patch = serde_json::from_value(serde_json::json!([
         { "op": "add", "path": "/skills/refs/-", "value": "tdd" },
-    ])).unwrap();
+    ]))
+    .unwrap();
     patch_doc(&s, "pat", None, &patch).unwrap();
-    let (_, doc) = load_doc(&s, "pat", None).unwrap();
+    let (_, doc) = load_doc_jsonc(&s, "pat", None).unwrap();
     assert_eq!(doc["skills"]["refs"], serde_json::json!(["tdd"]));
 }
 
@@ -86,37 +113,54 @@ fn patch_applies_and_persists() {
 fn patch_creates_missing_intermediate_objects() {
     // Doc has no `mcp` key at all; single `add` op should succeed.
     let (s, _u, _p, _ut, _pt) = svc();
-    seed(&s, Scope::Project, "p", r#"{"agent":{"id":"p","name":"p"}}"#);
+    seed(
+        &s,
+        Scope::Project,
+        "p",
+        r#"{"agent":{"id":"p","name":"p"}}"#,
+    );
     let patch: json_patch::Patch = serde_json::from_value(serde_json::json!([
         { "op": "add", "path": "/mcp/servers/-", "value": "ship" },
-    ])).unwrap();
+    ]))
+    .unwrap();
     patch_doc(&s, "p", None, &patch).unwrap();
-    let (_, doc) = load_doc(&s, "p", None).unwrap();
+    let (_, doc) = load_doc_jsonc(&s, "p", None).unwrap();
     assert_eq!(doc["mcp"]["servers"], serde_json::json!(["ship"]));
 }
 
 #[test]
 fn patch_replace_at_top_level_works_without_pre_existing_key() {
     let (s, _u, _p, _ut, _pt) = svc();
-    seed(&s, Scope::Project, "p", r#"{"agent":{"id":"p","name":"p"}}"#);
+    seed(
+        &s,
+        Scope::Project,
+        "p",
+        r#"{"agent":{"id":"p","name":"p"}}"#,
+    );
     // `add` at `/permissions` replaces-or-creates at root level — no
     // intermediate segments needed.
     let patch: json_patch::Patch = serde_json::from_value(serde_json::json!([
         { "op": "add", "path": "/permissions",
           "value": { "preset": "ship-standard", "tools_allow": ["Read"] } },
-    ])).unwrap();
+    ]))
+    .unwrap();
     patch_doc(&s, "p", None, &patch).unwrap();
-    let (_, doc) = load_doc(&s, "p", None).unwrap();
+    let (_, doc) = load_doc_jsonc(&s, "p", None).unwrap();
     assert_eq!(doc["permissions"]["preset"], "ship-standard");
 }
 
 #[test]
 fn rename_preserves_content_and_updates_agent_id() {
     let (s, _u, _p, _ut, _pt) = svc();
-    seed(&s, Scope::Project, "old-id", r#"{"agent":{"id":"old-id","name":"x"},"skills":{"refs":["a"]}}"#);
+    seed(
+        &s,
+        Scope::Project,
+        "old-id",
+        r#"{"agent":{"id":"old-id","name":"x"},"skills":{"refs":["a"]}}"#,
+    );
     rename(&s, "old-id", "new-id", None).unwrap();
-    assert!(load_doc(&s, "old-id", None).is_err());
-    let (_, doc) = load_doc(&s, "new-id", None).unwrap();
+    assert!(load_doc_jsonc(&s, "old-id", None).is_err());
+    let (_, doc) = load_doc_jsonc(&s, "new-id", None).unwrap();
     assert_eq!(doc["agent"]["id"], "new-id");
     assert_eq!(doc["skills"]["refs"], serde_json::json!(["a"]));
 }
@@ -135,8 +179,8 @@ fn duplicate_creates_copy() {
     let (s, _u, _p, _ut, _pt) = svc();
     seed(&s, Scope::Project, "a", &agent_doc("a"));
     duplicate(&s, "a", "a-copy", None).unwrap();
-    let (_, original) = load_doc(&s, "a", None).unwrap();
-    let (_, copy) = load_doc(&s, "a-copy", None).unwrap();
+    let (_, original) = load_doc_jsonc(&s, "a", None).unwrap();
+    let (_, copy) = load_doc_jsonc(&s, "a-copy", None).unwrap();
     assert_eq!(original["agent"]["id"], "a");
     assert_eq!(copy["agent"]["id"], "a-copy");
 }
@@ -146,8 +190,8 @@ fn move_scope_transfers() {
     let (s, _u, _p, _ut, _pt) = svc();
     seed(&s, Scope::Project, "m", &agent_doc("m"));
     move_scope(&s, "m", Scope::Project, Scope::User).unwrap();
-    assert!(load_doc(&s, "m", Some(Scope::Project)).is_err());
-    let (scope, _) = load_doc(&s, "m", None).unwrap();
+    assert!(load_doc_jsonc(&s, "m", Some(Scope::Project)).is_err());
+    let (scope, _) = load_doc_jsonc(&s, "m", None).unwrap();
     assert_eq!(scope, Scope::User);
 }
 
@@ -156,12 +200,15 @@ fn delete_trashes_not_removes() {
     let (s, _u, p, _ut, _pt) = svc();
     seed(&s, Scope::Project, "doomed", &agent_doc("doomed"));
     delete_doc(&s, "doomed", None).unwrap();
-    assert!(load_doc(&s, "doomed", None).is_err());
+    assert!(load_doc_jsonc(&s, "doomed", None).is_err());
     let trashed: Vec<String> = std::fs::read_dir(p.join(".trash"))
         .unwrap()
         .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
         .collect();
-    assert!(trashed.iter().any(|n| n.ends_with("-doomed.jsonc")), "trash: {trashed:?}");
+    assert!(
+        trashed.iter().any(|n| n.ends_with("-doomed.jsonc")),
+        "trash: {trashed:?}"
+    );
 }
 
 #[test]

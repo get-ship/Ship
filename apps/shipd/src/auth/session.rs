@@ -7,7 +7,7 @@
 use axum::{
     body::Body,
     http::{HeaderValue, Response, StatusCode, header},
-    };
+};
 // Re-export the platform's pure helpers so existing
 // `crate::auth::session::*` import paths continue to resolve.
 pub use ship_auth::session::{
@@ -17,7 +17,7 @@ pub use ship_auth::session::{
 };
 
 use crate::auth::AuthContext;
-use crate::auth::scopes::{SessionRegistry};
+use crate::auth::scopes::SessionRegistry;
 
 /// Response body for `POST /api/v1/session`.
 #[derive(serde::Serialize)]
@@ -27,7 +27,7 @@ pub struct SessionIssueResponse {
 }
 
 /// `POST /api/v1/session` handler. Requires the caller to already
-/// hold a daemon-token credential (the auth middleware enforces this).
+/// hold a verified session credential (the auth middleware enforces this).
 /// Issues a browser-session cookie scoped to `/api/v1/runtime` and
 /// returns `{ok, expires_in}`.
 pub async fn issue_session_handler(
@@ -48,7 +48,10 @@ pub async fn issue_session_handler(
     let mut resp = Response::new(Body::from(body));
     *resp.status_mut() = StatusCode::OK;
     let headers = resp.headers_mut();
-    headers.insert(header::CONTENT_TYPE, HeaderValue::from_static("application/json"));
+    headers.insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/json"),
+    );
     headers.insert(
         header::SET_COOKIE,
         HeaderValue::from_str(&cookie).expect("valid cookie header"),

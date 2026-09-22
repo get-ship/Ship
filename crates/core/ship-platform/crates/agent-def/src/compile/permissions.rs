@@ -1,4 +1,4 @@
-//! Apply an agent's permission overrides on top of a base `compiler::Permissions`.
+//! Apply an agent's permission overrides on top of a base `stack_model::Permissions`.
 //!
 //! Resolution order: floor wins over everything; per-agent overrides win over
 //! named-preset (from `.ship/permissions.jsonc`); preset wins over base; base
@@ -13,26 +13,22 @@
 //! `allow` a floor-protected pattern do not override at runtime (deny wins in
 //! every harness we target) and the compiler emits a warning.
 
-use std::path::Path;
+use agent_schema::{AgentProfile, Permissions, ToolPermissions};
+use std::collections::BTreeMap;
 
-use compiler::{AgentProfile, Permissions, ToolPermissions};
-use serde::Deserialize;
-
-use super::loader::load_permission_preset;
-
-/// A named permission preset section from `permissions.jsonc`.
-/// Matches the `"ship-standard"`, `"ship-autonomous"`, etc. keys.
-#[derive(Deserialize, Default, Clone)]
-pub struct PermissionPreset {
-    #[serde(default)]
-    pub default_mode: Option<String>,
-    #[serde(default)]
-    pub tools_allow: Vec<String>,
-    #[serde(default)]
-    pub tools_deny: Vec<String>,
-    #[serde(default)]
-    pub tools_ask: Vec<String>,
-}
+/// A named permission preset section. The struct is a re-export of
+/// `stack_model::PermissionPreset` (moved from this module with the
+/// slice 3 close-out — the L0 type now owns the canonical shape, and
+/// the resolver's `merge_ts_declarations` harvests it directly into
+/// `ExtensionLibrary::permissions_presets`). The pre-slice-3 struct
+/// lived here because `.ship/permissions.jsonc` was a leaf-side
+/// construct; the descriptor's move to L0 puts the type with the
+/// descriptor. Re-exported here so the existing
+/// `super::compile::PermissionPreset` path keeps working for any
+/// remaining callers (the compile path now consumes
+/// `stack_model::PermissionPreset` directly, the re-export is a
+/// forward-compat surface).
+pub use agent_schema::PermissionPreset;
 
 /// Permission rules baked into every Ship agent. Cannot be overridden.
 ///
@@ -42,14 +38,14 @@ pub struct PermissionPreset {
 ///   stores, browser credential DBs. Never readable by any agent, any preset.
 /// - **Local-only credentials** (Read): ambient secrets that don't grant
 ///   off-machine access but feed downstream compromise. Daemon token, MCP
-///   bearer, daemon port info under `~/.ship/machine/`.
+///   bearer, daemon port info under `state_dir()`.
 /// - **Ship state** (Write/Edit): corruption causes silent kernel
 ///   inconsistencies and data loss. Event store + projections under
-///   `~/.ship/data/` and `~/.ship/projections/`.
+///   `data_dir()`.
 /// - **History files** (Read): commonly contain unredacted credentials.
 /// - **Bypass operations** (Bash): obvious ways to skirt the above —
 ///   `cat`/`head`/`less` on protected paths, `curl | sh`, `sudo`, etc.
-/// - **Ship dir deletion** (Bash): `rm` patterns protecting `~/.ship/`.
+/// - **Ship dir deletion** (Bash): `rm` patterns protecting the ship home.
 pub const FLOOR_DENIES: &[&str] = &[
     // ── Cross-machine credentials — leak = off-machine compromise ──────────
     "Read(~/.ssh/**)",
@@ -75,12 +71,10 @@ pub const FLOOR_DENIES: &[&str] = &[
     "Read(~/.mozilla/firefox/*/logins.json)",
     "Read(~/.config/google-chrome/**/Login Data)",
     // ── Local-only credentials — ambient secrets ────────────────────────────
-    "Read(~/.ship/machine/**)",
+    "Read(~/.ship/state/**)",
     // ── Ship state — corruption is data loss / silent kernel inconsistency ─
     "Write(~/.ship/data/**)",
-    "Write(~/.ship/projections/**)",
     "Edit(~/.ship/data/**)",
-    "Edit(~/.ship/projections/**)",
     // ── History files (often contain credentials) ───────────────────────────
     "Read(~/.bash_history)",
     "Read(~/.zsh_history)",
@@ -88,15 +82,15 @@ pub const FLOOR_DENIES: &[&str] = &[
     "Read(~/.mysql_history)",
     "Read(~/.python_history)",
     // ── Bash bypass patterns ────────────────────────────────────────────────
-    "Bash(cat *~/.ship/machine/*)",
+    "Bash(cat *~/.ship/state/*)",
     "Bash(cat *~/.ssh/*)",
     "Bash(cat *~/.aws/*)",
     "Bash(cat *~/.netrc*)",
-    "Bash(head *~/.ship/machine/*)",
-    "Bash(less *~/.ship/machine/*)",
-    "Bash(tail *~/.ship/machine/*)",
-    "Bash(xxd *~/.ship/machine/*)",
-    "Bash(base64 *~/.ship/machine/*)",
+    "Bash(head *~/.ship/state/*)",
+    "Bash(less *~/.ship/state/*)",
+    "Bash(tail *~/.ship/state/*)",
+    "Bash(xxd *~/.ship/state/*)",
+    "Bash(base64 *~/.ship/state/*)",
     "Bash(curl *|*sh)",
     "Bash(curl *|*bash)",
     "Bash(wget *|*sh)",
@@ -114,14 +108,16 @@ pub const FLOOR_DENIES: &[&str] = &[
 pub fn apply_agent_permissions(
     base: Permissions,
     agent: &AgentProfile,
-    ship_dir: Option<&Path>,
+    presets: &BTreeMap<String, PermissionPreset>,
 ) -> Permissions {
     let mp = &agent.permissions;
 
-    let preset_from_file = mp
-        .preset
-        .as_deref()
-        .and_then(|name| ship_dir.and_then(|dir| load_permission_preset(dir, name)));
+    // Slice 3 close-out: the preset layer is now an in-memory
+    // lookup against `ExtensionLibrary::permissions_presets`
+    // (populated by the resolver from
+    // `defineConfig.agents.permissions.presets`). The pre-slice-3
+    // `ship_dir`-keyed disk read died with `.ship/permissions.jsonc`.
+    let preset_from_file = mp.preset.as_deref().and_then(|name| presets.get(name));
 
     let mut tools = if let Some(ref preset) = preset_from_file {
         ToolPermissions {
@@ -150,7 +146,11 @@ pub fn apply_agent_permissions(
             },
         }
     } else {
-        // Built-in fallback — no permissions.jsonc or section not found.
+        // Built-in fallback — no preset in the descriptor map (or no
+        // `defineConfig.agents.permissions.presets` block authored).
+        // The pre-slice-3 "no permissions.jsonc" case becomes "no
+        // preset contributed" post slice 3; same consumer behavior
+        // either way.
         match mp.preset.as_deref() {
             Some("ship-readonly") => ToolPermissions {
                 allow: vec![
@@ -218,7 +218,7 @@ pub fn apply_agent_permissions(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use compiler::Permissions;
+    use agent_schema::Permissions;
 
     fn profile_with_preset(preset: &str) -> AgentProfile {
         let src = format!(
@@ -232,8 +232,15 @@ mod tests {
 
     #[test]
     fn readonly_restricts_writes() {
-        let result =
-            apply_agent_permissions(Permissions::default(), &profile_with_preset("ship-readonly"), None);
+        // Empty presets map → built-in `ship-readonly` fallback (the
+        // only preset with a built-in default; the other named
+        // presets must be authored in
+        // `defineConfig.agents.permissions.presets`).
+        let result = apply_agent_permissions(
+            Permissions::default(),
+            &profile_with_preset("ship-readonly"),
+            &BTreeMap::new(),
+        );
         assert!(result.tools.deny.contains(&"Write(*)".to_string()));
         assert!(result.tools.deny.contains(&"Edit(*)".to_string()));
         assert!(result.tools.allow.contains(&"Read".to_string()));
@@ -241,28 +248,37 @@ mod tests {
     }
 
     #[test]
-    fn permissions_jsonc_preset_overrides_default_mode() {
-        use tempfile::TempDir;
-        let tmp = TempDir::new().unwrap();
-        std::fs::write(
-            tmp.path().join("permissions.jsonc"),
-            r#"{
-              "custom-preset": {
-                "default_mode": "bypassPermissions",
-                "tools_deny": ["Bash(git push --force*)"],
-                "tools_ask": ["Bash(rm -rf*)"]
-              }
-            }"#,
-        )
-        .unwrap();
+    fn preset_map_overrides_default_mode() {
+        // Slice 3 close-out: the named-preset layer is sourced
+        // from the in-memory `permissions_presets` map (populated
+        // by the resolver from
+        // `defineConfig.agents.permissions.presets`). The
+        // pre-slice-3 disk read against `.ship/permissions.jsonc`
+        // died with this slice; the test mirrors the same lookup
+        // with the new shape.
+        let mut presets: BTreeMap<String, PermissionPreset> = BTreeMap::new();
+        presets.insert(
+            "custom-preset".to_string(),
+            PermissionPreset {
+                default_mode: Some("bypassPermissions".to_string()),
+                tools_deny: vec!["Bash(git push --force*)".to_string()],
+                tools_ask: vec!["Bash(rm -rf*)".to_string()],
+                ..Default::default()
+            },
+        );
 
         let result = apply_agent_permissions(
             Permissions::default(),
             &profile_with_preset("custom-preset"),
-            Some(tmp.path()),
+            &presets,
         );
         assert_eq!(result.default_mode.as_deref(), Some("bypassPermissions"));
-        assert!(result.tools.deny.contains(&"Bash(git push --force*)".to_string()));
+        assert!(
+            result
+                .tools
+                .deny
+                .contains(&"Bash(git push --force*)".to_string())
+        );
         assert!(result.tools.ask.contains(&"Bash(rm -rf*)".to_string()));
     }
 
@@ -272,24 +288,43 @@ mod tests {
 
     #[test]
     fn floor_denies_cross_machine_credentials_for_base_agent() {
-        let r = apply_agent_permissions(Permissions::default(), &profile_no_preset(), None);
+        let r = apply_agent_permissions(
+            Permissions::default(),
+            &profile_no_preset(),
+            &BTreeMap::new(),
+        );
         assert!(r.tools.deny.contains(&"Read(~/.ssh/**)".to_string()));
         assert!(r.tools.deny.contains(&"Read(~/.aws/**)".to_string()));
-        assert!(r.tools.deny.contains(&"Read(~/.docker/config.json)".to_string()));
-        assert!(r.tools.deny.contains(&"Read(~/.cargo/credentials.toml)".to_string()));
+        assert!(
+            r.tools
+                .deny
+                .contains(&"Read(~/.docker/config.json)".to_string())
+        );
+        assert!(
+            r.tools
+                .deny
+                .contains(&"Read(~/.cargo/credentials.toml)".to_string())
+        );
     }
 
     #[test]
     fn floor_denies_local_only_credentials_for_base_agent() {
-        let r = apply_agent_permissions(Permissions::default(), &profile_no_preset(), None);
-        assert!(r.tools.deny.contains(&"Read(~/.ship/machine/**)".to_string()));
+        let r = apply_agent_permissions(
+            Permissions::default(),
+            &profile_no_preset(),
+            &BTreeMap::new(),
+        );
+        assert!(r.tools.deny.contains(&"Read(~/.ship/state/**)".to_string()));
     }
 
     #[test]
     fn floor_denies_ship_state_writes() {
-        let r = apply_agent_permissions(Permissions::default(), &profile_no_preset(), None);
+        let r = apply_agent_permissions(
+            Permissions::default(),
+            &profile_no_preset(),
+            &BTreeMap::new(),
+        );
         assert!(r.tools.deny.contains(&"Write(~/.ship/data/**)".to_string()));
-        assert!(r.tools.deny.contains(&"Write(~/.ship/projections/**)".to_string()));
         assert!(r.tools.deny.contains(&"Edit(~/.ship/data/**)".to_string()));
     }
 
@@ -298,32 +333,28 @@ mod tests {
         let r = apply_agent_permissions(
             Permissions::default(),
             &profile_with_preset("ship-readonly"),
-            None,
+            &BTreeMap::new(),
         );
         assert!(r.tools.deny.contains(&"Read(~/.ssh/**)".to_string()));
-        assert!(r.tools.deny.contains(&"Read(~/.ship/machine/**)".to_string()));
+        assert!(r.tools.deny.contains(&"Read(~/.ship/state/**)".to_string()));
     }
 
     #[test]
     fn floor_survives_per_agent_overrides() {
-        use tempfile::TempDir;
-        let tmp = TempDir::new().unwrap();
-        std::fs::write(
-            tmp.path().join("permissions.jsonc"),
-            r#"{
-              "permissive": {
-                "default_mode": "bypassPermissions",
-                "tools_allow": ["Read", "Bash(*)"],
-                "tools_deny": []
-              }
-            }"#,
-        )
-        .unwrap();
+        let mut presets: BTreeMap<String, PermissionPreset> = BTreeMap::new();
+        presets.insert(
+            "permissive".to_string(),
+            PermissionPreset {
+                default_mode: Some("bypassPermissions".to_string()),
+                tools_allow: vec!["Read".to_string(), "Bash(*)".to_string()],
+                ..Default::default()
+            },
+        );
 
         let r = apply_agent_permissions(
             Permissions::default(),
             &profile_with_preset("permissive"),
-            Some(tmp.path()),
+            &presets,
         );
         for floor in FLOOR_DENIES {
             assert!(
@@ -335,10 +366,14 @@ mod tests {
 
     #[test]
     fn floor_is_idempotent_across_calls() {
-        let once = apply_agent_permissions(Permissions::default(), &profile_no_preset(), None);
-        let twice = apply_agent_permissions(once.clone(), &profile_no_preset(), None);
+        let once = apply_agent_permissions(
+            Permissions::default(),
+            &profile_no_preset(),
+            &BTreeMap::new(),
+        );
+        let twice = apply_agent_permissions(once.clone(), &profile_no_preset(), &BTreeMap::new());
         for floor in FLOOR_DENIES {
-            let count = twice.tools.deny.iter().filter(|d| *d == floor).count();
+            let count = twice.tools.deny.iter().filter(|d| d == floor).count();
             assert_eq!(count, 1, "floor entry {floor:?} duplicated to {count}");
         }
     }

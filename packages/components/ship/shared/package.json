@@ -1,0 +1,30 @@
+{
+  "name": "@ship/shared",
+  "version": "0.1.0",
+  "description": "Ship Shared pack \u2014 internal, RUNTIME-FREE ship-* components reused across Ship's own first-party apps (hub, spaces). INTERNAL, not a published domain pack. Components are purely presentational: they take data + permissions as PROPS and the consuming app (which owns the runtime) supplies them. Nothing here may import @ship/sail-runtime, @ship/sdk(-client), or the contract \u2014 enforced by `bun run guard`. Presentational atoms compose @ship/sail-primitives; the host owns the data wire and registers @ship/sail-primitives for any composed tag.",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "customElements": "dist/custom-elements.json",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "guard": "node scripts/guard-runtime-free.mjs",
+    "lint": "node scripts/guard-runtime-free.mjs",
+    "test": "node scripts/guard-runtime-free.mjs && vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@ship/sail-primitives": "*"
+  },
+  "peerDependencies": {
+    "@ship/sail-dom": "*",
+    "@ship/sail-runtime": "*"
+  },
+  "devDependencies": {
+    "@ship/test-setup": "^0.1.0",
+    "happy-dom": "^20.9.0",
+    "vitest": "^4.1.5"
+  }
+}

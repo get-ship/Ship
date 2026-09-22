@@ -5,7 +5,7 @@
 # *build* (KVM access is only needed to *boot*, i.e. to run the test).
 #
 # Output: target/fc/{release-*/firecracker-*, vmlinux, busybox, rootfs.ext4}.
-# Re-run after changing the sidecar. See crates/core/ship-platform/crates/ship-isolation/docs/
+# Re-run after changing the sidecar. See ship-exec/crates/ship-isolation/docs/
 # tier3-build.md for the design + the recipe this encodes.
 #
 # This is a DEV asset builder, not the shipped image path — Phase F bakes a
@@ -37,11 +37,13 @@ if [ ! -f "$OUT/busybox" ]; then
   chmod +x "$OUT/busybox"
 fi
 
-echo "==> static-musl ship-sidecar"
+echo "==> static-musl ship-sidecar (ship-exec)"
+# ship-sidecar lives in ship-exec (j-09); sibling checkout required.
+SHIP_EXEC="${SHIP_EXEC:-$(cd ../ship-infra && pwd)}"
 rustup target add x86_64-unknown-linux-musl >/dev/null 2>&1 || true
 CC_x86_64_unknown_linux_musl=musl-gcc \
-  cargo build -p ship-sidecar --target x86_64-unknown-linux-musl
-SIDECAR="target/x86_64-unknown-linux-musl/debug/ship-sidecar"
+  cargo build -p ship-sidecar --target x86_64-unknown-linux-musl --manifest-path "$SHIP_EXEC/Cargo.toml"
+SIDECAR="$SHIP_EXEC/target/x86_64-unknown-linux-musl/debug/ship-sidecar"
 
 echo "==> assemble rootfs"
 R="$OUT/rootfs-src"
@@ -85,5 +87,5 @@ echo "==> bake ext4 (rootless)"
 rm -f "$OUT/rootfs.ext4"
 mke2fs -q -t ext4 -d "$R" "$OUT/rootfs.ext4" 256M
 
-echo "==> done. Assets under $OUT/ — run: cargo test -p ship-isolation --test firecracker_live"
+echo "==> done. Assets under $OUT/ — run (in ship-exec): cargo test -p ship-isolation --test firecracker_live"
 echo "    (booting needs /dev/kvm + /dev/vhost-vsock accessible to your user)"

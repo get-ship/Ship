@@ -13,11 +13,5 @@ pub const UPDATED: &str = "skill.updated";
 pub const DELETED: &str = "skill.deleted";
 
 pub const ALL_SKILL: &[&str] = &[
-    CHANGED,
-    STARTED,
-    COMPLETED,
-    FAILED,
-    CREATED,
-    UPDATED,
-    DELETED,
+    CHANGED, STARTED, COMPLETED, FAILED, CREATED, UPDATED, DELETED,
 ];

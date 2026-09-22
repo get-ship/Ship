@@ -9,13 +9,13 @@
 mod tests {
     use crate::db::runtime_db_path;
     use crate::events::daemon::{
-        CrashedPayload, PidfileStaleTakenPayload, PortBindFailedPayload,
-        ShutdownCompletedPayload, StartupCompletedPayload,
-        event_types as daemon_events,
+        CrashedPayload, PidfileStaleTakenPayload, PortBindFailedPayload, ShutdownCompletedPayload,
+        StartupCompletedPayload, event_types as daemon_events,
     };
-    use crate::events::{EventStore, SqliteEventStore};
     use crate::events::filter::EventFilter;
+    use crate::events::{EventStore, SqliteEventStore};
     use ship_types::envelope::EventEnvelope;
+use ship_types::Stamped;
     use std::path::PathBuf;
 
     /// Returns the temp dir (kept alive for the test) and the runtime.db path
@@ -39,16 +39,13 @@ mod tests {
             latest_event_id: Some("01HZA000000000000000000000".into()),
             init_duration_ms: 380,
         };
-        let envelope = EventEnvelope::new(
-            daemon_events::DAEMON_STARTUP_COMPLETED,
-            "daemon",
-            &payload,
-        )
-        .unwrap()
-        .with_actor_id("daemon");
+        let envelope =
+            EventEnvelope::new(daemon_events::DAEMON_STARTUP_COMPLETED, "daemon", &payload)
+                .unwrap()
+                .with_actor_id("daemon");
 
         let store = SqliteEventStore::new_at_db_path(&db).unwrap();
-        store.append(&envelope).unwrap();
+        store.append(&Stamped::unchecked(envelope.clone())).unwrap();
 
         let read = store
             .query(&EventFilter {
@@ -57,13 +54,15 @@ mod tests {
             })
             .unwrap();
         assert_eq!(read.len(), 1);
-        let decoded: StartupCompletedPayload =
-            serde_json::from_str(&read[0].payload_json).unwrap();
+        let decoded: StartupCompletedPayload = serde_json::from_str(&read[0].payload_json).unwrap();
         assert_eq!(decoded.pid, 4242);
         assert_eq!(decoded.port, 9315);
         assert_eq!(decoded.event_count_at_startup, 17);
         assert_eq!(decoded.init_duration_ms, 380);
-        assert_eq!(decoded.latest_event_id.as_deref(), Some("01HZA000000000000000000000"));
+        assert_eq!(
+            decoded.latest_event_id.as_deref(),
+            Some("01HZA000000000000000000000")
+        );
     }
 
     #[test]
@@ -82,7 +81,7 @@ mod tests {
         };
         let env_a =
             EventEnvelope::new(daemon_events::DAEMON_CRASHED, "daemon", &exit_only).unwrap();
-        store.append(&env_a).unwrap();
+        store.append(&Stamped::unchecked(env_a.clone())).unwrap();
 
         // Variant B: killed by signal, no exit code.
         let signal_only = CrashedPayload {
@@ -95,7 +94,7 @@ mod tests {
         };
         let env_b =
             EventEnvelope::new(daemon_events::DAEMON_CRASHED, "daemon", &signal_only).unwrap();
-        store.append(&env_b).unwrap();
+        store.append(&Stamped::unchecked(env_b.clone())).unwrap();
 
         let read = store
             .query(&EventFilter {
@@ -132,7 +131,7 @@ mod tests {
         .unwrap();
 
         let store = SqliteEventStore::new_at_db_path(&db).unwrap();
-        store.append(&env).unwrap();
+        store.append(&Stamped::unchecked(env.clone())).unwrap();
 
         let read = store
             .query(&EventFilter {
@@ -166,16 +165,20 @@ mod tests {
             error: "Address already in use".into(),
         };
         store
-            .append(
-                &EventEnvelope::new(daemon_events::DAEMON_SHUTDOWN_COMPLETED, "daemon", &shutdown)
-                    .unwrap(),
-            )
+            .append(&Stamped::unchecked(
+                EventEnvelope::new(
+                    daemon_events::DAEMON_SHUTDOWN_COMPLETED,
+                    "daemon",
+                    &shutdown,
+                )
+                .unwrap(),
+            ))
             .unwrap();
         store
-            .append(
-                &EventEnvelope::new(daemon_events::DAEMON_PORT_BIND_FAILED, "daemon", &bind)
+            .append(&Stamped::unchecked(
+                EventEnvelope::new(daemon_events::DAEMON_PORT_BIND_FAILED, "daemon", &bind)
                     .unwrap(),
-            )
+            ))
             .unwrap();
 
         let shutdown_back: ShutdownCompletedPayload = serde_json::from_str(

@@ -6,7 +6,7 @@ use std::fs;
 use std::path::Path;
 use tempfile::tempdir;
 
-use compiler::lockfile::{LockPackage, ShipLock};
+use stack_model::lockfile::{LockPackage, Rails, ShipLock};
 
 use crate::dep_skills::{
     cache_skill_path, hash_from_lock, is_dep_ref, parse_dep_ref, resolve_dep_skill,
@@ -22,7 +22,7 @@ fn lock_with_one(path: &str, hex: &str) -> ShipLock {
             version: "1.0.0".into(),
             commit: "a".repeat(40),
             hash: format!("sha256:{hex}"),
-            export_hashes: Default::default(),
+            rails: Rails::Stack,
         }],
     }
 }
@@ -129,8 +129,7 @@ fn registry_dep_skills_resolve_dep_skill_returns_single_skill() -> anyhow::Resul
 
     let lock = lock_with_one("github.com/owner/pkg", hex);
 
-    let skills =
-        resolve_dep_skill("github.com/owner/pkg/skills/auth", &lock, &cache_root)?;
+    let skills = resolve_dep_skill("github.com/owner/pkg/skills/auth", &lock, &cache_root)?;
     assert_eq!(skills.len(), 1, "single skill expected");
     assert!(
         skills[0].id.contains("auth"),

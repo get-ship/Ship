@@ -1,6 +1,19 @@
 //! `gen-sdk` — emit five machine-readable JSON files that describe the entire
 //! Ship authoring surface. Downstream tasks (AST lint, view-meta endpoint, MCP
 //! scaffolder, editor tooling) read these instead of re-parsing raw source.
+//!
+//! Output lives under `packages/sdk/src/manifests/` (committed; un-ignored by
+//! `.gitignore` so drift surfaces in PRs). The previous worktree-only landing
+//! wrote to `packages/sdk/src/generated/` which stayed `.gitignore`d — the
+//! drift gate was a lie. The R4 resolution in `census-phase1-gen.md` Part 7
+//! J3 picks `manifests/` for the published SDK shape.
+//!
+//! `gen-sdk --check` regenerates in-memory and compares against the committed
+//! files; exit 0 on match, 1 on drift. Run `gen-sdk` (no flag) to refresh.
+//!
+//! Inputs: `.ship/` config (collections, triggers, views), shipd view Ctx
+//! structs, hand-authored framework manifest — all ship-side, so the tool
+//! stays ship-internal, not contracts codegen.
 
 use std::{
     fs,
@@ -17,60 +30,118 @@ mod view_contexts;
 const VERSION: &str = "0.1.0";
 const HEADER: &str = "just gen-sdk — DO NOT EDIT";
 
-/// Entry point. Creates `packages/sdk/src/generated/` if missing and writes
-/// the JSON artifacts alongside the typed TS bindings. Each is a complete
-/// top-level object with `_generated`, `version`, and `$schema`.
-pub fn run(repo_root: &Path) -> Result<()> {
-    let out_dir = repo_root.join("packages/sdk/src/generated");
+const MANIFESTS_DIR: &str = "packages/sdk/src/manifests";
+
+/// Entry point. With `check = false`: writes the 5 JSON manifests + 1 TS
+/// typed-FrameworkManifest file under `packages/sdk/src/manifests/`. With
+/// `check = true`: regenerates the same content in memory and diffs against
+/// the committed files; exits 1 on any drift (or missing file).
+pub fn run(check: bool) -> Result<()> {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let repo_root = manifest_dir
+        .parent()
+        .and_then(|p| p.parent())
+        .expect("cannot locate repo root")
+        .to_path_buf();
+    let out_dir = repo_root.join(MANIFESTS_DIR);
+
+    let project = repo_root.clone(); // domain dirs live at the stack root
+    let outputs = build_outputs(&repo_root, &project)?;
+
+    if check {
+        let mut stale = false;
+        for (rel, content) in &outputs {
+            let path = out_dir.join(rel);
+            let existing = fs::read_to_string(&path).unwrap_or_default();
+            if existing != *content {
+                eprintln!("gen-sdk: out of date: {}", path.display());
+                stale = true;
+            }
+        }
+        if stale {
+            eprintln!("Run `cargo xtask gen-sdk` and commit the result.");
+            std::process::exit(1);
+        }
+        eprintln!(
+            "gen-sdk: up-to-date ({} files in {})",
+            outputs.len(),
+            out_dir.display()
+        );
+        return Ok(());
+    }
+
     fs::create_dir_all(&out_dir)
         .with_context(|| format!("create {}", out_dir.display()))?;
-
-    write_doc(
-        &out_dir.join("sdk-view-contexts.json"),
-        "sdk-view-contexts",
-        view_contexts::extract(repo_root)?,
-    )?;
-    write_doc(
-        &out_dir.join("sdk-collections.json"),
-        "sdk-collections",
-        collect_jsonc_dir(
-            &ship_substrate::ShipHome::project_ship_dir(repo_root).join("collections"),
-            |v| v.get("id").and_then(|x| x.as_str()).map(str::to_owned),
-        )?,
-    )?;
-    write_doc(
-        &out_dir.join("sdk-triggers.json"),
-        "sdk-triggers",
-        collect_jsonc_dir(
-            &ship_substrate::ShipHome::project_ship_dir(repo_root).join("triggers"),
-            |v| v.get("name").and_then(|x| x.as_str()).map(str::to_owned),
-        )?,
-    )?;
-    write_doc(
-        &out_dir.join("sdk-views.json"),
-        "sdk-views",
-        collect_view_manifests(&ship_substrate::ShipHome::project_ship_dir(repo_root).join("views"))?,
-    )?;
-    // sdk-framework.json describes framework-level concepts (directives,
-    // scope bindings, template syntax, reactivity rules). Its envelope
-    // version tracks the manifest's own surface, not gen-sdk's VERSION —
-    // those evolve independently.
-    write_framework(&out_dir.join("sdk-framework.json"), repo_root)?;
-
-    // Typed framework manifest — `FrameworkManifest` interface +
-    // `FRAMEWORK` const. Pairs with the JSON for TS-side consumers.
-    let framework_ts_path = out_dir.join("framework.ts");
-    fs::write(&framework_ts_path, framework::emit_ts(repo_root)?)
-        .with_context(|| format!("write {}", framework_ts_path.display()))?;
-
+    for (rel, content) in &outputs {
+        let path = out_dir.join(rel);
+        fs::write(&path, content).with_context(|| format!("write {}", path.display()))?;
+    }
     eprintln!(
-        "gen-sdk: wrote 5 JSON + 1 TS files to {}",
+        "gen-sdk: wrote {} files to {}",
+        outputs.len(),
         out_dir.display()
     );
     Ok(())
 }
 
-fn write_framework(path: &PathBuf, repo_root: &Path) -> Result<()> {
+/// Compute every manifest in memory. Each entry is the file's relative path
+/// (under `MANIFESTS_DIR`) and the bytes that would be written.
+fn build_outputs(repo_root: &Path, project_ship_dir: &Path) -> Result<Vec<(&'static str, String)>> {
+    Ok(vec![
+        (
+            "sdk-view-contexts.json",
+            render_doc("sdk-view-contexts", view_contexts::extract(repo_root)?),
+        ),
+        (
+            "sdk-collections.json",
+            render_doc(
+                "sdk-collections",
+                collect_jsonc_dir(&project_ship_dir.join("collections"), |v| {
+                    v.get("id").and_then(|x| x.as_str()).map(str::to_owned)
+                })?,
+            ),
+        ),
+        (
+            "sdk-triggers.json",
+            render_doc(
+                "sdk-triggers",
+                collect_jsonc_dir(&project_ship_dir.join("triggers"), |v| {
+                    v.get("name").and_then(|x| x.as_str()).map(str::to_owned)
+                })?,
+            ),
+        ),
+        (
+            "sdk-views.json",
+            render_doc(
+                "sdk-views",
+                collect_view_manifests(&project_ship_dir.join("views"))?,
+            ),
+        ),
+        ("sdk-framework.json", render_framework(repo_root)?),
+        ("framework.ts", framework::emit_ts(repo_root)?),
+    ])
+}
+
+/// Wrap a manifest payload in the standard envelope
+/// `{_generated, version, $schema, entries}` and return the rendered JSON.
+fn render_doc(name: &str, entries: Value) -> String {
+    let mut root = Map::new();
+    root.insert("_generated".into(), Value::String(HEADER.into()));
+    root.insert("version".into(), Value::String(VERSION.into()));
+    root.insert(
+        "$schema".into(),
+        Value::String(format!("https://ship.design/schemas/{name}.schema.json")),
+    );
+    root.insert("entries".into(), entries);
+    serde_json::to_string_pretty(&Value::Object(root))
+        .expect("infallible serde_json::to_string_pretty")
+        + "\n"
+}
+
+/// Render `sdk-framework.json`. The framework payload sits alongside
+/// `version`/`_generated` rather than under `entries` — the whole manifest
+/// is the entry.
+fn render_framework(repo_root: &Path) -> Result<String> {
     let mut root = Map::new();
     root.insert("_generated".into(), Value::String(HEADER.into()));
     root.insert(
@@ -81,8 +152,6 @@ fn write_framework(path: &PathBuf, repo_root: &Path) -> Result<()> {
         "$schema".into(),
         Value::String("https://ship.design/schemas/sdk-framework.schema.json".into()),
     );
-    // The manifest payload sits alongside `version`/`_generated` rather
-    // than under an `entries` key — the entire manifest is the entry.
     if let Value::Object(map) = framework::json_entries(repo_root)? {
         for (k, v) in map {
             // Skip the inner `version` to avoid shadowing the envelope
@@ -93,23 +162,7 @@ fn write_framework(path: &PathBuf, repo_root: &Path) -> Result<()> {
             root.insert(k, v);
         }
     }
-    let text = serde_json::to_string_pretty(&Value::Object(root))? + "\n";
-    fs::write(path, text).with_context(|| format!("write {}", path.display()))?;
-    Ok(())
-}
-
-fn write_doc(path: &PathBuf, name: &str, entries: Value) -> Result<()> {
-    let mut root = Map::new();
-    root.insert("_generated".into(), Value::String(HEADER.into()));
-    root.insert("version".into(), Value::String(VERSION.into()));
-    root.insert(
-        "$schema".into(),
-        Value::String(format!("https://ship.design/schemas/{name}.schema.json")),
-    );
-    root.insert("entries".into(), entries);
-    let text = serde_json::to_string_pretty(&Value::Object(root))? + "\n";
-    fs::write(path, text).with_context(|| format!("write {}", path.display()))?;
-    Ok(())
+    Ok(serde_json::to_string_pretty(&Value::Object(root))? + "\n")
 }
 
 /// Walk a directory of `.jsonc` files, strip comments, return a map keyed by

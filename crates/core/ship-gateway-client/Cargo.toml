@@ -9,7 +9,7 @@ description = "Typed Connect-RPC client for the Ship gateway (apps/gateway). Cod
 # Generated gateway bindings now live in the published `ship-proto` crate
 # (ship-contracts SSOT); this crate re-exports `ship::gateway::v1` and keeps the
 # hand-written TLS transport / auth_client helpers below.
-ship-proto = { git = "file:///home/madvib/dev/ship-contracts", branch = "master" }
+ship-proto = { git = "https://github.com/get-ship/ship-contracts.git", branch = "feat/next" }
 # Connect-RPC runtime. `client` is the unary/streaming client; `client-tls`
 # pulls in rustls so HttpClient::with_tls is available for the production
 # https://api.getship.dev gateway.

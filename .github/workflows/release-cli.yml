@@ -8,7 +8,7 @@ on:
     paths:
       - '.github/workflows/release-cli.yml'
       - 'dist-workspace.toml'
-      - 'apps/ship-cli/Cargo.toml'
+      - 'apps/shipctl/Cargo.toml'
   workflow_dispatch:
     inputs:
       tag:
@@ -79,27 +79,6 @@ jobs:
       - name: Build daemon asset bundles
         run: bun run build:bundles
 
-      # sdk-*.json bootstrap cycle (mirrors Justfile `bootstrap`): ship-views
-      # `include_str!`s packages/sdk/src/generated/sdk-*.json, and gen-sdk
-      # runs *through* shipd (via xtask) — so shipd can't compile until the
-      # files exist. Seed empty placeholders so the xtask build links, run
-      # gen-sdk to overwrite them with real content, then assert each exists and
-      # is non-empty. Without this, a cold-cache runner fails the first
-      # `cargo build … -p shipd` on a missing include_str! target.
-      - name: Seed + generate SDK manifests (cold-cache include_str! unblock)
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p packages/sdk/src/generated
-          for f in sdk-urls sdk-view-contexts sdk-views sdk-collections sdk-triggers; do
-            [ -s "packages/sdk/src/generated/$f.json" ] || echo '{}' > "packages/sdk/src/generated/$f.json"
-          done
-          cargo run -p xtask --quiet -- gen-sdk
-          for f in sdk-urls sdk-view-contexts sdk-views sdk-collections sdk-triggers; do
-            test -s "packages/sdk/src/generated/$f.json" \
-              || { echo "sdk manifest $f.json missing or empty after gen-sdk" >&2; exit 1; }
-          done
-
       - name: Resolve version
         id: version
         shell: bash
@@ -115,10 +94,10 @@ jobs:
           echo "tag=${tag}" >> "$GITHUB_OUTPUT"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
 
-      - name: Build ship + shipd
+      - name: Build shipctl + shipd
         run: |
           cargo build --release --target ${{ matrix.target }} \
-            -p ship-cli -p shipd
+            --features bridge -p shipctl -p shipd
 
       - name: Package (Unix)
         if: matrix.archive == 'tar.gz'
@@ -126,20 +105,19 @@ jobs:
         run: |
           stage="ship-${{ steps.version.outputs.version }}-${{ matrix.target }}"
           mkdir -p "dist/${stage}"
-          cp "target/${{ matrix.target }}/release/ship${{ matrix.exe }}" "dist/${stage}/ship${{ matrix.exe }}"
-          cp "target/${{ matrix.target }}/release/shipd${{ matrix.exe }}" "dist/${stage}/shipd${{ matrix.exe }}"
-          chmod +x "dist/${stage}/ship" "dist/${stage}/shipd"
+          cp "target/${{ matrix.target }}/release/shipctl${{ matrix.exe }}" "dist/${stage}/shipctl${{ matrix.exe }}"
+          cp "target/${{ matrix.target }}/release/shipd${{ matrix.exe }}"    "dist/${stage}/shipd${{ matrix.exe }}"
+          chmod +x "dist/${stage}/shipctl" "dist/${stage}/shipd"
           cp README.md "dist/${stage}/README.md"
           cp packaging/installer-assets/LICENSE-INSTALLER.txt "dist/${stage}/LICENSE.txt" || true
           tar -czf "${stage}.tar.gz" -C dist "${stage}"
-
       - name: Package (Windows)
         if: matrix.archive == 'zip'
         shell: pwsh
         run: |
           $stage = "ship-${{ steps.version.outputs.version }}-${{ matrix.target }}"
           New-Item -ItemType Directory -Force -Path "dist/$stage" | Out-Null
-          Copy-Item "target/${{ matrix.target }}/release/ship.exe" "dist/$stage/ship.exe"
+          Copy-Item "target/${{ matrix.target }}/release/shipctl.exe" "dist/$stage/shipctl.exe"
           Copy-Item "target/${{ matrix.target }}/release/shipd.exe" "dist/$stage/shipd.exe"
           Copy-Item "README.md" "dist/$stage/README.md"
           if (Test-Path "packaging/installer-assets/LICENSE-INSTALLER.txt") {
@@ -238,8 +216,6 @@ jobs:
   # ──────────────────────────────────────────────────────────────────────────
   # 3. Linux native packages (.deb, .rpm) — cargo-dist doesn't yet emit
   #    these cleanly, so we drive cargo-deb / cargo-generate-rpm directly.
-  #    Metadata lives on [package.metadata.deb] / .generate-rpm in
-  #    apps/ship-cli/Cargo.toml.
   # ──────────────────────────────────────────────────────────────────────────
   linux-packages:
     name: Linux ${{ matrix.format }} ${{ matrix.target }}
@@ -293,24 +269,14 @@ jobs:
       - name: Build release binaries
         run: |
           cargo build --release --target "${{ matrix.target }}" \
-            -p ship-cli -p shipd
-          # cargo-deb / cargo-generate-rpm read `target/release/`.
+            --features bridge -p shipctl -p shipd
+          # cargo-deb / cargo-generate-rpm dropped for now: their
+          # recipes are wired to apps/shipctl/Cargo.toml. Restoring
+          # deb/rpm packaging under the new bin layout is a follow-up
+          # job — the tarball job above already publishes every binary.
           mkdir -p target/release
-          cp "target/${{ matrix.target }}/release/ship"  target/release/ship
-          cp "target/${{ matrix.target }}/release/shipd" target/release/shipd
-
-      - name: Build package
-        shell: bash
-        run: |
-          case "${{ matrix.format }}" in
-            deb)
-              cargo deb -p ship-cli --no-build --no-strip \
-                --target "${{ matrix.target }}"
-              ;;
-            rpm)
-              cargo generate-rpm -p apps/ship-cli
-              ;;
-          esac
+          cp "target/${{ matrix.target }}/release/shipctl"  target/release/shipctl
+          cp "target/${{ matrix.target }}/release/shipd"    target/release/shipd
 
       - name: Upload package
         uses: actions/upload-artifact@v4

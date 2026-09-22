@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AuthSessionCreated {
     pub agent_id: String,
-    pub scopes_json: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub space_id: Option<String>,
     pub created_at_unix: i64,

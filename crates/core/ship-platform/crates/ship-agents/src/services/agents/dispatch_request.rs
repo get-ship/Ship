@@ -1,161 +1,201 @@
-//! DispatchRequest wire type and validation helpers.
+//! `DispatchRequest` — the in-process (floki-class) dispatch shape.
+//!
+//! Mirrors the slim `DispatchAgentRequest` proto (`agents.proto:232`):
+//! `{agent, prompt, model, slug}`. The coding fields (spec / resume /
+//! harness / invocation / keepalive / branch / source_spec_path /
+//! depends_on / repo_path / base_ref) live on `CodeDispatchRequest` in
+//! `code_dispatch_request.rs` and are served by `CodeService.Dispatch` —
+//! the in-process path serves floki-class agents only and is simply not
+//! reachable for coding-class requests (their harness is not in the
+//! resolvable set; see R-A redesign, proposal-ship-code-package.md).
+//!
+//! Shared plumbing: slug conventions, session creation, the
+//! `dispatch.requested` event payload projection. See
+//! `dispatch_core.rs::dispatch_agent_session_core`.
 
 use serde::Deserialize;
-use agent_def::InvocationMode;
 
-/// Wire shape for the Connect `AgentsService.Dispatch` request
-/// (`DispatchAgentRequest` in `proto/ship/ops/v1/agents.proto`).
-/// Agent-centric — `agent` is required and there is no `pipeline` field;
-/// pipeline runs go through `PipelinesService.Dispatch` /
-/// `POST /api/v1/pipelines/run`.
+/// In-process dispatch request — floki-class only. Agent-centric; no
+/// pipeline field. Pipeline runs go through `PipelinesService.Dispatch`.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DispatchRequest {
     /// Ship-agent profile id (required).
     pub agent: String,
 
-    /// Inline spec body. Becomes `.artifacts/job-spec.md` for the agent at launch.
-    #[serde(default)]
-    pub spec: Option<String>,
-
-    /// Inline one-shot prompt. Either piped via the harness's one-shot
-    /// flag (`auto` mode) or injected as the first user turn (interactive).
+    /// Inline one-shot prompt. The floki runtime injects this as the
+    /// first user turn (no spec body concept in-process).
     #[serde(default)]
     pub prompt: Option<String>,
-
-    /// Continue the last session for this (agent, workspace) pair. Errors
-    /// with 400 when no matching session exists.
-    #[serde(default)]
-    pub resume: bool,
-
-    /// Harness override for this dispatch. None → project/user default chain.
-    #[serde(default)]
-    pub harness: Option<String>,
 
     /// Model override. None → harness default.
     #[serde(default)]
     pub model: Option<String>,
 
-    // ── The three orthogonal axes (replace the old single `auto: bool`) ──
-    //
-    // Each defaults to its no-surprise value so simple POSTs still work:
-    //   { "agent": "rust-lane" }
-    // = interactive PTY tab, keepalive. The same shape `ship use` opens.
-
-    /// Does this dispatch open an interactive tab / attachable PTY
-    /// surface? Default true. Set false for background / dispatched
-    /// jobs that the operator will observe later (CLI returns the
-    /// session_id + studio_url; nothing attaches to the operator's
-    /// terminal).
-    #[serde(default = "default_open_tab")]
-    pub open_tab: bool,
-
-    /// How the harness is invoked:
-    ///   - pty (default): PTY-attached harness invocation (claude TUI,
-    ///     codex TUI, ...). Subscription-billed for claude.
-    ///   - print: one-shot non-interactive mode (claude -p,
-    ///     codex exec). API-billed for claude post-2026-06-19.
-    ///   - stream: server-mode (codex app-server, opencode REST).
-    ///     Only codex/opencode today.
-    #[serde(default = "default_invocation")]
-    pub invocation: InvocationMode,
-
-    /// Does the harness stay alive after the current work, awaiting
-    /// the next operator push? Default true (matches the chat/worker
-    /// expectation). Required for the `agent.Steer` Connect RPC push path.
-    /// Mutually exclusive with `invocation = print` (print exits on
-    /// completion).
-    #[serde(default = "default_keepalive")]
-    pub keepalive: bool,
-
-    /// Workspace label (used for slug generation). Power-user override.
-    #[serde(default)]
-    pub workspace: Option<String>,
-
-    /// Explicit slug. When `None`, derived from `workspace` + a ULID suffix.
+    /// Explicit slug. When `None`, derived from `agent` + a ULID suffix.
     #[serde(default)]
     pub slug: Option<String>,
-
-    /// Explicit branch. When `None`, defaults to `job/<slug>`.
-    #[serde(default)]
-    pub branch: Option<String>,
-
-    /// Operator-facing path to the spec file (for `ship jobs` display).
-    #[serde(default)]
-    pub source_spec_path: Option<String>,
-
-    /// Parent job slugs this run depends on.
-    #[serde(default)]
-    pub depends_on: Option<Vec<String>>,
-
-    /// Per-launch vars. Pipelines pass their own vars through to each
-    /// dispatch via the pipeline-run endpoint.
-    #[serde(default)]
-    pub vars: Option<std::collections::HashMap<String, String>>,
 }
 
-pub fn default_open_tab() -> bool { true }
-pub fn default_keepalive() -> bool { true }
-pub fn default_invocation() -> InvocationMode { InvocationMode::Pty }
+/// Slug shape: `[a-z][a-z0-9-]*` — must start with a lowercase ASCII letter,
+/// followed by zero or more lowercase ASCII letters / digits / dashes.
+/// Bare `job` (no slash) is NOT covered here; the dispatch core derives a
+/// `<agent>-<ulid>` slug when the caller passes `None`, so this rule
+/// only fires against an explicit, caller-supplied slug.
+pub fn is_valid_slug(s: &str) -> bool {
+    let mut chars = s.chars();
+    match chars.next() {
+        Some(c) if c.is_ascii_lowercase() => {}
+        _ => return false,
+    }
+    chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+}
 
-/// Validate the (open_tab × invocation × keepalive) triple. Returns
-/// an operator-readable error when the combination is invalid.
+/// True when the prompt input is blank (None or `Some("")`). The
+/// in-process dispatch needs at least a non-empty first turn — a job with
+/// no prompt is unrecoverable downstream and always wastes a session.
+fn prompt_blank(prompt: Option<&str>) -> bool {
+    prompt.map(str::trim).map(str::is_empty).unwrap_or(true)
+}
+
+/// Validate the in-process dispatch request SHAPE before any side effect.
+/// Returns an operator-readable error when the request is malformed, so
+/// the wire can map it to `invalid_argument` (400) and skip provisioning.
 ///
-/// The matrix is sparse because print mode is structurally one-shot
-/// and has no PTY to attach to. Stream mode has no implemented
-/// attach surface today.
-pub fn validate_axes(req: &DispatchRequest) -> Result<(), String> {
-    match req.invocation {
-        InvocationMode::Print => {
-            if req.open_tab {
-                return Err(
-                    "invocation=print is incompatible with open_tab=true \
-                     (print mode has no attachable PTY). \
-                     Set open_tab=false or change invocation to pty."
-                        .to_string(),
-                );
-            }
-            if req.keepalive {
-                return Err(
-                    "invocation=print is incompatible with keepalive=true \
-                     (print mode exits on completion; cannot push more turns). \
-                     Set keepalive=false or change invocation to pty."
-                        .to_string(),
-                );
-            }
+/// Rules (mount-split 2026-07-10):
+///   * `agent` must be non-empty
+///   * an explicit `slug` must match `[a-z][a-z0-9-]*` (None is OK — the
+///     core derives one)
+///   * `prompt` must not be blank
+///
+/// The "agent is in the agent index" check lives at the wire boundary
+/// (`rpc_wire::dispatch`) — it needs the `ship_dir` to consult the index,
+/// which this transport-neutral layer doesn't have.
+pub fn validate_dispatch_request(req: &DispatchRequest) -> Result<(), String> {
+    if req.agent.trim().is_empty() {
+        return Err("`agent` is required".to_string());
+    }
+    if let Some(slug) = req.slug.as_deref() {
+        if slug.is_empty() {
+            return Err("`slug` must not be empty when provided".to_string());
         }
-        InvocationMode::Stream => {
-            if req.open_tab {
-                return Err(
-                    "invocation=stream is incompatible with open_tab=true \
-                     (server-mode attach not yet implemented). \
-                     Set open_tab=false."
-                        .to_string(),
-                );
-            }
+        if !is_valid_slug(slug) {
+            return Err(format!(
+                "`slug` {slug:?} does not match the required pattern [a-z][a-z0-9-]*"
+            ));
         }
-        InvocationMode::Pty => {}
+    }
+    if prompt_blank(req.prompt.as_deref()) {
+        return Err("`prompt` is required (cannot be empty)".to_string());
     }
     Ok(())
 }
 
-/// Build the operator-facing billing warning when one applies. Today
-/// the only triggering combination is `invocation=print` with claude
-/// (post-2026-06-19, `claude -p` is billed at API rates regardless of
-/// subscription).
-pub fn billing_warning_for_axes(
-    invocation: InvocationMode,
-    harness: Option<&str>,
-) -> Option<String> {
-    if invocation != InvocationMode::Print {
-        return None;
+#[cfg(test)]
+mod tests {
+    use super::{DispatchRequest, is_valid_slug, validate_dispatch_request};
+
+    fn req_with(agent: &str, prompt: Option<&str>, slug: Option<&str>) -> DispatchRequest {
+        DispatchRequest {
+            agent: agent.to_string(),
+            prompt: prompt.map(str::to_string),
+            model: None,
+            slug: slug.map(str::to_string),
+        }
     }
-    if harness.unwrap_or("claude") != "claude" {
-        return None;
+
+    // ── slug regex ───────────────────────────────────────────────────────
+
+    #[test]
+    fn slug_accepts_canonical_shapes() {
+        assert!(is_valid_slug("a"));
+        assert!(is_valid_slug("dispatch-consolidation"));
+        assert!(is_valid_slug("tdd-01kp9abd"));
+        assert!(is_valid_slug("rust-lane"));
     }
-    Some(
-        "claude -p is API-billed (subscription plan does not apply). \
-         Use invocation=pty for subscription billing."
-            .to_string(),
-    )
+
+    #[test]
+    fn slug_rejects_bad_shapes() {
+        assert!(!is_valid_slug(""));
+        assert!(!is_valid_slug("-leading-dash"));
+        // Trailing-dash IS valid per the [a-z][a-z0-9-]* regex (the spec
+        // doesn't forbid it; downstream consumers can sanitize if they need to).
+        assert!(is_valid_slug("trailing-dash-"));
+        assert!(!is_valid_slug("UpperCase"));
+        assert!(!is_valid_slug("with space"));
+        assert!(!is_valid_slug("with/slash"));
+        assert!(!is_valid_slug("1leading-digit"));
+        assert!(!is_valid_slug("with_underscore"));
+    }
+
+    // ── validate_dispatch_request: rule coverage ─────────────────────────
+
+    #[test]
+    fn empty_agent_rejected() {
+        let req = req_with("", Some("do the thing"), None);
+        let err = validate_dispatch_request(&req).unwrap_err();
+        assert!(err.contains("`agent` is required"), "got: {err}");
+    }
+
+    #[test]
+    fn whitespace_agent_rejected() {
+        let req = req_with("   ", Some("do the thing"), None);
+        let err = validate_dispatch_request(&req).unwrap_err();
+        assert!(err.contains("`agent` is required"), "got: {err}");
+    }
+
+    #[test]
+    fn empty_explicit_slug_rejected() {
+        let req = req_with("rust-lane", Some("do the thing"), Some(""));
+        let err = validate_dispatch_request(&req).unwrap_err();
+        assert!(err.contains("`slug` must not be empty"), "got: {err}");
+    }
+
+    #[test]
+    fn bad_slug_rejected() {
+        let req = req_with("rust-lane", Some("do the thing"), Some("-bad"));
+        let err = validate_dispatch_request(&req).unwrap_err();
+        assert!(
+            err.contains("does not match the required pattern"),
+            "got: {err}"
+        );
+    }
+
+    #[test]
+    fn blank_prompt_rejected() {
+        let req = req_with("rust-lane", None, None);
+        let err = validate_dispatch_request(&req).unwrap_err();
+        assert!(err.contains("`prompt` is required"), "got: {err}");
+    }
+
+    #[test]
+    fn whitespace_only_prompt_rejected() {
+        let req = req_with("rust-lane", Some("   \n  "), None);
+        let err = validate_dispatch_request(&req).unwrap_err();
+        assert!(err.contains("`prompt` is required"), "got: {err}");
+    }
+
+    #[test]
+    fn prompt_passes() {
+        let req = req_with("rust-lane", Some("do the thing"), None);
+        assert!(validate_dispatch_request(&req).is_ok());
+    }
+
+    #[test]
+    fn valid_explicit_slug_passes() {
+        let req = req_with(
+            "rust-lane",
+            Some("do the thing"),
+            Some("dispatch-consolidation"),
+        );
+        assert!(validate_dispatch_request(&req).is_ok());
+    }
+
+    #[test]
+    fn auto_slug_omitted_passes() {
+        // The core derives the slug when None — the slug validator must NOT
+        // reject the None case (only the explicit-bad case).
+        let req = req_with("rust-lane", Some("do the thing"), None);
+        assert!(validate_dispatch_request(&req).is_ok());
+    }
 }

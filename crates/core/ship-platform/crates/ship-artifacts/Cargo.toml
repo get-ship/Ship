@@ -10,6 +10,7 @@ ship-substrate = { path = "../../../ship-substrate" }
 ship-types = { path = "../../../ship-substrate/crates/ship-types" }
 ship-reactive = { path = "../ship-reactive" }
 ship-ops-rpc = { path = "../../../ship-ops-rpc" }
+ship-proto = { git = "https://github.com/get-ship/ship-contracts.git", branch = "feat/next" }
 
 async-trait = { workspace = true }
 async-stream = "0.3"
@@ -23,7 +24,6 @@ tracing = { workspace = true }
 futures-util = { workspace = true }
 tokio = { workspace = true, features = ["sync", "rt"] }
 chrono = { workspace = true }
-ulid = { workspace = true }
 anyhow = { workspace = true }
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "time"] }

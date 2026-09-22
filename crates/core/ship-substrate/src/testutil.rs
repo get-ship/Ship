@@ -10,20 +10,86 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
-pub use crate::project::{PRIMARY_CONFIG_FILE, SHIP_DIR_NAME};
+pub use crate::project::STACK_CONFIG_FILENAME;
 
-/// Create a minimal `.ship/` directory under `base_dir` suitable for L0 tests.
-/// Writes only the `ship.jsonc` id field; no config schemas or skills.
+use ship_types::envelope::EventEnvelope;
+use ship_types::Stamped;
+
+/// Unchecked stamp mint for tests.
+///
+/// Requires `ship-types/test-support` (enabled for ship-substrate test builds
+/// via `[dev-dependencies]` feature unification). Production builds never
+/// enable that feature, so this helper is not available outside test graphs
+/// that opt in.
+#[cfg(any(test, feature = "test-support"))]
+pub fn stamped(env: EventEnvelope) -> Stamped {
+    Stamped::unchecked(env)
+}
+
+/// Create a minimal STACK at `base_dir` suitable for L0 tests: a bare
+/// `stack.config.ts` manifest (presence-only; L0 never evals it). Returns
+/// the STACK ROOT. Identity lives in the runtime registry, never the tree.
 pub fn init_project_minimal(base_dir: impl AsRef<Path>) -> Result<PathBuf> {
     let base_dir = base_dir.as_ref();
-    let ship_dir = base_dir.join(SHIP_DIR_NAME);
-    std::fs::create_dir_all(&ship_dir)?;
-    let id = crate::gen_nanoid();
-    std::fs::write(
-        ship_dir.join(PRIMARY_CONFIG_FILE),
-        format!("{{\"id\": \"{id}\"}}\n"),
-    )?;
-    Ok(ship_dir)
+    std::fs::create_dir_all(base_dir)?;
+    std::fs::write(base_dir.join(STACK_CONFIG_FILENAME), "export default {};\n")?;
+    Ok(base_dir.to_path_buf())
+}
+
+/// Register a test space directly in the `spaces` Runtime-scoped registry
+/// (`<root>/runtime.db`), bypassing the event/projection path.
+///
+/// I-2 (the Space-partition-IS-a-registered-space charter) requires every
+/// `spaces/<key>/` directory to correspond to a `spaces` registry row;
+/// `PartitionedSink::route()` refuses to route a Space-scoped event whose
+/// `scope_key` has no such row. Production code reaches identity ONLY
+/// through `ship_space::identity::ensure_identity_for_root` (which mints via
+/// a real `space.opened` event, folded by `SpacesProjection`) — but that
+/// accessor lives one crate up (`ship-space`, L1), out of reach for
+/// `ship-substrate` (L0) and its many downstream test suites that fabricate
+/// a `SpaceId`/`scope_key` for scaffolding purposes only.
+///
+/// This helper is the test-only equivalent: it performs the same raw
+/// `INSERT INTO spaces` that `SpacesProjection::apply_opened` performs on a
+/// real `space.opened` fold, so a fabricated `space_id` used only to route
+/// Space-scoped test events becomes a real registry row and clears the
+/// `route()` gate. It does NOT emit an event and is NOT a substitute for
+/// `ensure_identity_for_root` in production code paths.
+pub fn register_space(root: impl AsRef<Path>, space_id: &str) -> Result<()> {
+    register_space_at(root, space_id, space_id, space_id)
+}
+
+/// Like [`register_space`], with an explicit `path`/`name` instead of
+/// reusing `space_id` for both.
+pub fn register_space_at(
+    root: impl AsRef<Path>,
+    space_id: &str,
+    path: &str,
+    name: &str,
+) -> Result<()> {
+    let root = root.as_ref();
+    let mut conn = crate::db::open_runtime_db(root)?;
+    let now = chrono::Utc::now().to_rfc3339();
+    crate::db::block_on(async {
+        sqlx::query(
+            "INSERT INTO spaces \
+             (space_id, path, name, opened_at, last_seen_at) \
+             VALUES (?, ?, ?, ?, ?) \
+             ON CONFLICT(space_id) DO UPDATE SET \
+               path         = excluded.path, \
+               name         = excluded.name, \
+               last_seen_at = excluded.last_seen_at, \
+               updated_at   = datetime('now')",
+        )
+        .bind(space_id)
+        .bind(path)
+        .bind(name)
+        .bind(&now)
+        .bind(&now)
+        .execute(&mut conn)
+        .await
+    })?;
+    Ok(())
 }
 
 // ── EnvGuard ──────────────────────────────────────────────────────────────

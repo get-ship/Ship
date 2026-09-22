@@ -5,14 +5,14 @@
 //! secret, rate-limits, and emits the event.
 
 use axum::{
+    Json,
     body::Bytes,
     extract::{Extension, Path},
     http::{HeaderMap, StatusCode},
     response::IntoResponse,
-    Json,
 };
-use ship_triggers::sources::webhook::{WebhookResult, WebhookSource};
 use serde_json::json;
+use ship_triggers::sources::webhook::{WebhookResult, WebhookSource};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -47,10 +47,11 @@ pub async fn handle_webhook(
         .get("x-ship-webhook-secret")
         .and_then(|v| v.to_str().ok());
 
-    match source.handle_request(&path, secret, body.to_vec(), &kernel).await {
-        WebhookResult::Accepted => {
-            (StatusCode::OK, Json(json!({"ok": true}))).into_response()
-        }
+    match source
+        .handle_request(&path, secret, body.to_vec(), &kernel)
+        .await
+    {
+        WebhookResult::Accepted => (StatusCode::OK, Json(json!({"ok": true}))).into_response(),
         WebhookResult::NotFound => (
             StatusCode::NOT_FOUND,
             Json(json!({"ok": false, "error": "no trigger registered for this path"})),

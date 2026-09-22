@@ -1,7 +1,7 @@
 //! ConnectRPC wire layer for `CollectionsService`.
 //!
 //! `CollectionWire<F>` wraps the service with a per-request context factory.
-//! It implements the generated `ship_ops_rpc::CollectionsService` trait so
+//! It implements the generated `ship_proto::ship::ops::v1::CollectionsService` trait so
 //! shipd can mount it via `CollectionsServiceExt::register`.
 
 use std::sync::Arc;
@@ -9,12 +9,9 @@ use std::sync::Arc;
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
 use ship_reactive::{ReactiveRegistry, ResolverSpec, WatchKey};
 use ship_substrate::events::EventFilter;
-use ship_substrate::ports::{KernelLog, SpaceContext};
+use ship_substrate::{KernelLog, SpaceContext};
 
-use ship_ops_rpc::{
-    CollectionDetail, CollectionList, CollectionsService as CollectionServiceTrait,
-    CollectionSummary, Deletion, Item, ItemPage, WatchEvent,
-};
+use ship_proto::ship::ops::v1::{CollectionDetail, CollectionList, CollectionSummary, CollectionsService as CollectionServiceTrait, Deletion, Item, ItemPage, WatchEvent};
 
 use crate::error::CollectionError;
 use crate::patch::{patch_frame_to_proto, snapshot_for_scope};
@@ -41,11 +38,7 @@ where
     /// the file-overlay schemas once and share ONE registry instance across the
     /// wire and the internal (trigger / view-authoring) service callers — a
     /// schema created over the wire must be visible to a trigger insert.
-    pub fn with_schemas(
-        kernel: Arc<KernelLog>,
-        schemas: Arc<SchemaRegistry>,
-        make_ctx: F,
-    ) -> Self {
+    pub fn with_schemas(kernel: Arc<KernelLog>, schemas: Arc<SchemaRegistry>, make_ctx: F) -> Self {
         Self {
             make_ctx,
             schemas,
@@ -73,10 +66,7 @@ fn item_to_proto(r: ItemRecord) -> Item {
     }
 }
 
-fn schema_to_detail(
-    schema: &crate::types::SchemaDoc,
-    item_count: usize,
-) -> CollectionDetail {
+fn schema_to_detail(schema: &crate::types::SchemaDoc, item_count: usize) -> CollectionDetail {
     let schema_json = serde_json::to_vec(schema).unwrap_or_default();
     CollectionDetail {
         id: schema.id.clone(),
@@ -89,14 +79,14 @@ fn schema_to_detail(
 // ── Trait implementation ──────────────────────────────────────────────────────
 
 #[allow(refining_impl_trait)]
-impl<F, > CollectionServiceTrait for CollectionWire<F>
+impl<F> CollectionServiceTrait for CollectionWire<F>
 where
     F: Fn(&RequestContext) -> Arc<SpaceContext> + Send + Sync + 'static,
 {
     async fn list(
         &self,
         ctx: RequestContext,
-        _request: ship_ops_rpc::OwnedEmptyView,
+        _request: ship_proto::ship::ops::v1::OwnedEmptyView,
     ) -> ServiceResult<CollectionList> {
         let svc = self.make_svc(&ctx);
         let schemas = svc.list();
@@ -116,24 +106,30 @@ where
                 ..Default::default()
             });
         }
-        Ok(Response::new(CollectionList { collections, ..Default::default() }))
+        Ok(Response::new(CollectionList {
+            collections,
+            ..Default::default()
+        }))
     }
 
     async fn get(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedGetReqView,
+        request: ship_proto::ship::ops::v1::OwnedGetReqView,
     ) -> ServiceResult<CollectionDetail> {
         let svc = self.make_svc(&ctx);
         let id = request.id;
-        let (schema, count) = svc.get(id).await.map_err(|e: CollectionError| ConnectError::from(e))?;
+        let (schema, count) = svc
+            .get(id)
+            .await
+            .map_err(|e: CollectionError| ConnectError::from(e))?;
         Ok(Response::new(schema_to_detail(&schema, count)))
     }
 
     async fn get_item(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedGetItemReqView,
+        request: ship_proto::ship::ops::v1::OwnedGetItemReqView,
     ) -> ServiceResult<Item> {
         let svc = self.make_svc(&ctx);
         let item = svc
@@ -146,24 +142,29 @@ where
     async fn query_items(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedQueryReqView,
+        request: ship_proto::ship::ops::v1::OwnedQueryReqView,
     ) -> ServiceResult<ItemPage> {
         let svc = self.make_svc(&ctx);
-        let cursor = if request.cursor.is_empty() { None } else { Some(request.cursor.to_string()) };
+        let cursor = if request.cursor.is_empty() {
+            None
+        } else {
+            Some(request.cursor.to_string())
+        };
         let limit = request.limit;
 
         let owned = request.to_owned_message();
         let (items, next_cursor) = match owned.query {
-            Some(ship_ops_rpc::__buffa::oneof::query_req::Query::NamedQuery(name)) => {
+            Some(ship_proto::ship::ops::v1::__buffa::oneof::query_req::Query::NamedQuery(name)) => {
                 return Err(CollectionError::NamedQueryNotFound(name).into());
             }
-            Some(ship_ops_rpc::__buffa::oneof::query_req::Query::InlineAst(ast_bytes)) => {
-                svc.query_items_ast(&ast_bytes, cursor, limit)
-                    .await
-                    .map_err(|e: CollectionError| ConnectError::from(e))?
-            }
+            Some(ship_proto::ship::ops::v1::__buffa::oneof::query_req::Query::InlineAst(ast_bytes)) => svc
+                .query_items_ast(&ast_bytes, cursor, limit)
+                .await
+                .map_err(|e: CollectionError| ConnectError::from(e))?,
             None => {
-                return Err(ConnectError::invalid_argument("query must be set (named_query or inline_ast)"));
+                return Err(ConnectError::invalid_argument(
+                    "query must be set (named_query or inline_ast)",
+                ));
             }
         };
 
@@ -178,7 +179,7 @@ where
     async fn create_item(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedCreateItemReqView,
+        request: ship_proto::ship::ops::v1::OwnedCreateItemReqView,
     ) -> ServiceResult<Item> {
         let svc = self.make_svc(&ctx);
         let item = svc
@@ -191,7 +192,7 @@ where
     async fn update_item(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedUpdateItemReqView,
+        request: ship_proto::ship::ops::v1::OwnedUpdateItemReqView,
     ) -> ServiceResult<Item> {
         let svc = self.make_svc(&ctx);
         let item = svc
@@ -204,7 +205,7 @@ where
     async fn delete_item(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedDeleteItemReqView,
+        request: ship_proto::ship::ops::v1::OwnedDeleteItemReqView,
     ) -> ServiceResult<Deletion> {
         let svc = self.make_svc(&ctx);
         svc.delete_item(request.collection, request.id)
@@ -219,7 +220,7 @@ where
     async fn create_schema(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedCreateSchemaReqView,
+        request: ship_proto::ship::ops::v1::OwnedCreateSchemaReqView,
     ) -> ServiceResult<CollectionDetail> {
         let svc = self.make_svc(&ctx);
         let doc = svc
@@ -232,7 +233,7 @@ where
     async fn update_schema(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedUpdateSchemaReqView,
+        request: ship_proto::ship::ops::v1::OwnedUpdateSchemaReqView,
     ) -> ServiceResult<CollectionDetail> {
         let svc = self.make_svc(&ctx);
         let id = request.id.to_string();
@@ -247,19 +248,19 @@ where
     async fn watch(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedWatchReqView,
+        request: ship_proto::ship::ops::v1::OwnedWatchReqView,
     ) -> ServiceResult<ServiceStream<WatchEvent>> {
         let space_id = self.make_svc(&ctx).ctx.space_id().to_string();
         let owned = request.to_owned_message();
 
         let scope = match owned.scope {
-            Some(ship_ops_rpc::__buffa::oneof::watch_req::Scope::Collections(_)) => {
+            Some(ship_proto::ship::ops::v1::__buffa::oneof::watch_req::Scope::Collections(_)) => {
                 "collections".to_string()
             }
-            Some(ship_ops_rpc::__buffa::oneof::watch_req::Scope::Collection(id)) => {
+            Some(ship_proto::ship::ops::v1::__buffa::oneof::watch_req::Scope::Collection(id)) => {
                 format!("collection:{id}")
             }
-            Some(ship_ops_rpc::__buffa::oneof::watch_req::Scope::Item(item_ref)) => {
+            Some(ship_proto::ship::ops::v1::__buffa::oneof::watch_req::Scope::Item(item_ref)) => {
                 format!("item:{}:{}", item_ref.collection, item_ref.id)
             }
             None => {
@@ -274,7 +275,11 @@ where
             h.finish()
         };
 
-        let key = WatchKey { space_id, scope: scope.clone(), query_hash };
+        let key = WatchKey {
+            space_id,
+            scope: scope.clone(),
+            query_hash,
+        };
 
         let ctx_arc = self.make_svc(&ctx).ctx.clone();
         let schemas = self.schemas.clone();
@@ -286,9 +291,7 @@ where
                 let ctx = ctx_arc.clone();
                 let schemas = schemas.clone();
                 let scope = scope_clone.clone();
-                Box::pin(async move {
-                    snapshot_for_scope(ctx, schemas, &scope).await
-                })
+                Box::pin(async move { snapshot_for_scope(ctx, schemas, &scope).await })
             }),
         };
 

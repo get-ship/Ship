@@ -6,7 +6,14 @@
 //! DB file to checkpoint, and the snapshot round-trip was never
 //! exercised in production. Actor restoration now reads from the shared
 //! event log on cold start.
-
+//!
+//! `handle_actor_crash` emits `actor.crashed` through the SHARED
+//! `apply_stamp_chokepoint` gate — the same stamp_author → enforce_scope
+//! → payload-schema sequence every other write path runs. The event
+//! payload uses the registered `ActorCrashed { error, restart_count }`
+//! shape, so the payload-schema validator accepts it. The crash
+//! binding is the daemon-internal one — crashes happen in the kernel's
+//! own runtime, not in a session.
 use anyhow::{Result, anyhow};
 
 use crate::events::kernel_router::{KernelRouter, flush_wal};
@@ -23,13 +30,37 @@ impl KernelRouter {
         // stop_actor removes the actor from inner's mailboxes and subscriptions.
         let _ = self.inner.stop_actor(actor_id);
 
-        let payload = serde_json::json!({
-            "actor_id": actor_id,
-            "reason": reason,
-        });
-        // Persist the lifecycle event through the projection bus (no mailbox
-        // delivery — the actor's mailbox is being torn down here).
-        self.inner.persist(&EventEnvelope::new("actor.crashed", actor_id, &payload)?)?;
+        // The shared chokepoint — stamp author identity, enforce scope,
+        // validate the payload against the registered ActorCrashed
+        // schema. A non-empty `reason` lands in the schema's `error`
+        // field; `restart_count` defaults to 0 because the kernel
+        // doesn't track it (the supervisor does, and emits a separate
+        // crash event with the real count).
+        let binding = ship_types::ScopeBinding::daemon_internal(None, agent_schema::Authority::Sdk);
+        let mut event = EventEnvelope::new(
+            "actor.crashed",
+            actor_id,
+            &serde_json::json!({
+                "error": reason,
+                "restart_count": 0u32,
+            }),
+        )?;
+        event.actor_id = Some(actor_id.to_string());
+        let ctx = crate::events::off_kernel_ctx(binding.clone());
+        let stamped = crate::events::apply_stamp_chokepoint_at(
+            &mut event,
+            &binding,
+            &ctx,
+            Some(self.base_dir()),
+        )
+        .map_err(|e| anyhow!("{e}"))?;
+
+        // Persist through the inner router — it routes via PartitionedSink
+        // (Runtime scope → runtime.db) and dispatches the projection bus,
+        // which is what updates the `actors` read model to `crashed`.
+        // The actor's mailbox is being torn down here, so mailbox
+        // delivery is suppressed by inner.persist (no subscribers).
+        self.inner.persist(&stamped)?;
 
         let db_path = self.actor_db_path(actor_id);
         if db_path.exists() {

@@ -10,8 +10,14 @@ impl McpIndexResponse {
     pub fn example() -> Self {
         McpIndexResponse {
             items: vec![
-                IndexEntry { id: "ship".to_string(), scope: ScopeTag::Project },
-                IndexEntry { id: "github".to_string(), scope: ScopeTag::User },
+                IndexEntry {
+                    id: "ship".to_string(),
+                    scope: ScopeTag::Project,
+                },
+                IndexEntry {
+                    id: "github".to_string(),
+                    scope: ScopeTag::User,
+                },
             ],
         }
     }
@@ -26,7 +32,7 @@ impl McpGetResponse {
                 "name": "ship",
                 "type": "stdio",
                 "command": "ship",
-                "args": ["mcp", "serve"],
+                "args": ["run", "server"],
             }),
         }
     }

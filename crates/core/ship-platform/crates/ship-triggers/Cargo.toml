@@ -6,9 +6,10 @@ publish = false
 description = "Reactive trigger engine — JSONC triggers that match Ship events and dispatch actions (L1). Carved from ship-platform/src/triggers."
 
 [dependencies]
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "03f917d5e51921754c1a6a12a4aa2beb56b4a405" }
 ship-substrate = { path = "../../../ship-substrate" }
+fs-watch = { path = "../../../ship-substrate/crates/fs-watch" }
 ship-types = { path = "../../../ship-substrate/crates/ship-types" }
-ship-config = { path = "../ship-config" }
 ship-collection = { path = "../ship-collection" }
 
 serde = { workspace = true }
@@ -21,14 +22,25 @@ cron = "0.12"
 chrono = { workspace = true }
 jsonschema = { version = "0.46", default-features = false }
 globset = "0.4"
+specta = { workspace = true, features = ["serde_json"], optional = true }
+
+[features]
+default = []
+specta = ["dep:specta"]
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "test-util"] }
 tempfile = { workspace = true }
 serde_json = { workspace = true }
 ship-substrate = { path = "../../../ship-substrate" }
+fs-watch = { path = "../../../ship-substrate/crates/fs-watch" }
 # hydrate_registry lives in ship-store; consumed only in integration tests.
 ship-store = { path = "../ship-store" }
+# skill.changed / rule.changed inventory rows live in ship-settings; tests that
+# convert declare-form triggers against the event registry need them linked.
+# Dev-only so the runtime graph stays free of ship-settings (cycle-break for
+# stack-model → ship-triggers).
+ship-settings = { path = "../ship-settings" }
 
 [lints]
 workspace = true

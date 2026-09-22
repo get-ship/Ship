@@ -133,7 +133,7 @@ fn build_entries(defs: Vec<HookDef>) -> Vec<CronEntry> {
     let mut entries = Vec::new();
     for def in defs {
         if let Some(TriggerSourceDef::Cron(cdef)) = &def.trigger.source {
-            match super::super::loader::normalize_and_parse_cron(&cdef.expression) {
+            match super::super::def::normalize_and_parse_cron(&cdef.expression) {
                 Ok(schedule) => entries.push(CronEntry::new(def, schedule)),
                 Err(e) => tracing::warn!(
                     hook = def.name,

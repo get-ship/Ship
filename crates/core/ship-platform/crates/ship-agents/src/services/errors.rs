@@ -109,7 +109,10 @@ mod tests {
 
     #[test]
     fn display_texts_carry_entity_noun_and_hint() {
-        assert_eq!(Error::NotFound("x".into()).to_string(), "widget `x` not found");
+        assert_eq!(
+            Error::NotFound("x".into()).to_string(),
+            "widget `x` not found"
+        );
         assert_eq!(
             Error::AlreadyExists("x".into()).to_string(),
             "widget `x` already exists"

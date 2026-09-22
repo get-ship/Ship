@@ -1,10 +1,9 @@
 //! L1 policy bits kept here after the `ship-auth-types` carve (P2).
 //!
-//! The pure types (`Scope`, `McpAuth`, `RequiredAuth`, `DaemonSession`,
-//! `SessionRegistry`, `PeerIdentity`, the role→scope tables, the
-//! session-token mint/parse, the operator/space-window constructors)
-//! live in `ship_auth_types`. This module re-exports them so existing
-//! `ship_platform::auth::scopes::Scope` import paths remain stable,
+//! The pure types (`DaemonSession`, `SessionRegistry`, `PeerIdentity`, the
+//! session-token mint/parse, the operator/space-window constructors) live in
+//! `ship_auth_types`. This module re-exports them so existing
+//! `ship_platform::auth::scopes::DaemonSession` import paths remain stable,
 //! and holds the L1 pieces that need the event store + projections:
 //!
 //! - `account_store` — the Account-scope sqlite event-store opener.
@@ -14,53 +13,60 @@
 //!   lifecycle events.
 //! - `hydrate_sessions` — read `crate::projection::list_active_sessions`
 //!   and seed the in-memory registry.
-//! - `resolve_grants` / `resolve_grants_at` / `resolve_from` — read
-//!   `crate::services::permissions::projection` to compute the effective
-//!   grant set for an agent, falling back to the role baseline.
+//! - `resolve_grants` / `resolve_grants_at` / `resolve_from` — read the
+//!   provisioned-grants projection to compute an agent's grant set.
 
 
 // Stable surface re-exports — every prior `ship_platform::auth::scopes::Foo`
 // import path continues to resolve through this module.
 pub use ship_auth_types::{
-    session_registry, DaemonSession, McpAuth, RequiredAuth, Scope, SessionRegistry, drop_session,
-    generate_session_token, grants_for_role, hex_encode, is_session_token, mint_session, operator_session,
-    scopes_for_role, set_session_registry, space_window_session, space_window_scopes,
+    DaemonSession, SessionRegistry, drop_session, generate_session_token, hex_encode,
+    is_session_token, mint_session, operator_session, space_window_session,
 };
+
+/// Auth-domain projections that must ride the Account-scope bus for
+/// off-kernel emits (`auth.session.*`, `daemon.owner.*`, `agent.grants.*`).
+/// Domain-local DI: the AUTH crate owns these projections and registers them
+/// on the store it opens — no process-global factory.
+fn auth_account_projections() -> Vec<Box<dyn ship_substrate::projections::Projection>> {
+    vec![
+        Box::new(crate::projection::AuthSessionsProjection),
+        Box::new(crate::projection::DaemonOwnerProjection),
+        Box::new(crate::grants_projection::ProvisionedGrantsProjection),
+    ]
+}
 
 /// Open the Account-scope `account.db` for off-kernel auth/owner emits.
 ///
 /// `auth.session.*` and `daemon.owner.*` are Account-owned → they land in
 /// account.db, the db the `auth_sessions` / `daemon_owner` projections read.
+/// The store bus carries the AUTH projections this domain owns so same-TX
+/// folds land without ambient process state.
 pub fn account_store(
 ) -> anyhow::Result<ship_substrate::persistence::event_store::SqliteEventStore> {
-    ship_substrate::persistence::event_store::SqliteEventStore::new_for_scope(
+    ship_substrate::persistence::event_store::SqliteEventStore::new_for_scope_with(
         &ship_substrate::project::get_global_dir()?,
         ship_types::event_registry::EventScope::Account,
         None,
+        auth_account_projections(),
     )
 }
 
 /// The grants the mint path stamps onto a new session for `agent_id`.
 ///
 /// The per-agent **provisioned baseline** (operator-approved, seeded at install
-/// from the agent's resolved skill grants) is the source of truth. When no
-/// baseline has been recorded yet, fall back to the role-derived grants — this
-/// keeps un-provisioned agents (and dev-mode pairs) working exactly as before.
-/// The provisioned record, once present, fully replaces the role default.
-pub fn resolve_grants(agent_id: &str, role: Option<&str>) -> Vec<String> {
-    resolve_from(crate::grants_projection::provisioned_grants_for(agent_id), agent_id, role)
+/// from the agent's resolved skill grants) is the sole source. An agent with no
+/// provisioned record carries no elevated grants (the C0/C1 baseline is implicit
+/// at the gate).
+pub fn resolve_grants(agent_id: &str) -> Vec<String> {
+    resolve_from(crate::grants_projection::provisioned_grants_for(agent_id), agent_id)
 }
 
 /// Test/`_at` variant of [`resolve_grants`] against a specific home dir.
-pub fn resolve_grants_at(
-    home: &std::path::Path,
-    agent_id: &str,
-    role: Option<&str>,
-) -> Vec<String> {
+pub fn resolve_grants_at(home: &std::path::Path, agent_id: &str) -> Vec<String> {
     resolve_from(
         crate::grants_projection::provisioned_grants_for_at(home, agent_id),
         agent_id,
-        role,
     )
 }
 
@@ -89,22 +95,19 @@ pub fn provision_grants(
         &payload,
     )?;
     let store = account_store()?;
-    ship_substrate::persistence::event_store::EventStore::append(&store, &envelope)?;
+    store.append_enforced(&envelope, &ship_types::ScopeBinding::daemon_sdk())?;
     Ok(())
 }
 
-/// Compose a provisioned-lookup result with the role fallback.
-fn resolve_from(
-    lookup: anyhow::Result<Option<Vec<String>>>,
-    agent_id: &str,
-    role: Option<&str>,
-) -> Vec<String> {
+/// Resolve a provisioned-lookup result to the agent's grant set. No record
+/// means no elevated grants (the C0/C1 baseline is implicit at the gate).
+fn resolve_from(lookup: anyhow::Result<Option<Vec<String>>>, agent_id: &str) -> Vec<String> {
     match lookup {
         Ok(Some(grants)) => grants,
-        Ok(None) => grants_for_role(role),
+        Ok(None) => Vec::new(),
         Err(e) => {
-            // Fail closed-ish: a projection read error must not silently grant
-            // the role baseline's restricted domains. Log and deny extras.
+            // Fail closed: a projection read error must not silently grant
+            // restricted domains. Log and deny extras.
             tracing::warn!(
                 agent_id,
                 "resolve_grants: provisioned read failed ({e}); denying restricted grants"
@@ -129,20 +132,11 @@ pub fn persist_session(session: &DaemonSession) {
     };
     let created_unix = now_unix()
         .saturating_sub(session.created_at.elapsed().as_secs() as i64);
-    let scopes_json = match serde_json::to_string(&session.scopes) {
-        Ok(s) => s,
-        Err(e) => {
-            tracing::warn!("session persist: scopes serialize failed: {e}");
-            return;
-        }
-    };
     let payload = ship_substrate::events::types::AuthSessionCreated {
         agent_id: session.agent_id.clone(),
-        scopes_json,
         // The session's OWN resolved space (or None) — never a fabricated
         // home/global space (#3: the global pseudo-space is gone). A space-window
         // session carries its space; operator/daemon-token sessions key None.
-        // Not the branch-slug workspace_id.
         space_id: session.space_id.clone(),
         created_at_unix: created_unix,
         expires_at_unix,
@@ -166,7 +160,7 @@ pub fn persist_session(session: &DaemonSession) {
             return;
         }
     };
-    if let Err(e) = ship_substrate::persistence::event_store::EventStore::append(&store, &envelope) {
+    if let Err(e) = store.append_enforced(&envelope, &ship_types::ScopeBinding::daemon_sdk()) {
         tracing::warn!("session persist: append failed: {e}");
     }
 }
@@ -194,7 +188,7 @@ pub fn remove_persisted_session(token: &str) {
             return;
         }
     };
-    if let Err(e) = ship_substrate::persistence::event_store::EventStore::append(&store, &envelope) {
+    if let Err(e) = store.append_enforced(&envelope, &ship_types::ScopeBinding::daemon_sdk()) {
         tracing::warn!("session revoke: append failed: {e}");
     }
 }
@@ -212,20 +206,15 @@ pub async fn hydrate_sessions(registry: &SessionRegistry) {
     let mut reg = registry.lock().await;
     let mut loaded = 0usize;
     for row in rows {
-        let scopes: Vec<Scope> =
-            serde_json::from_str(&row.scopes_json).unwrap_or_default();
         let session = DaemonSession {
             token: row.token.clone(),
             agent_id: row.agent_id,
-            scopes,
             // Persisted sessions are operator/paired (is_operator clears grants);
             // restricted grants aren't persisted — re-minted on register.
             grants: vec![],
-            // The persisted `auth_sessions.space_id` carries the SPACE id (see
-            // `persist_session`), not a branch slug — restore it into the explicit
-            // `space_id` field, which is what the emit path reads. `workspace_id`
-            // (the branch slug) is not persisted on sessions.
-            workspace_id: None,
+            // The persisted `auth_sessions.space_id` carries the SPACE id
+            // (see `persist_session`), not a branch slug — restore it into
+            // the explicit `space_id` field, which is what the emit path reads.
             space_id: row.space_id,
             // Hydrated (persisted) sessions are operator/paired, not pid-bound.
             // Window tokens are ephemeral and never persisted, so a restored
@@ -252,17 +241,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn resolve_grants_falls_back_to_role_when_unprovisioned() {
+    fn resolve_grants_empty_when_unprovisioned() {
         let tmp = tempfile::tempdir().unwrap();
-        // No provisioned record → role baseline applies (migration-safe).
-        let grants = resolve_grants_at(tmp.path(), "fresh-agent", Some("commander"));
-        assert_eq!(grants, vec!["agents".to_string()]);
-        // A worker with no record gets no elevated services (C1 baseline only).
-        assert!(resolve_grants_at(tmp.path(), "w", Some("worker")).is_empty());
+        // No provisioned record → no elevated grants (C0/C1 baseline is implicit).
+        assert!(resolve_grants_at(tmp.path(), "fresh-agent").is_empty());
     }
 
     #[test]
-    fn resolve_grants_provisioned_record_overrides_role() {
+    fn resolve_grants_returns_provisioned_record() {
         use crate::grants_projection::ProvisionedGrantsProjection;
         use ship_substrate::events::EventEnvelope;
         use ship_substrate::projections::registry::Projection;
@@ -271,7 +257,7 @@ mod tests {
         // provisioned_grants (Account-scoped) lives in account.db, where
         // resolve_grants_at → provisioned_grants_for_at reads it.
         let mut conn = ship_substrate::db::open_account_db(tmp.path()).unwrap();
-        // Operator provisions a *narrower* set than the commander role default.
+        // Operator provisions an explicit elevated set for the agent.
         let ev = EventEnvelope::new(
             ship_types::event_types::AGENT_GRANTS_PROVISIONED,
             "pinned",
@@ -280,8 +266,8 @@ mod tests {
         .unwrap();
         ProvisionedGrantsProjection.apply(&ev, &mut conn).unwrap();
 
-        // Role says commander (→ `agent`), but the provisioned set wins.
-        let grants = resolve_grants_at(tmp.path(), "pinned", Some("commander"));
+        // The provisioned set is the agent's grants.
+        let grants = resolve_grants_at(tmp.path(), "pinned");
         assert_eq!(grants, vec!["agents".to_string()]);
     }
 }

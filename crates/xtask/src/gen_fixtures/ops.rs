@@ -22,7 +22,7 @@ fn check<T: serde::de::DeserializeOwned>(v: &Value) -> Result<()> {
 /// simple name (`MethodPolicy.output_type`). A new method reusing an existing
 /// type is covered automatically; only a new RESPONSE TYPE needs an entry here.
 fn type_validators() -> BTreeMap<&'static str, fn(&Value) -> Result<()>> {
-    use ship_ops_rpc::*;
+    use ship_proto::ship::ops::v1::*;
     macro_rules! v {
         ($t:ty) => {
             (stringify!($t), check::<$t> as fn(&Value) -> Result<()>)
@@ -33,14 +33,19 @@ fn type_validators() -> BTreeMap<&'static str, fn(&Value) -> Result<()>> {
         v!(CollectionList), v!(CollectionDetail), v!(ItemPage), v!(Item), v!(WatchEvent),
         v!(SearchResponse),
         v!(AgentIndexResponse), v!(AgentsSummariesResponse), v!(AgentDetail),
-        v!(AgentTemplatesResponse), v!(PermissionPresetsResponse), v!(HarnessesResponse),
-        // S4: the four structured reads + the opaque-doc read.
+        v!(AgentTemplatesResponse), v!(PermissionPresetsResponse),
+        // HarnessesResponse moved to ship.code.v1.ListHarnessesResponse
+        // (mount split 2026-07-10) — the internal HarnessService still
+        // exists, but its typed shape lives in
+        // ship.internal.v1.HarnessService; the code.v1 surface exposes
+        // its own ListHarnessesResponse with `items: repeated string`.
         v!(AgentCatalogsResponse), v!(AgentWireResponse), v!(AgentSettingsResponse), v!(AgentDoc),
         // S4: the four typed control results.
         v!(DispatchResult), v!(StopResult), v!(SteerResult), v!(GrantResult),
         v!(AnalyticsSessionsResponse), v!(AnalyticsSessionResponse),
+        v!(StackRegistration), v!(StackList),
         v!(AnalyticsToolUsageResponse), v!(AnalyticsSessionTurnsResponse),
-        v!(ArtifactsListResponse), v!(ArtifactRecord),
+        v!(ArtifactsListResponse), v!(ArtifactRecord), v!(ArtifactBlobResponse),
         v!(CollectionItem),
         v!(EventsListResponse),
         v!(StatusBuckets), v!(GitLogResponse), v!(GitBranchesResponse),
@@ -48,17 +53,20 @@ fn type_validators() -> BTreeMap<&'static str, fn(&Value) -> Result<()>> {
         v!(McpIndexResponse), v!(MetaResponse),
         v!(PermissionsIndexResponse), v!(GetPermissionResponse), v!(ToolPatternsResponse),
         v!(PipelinesIndexResponse),
-        // pipelines.* typed run-level reads (P0.3) + typed control results.
-        v!(PipelineRunSummariesResponse), v!(PipelineRunDetailResponse),
-        v!(PipelineRunHistoryResponse), v!(ListPipelineRunsResponse),
-        v!(CancelRunResult), v!(ResolveStepResult),
+        // engine cut 2026-07-10: pipelines.* typed run-level reads retired
+        // (Summaries / Run / History / ListRuns / Cancel / ResolveStep);
+        // the proto's PipelinesService now exposes List/Get/Put/Patch/Delete
+        // only. PipelinesIndexResponse (List) remains.
         v!(WorkspaceActiveResponse), v!(ProjectRecord),
         v!(RulesIndexResponse), v!(RuleGetResponse),
         v!(ListProcsResponse), v!(SessionsListResponse), v!(SettingValue),
         v!(SkillsIndexResponse), v!(SkillFileResponse),
         // space.* (clean SpaceService — ship-space crate): typed identity +
-        v!(Space), v!(SpaceList), v!(ActiveSpace), v!(SpaceInfo),
-        // settings.* (unified, scope-discriminated SettingsService — ship-config
+        // membership + install-lifecycle + snapshot results.
+        v!(Space), v!(SpaceList), v!(SpaceInfo),
+        v!(UnregisterStackResult), v!(InstallStackResult), v!(InstalledList),
+        v!(SpaceSnapshotResult),
+        // settings.* (unified, scope-discriminated SettingsService — ship-settings
         // crate): the settings keystone. Replaces the retired ConfigService.
         v!(Setting), v!(SettingList),
         // account.* (typed AccountService — ship-account crate): Ship Cloud
@@ -70,9 +78,8 @@ fn type_validators() -> BTreeMap<&'static str, fn(&Value) -> Result<()>> {
         // decodes the oneof arm's payload via buffa's generated serde impl.
         v!(IsolationStatusResponse), v!(IsolationRecommendationsResponse),
         v!(IsolationPreviewResponse), v!(IsolationVerifyResponse),
-        // Scaffold + feedback/annotation typed results (proto-added; fixtures backfilled).
+        // Scaffold typed results (proto-added; fixtures backfilled).
         v!(SkillScaffoldResponse), v!(ViewScaffoldResponse),
-        v!(PostFeedbackResponse), v!(PostAnnotationResponse),
         // UI discovery reads + terminal session/stop typed results
         // (proto-added; fixtures backfilled on this branch).
         v!(UiQueryResponse), v!(UiReadResponse),
@@ -232,11 +239,12 @@ mod tests {
     use super::*;
 
     fn theme_responses() -> serde_json::Map<String, Value> {
-        let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-        let theme: Value = serde_json::from_slice(
-            &std::fs::read(root.join("proto/fixtures/fixture-seed.json")).unwrap(),
-        )
-        .unwrap();
+        // PROTO_ROOT is baked by this crate's build.rs from the ship-proto dep
+        // metadata; the fixture-seed SSOT lives under the proto checkout, not
+        // this repo.
+        let seed = std::path::Path::new(env!("PROTO_ROOT")).join("fixtures/fixture-seed.json");
+        let theme: Value =
+            serde_json::from_slice(&std::fs::read(&seed).unwrap()).unwrap();
         theme.get("responses").and_then(Value::as_object).unwrap().clone()
     }
 

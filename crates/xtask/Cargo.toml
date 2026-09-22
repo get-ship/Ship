@@ -10,25 +10,26 @@ name = "xtask"
 path = "src/main.rs"
 
 [dependencies]
-compiler = { path = "../core/compiler", features = ["specta"] }
+stack-model = { path = "../core/stack-model", features = ["specta"] }
 ship-substrate = { path = "../core/ship-substrate" }
-# Collection schema parser SSOT — gen-collection-types reuses SchemaDoc/FieldKind
-# so the codegen never re-implements schema parsing.
-ship-collection = { path = "../core/ship-platform/crates/ship-collection" }
 # Account value types (AccountState / MeView) for the deck SDK TS codegen.
 ship-account = { path = "../core/ship-platform/crates/ship-account", features = ["specta"] }
 ship-platform = { path = "../core/ship-platform", features = ["specta"] }
 ship-agents = { path = "../core/ship-platform/crates/ship-agents" }
 ship-ui = { path = "../core/ship-platform/crates/ship-ui" }
-ship-pipeline-runtime = { path = "../ship-pipeline-runtime", features = ["specta"] }
+pipeline-defs = { path = "../core/ship-substrate/crates/pipeline-defs" }
 # Event envelope type for the cloud-side TS surface (build_cloud_types).
 ship-types = { path = "../core/ship-substrate/crates/ship-types", features = ["specta"] }
-# `deck` is a thin re-export facade in the external sui repo post-carve.
-deck = { path = "/home/madvib/dev/sui/crates/deck/deck", features = ["specta"] }
+# `deck` is a thin re-export facade in the external sail repo (post-carve).
+deck = { git = "https://github.com/get-ship/sail.git", branch = "feat/next", features = ["specta"] }
 # `shipd` is in apps/, not crates/ — used for fixtures only.
 shipd = { path = "../../apps/shipd", features = ["specta"] }
 # validate fixtures against the wire SSOT.
 ship-ops-rpc = { path = "../core/ship-ops-rpc" }
+# Direct dep so build.rs reads `DEP_SHIP_PROTO_PROTO_DIR` (ship-proto's
+# `links` metadata) and bakes PROTO_ROOT — the proto/fixtures SSOT lives in
+# ship-contracts, not this repo, and travels with this dep.
+ship-proto = { git = "https://github.com/get-ship/ship-contracts.git", branch = "feat/next" }
 specta = { workspace = true, features = ["chrono", "serde_json"] }
 specta-typescript = "0.0.9"
 serde = { workspace = true }
@@ -36,6 +37,13 @@ serde_json = { workspace = true }
 regex = { workspace = true }
 anyhow = { workspace = true }
 chrono = { workspace = true }
+# gen-eval-stub: reads @ship/stack's noun shapes (TS) to regenerate
+# agent-config-eval's SDK stub. Same oxc version agent-config-eval already
+# pins for its type-strip; here used to walk the AST instead of codegen.
+oxc_allocator = "0.133"
+oxc_ast = "0.133"
+oxc_parser = "0.133"
+oxc_span = "0.133"
 
 [features]
 # Compile the `example()` fixture constructors into ship-platform so

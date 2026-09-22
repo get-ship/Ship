@@ -16,50 +16,46 @@ use tokio_util::sync::CancellationToken;
 use crate::{auth, router, ship_runtime};
 
 /// Start the network daemon and block until shutdown (SIGINT/SIGTERM).
-///
-/// `dev` enables relaxed auth for local development (auto-pair, localhost-only).
-/// Never set `dev = true` in production.
+/// `unsafe_skip_auth` enables the token-less loopback auth bypass for
+/// contributor development (localhost-only). Never set `unsafe_skip_auth = true`
+/// in production; the bypass itself is compiled out of release builds.
 ///
 /// `daemon_mode` controls cache headers, HMR route availability, and SSR cache
 /// behavior. Default is `Development`, which preserves all existing behaviour.
 ///
 /// `port = None` means "auto-derive": pick the port via
-/// `ship_substrate::home::worktree_port_for(project_root)`, which honors
-/// `~/.ship/machine/local.jsonc:worktrees.ports[<branch>]` pins and
-/// otherwise hashes the project root into `9315 + N % 100`. If the
-/// derived port is busy, increments up to 10 times before giving up.
-/// Outside any project, the default falls back to 9315.
+/// `ship_substrate::home::worktree_port_for(project_root)`, which hashes
+/// the project root into `9315 + N % 100`. If the derived port is busy,
+/// increments up to 10 times before giving up. Outside any project, the
+/// default falls back to 9315.
 pub async fn run_network(
     host: String,
     port: Option<u16>,
-    dev: bool,
+    unsafe_skip_auth: bool,
     workspace_dir: Option<std::path::PathBuf>,
     daemon_mode: deck::DaemonMode,
     apps_config_override: Option<std::path::PathBuf>,
     // Base dir for the `AppSource` resolver. `None` ⇒ the project root
-    // (the workspace dir or `.`); in dev typically the ship-apps
-    // workspace so the resolver finds `<ship-apps>/node_modules/`.
+    // (the workspace dir or `.`); in dev the ship workspace root so the
+    // resolver finds `<ship>/node_modules/` (j-12: hub/spaces in-repo).
     // Override per launch via `--apps-base-dir` or `SHIP_APPS_BASE_DIR`.
     apps_base_dir_override: Option<std::path::PathBuf>,
 ) -> Result<()> {
-    if dev {
+    if unsafe_skip_auth {
+        tracing::warn!("╔══════════════════════════════════════════════════════════════════╗");
         tracing::warn!(
-            "╔══════════════════════════════════════════════════════════════════╗"
+            "║  SHIPD --unsafe-skip-auth — AUTH RELAXED: loopback callers need no token ║"
         );
-        tracing::warn!(
-            "║  SHIPD DEV MODE — auth relaxed, browser clients auto-pair        ║"
-        );
-        tracing::warn!(
-            "║  Listening on localhost only. NOT FOR PRODUCTION.                ║"
-        );
-        tracing::warn!(
-            "╚══════════════════════════════════════════════════════════════════╝"
-        );
+        tracing::warn!("║  Localhost only. Contributor use ONLY. NEVER in production.       ║");
     }
-    // Dev mode forces localhost bind. Agents can set SHIP_HOST env vars,
-    // but they can't flip the --dev flag on the daemon process they didn't start.
-    let host = if dev { "127.0.0.1".to_string() } else { host };
-    auth::pairing::set_dev_mode(dev);
+    // The bypass forces a localhost bind. Agents can set SHIP_HOST env vars, but
+    // they can't flip the --unsafe-skip-auth flag on the daemon they didn't start.
+    let host = if unsafe_skip_auth {
+        "127.0.0.1".to_string()
+    } else {
+        host
+    };
+    crate::auth::unsafe_skip_auth::set_unsafe_skip_auth_mode(unsafe_skip_auth);
     let global_dir = ship_substrate::project::get_global_dir()?;
     let init_started_at = std::time::Instant::now();
 
@@ -70,7 +66,9 @@ pub async fn run_network(
     // worktree's own root (not the redirected main project root) is what
     // lets each linked worktree run its own daemon without trampling the
     // others' IPC handshakes.
-    let project_probe = workspace_dir.clone().or_else(|| std::env::current_dir().ok());
+    let project_probe = workspace_dir
+        .clone()
+        .or_else(|| std::env::current_dir().ok());
     let project_root = project_probe
         .as_ref()
         .and_then(|p| ship_substrate::home::ProjectRoot::discover(p));
@@ -78,7 +76,7 @@ pub async fn run_network(
         .as_ref()
         .and_then(|p| ship_substrate::home::worktree_root_for(p))
         .or_else(|| project_root.as_ref().map(|r| r.path().to_path_buf()));
-    let home = ship_substrate::ShipHome::at(global_dir.clone());
+    let home = ship_substrate::ShipHome::from_env();
     let daemon_dir = match worktree_root.as_ref() {
         Some(root) => home.worktree_daemon_dir(&ship_substrate::home::path_hash(root)),
         None => home.daemon_dir(),
@@ -105,19 +103,18 @@ pub async fn run_network(
             );
         }
     }
-    crate::ship_runtime::init::identity_files::cleanup_stale_daemon_files(&daemon_dir).map_err(|e| {
-        eprintln!("\nshipd startup aborted: {e}\n");
-        e
-    })?;
+    crate::ship_runtime::init::identity_files::cleanup_stale_daemon_files(&daemon_dir).map_err(
+        |e| {
+            eprintln!("\nshipd startup aborted: {e}\n");
+            e
+        },
+    )?;
     if let Some(ref w) = workspace_dir {
         tracing::info!(workspace = %w.display(), daemon_dir = %daemon_dir.display(), "shipd: project-scoped mode");
-        // Make `--workspace` authoritative for the SUI resolver chain.
-        // deck-core's resolver consults an in-process global set by
-        // `deck::resolver::set_project_root` (the SAFE path) — see the
-        // call below. The `Var::DevProjectDir` env var is kept for
-        // non-deck readers (apps/shipd/src/views/discovery.rs, ship-agents
-        // view_state.rs) that still key off it; deck-core no longer
-        // reads it.
+        // Make `--workspace` authoritative for non-deck readers via
+        // `Var::DevProjectDir` (apps/shipd/src/views/discovery.rs,
+        // ship-agents view_state.rs). Deck itself uses mount-scoped
+        // `Resolution` on the router, not process env.
         //
         // Leave any pre-existing value alone — callers that need a
         // different SUI resolver root than the daemon workspace
@@ -131,26 +128,21 @@ pub async fn run_network(
         use ship_substrate::env::{self, Var};
         if env::read(Var::DevProjectDir).is_none() {
             // SAFETY: pre-async-runtime, no concurrent env access.
-            unsafe { env::set(Var::DevProjectDir, w); }
+            unsafe {
+                env::set(Var::DevProjectDir, w);
+            }
         }
-        // Authoritative project-root override for deck-core's resolver. Same
-        // value the router reads at DeckConfig::load time (router.rs's
-        // `rt.workspace_dir()`/cwd fallback) so the resolver and the
-        // bundler agree on where `<root>/.deck` lives. Non-deck readers
-        // (apps/shipd/src/views/discovery.rs, ship-agents view_state.rs)
-        // still rely on the env var above.
-        let repo_root = Some(w.clone()).or_else(|| std::env::current_dir().ok());
-        if let Some(r) = repo_root {
-            deck::resolver::set_project_root(r);
-        }
-     } else {
-         tracing::info!(daemon_dir = %daemon_dir.display(), "shipd: global-only mode (no --workspace given)");
-     }
+        // Project root for deck is carried as `Extension<Arc<Resolution>>`
+        // on the router (mount-scoped; no process global). Built below once
+        // apps are resolved. Non-deck readers still use DevProjectDir above.
+    } else {
+        tracing::info!(daemon_dir = %daemon_dir.display(), "shipd: global-only mode (no --workspace given)");
+    }
 
     // Resolve the desired port. Caller-supplied --port wins; otherwise we
-    // derive from the worktree root (path-hash + local.jsonc:worktrees.ports
-    // pin, see ship_substrate::home::worktree_port_for). Using the worktree
-    // root rather than the redirected main project root means each linked
+    // derive from the worktree root (path-hash, see
+    // ship_substrate::home::worktree_port_for). Using the worktree root
+    // rather than the redirected main project root means each linked
     // worktree gets its own derived port slot. Outside any project, use the
     // historical default.
     let desired_port = port.unwrap_or_else(|| match worktree_root.as_ref() {
@@ -161,13 +153,22 @@ pub async fn run_network(
         global_dir: global_dir.clone(),
         workspace_dir: workspace_dir.clone(),
     };
-    let config = ship_runtime::RuntimeConfig { host: host.clone(), port: desired_port, ..Default::default() };
+    let config = ship_runtime::RuntimeConfig {
+        host: host.clone(),
+        port: desired_port,
+        ..Default::default()
+    };
     let runtime = ship_runtime::ShipRuntime::new(meta, config).await?;
     // The MeshService was the in-shipd mesh.* op surface; it was killed
     // along with the REST routes and `ship mesh broadcast` CLI. Real
     // inter-agent messaging is now native via the kernel's directed-event
     // delivery (`EventEnvelope.target_actor_id`).
     let rt = Arc::new(runtime);
+
+    // Boot-time crash response: detect (from the log's own shape, before this
+    // boot's own daemon.startup_completed lands) whether the prior run ended
+    // without a clean shutdown, and emit daemon.crash_detected if so.
+    super::lifecycle::detect_prior_crash(&rt, &global_dir).await;
 
     // Floki dispatch closure + agent-sessions actor (full orchestrator with
     // ship-code, floki-only without) — see `super::lifecycle::start_agent_stack`.
@@ -182,17 +183,22 @@ pub async fn run_network(
     // Per-sandbox backend teardown folds in once SandboxOwner moves
     // from per-actor to per-sandbox.
     rt.start_sandbox_reaper();
-    super::lifecycle::spawn_human_gateway(rt.kernel()).await;
+    // Event-retention sweep: trims Windowed-type event rows past their TTL
+    // (boot-time pass, then periodic).
+    rt.start_retention_sweep();
+    // (Engine cut 2026-07-10: `spawn_human_gateway` retired with the
+    // engine. The `HumanGatewayService` listened for `pipeline.run.blocked`
+    // (now deregistered); the spec's "not assumed a drop-in" rule means
+    // code-mode will own its own channel + drain when it lands.)
     rt.start_hook_engine().await;
     rt.start_config_watcher();
     // Live agent-def index (agents arc S5): build the read-only index from the
     // def files at boot, then keep it live on `agent.def.updated`. Shares the
     // gated-write NOTIFY's `KernelLog` so op-writes re-index deterministically.
     rt.start_agent_def_index().await;
-    // Typed pipeline `Watch` (pipelines P0.4): stand up the reactive registry +
-    // the bridge that taps the orchestrator's pipeline.* / session.* router
-    // events into the Watch log so run/step update streams wake.
-    rt.start_pipeline_reactive().await;
+    // (Engine cut 2026-07-10: pipeline `Watch` registry retired with the
+    // orchestrator. The reactive registry + bridge are gone; the only
+    // remaining reactive surface is the agent `Watch` above.)
     // leak-193 diagnostics (SHIP_LEAK_DIAG=1) — see `super::lifecycle::spawn_leak_diag`.
     super::lifecycle::spawn_leak_diag(&rt);
 
@@ -209,39 +215,7 @@ pub async fn run_network(
             }
         })
     };
-    // Register the launch-time project (if any) into the space registry so the
-    // launcher / shell sees it on first list. Idempotent — ship-space emits
-    // `project.seen` if already known.
-    //
-    // A discoverable project root IS the active space; the daemon has no separate
-    // "home space" to stamp into a process-global (S2 home-space kill). The active
-    // space is resolved per-request / at boot from the probe path via
-    // `ship_substrate::project::resolve_active_space`. With no discoverable
-    // project the daemon boots space-less. See spec
-    // `.artifacts/specs/space/116-event-partition.md`.
-    //
-    // The unified registry is event-only: it folds the `project.registered`
-    // event into the kernel's `projects` SQL projection inside the same
-    // transaction, so no DataStore argument is needed (the optionB-era
-    // store-aware path was retired with the projection layer cutover).
-    if let Some(root) = project_root.as_ref() {
-        use ship_substrate::ports::KernelLog;
-        let kernel = std::sync::Arc::new(KernelLog::new(rt.kernel().clone()));
-        let canonical = std::fs::canonicalize(root.path()).unwrap_or_else(|_| root.path().to_path_buf());
-        if let Err(e) = ship_space::registry::add(&kernel, &canonical, None).await {
-            tracing::warn!(path = %root.path().display(), "failed to register project on startup: {e}");
-        }
-    }
 
-    let token = match auth::read_token(&daemon_dir) {
-        Ok(existing) if !existing.is_empty() => Arc::new(existing),
-        _ => {
-            let new_token = auth::generate_token()
-                .map_err(|e| anyhow!("failed to generate daemon token: {e}"))?;
-            auth::write_token_file(&daemon_dir, &new_token).map_err(|e| anyhow!("write daemon.token: {e}"))?;
-            Arc::new(new_token)
-        }
-    };
     crate::ship_runtime::init::identity_files::write_pid_file(&daemon_dir)?;
     // Record the *worktree* this daemon serves, not the main-checkout
     // root we'd get from ProjectRoot::discover's redirect. `just status`
@@ -252,11 +226,17 @@ pub async fn run_network(
     } else if let Some(root) = project_root.as_ref() {
         crate::ship_runtime::init::identity_files::write_workspace_file(&daemon_dir, root.path())?;
     }
-    crate::ship_runtime::init::identity_files::write_sha_file(&daemon_dir, build_info::build_info!().git_sha)?;
+    crate::ship_runtime::init::identity_files::write_sha_file(
+        &daemon_dir,
+        build_info::build_info!().git_sha,
+    )?;
 
     let ct = CancellationToken::new();
     let ct2 = ct.clone();
-    tokio::spawn(async move { super::shutdown_signal().await; ct2.cancel(); });
+    tokio::spawn(async move {
+        super::shutdown_signal().await;
+        ct2.cancel();
+    });
     // Hand the runtime a CHILD of the signal token (#256) so long-lived SSE
     // keepalive/data loops can `select!` against cancellation. When the signal
     // handler above cancels `ct`, the child fires and those streams close —
@@ -265,18 +245,14 @@ pub async fn run_network(
     rt.set_shutdown_token(ct.child_token());
 
     let session_registry = rt.session_registry().clone();
-    // Install the process-wide registry handle so the host-side spawn path
-    // (supervisor) can mint per-process tokens for sandboxed actors without
-    // threading a registry through the event→orchestrator→executor chain.
-    ship_auth::scopes::set_session_registry(session_registry.clone());
     // Install the daemon's reachable origin so the spawn path can inject
     // SHIP_DAEMON_URL into sandboxed actors (rewritten to a
-    // container-reachable host for Tier 2+). Same boot-install pattern as
-    // the session registry above.
-    ship_platform::isolation::set_daemon_origin(rt.daemon_origin());
+    // container-reachable host for Tier 2+).
+    ship_isolation::decision::set_daemon_origin(rt.daemon_origin());
     // Hydrate any persisted paired sessions from a previous daemon lifetime.
-    // Dev mode starts fresh — don't carry prior sessions across dev restarts.
-    if !dev {
+    // The unsafe-skip-auth bypass starts fresh — don't carry prior sessions
+    // across restarts.
+    if !unsafe_skip_auth {
         auth::hydrate_sessions(&session_registry).await;
     }
     // Background sweep — evict expired sessions from the in-memory
@@ -284,7 +260,6 @@ pub async fn run_network(
     // The HTTP lookup path already filters expired rows; this is the
     // audit-event source.
     auth::spawn_session_sweeper(session_registry.clone());
-    let pairing_registry = auth::pairing::new_shared();
     let attestation_verifier = auth::attest::AttestationVerifier::new();
     // Enumerate the apps via shipd's app-registration port impl. `apps.jsonc`
     // is the Ship-monorepo orchestration list ("which apps ship, where each
@@ -295,13 +270,16 @@ pub async fn run_network(
     // `deck.jsonc` into an `AppServeConfig`.
     //
     // Default: `<worktree>/apps/shipd/apps.jsonc`. Default base dir: the
-    // worktree root (when apps live alongside `apps/shipd/`) or, in dev,
-    // the ship-apps workspace when `SHIP_APPS_BASE_DIR` / `--apps-base-dir`
-    // points there. The dev `start.sh` script sets the env var so the
-    // resolver finds `<ship-apps>/node_modules/@ship/hub` etc.
+    // worktree root (hub/spaces live under `apps/` post j-12). The dev
+    // `start.sh` script sets `SHIP_APPS_BASE_DIR` to the ship workspace so
+    // the resolver finds `<ship>/node_modules/@ship/hub` etc.
     use deck_core::AppRegistry as _;
     let apps_config_path = apps_config_override
-        .or_else(|| worktree_root.as_ref().map(|r| r.join("apps/shipd/apps.jsonc")))
+        .or_else(|| {
+            worktree_root
+                .as_ref()
+                .map(|r| r.join("apps/shipd/apps.jsonc"))
+        })
         .unwrap_or_else(|| std::path::PathBuf::from("apps/shipd/apps.jsonc"));
     // Base dir precedence: explicit `--apps-base-dir` flag →
     // `SHIP_APPS_BASE_DIR` env var → worktree root → `.` (cwd-relative).
@@ -314,19 +292,15 @@ pub async fn run_network(
         })
         .or_else(|| worktree_root.clone())
         .unwrap_or_else(|| std::path::PathBuf::from("."));
-    let app_registry =
-        router::apps_config::ShipAppRegistry::new(apps_base_dir, apps_config_path);
+    let app_registry = router::apps_config::ShipAppRegistry::new(apps_base_dir, apps_config_path);
     let apps = app_registry.serve_configs();
-    // Per-app view-output dir is CONVENTION (`<package>/<source>/views`) —
-    // every app gets it registered so deck's runtime serves compiled
-    // view bundles from the right per-app location (e.g.
-    // `<ship-apps>/node_modules/@ship/hub/hub/.deck/views/<name>/view.js`)
-    // before falling back to the workspace-root output. We resolve the
-    // absolute path through the registry's `package_dirs()` snapshot
-    // (the resolved package dir on disk) + the app's `source` (the
-    // convention `<dir-basename>/.deck`, overridable per-entry). The
-    // snapshot is host-private state — deck sees only the registered
-    // `Extension<Arc<PathBuf>>` per app, not how the host got it.
+    // Mount-scoped deck Resolution: workspace root + per-app route-output
+    // dirs (`<package>/<source>/views`). Deck handlers read this via
+    // `Extension<Arc<Resolution>>` — no process-global registration.
+    let mut resolution = deck::Resolution::new();
+    if let Some(ref w) = workspace_dir {
+        resolution = resolution.with_root(w.clone());
+    }
     let package_dirs = app_registry.package_dirs();
     for app in &apps {
         if app.source.is_empty() {
@@ -335,25 +309,24 @@ pub async fn run_network(
         let Some(pkg_dir) = package_dirs.get(&app.name) else {
             tracing::warn!(
                 app = %app.name,
-                "no resolved package dir for app; skipping view-output registration"
+                "no resolved package dir for app; skipping route-output registration"
             );
             continue;
         };
         let abs = pkg_dir.join(&app.source).join("views");
-        deck::register_view_output(app.name.clone(), abs);
+        resolution.register_route_output(app.name.clone(), abs);
     }
     let app = router::build_router(
         rt.clone(),
-        token,
         session_registry,
-        pairing_registry,
         attestation_verifier,
         daemon_mode,
         apps,
+        Arc::new(resolution),
     );
     let user_pinned = port.is_some();
     let (listener, port) =
-        super::lifecycle::bind_with_retry(&host, desired_port, user_pinned, &global_dir).await?;
+        super::lifecycle::bind_with_retry(&host, desired_port, user_pinned, &rt).await?;
     crate::ship_runtime::init::identity_files::write_port_file(&daemon_dir, port)?;
 
     let addr = format!("{host}:{port}");
@@ -415,8 +388,9 @@ pub async fn run_network(
         listener,
         app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
     )
-        .with_graceful_shutdown(async move { ct.cancelled_owned().await })
-        .await.map_err(|e| anyhow!("server error: {e}"))?;
+    .with_graceful_shutdown(async move { ct.cancelled_owned().await })
+    .await
+    .map_err(|e| anyhow!("server error: {e}"))?;
 
     // Serve has returned (graceful shutdown drained the listener). Tear down the
     // bundler's detached tasks (#256): flip its watch flag so `run_watch` exits,
@@ -428,6 +402,6 @@ pub async fn run_network(
     bundler_watcher.abort();
     // Bounded agent drain + sandbox reap + runtime shutdown + the
     // daemon.shutdown_completed event — see `super::lifecycle::drain_and_shutdown`.
-    super::lifecycle::drain_and_shutdown(&rt, &global_dir).await;
+    super::lifecycle::drain_and_shutdown(&rt).await;
     Ok(())
 }

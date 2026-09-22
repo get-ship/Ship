@@ -16,8 +16,8 @@
 
 use crate::binding::ScopeBinding;
 use crate::decision::ScopeViolation;
-use crate::event_registry::{self, EventScope};
 use crate::envelope::EventEnvelope;
+use crate::event_registry::{self, EventScope};
 
 /// Stamp the envelope's `scope_key` from the binding, or reject.
 ///
@@ -82,8 +82,8 @@ pub fn stamp_author(env: &mut EventEnvelope, binding: &ScopeBinding) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::binding::Authority;
     use crate::identity::{AccountId, DeviceId, SpaceId};
+    use agent_schema::Authority;
 
     // T9 — stamp_author sources from the binding.
     #[test]
@@ -93,11 +93,10 @@ mod tests {
             Some(AccountId::new("acct-1")),
             Some(SpaceId::new("space-A")),
             Authority::Space {
-                space_id: SpaceId::new("space-A"),
+                space_id: "space-A".to_string(),
             },
         );
-        let mut env =
-        EventEnvelope::new("actor.created", "ws-1", &serde_json::json!({})).unwrap();
+        let mut env = EventEnvelope::new("actor.created", "ws-1", &serde_json::json!({})).unwrap();
         stamp_author(&mut env, &binding);
         assert_eq!(env.author_device_id.as_deref(), Some("dev-1"));
         assert_eq!(env.author_account_id.as_deref(), Some("acct-1"));
@@ -107,8 +106,7 @@ mod tests {
     #[test]
     fn stamp_author_device_only_binding_leaves_account_none() {
         let binding = ScopeBinding::daemon_internal(None, Authority::Sdk);
-        let mut env =
-            EventEnvelope::new("actor.created", "ws-1", &serde_json::json!({})).unwrap();
+        let mut env = EventEnvelope::new("actor.created", "ws-1", &serde_json::json!({})).unwrap();
         stamp_author(&mut env, &binding);
         assert!(env.author_device_id.is_some());
         assert_eq!(env.author_account_id, None);

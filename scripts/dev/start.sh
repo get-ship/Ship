@@ -29,15 +29,14 @@ fi
 # Pass --workspace explicitly so the daemon scopes itself to *this*
 # worktree even if its own resolver disagreed: belt-and-suspenders for
 # the per-worktree daemon dir (machine/daemons/<hash>/).
-# Set SHIP_APPS_BASE_DIR to the ship-apps workspace so the AppSource
-# resolver finds the apps under `<ship-apps>/node_modules/<package>`
-# rather than dragging the ship monorepo into the package graph. The
-# env var is the typed accessor; the --apps-base-dir flag is the same
-# value, exposed for ops that prefer a CLI flag.
+# Set SHIP_APPS_BASE_DIR to the ship workspace so the AppSource resolver
+# finds apps under `<ship>/node_modules/<package>` (j-12: hub/spaces live
+# in ship/apps; root package.json self-declares them as workspace deps).
+# The env var is the typed accessor; --apps-base-dir is the same value.
 log="${SHIP_HOME:-$HOME/.ship}/machine/logs/shipd.log"
 mkdir -p "$(dirname "$log")"
 workspace=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
-apps_base_dir="${SHIP_APPS_BASE_DIR:-/home/madvib/dev/ship-apps}"
+apps_base_dir="${SHIP_APPS_BASE_DIR:-$workspace}"
 SHIP_APPS_BASE_DIR="$apps_base_dir" "$d/.bin/shipd" --dev --workspace "$workspace" --apps-base-dir "$apps_base_dir" >>"$log" 2>&1 &
 spawned=$!
 disown $spawned

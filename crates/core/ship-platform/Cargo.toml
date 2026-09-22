@@ -7,13 +7,12 @@ publish = false
 description = "L1 platform primitives — agents, collections, artifacts, triggers, projections, auth, config, registry, sessions, search, view-authoring, toolchain. Built on `ship-substrate`; consumed by the daemon and any L2 app."
 
 [dependencies]
+agent-def = { path = "crates/agent-def", optional = true }
 ship-substrate = { path = "../ship-substrate" }
-ship-substrate-host = { path = "../ship-substrate/crates/ship-substrate-host" }
-# Device domain — the isolation-execution sandbox (moved from this crate
-# as part of the supervisor→platform cycle break, c2-sandbox-device) plus
-# the window-management service. Re-exported below for back-compat with
-# downstream callers that still import `ship_platform::sandbox::*`.
-ship-device = { path = "crates/ship-device" }
+# Device domain — isolation-execution sandbox + window-management service.
+# Import `ship-device` directly; this crate does not re-export it.
+# Home: ship-infra (j-09).
+ship-device = { git = "https://github.com/get-ship/ship-infra.git", rev = "24de79282f45b05fdcdb07f7daa66c7346bdeb33" }
 ship-analytics = { path = "crates/ship-analytics" }
 # Sibling L1 crates (live under this crate's `crates/` dir). The internal
 # platform consumers (triggers, view_authoring, orchestrator) call into the
@@ -26,34 +25,31 @@ ship-space = { path = "crates/ship-space" }
 ship-ui = { path = "crates/ship-ui" }
 ship-account = { path = "crates/ship-account" }
 # Unified settings keystone (S4). The RUNTIME-scope Rust settings API
-# (`ship_config::settings`) is the single source of truth for daemon launch
+# (`ship_settings::settings`) is the single source of truth for daemon launch
 # defaults — the legacy in-tree settings module was unified into it.
-# No cycle: ship-config depends on ship-substrate/ship-types/ship-reactive/
+# No cycle: ship-settings depends on ship-substrate/ship-types/ship-reactive/
 # ship-ops-rpc, none of which depend on ship-platform.
-ship-config = { path = "crates/ship-config" }
+ship-settings = { path = "crates/ship-settings" }
 ship-triggers = { path = "crates/ship-triggers" }
 ship-kernel = { path = "../ship-substrate/crates/ship-kernel" }
 ship-auth-types = { path = "../ship-substrate/crates/ship-auth-types" }
 ship-types = { path = "../ship-substrate/crates/ship-types" }
-ship-pipelines = { path = "../ship-substrate/crates/ship-pipelines", features = ["specta"] }
-# L0 runner mechanism (agents-arc S2). The orchestrator MECHANISM (router gate,
-# event dedup, exit-signal routing, kernel-emit plumbing, invocation-mode
-# resolution) lives here; ship-platform keeps only the policy and drives the
-# mechanism through the runner ports. No cycle: ship-runner depends on
-# ship-substrate/ship-types, not on ship-platform.
-ship-runner = { path = "../ship-substrate/crates/ship-runner" }
+# L0 runner mechanism (agents-arc S2). Kernel-emit plumbing
+# (`persist_and_route` / `KernelEventSink`) lives at L0 in
+# `ship_substrate::events::emit`. Domain dispatch gate + process/executor
+# emit helpers live in `ship-agents`. Harness-driver concerns
+# (`build_spawn_env`, `resolve_step_invocation`, `stop_by_slug`/`stop_handle`,
+# `exit_handler`) live L1 in `bridge`'s `lifecycle` module.
 # Agent-session orchestration (agents-arc S3b). The bare agent.session dispatch
 # primitive + the `service.agents` actor live here, depending on L0 alone. The
-# SpawnPolicy-port call (`build_spawn_env`) is L0 mechanism and lives in
-# `ship_runner` — the pipeline-dispatch path calls it from L0 directly, never
-# through this agents crate (no laundered pipelines→agents coupling). No cycle:
-# ship-agents depends on ship-substrate/ship-runner/ship-types, not ship-platform.
+# SpawnPolicy-port call (`build_spawn_env`) is L1 bridge mechanism
+# (`ship_code::lifecycle::spawn_env`); the pipeline-dispatch path calls it from
+# L1 directly, never through this agents crate (no laundered
+# pipelines→agents coupling). No cycle: ship-agents depends on ship-substrate/
+# ship-types, not on ship-platform.
 ship-agents = { path = "crates/ship-agents" }
-# Harness adapter registry + concrete adapters (claude/codex/cursor/opencode/pi).
-# Carved here so ship-agents (and future L2 consumers) can depend on harnesses
-# without pulling in all of ship-platform. Re-exported below for back-compat.
-ship-harnesses = { path = "crates/ship-harnesses" }
 # FilesService + jsonc/path_tolerant/line_accumulator carved here so downstream
+
 # crates (ship-agents, …) can import them without pulling in all of ship-platform.
 ship-files = { path = "crates/ship-files" }
 ship-store = { path = "crates/ship-store" }
@@ -62,25 +58,19 @@ ship-gateway-client = { path = "../ship-gateway-client" }
 # live in the `ship-cloud` crate. ship-cloud is a non-optional dep so its
 # event_registrations module (sync.* events) is always linked into the binary;
 # `ship-cloud/unstable` (the SyncServiceHandler actor) is gated behind the
-# `unstable` feature. ureq + ship-gateway-client are already direct deps here,
-# so this adds no new transitive HTTP-client footprint.
-ship-git = { path = "../ship-git" }
+# `unstable` feature. reqwest + ship-gateway-client are already direct deps
+# here, so this adds no new transitive HTTP-client footprint.
 ship-cloud = { path = "../ship-cloud" }
-# Isolation types + recommender. Default-features off — youki and
-# sidecar backends stay opt-in (the daemon's feature flags layer them in).
-ship-isolation = { path = "crates/ship-isolation", default-features = false }
-compiler = { path = "../compiler", features = ["specta"] }
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "03f917d5e51921754c1a6a12a4aa2beb56b4a405", features = ["specta"] }
+stack-model = { path = "../stack-model", features = ["specta"] }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
-serde_yaml = { workspace = true }
 toml = { workspace = true, features = ["preserve_order"] }
 home = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 chrono = { workspace = true }
 shell-words = { workspace = true }
-nanoid = { workspace = true }
-ulid = { workspace = true }
 walkdir = "2.3"
 futures-util = { workspace = true }
 getrandom = { workspace = true }
@@ -89,7 +79,6 @@ jsonwebtoken = "9"
 # write_api handlers. No partial-edit shims; patch() is the canonical
 # partial-update path.
 json-patch = "4"
-git2 = "0.19"
 specta = { workspace = true, features = ["chrono", "serde_json"] }
 sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio-rustls", "migrate", "macros"] }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "time", "sync", "macros", "process", "io-util"] }
@@ -99,11 +88,9 @@ base64 = { workspace = true }
 urlencoding = "2"
 semver = { workspace = true, features = ["serde"] }
 tempfile = { workspace = true }
-ureq = { workspace = true, features = ["json"] }
 reqwest = { workspace = true, features = ["json", "rustls-tls"] }
 flate2 = "1"
 tar = "0.4"
-rmp-serde = "1"
 portable-pty = "0.9"
 tracing = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
@@ -112,8 +99,9 @@ minijinja = { workspace = true }
 cron = "0.12"
 sysinfo = { version = "0.38", default-features = false, features = ["system"] }
 jsonschema = { version = "0.46", default-features = false }
-# Embeds the generated SDK capability-skills (skills/sdk/) into the binary so
-# every compile can offer them, not just inside the dev checkout.
+# Embeds the generated SDK capability-skills (in the @ship/sdk package,
+# which now lives in ship-contracts) into the binary so every compile
+# can offer them, not just inside the dev checkout.
 include_dir = "0.7"
 
 [target.'cfg(target_os = "linux")'.dependencies]
@@ -131,11 +119,20 @@ specta = ["ship-ui/specta", "ship-agents/specta"]
 # generator (and the sandboxed designer's committed JSON) can be produced
 # from the real structs. Off by default; on under `cfg(test)` automatically.
 fixtures = ["ship-agents/fixtures"]
-# harness-drivers: enable ship-agents' harness-driver stack (ship-code).
-# Enabled by shipd when ship-code is ON; absent in flag-off builds.
-harness-drivers = ["ship-agents/harness-drivers"]
+# bridge: enable ship-agents bridge runtime.
+# Enabled by shipd when bridge is ON; absent in flag-off builds.
+bridge = ["ship-agents/bridge", "dep:agent-def", "agent-def/bridge"]
 
 [dev-dependencies]
+ship-types = { path = "../ship-substrate/crates/ship-types", features = ["test-support"] }
+ship-substrate = { path = "../ship-substrate", features = ["test-support"] }
+# Conformance tests cross-check isolation enum ids (agent_schema_conformance).
+ship-isolation = { git = "https://github.com/get-ship/ship-infra.git", rev = "24de79282f45b05fdcdb07f7daa66c7346bdeb33", default-features = false }
+harness-drivers = { git = "https://github.com/get-ship/fleet.git", rev = "03f917d5e51921754c1a6a12a4aa2beb56b4a405" }
+# The compile-spine integration test (tests/spine_smoke.rs) exercises
+# emission end-to-end; dev-deps of a dependency never enter a consumer's
+# graph, so the standard/code seam holds.
+harness-config-compiler = { git = "https://github.com/get-ship/fleet.git", rev = "03f917d5e51921754c1a6a12a4aa2beb56b4a405" }
 tokio = { workspace = true, features = ["test-util"] }
 # Self-dep so integration tests (tests/) see the `testutil` module. cfg(test)
 # does not apply to the lib when building integration-test targets, so without
@@ -143,6 +140,12 @@ tokio = { workspace = true, features = ["test-util"] }
 # unification happened to enable the flag — i.e. never under
 # `cargo test -p ship-platform` (the test target silently never ran).
 ship-platform = { path = ".", features = ["testutil"] }
+# Test-only reach for the spine smoke (tests/spine_smoke.rs): `roll_up` lives
+# in space-resolver (descriptor cache lives in shipd composition). No production
+# code in this crate depends on space-resolver. space-resolver has no dependency
+# back on ship-platform (it depends on ship-store/ship-substrate/compiler
+# directly), so this is a one-way dev-only edge, not a cycle.
+space-resolver = { path = "../space-resolver" }
 
 [lints]
 workspace = true

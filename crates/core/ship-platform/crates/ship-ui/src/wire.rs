@@ -1,6 +1,6 @@
 //! ConnectRPC wire layer for the unified `UiService`.
 //!
-//! `UiWire` implements `ship_ops_rpc::UiService` (12 RPCs) so shipd can mount
+//! `UiWire` implements `ship_proto::ship::ops::v1::UiService` (12 RPCs) so shipd can mount
 //! it via `UiServiceExt::register`. The unified service replaces the retired
 //! `SuiService` (compiler analysis) + `ViewService` (view authoring) pair; see
 //! `proto/ship/ops/v1/ui.proto` for the single-source contract.
@@ -32,10 +32,7 @@ use std::sync::Arc;
 
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
 use serde_json::{json, Value};
-use ship_ops_rpc::{
-    JsonResponse, UiQueryResponse, UiReadResponse, UiService as UiServiceTrait,
-    ViewScaffoldResponse,
-};
+use ship_proto::ship::ops::v1::{JsonResponse, UiQueryResponse, UiReadResponse, UiService as UiServiceTrait, ViewScaffoldResponse};
 
 // ── Closure type aliases ──────────────────────────────────────────────────────
 
@@ -144,7 +141,7 @@ impl UiServiceTrait for UiWire {
     async fn packs(
         &self,
         _ctx: RequestContext,
-        request: ship_ops_rpc::OwnedUiQueryReqView,
+        request: ship_proto::ship::ops::v1::OwnedUiQueryReqView,
     ) -> ServiceResult<UiQueryResponse> {
         let packs = self
             .resolver
@@ -163,7 +160,7 @@ impl UiServiceTrait for UiWire {
     async fn read(
         &self,
         _ctx: RequestContext,
-        request: ship_ops_rpc::OwnedUiReadReqView,
+        request: ship_proto::ship::ops::v1::OwnedUiReadReqView,
     ) -> ServiceResult<UiReadResponse> {
         let loc = self
             .resolver
@@ -182,18 +179,18 @@ impl UiServiceTrait for UiWire {
     async fn diagnostics(
         &self,
         _ctx: RequestContext,
-        request: ship_ops_rpc::OwnedSuiFileReqView,
+        request: ship_proto::ship::ops::v1::OwnedSuiFileReqView,
     ) -> ServiceResult<JsonResponse> {
         let (abs, source) =
             read_sui_source(request.file).map_err(ConnectError::invalid_argument)?;
-        let analysis = sui_compiler::analyze(&source, Some(abs.as_path()));
+        let analysis = sui_compiler::analyze(&source, Some(abs.as_path()), &[]);
         json_ok(json!({ "diagnostics": analysis.diagnostics }))
     }
 
     async fn hover(
         &self,
         _ctx: RequestContext,
-        request: ship_ops_rpc::OwnedSuiHoverReqView,
+        request: ship_proto::ship::ops::v1::OwnedSuiHoverReqView,
     ) -> ServiceResult<JsonResponse> {
         let (abs, source) =
             read_sui_source(request.file).map_err(ConnectError::invalid_argument)?;
@@ -206,11 +203,11 @@ impl UiServiceTrait for UiWire {
     async fn dependencies(
         &self,
         _ctx: RequestContext,
-        request: ship_ops_rpc::OwnedSuiFileReqView,
+        request: ship_proto::ship::ops::v1::OwnedSuiFileReqView,
     ) -> ServiceResult<JsonResponse> {
         let (abs, source) =
             read_sui_source(request.file).map_err(ConnectError::invalid_argument)?;
-        let analysis = sui_compiler::analyze(&source, Some(abs.as_path()));
+        let analysis = sui_compiler::analyze(&source, Some(abs.as_path()), &[]);
         json_ok(json!({
             "tags": analysis.tags,
             "events": analysis.events,
@@ -230,7 +227,7 @@ impl UiServiceTrait for UiWire {
     async fn enter_edit_mode(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedViewEditModeReqView,
+        request: ship_proto::ship::ops::v1::OwnedViewEditModeReqView,
     ) -> ServiceResult<JsonResponse> {
         // Auth context required (middleware guarantees it) but agent identity
         // is not needed for edit-mode grants — any authenticated caller may
@@ -248,7 +245,7 @@ impl UiServiceTrait for UiWire {
     async fn exit_edit_mode(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedViewEditModeReqView,
+        request: ship_proto::ship::ops::v1::OwnedViewEditModeReqView,
     ) -> ServiceResult<JsonResponse> {
         let _ = ctx;
         let view = request.view.to_string();
@@ -264,7 +261,7 @@ impl UiServiceTrait for UiWire {
     async fn tool(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedViewToolReqView,
+        request: ship_proto::ship::ops::v1::OwnedViewToolReqView,
     ) -> ServiceResult<JsonResponse> {
         let _ = ctx;
         let args_value: Value = if request.args_json.is_empty() {
@@ -286,7 +283,7 @@ impl UiServiceTrait for UiWire {
     async fn scaffold(
         &self,
         _ctx: RequestContext,
-        request: ship_ops_rpc::OwnedViewScaffoldReqView,
+        request: ship_proto::ship::ops::v1::OwnedViewScaffoldReqView,
     ) -> ServiceResult<ViewScaffoldResponse> {
         let name = request.name.to_string();
         let shape = request.shape.to_string();

@@ -8,8 +8,9 @@
 
 use std::sync::Arc;
 
-use ship_kernel::EventSink;
+use ship_kernel::EventPersist;
 use ship_types::envelope::EventEnvelope;
+use ship_types::Stamped;
 use ship_types::event_registry::EventScope;
 use tempfile::tempdir;
 
@@ -17,10 +18,12 @@ use super::event_store::{EventStore, SqliteEventStore};
 use super::partitioned_sink::PartitionedSink;
 use crate::db;
 
-fn event(scope: EventScope, scope_key: Option<&str>) -> EventEnvelope {
-    EventEnvelope::new("test.partition", "entity-1", &serde_json::json!({}))
-        .unwrap()
-        .with_scope(scope, scope_key)
+fn event(scope: EventScope, scope_key: Option<&str>) -> Stamped {
+    Stamped::unchecked(
+        EventEnvelope::new("test.partition", "entity-1", &serde_json::json!({}))
+            .unwrap()
+            .with_scope(scope, scope_key),
+    )
 }
 
 /// Open the db at `path` and assert whether event `id` is present.
@@ -38,6 +41,7 @@ fn has_event(path: &std::path::Path, id: &str) -> bool {
 fn space_event_routes_to_its_own_space_db() {
     let tmp = tempdir().unwrap();
     let root = tmp.path();
+    crate::testutil::register_space(root, "A").unwrap();
     let sink = PartitionedSink::new(root.to_path_buf());
 
     let ev = event(EventScope::Space, Some("A"));
@@ -50,6 +54,7 @@ fn space_event_routes_to_its_own_space_db() {
 fn space_event_isolated_from_other_scopes() {
     let tmp = tempdir().unwrap();
     let root = tmp.path();
+    crate::testutil::register_space(root, "A").unwrap();
     let sink = PartitionedSink::new(root.to_path_buf());
 
     let ev = event(EventScope::Space, Some("A"));
@@ -65,6 +70,8 @@ fn space_event_isolated_from_other_scopes() {
 fn two_spaces_are_independently_addressable() {
     let tmp = tempdir().unwrap();
     let root = tmp.path();
+    crate::testutil::register_space(root, "A").unwrap();
+    crate::testutil::register_space(root, "B").unwrap();
     let sink = PartitionedSink::new(root.to_path_buf());
 
     let a = event(EventScope::Space, Some("A"));
@@ -136,10 +143,12 @@ fn per_scope_projection_fires_into_scope_db() {
         "environment_type": "local",
         "restart_count": 0
     });
-    let ev = EventEnvelope::new("actor.created", "actor-xyz", &payload)
-        .unwrap()
-        .with_actor_id("actor-xyz")
-        .with_scope(EventScope::Runtime, Some("machine-1"));
+    let ev = Stamped::unchecked(
+        EventEnvelope::new("actor.created", "actor-xyz", &payload)
+            .unwrap()
+            .with_actor_id("actor-xyz")
+            .with_scope(EventScope::Runtime, Some("machine-1")),
+    );
     sink.persist(&ev).unwrap();
 
     // The actors projection row landed in runtime.db…
@@ -156,16 +165,23 @@ fn per_scope_projection_fires_into_scope_db() {
         })
         .unwrap_or(0)
     };
-    assert_eq!(count_in(&db::runtime_db_path(root)), 1, "actors row must be in runtime.db");
-    assert_eq!(count_in(&db::account_db_path(root)), 0, "actors row must NOT be in account.db");
+    assert_eq!(
+        count_in(&db::runtime_db_path(root)),
+        1,
+        "actors row must be in runtime.db"
+    );
+    assert_eq!(
+        count_in(&db::account_db_path(root)),
+        0,
+        "actors row must NOT be in account.db"
+    );
 }
-
 
 #[test]
 fn implements_event_sink_trait_as_arc() {
     let tmp = tempdir().unwrap();
     let root = tmp.path();
-    let sink: Arc<dyn EventSink> = Arc::new(PartitionedSink::new(root.to_path_buf()));
+    let sink: Arc<dyn EventPersist> = Arc::new(PartitionedSink::new(root.to_path_buf()));
     let ev = event(EventScope::Runtime, Some("machine-1"));
     sink.persist(&ev).unwrap();
     assert!(has_event(&db::runtime_db_path(root), &ev.id));
@@ -185,7 +201,11 @@ fn implements_event_sink_trait_as_arc() {
 // whether the sink is wired. (`actor.created` would have been the
 // obvious pick but is now Durable — it's the projection's seed event.)
 
-fn retention_test_event(event_type: &str, entity: &str, payload: serde_json::Value) -> EventEnvelope {
+fn retention_test_event(
+    event_type: &str,
+    entity: &str,
+    payload: serde_json::Value,
+) -> EventEnvelope {
     use ship_types::event_registry::EventScope;
     EventEnvelope::new(event_type, entity, &payload)
         .unwrap()
@@ -216,7 +236,7 @@ async fn kernel_router_skips_persist_for_ephemeral_event() {
 
     let tmp = tempdir().unwrap();
     let root = tmp.path();
-    let sink: Arc<dyn EventSink> = Arc::new(PartitionedSink::new(root.to_path_buf()));
+    let sink: Arc<dyn EventPersist> = Arc::new(PartitionedSink::new(root.to_path_buf()));
     let mut router = KernelRouter::new(sink);
 
     // Subscribe an actor on the "actor." namespace so the mailbox fires.
@@ -231,7 +251,7 @@ async fn kernel_router_skips_persist_for_ephemeral_event() {
 
     let ev = retention_test_event("actor.slept", "actor-skip", actor_slept_payload());
     let id = ev.id.clone();
-    router.route(ev).await.expect("route");
+    router.route(Stamped::unchecked(ev)).await.expect("route");
 
     // Ephemeral: the events table does NOT carry the id.
     assert!(
@@ -241,10 +261,13 @@ async fn kernel_router_skips_persist_for_ephemeral_event() {
 
     // Mailbox DID receive the envelope — transient signals are delivered,
     // just not persisted.
-    let delivered = mailbox.recv().await.expect("mailbox receives the Ephemeral event");
+    let delivered = mailbox
+        .recv()
+        .await
+        .expect("mailbox receives the Ephemeral event");
     assert_eq!(delivered.event_type, "actor.slept");
     assert_eq!(delivered.id, id);
- }
+}
 
 /// Route a Durable event through the kernel → the events table HAS the
 /// row, and the mailbox also receives. Pair to the Ephemeral case proves
@@ -263,7 +286,7 @@ async fn kernel_router_persists_durable_event_and_delivers() {
 
     let tmp = tempdir().unwrap();
     let root = tmp.path();
-    let sink: Arc<dyn EventSink> = Arc::new(PartitionedSink::new(root.to_path_buf()));
+    let sink: Arc<dyn EventPersist> = Arc::new(PartitionedSink::new(root.to_path_buf()));
     let mut router = KernelRouter::new(sink);
 
     let cfg = ship_types::ActorConfig {
@@ -281,12 +304,15 @@ async fn kernel_router_persists_durable_event_and_delivers() {
         serde_json::json!({ "error": "boom", "restart_count": 0u32 }),
     );
     let id = ev.id.clone();
-    router.route(ev).await.expect("route");
+    router.route(Stamped::unchecked(ev)).await.expect("route");
 
     assert!(
         has_event(&db::runtime_db_path(root), &id),
         "Durable event must be persisted to runtime.db"
     );
-    let delivered = mailbox.recv().await.expect("mailbox receives the Durable event");
+    let delivered = mailbox
+        .recv()
+        .await
+        .expect("mailbox receives the Durable event");
     assert_eq!(delivered.event_type, "actor.crashed");
- }
+}

@@ -1,0 +1,15 @@
+[package]
+name = "fs-watch"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "The notify-backed filesystem watch capability: `FsWatch` + `LocalFsWatch`, confined by an `FsCap` the same way `fs-cap` gates read/write. Its own leaf so `notify` stays off consumers that don't watch."
+
+[dependencies]
+fs-cap = { path = "../fs-cap" }
+notify = { workspace = true }
+tokio = { workspace = true, features = ["sync", "rt", "time"] }
+tracing = { workspace = true }
+
+[lints]
+workspace = true

@@ -1,10 +1,9 @@
 //! `AuthContext` — the authenticated caller identity injected into request
 //! extensions by the auth middleware, and the SOLE session→binding minter.
 
+use agent_schema::Authority;
 use ship_substrate::events::CallerKind;
-use ship_types::{Authority, ScopeBinding, SpaceId, local_device_id};
-
-use super::scopes::Scope;
+use ship_types::{ScopeBinding, SpaceId, local_device_id};
 
 /// Authenticated caller context injected into request extensions by the
 /// auth middleware. Handlers extract this to build `EmitContext`.
@@ -12,20 +11,17 @@ use super::scopes::Scope;
 pub struct AuthContext {
     pub caller_kind: CallerKind,
     pub agent_id: Option<String>,
-    pub workspace_id: Option<String>,
-    /// The space this request belongs to (path-hash space identity), carried
+    /// The space this request belongs to (the pointer content-id), carried
     /// from the authenticated session. A space-window session carries its OWN
-    /// space here; operator/agent/daemon-token requests leave it `None`, which
+    /// space here; operator/agent requests leave it `None`, which
     /// the binding keys as `None` (Phase 2 fail-soft — no home-space fallback on
     /// the emit path). This is the per-connection space source. See spec
     /// `.artifacts/specs/space/128-multi-space-emit.md`.
     pub space_id: Option<String>,
     pub session_id: Option<String>,
-    /// Granted scopes for this request. Daemon token gets `[Full]`.
-    pub scopes: Vec<Scope>,
-    /// Restricted capability grants (the gate's grant axis), minted from the
-    /// session's provisioned set. Empty for the operator (cleared by is_operator)
-    /// and for agents with no restricted domains. Distinct from `scopes`.
+    /// Capability grants (the gate's grant axis), minted from the session's
+    /// provisioned set. Empty for the operator (cleared by is_operator) and for
+    /// agents with no restricted domains. The sole capability axis.
     pub grants: Vec<String>,
     /// True iff this connection presented a **verified operator cred** — the
     /// SOLE source of operator authority (S6, #124). Set ONLY when a
@@ -59,7 +55,7 @@ impl AuthContext {
         } else if self.caller_kind == CallerKind::Sdk {
             // Capped: the on-disk SDK token is never operator-class.
             Authority::Sdk
-        } else if let Some(sid) = space.clone() {
+        } else if let Some(sid) = self.space_id.clone() {
             Authority::Space { space_id: sid }
         } else if let Some(id) = self.agent_id.clone() {
             Authority::Agent { id }
@@ -85,24 +81,18 @@ impl AuthContext {
         }
     }
 
-    /// Whether this caller is operator-class — the named replacement for the
-    /// `Scope::Full` / `is_operator` conflation at the gate. Reads SOLELY the
-    /// verified operator cred (S6): true iff `operator_cred` flipped
-    /// `Authority::Operator` in [`binding`](Self::binding).
+    /// Whether this caller is operator-class — the gate's operator verdict.
+    /// Reads SOLELY the verified operator cred (S6): true iff `operator_cred`
+    /// flipped `Authority::Operator` in [`binding`](Self::binding).
     pub fn is_operator(&self) -> bool {
         *self.binding().authority() == Authority::Operator
     }
 
     /// The caller's resolved [`Authority`]. shipd projects this into Connect
     /// request extensions so crate-owned wires (e.g. `ship-account`) can gate on
-    /// the shared `ship_types::Authority` without coupling to shipd's
+    /// the shared `agent_schema::Authority` without coupling to shipd's
     /// `AuthContext`. The SOLE authority derivation is [`binding`](Self::binding).
     pub fn authority(&self) -> Authority {
         self.binding().authority().clone()
-    }
-
-    /// Check whether this caller has the given scope.
-    pub fn has_scope(&self, scope: Scope) -> bool {
-        scope.is_granted_by(&self.scopes)
     }
 }

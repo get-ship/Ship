@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use ship_types::event_registry::{EventScope, Retention, registry};
+use shipd as _;
 
 // ── Wire event record ─────────────────────────────────────────────────────────
 
@@ -219,7 +220,7 @@ fn render_proto(
         let msg_name = format!("{}Msg", pascal(ev.name));
         let _ = write!(s, "// {scope} / {retention} — {name}\n",
             scope = if matches!(ev.scope, EventScope::Account) { "account" } else { "space" },
-            retention = if matches!(ev.retention, Retention::Durable) { "durable" } else { "ephemeral" },
+            retention = retention_str(&ev.retention),
             name = ev.name,
         );
         let _ = write!(s, "message {msg_name} {{\n");
@@ -253,6 +254,7 @@ fn scope_str(scope: &EventScope) -> &'static str {
 fn retention_str(retention: &Retention) -> &'static str {
     match retention {
         Retention::Durable => "durable",
+        Retention::Windowed { .. } => "windowed",
         Retention::Ephemeral => "ephemeral",
     }
 }
@@ -378,6 +380,13 @@ pub fn run(check: bool) -> Result<()> {
 
     std::fs::write(&proto_path, &proto_content)
         .with_context(|| format!("writing {}", proto_path.display()))?;
+    // packages/cloud-types moved to ship-contracts; create its directory on
+    // demand so gen-events doesn't crash on a fresh checkout where packages/
+    // is absent. The TS output reconciles when ship-contracts re-wires gen-events.
+    if let Some(parent) = ts_path.parent() {
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("create_dir_all {}", parent.display()))?;
+    }
     std::fs::write(&ts_path, &ts_content)
         .with_context(|| format!("writing {}", ts_path.display()))?;
 

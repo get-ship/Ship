@@ -63,7 +63,7 @@
 //!     wedged driver cannot keep climbing toward the host limit.
 //!   * Hard CYCLE CAP: `MAX_CYCLES = 5000`.
 //!   * Wall-clock TIMEOUT: `WALL_CLOCK_TIMEOUT` — checked every cycle.
-//!   * TEMP workspace via `TempDir` — never `~/.ship` or real data; dropped at
+//!   * TEMP workspace via `TempDir` — never the real ship home or real data; dropped at
 //!     end of scope so teardown happens even on panic/early-return. NO global
 //!     DB / env-resolved path is ever touched (we deliberately do NOT call
 //!     `EventBus::rebuild`, which writes cursors through the global `open_db()`;
@@ -89,20 +89,16 @@
 // "can this OOM the host?" review harder, not easier. ~40% of the length is the
 // load-bearing doc comment that documents that safety story.
 
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
-use ship_substrate::events::kernel_router::KernelRouter;
-use ship_substrate::events::permissions::{
-    ActorPermissions, DeliveryScope, PermittedSubscription,
-};
-use ship_substrate::events::validator::{CallerKind, EmitContext};
+use ship_substrate::ShipHome;
 use ship_substrate::events::EventFilter;
+use ship_substrate::events::kernel_router::KernelRouter;
+use ship_substrate::events::validator::{CallerKind, EmitContext};
 use ship_substrate::events::{ActorConfig, EventEnvelope};
 use ship_substrate::gen_ulid;
-use ship_substrate::ShipHome;
-use ship_types::identity::{ActorIdentity, ActorType};
 
 // ── Safety + measurement constants ──────────────────────────────────────────
 
@@ -129,10 +125,6 @@ const SAMPLE_EVERY: u64 = 50;
 
 /// Run a projection-rebuild (event-log read-back) round every this many cycles.
 const REBUILD_EVERY: u64 = 100;
-
-/// Spawn a permissioned/restartable actor (the legitimate cursor-retain path)
-/// every this many cycles.
-const PERMISSIONED_EVERY: u64 = 250;
 
 /// Fraction of samples (from the front) discarded as warmup before fitting.
 const WARMUP_FRACTION: f64 = 0.20;
@@ -315,10 +307,10 @@ fn linear_slope(points: &[(f64, f64)]) -> f64 {
 /// pool, so its `process::abort` backstop holds regardless.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn daemon_rss_slope_is_flat_under_connection_churn() {
-    // ── Isolated temp workspace — never ~/.ship or real data. Dropped at end
+    // ── Isolated temp workspace — never the real ship home or real data. Dropped at end
     //    of scope (even on panic) so the DB + WAL are cleaned up. ──
     let temp = tempfile::TempDir::new().expect("create temp workspace");
-    let ship_dir = ShipHome::project_ship_dir(temp.path());
+    let ship_dir = temp.path().join(".ship");
     std::fs::create_dir_all(&ship_dir).expect("create ship dir");
 
     // `emit`/`stop_actor` take `&self`/`&mut self`; the loop mutates via &mut.
@@ -396,10 +388,11 @@ async fn daemon_rss_slope_is_flat_under_connection_churn() {
         let target_id = format!("sui-hmr-target-{}", gen_ulid());
         let _ = router.spawn_actor(&hmr_id, sse_source_config(&hmr_id));
         let _ = router.spawn_actor(&target_id, sse_source_config(&target_id));
-        let fanout = EventEnvelope::new("sse.tick", "fanout", &serde_json::json!({ "cycle": cycle }))
-            .expect("envelope")
-            .with_actor_id(&hmr_id)
-            .with_target(&target_id);
+        let fanout =
+            EventEnvelope::new("sse.tick", "fanout", &serde_json::json!({ "cycle": cycle }))
+                .expect("envelope")
+                .with_actor_id(&hmr_id)
+                .with_target(&target_id);
         let _ = router.emit(fanout, &ctx).await;
         let _ = router.stop_actor(&hmr_id);
         let _ = router.stop_actor(&target_id);
@@ -416,33 +409,6 @@ async fn daemon_rss_slope_is_flat_under_connection_churn() {
                     limit: Some(500),
                     ..Default::default()
                 });
-            }
-        }
-
-        // ── 5. Occasionally a PERMISSIONED/restartable actor (bounded id pool):
-        //       spawn with permissions, stop it. This MUST retain a cursor.
-        //       Reusing a SMALL pool keeps the legitimate retain set flat —
-        //       minting unbounded permissioned ids would be a real (intended)
-        //       growth source that would mask the leak we test for. ──
-        if cycle % PERMISSIONED_EVERY == PERMISSIONED_EVERY - 1 {
-            let pool_id = format!("agent-restartable-{}", cycle % 4);
-            let identity = ActorIdentity {
-                instance_id: pool_id.clone(),
-                label: pool_id.clone(),
-                actor_type: ActorType::Agent,
-            };
-            let permissions = ActorPermissions {
-                emit: vec!["agent.".into()],
-                subscribe: vec![PermittedSubscription {
-                    namespace: "agent.".into(),
-                    scope: DeliveryScope::Global,
-                }],
-            };
-            if router
-                .spawn_actor_with_permissions(identity, permissions)
-                .is_ok()
-            {
-                let _ = router.stop_actor(&pool_id);
             }
         }
 

@@ -66,6 +66,18 @@ pub fn auth_client(base_url: &str) -> Result<AuthServiceClient<HttpClient>, Buil
     Ok(AuthServiceClient::new(transport, ClientConfig::new(uri)))
 }
 
+/// Build a TLS-enabled [`RegistryServiceClient`] pointed at `base_url`.
+///
+/// The registry service is the typed Connect surface for the bundle registry
+/// (`ResolveVersion` + `FetchBundle`); the install pipeline consumes this
+/// client. Same TLS posture as [`auth_client`] — system roots, ring crypto
+/// provider auto-installed on first TLS object build.
+pub fn registry_client(base_url: &str) -> Result<RegistryServiceClient<HttpClient>, BuildError> {
+    let uri: http::Uri = base_url.parse()?;
+    let transport = build_https_transport()?;
+    Ok(RegistryServiceClient::new(transport, ClientConfig::new(uri)))
+}
+
 fn build_https_transport() -> Result<HttpClient, BuildError> {
     // rustls 0.23 requires a `CryptoProvider` to be installed at the
     // process level before TLS objects can be built. Installing `ring`

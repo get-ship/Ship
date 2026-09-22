@@ -23,7 +23,9 @@ register_event!("auth.session.expired", [EventScope::Account], Retention::Durabl
 register_event!("auth.session.revoked", [EventScope::Account], Retention::Durable, Stability::Stable, "AuthSessionRevoked", ship_types::payload::AuthSessionRevoked);
 
 // ── account.* ───────────────────────────────────────────────────────────────
-register_event!("account.key_refreshed", [EventScope::Account], Retention::Ephemeral, Stability::Stable, "AccountKeyRefreshed", ship_types::payload::AccountKeyRefreshed);
+// Durable: a key refresh is an audit fact on the Account partition, which
+// syncs across devices — every device's log carries the record.
+register_event!("account.key_refreshed", [EventScope::Account], Retention::Durable, Stability::Stable, "AccountKeyRefreshed", ship_types::payload::AccountKeyRefreshed);
 
 // ── agent.grants.provisioned ─────────────────────────────────────────────────
 // Account-scoped: provisioned grant baseline, approved by an operator, used

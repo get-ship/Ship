@@ -1,0 +1,15 @@
+---
+import RoomLayout from '../layouts/RoomLayout.astro';
+---
+<RoomLayout title="Something broke — SHIP">
+  <div class="room-card">
+    <div class="room-eyebrow">500 · Server error</div>
+    <h1 class="room-title">That's <span class="accent">on us.</span></h1>
+    <p class="room-lede">Something on our end misfired and we've been pinged about it. Give it a moment, or head back to safer ground.</p>
+    <div class="room-actions">
+      <a href="/" tone="primary" size="lg">Back to the desktop</a>
+      <a href="https://docs.getship.dev" variant="ghost" size="lg">Read the docs</a>
+    </div>
+    <div class="room-switch">Still broken? <a href="mailto:support@getship.dev">support@getship.dev</a></div>
+  </div>
+</RoomLayout>

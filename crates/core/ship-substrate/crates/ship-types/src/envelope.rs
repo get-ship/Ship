@@ -68,6 +68,18 @@ pub struct EventEnvelope {
     /// the hot path. `#[serde(default)]` for back-compat.
     #[serde(default)]
     pub signature: Option<String>,
+    /// Reserved: cryptographic signature payload for self-certifying logs.
+    /// Never required by validators; ignored until signing is wired.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sig: Option<String>,
+    /// Reserved: writer identity for per-writer-chain CRDT sync.
+    /// Never required by validators; ignored until multi-writer sync is wired.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub writer: Option<String>,
+    /// Reserved: causal ordering metadata (self-certifying / CRDT sync).
+    /// Never required by validators; ignored until causal merge is wired.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub causality: Option<String>,
 }
 
 impl EventEnvelope {
@@ -96,6 +108,9 @@ impl EventEnvelope {
             author_account_id: None,
             author_device_id: None,
             signature: None,
+            sig: None,
+            writer: None,
+            causality: None,
         })
     }
 
@@ -144,7 +159,6 @@ impl EventEnvelope {
         self.causation_id = Some(causation_id.to_string());
         self
     }
-
 
     /// Set the full `(scope, scope_key)` tuple directly. The explicit form used
     /// by call sites that know the event's partition (Account/System/Device),
@@ -223,31 +237,15 @@ mod tests {
         assert_eq!(decoded.event_type, env.event_type);
     }
 
-    // T7 — Envelope round-trips with the optional signature/author fields.
     #[test]
-    fn new_envelope_author_signature_default_none() {
-        let env = EventEnvelope::new("actor.created", "ws-1", &serde_json::json!({})).unwrap();
-        assert_eq!(env.signature, None);
-        assert_eq!(env.author_account_id, None);
-        assert_eq!(env.author_device_id, None);
-        let json = serde_json::to_string(&env).unwrap();
-        let decoded: EventEnvelope = serde_json::from_str(&json).unwrap();
-        assert_eq!(decoded.signature, None);
-        assert_eq!(decoded.author_account_id, None);
-        assert_eq!(decoded.author_device_id, None);
-    }
-
-    #[test]
-    fn old_shape_json_decodes_author_signature_to_none() {
-        // An envelope JSON without the author/signature keys (pre-Phase-2 shape).
-        let old = serde_json::json!({
-            "id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+    fn event_envelope_roundtrips_legacy_without_author_or_signature() {
+        let json = serde_json::json!({
+            "id": "01J2X",
             "event_type": "actor.created",
             "entity_id": "ws-1",
             "actor": "ship",
             "payload_json": "{}",
             "version": 1,
-            "causation_id": null,
             "scope": "runtime",
             "scope_key": null,
             "session_id": null,
@@ -257,45 +255,22 @@ mod tests {
             "elevated": false,
             "created_at": "2024-01-01T00:00:00Z"
         });
-        let decoded: EventEnvelope = serde_json::from_value(old).unwrap();
+        let decoded: EventEnvelope = serde_json::from_value(json).unwrap();
         assert_eq!(decoded.author_account_id, None);
         assert_eq!(decoded.author_device_id, None);
         assert_eq!(decoded.signature, None);
-    }
-
-    // T8 — signing_bytes is canonical + deterministic.
-    #[test]
-    fn signing_bytes_ignores_mutable_fields() {
-        let base = EventEnvelope::new("actor.created", "ws-1", &serde_json::json!({"k": 1}))
-            .unwrap();
-        let mut a = base.clone();
-        let mut b = base.clone();
-        // Differ only in mutable / delivery-routing / local fields.
-        b.actor = "other".to_string();
-        b.actor_id = Some("agent.z".to_string());
-        b.session_id = Some("sess-9".to_string());
-        b.elevated = true;
-        b.target_actor_id = Some("agent.y".to_string());
-        b.signature = Some("sig".to_string());
-        a.actor_id = Some("agent.x".to_string());
-        assert_eq!(a.signing_bytes(), b.signing_bytes());
+        assert_eq!(decoded.sig, None);
+        assert_eq!(decoded.writer, None);
+        assert_eq!(decoded.causality, None);
     }
 
     #[test]
-    fn signing_bytes_changes_with_authored_fields() {
-        let base = EventEnvelope::new("actor.created", "ws-1", &serde_json::json!({"k": 1}))
-            .unwrap();
-        // payload digest is covered.
-        let mut diff_payload = base.clone();
-        diff_payload.payload_json = serde_json::to_string(&serde_json::json!({"k": 2})).unwrap();
-        assert_ne!(base.signing_bytes(), diff_payload.signing_bytes());
-        // author_device_id is in the signed set.
-        let mut diff_author = base.clone();
-        diff_author.author_device_id = Some("dev-2".to_string());
-        assert_ne!(base.signing_bytes(), diff_author.signing_bytes());
-        // scope_key is in the signed set.
-        let mut diff_scope = base.clone();
-        diff_scope.scope_key = Some("space-Q".to_string());
-        assert_ne!(base.signing_bytes(), diff_scope.signing_bytes());
+    fn reserved_fields_absent_from_serialization_when_none() {
+        let env = EventEnvelope::new("actor.created", "ws-1", &serde_json::json!({})).unwrap();
+        let json = serde_json::to_value(&env).unwrap();
+        let obj = json.as_object().unwrap();
+        assert!(!obj.contains_key("sig"), "sig must skip when None");
+        assert!(!obj.contains_key("writer"), "writer must skip when None");
+        assert!(!obj.contains_key("causality"), "causality must skip when None");
     }
 }

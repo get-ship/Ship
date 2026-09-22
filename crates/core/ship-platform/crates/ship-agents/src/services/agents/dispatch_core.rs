@@ -1,31 +1,48 @@
-//! Transport-neutral agent-session dispatch core.
+//! Transport-neutral in-process agent-session dispatch core.
 //!
 //! `dispatch_agent_session_core` is the shared logic behind the Connect
 //! `AgentsService.Dispatch` wire method (and the now-removed REST
 //! `POST /api/v1/agent_sessions/dispatch` handler). It validates the
-//! request, resolves resume state, builds the `dispatch.requested` event,
-//! persists it, and returns a structured result.
+//! in-process request, derives slug/branch, builds the
+//! `dispatch.requested` event, persists it, and returns a structured
+//! result.
 //!
-//! Daemon-specific state (kernel, origin URL, worktrees path) is injected via
-//! [`AgentDispatchPort`] so shipd provides a concrete adapter while this module
-//! remains daemon-free.
+//! In-process dispatch is floki-class only (mount split, 2026-07-10):
+//! the wire carries only `{agent, prompt, model, slug}` — the
+//! coding-class fields (spec / resume / harness / invocation /
+//! keepalive / branch / source_spec_path / depends_on / repo_path /
+//! base_ref) live on `CodeDispatchRequest` in `code_dispatch_request.rs`
+//! and are served by `CodeService.Dispatch`. The floki runtime has
+//! nothing to resume, no worktree to provision, no harness to launch
+//! under supervision — those concepts are coding-class only.
+//!
+//! Daemon-specific state (kernel, origin URL) is injected via
+//! [`AgentDispatchPort`] so shipd provides a concrete adapter while this
+//! module remains daemon-free. The `worktrees_dir` accessor is gated on
+//! `ship-code` because the coding path of a ship-standard build
+//! doesn't expose it; the in-process core doesn't touch it.
 
 use async_trait::async_trait;
-use connectrpc::RequestContext;
 
-use agent_def::canonical_session::{SessionStarted, event_types as canonical_session_event_types};
-use agent_def::dispatch_intent::{DispatchRequestedPayload, event_types as dispatch_event_types};
+use agent_schema::canonical_session::{
+    SessionStarted, event_types as canonical_session_event_types,
+};
+use agent_schema::dispatch_intent::{
+    DispatchRequestedPayload, event_types as dispatch_event_types,
+};
 use ship_substrate::events::EventEnvelope;
 
-use super::dispatch_request::{
-    DispatchRequest, billing_warning_for_axes, validate_axes,
-};
-use super::dispatch_resume::{ResumeResolveError, resolve_resume};
+use super::dispatch_request::{DispatchRequest, validate_dispatch_request};
 
 // ── Port trait ────────────────────────────────────────────────────────────────
 
 /// Daemon-specific capabilities the dispatch core needs. Implemented by shipd;
 /// declared here so ship-agents stays daemon-free.
+///
+/// The coding-class counterpart (`CodeService.Dispatch`) reuses this
+/// same trait — the two surfaces share kernel persist-and-route, the
+/// daemon origin (for the `studio_url`), and (on the coding path only,
+/// gated) the worktrees root.
 #[async_trait]
 pub trait AgentDispatchPort: Send + Sync {
     /// Persist an event envelope and route it to the kernel.
@@ -35,27 +52,12 @@ pub trait AgentDispatchPort: Send + Sync {
     fn daemon_origin(&self) -> String;
 
     /// Absolute path to the worktrees root directory.
-    fn worktrees_dir(&self) -> std::path::PathBuf;
-
-    /// Per-project workspace isolation guard. Returns a violation message when
-    /// an MCP session bound to project A claims to act on project B; `None`
-    /// when the caller is trusted or the workspace is consistent.
     ///
-    /// This is an auth-context concern that the dispatch port exposes so the
-    /// ConnectRPC dispatch handler can enforce it without importing shipd's
-    /// `AuthContext` type directly. The REST handler enforces it before calling
-    /// `dispatch_agent_session_core`.
-    fn check_workspace_violation(
-        &self,
-        ctx: &RequestContext,
-        claimed_workspace: Option<&str>,
-    ) -> Option<String>;
-
-    /// Resolve a workspace label to its space id via the projects read model.
-    /// `None` when the workspace is not yet registered. Lives on the port so
-    /// dispatch_core (L1) never reaches into the L0 projects table directly —
-    /// the composition root owns the DB access.
-    fn space_id_for_workspace(&self, workspace_label: &str) -> Option<String>;
+    /// `None` when the daemon has no harness-driver backend wired.
+    /// The in-process core never reads it; the coding core reads it
+    /// under the `ship-code` cfg to resolve `resume: true`.
+    #[cfg(feature = "bridge")]
+    fn worktrees_dir(&self) -> Option<std::path::PathBuf>;
 }
 
 // ── Result type ───────────────────────────────────────────────────────────────
@@ -81,97 +83,87 @@ pub enum DispatchCoreError {
 
 // ── Core logic ────────────────────────────────────────────────────────────────
 
-/// Transport-neutral core of single-agent dispatch. Shared by the REST
-/// handler and the ConnectRPC `AgentsService.dispatch` wire method.
+/// Transport-neutral core of in-process (floki-class) single-agent
+/// dispatch. Shared by the ConnectRPC `AgentsService.dispatch` wire
+/// method.
 ///
 /// The `mcp_workspace_violation` guard is NOT performed here — it is an
-/// auth-context concern that belongs at the transport boundary (REST handler
-/// or rpc_wire). Callers must enforce it before invoking this function.
+/// auth-context concern that belongs at the transport boundary. Callers
+/// must enforce it before invoking this function.
 pub async fn dispatch_agent_session_core(
     port: &dyn AgentDispatchPort,
     req: DispatchRequest,
 ) -> Result<DispatchOutcome, DispatchCoreError> {
-    // Validate the (open_tab × invocation × keepalive) matrix.
-    if let Err(message) = validate_axes(&req) {
+    // Shape validation FIRST — before any side effect. The "agent is in
+    // the index" check is enforced at the wire boundary
+    // (rpc_wire::dispatch) since it needs the ship_dir to consult the
+    // index.
+    if let Err(message) = validate_dispatch_request(&req) {
         return Err(DispatchCoreError::BadRequest(message));
     }
 
-    let workspace_label = req
-        .workspace
-        .clone()
-        .unwrap_or_else(|| req.agent.clone());
+    // The slug-fallback label — the dispatch core derives
+    // `<agent>-<ulid>` when the caller omits an explicit slug. The
+    // in-process path has no resume (floki has nothing to resume), so
+    // we never look at `worktrees_dir`.
+    let slug_label = req.agent.clone();
 
-    // Resume: resolve an existing (agent, workspace) session and reuse
-    // its slug/branch. With no match, error clearly per the spec.
-    let resume_outcome = if req.resume {
-        let worktrees_root = port.worktrees_dir();
-        match resolve_resume(
-            &req.agent,
-            &workspace_label,
-            req.harness.as_deref(),
-            &worktrees_root,
-        ) {
-            Ok(o) => Some(o),
-            Err(ResumeResolveError::Status { status, message }) => {
-                return Err(if status == 400 {
-                    DispatchCoreError::BadRequest(message)
-                } else {
-                    DispatchCoreError::Internal(message)
-                });
-            }
-        }
-    } else {
-        None
-    };
-
-    let slug = req
-        .slug
-        .clone()
-        .or_else(|| resume_outcome.as_ref().map(|s| s.slug.clone()))
-        .unwrap_or_else(|| {
-            // Collision-free suffix from the ULID's random tail — a
-            // `[..8]` prefix is pure timestamp and collides for rapid
-            // same-workspace dispatches. See gen_slug_suffix.
-            format!("{}-{}", workspace_label, ship_substrate::gen_slug_suffix())
-        });
-    let branch = req
-        .branch
-        .clone()
-        .or_else(|| resume_outcome.as_ref().map(|s| s.branch.clone()))
-        .unwrap_or_else(|| format!("job/{slug}"));
-    let resume_harness = resume_outcome.as_ref().map(|o| o.session.harness.clone());
-    let resume_session_id = resume_outcome.as_ref().map(|o| o.session.session_id.clone());
+    // In-process: no resume, no branch override, no worktree. Slug
+    // is auto-derived from the agent id when not provided. Branch is
+    // always `job/<slug>` for consistency with the coding surface
+    // (the floki actor treats branch as advisory metadata; no git ops
+    // run).
+    let slug = req.slug.clone().unwrap_or_else(|| {
+        // Collision-free suffix from the ULID's random tail — a
+        // `[..8]` prefix is pure timestamp and collides for rapid
+        // same-agent dispatches. See gen_slug_suffix.
+        format!("{}-{}", slug_label, ship_substrate::gen_slug_suffix())
+    });
+    let branch = format!("job/{slug}");
     let session_id = ship_substrate::gen_ulid();
 
-    // Build the dispatch intent payload. This is the hard-failing spawn
-    // trigger that drives the `service.agents` actor. It carries all
-    // driver-edge fields (branch, source_spec_path, baseline_sha) that
-    // MUST NOT appear in canonical session.* payloads.
-    //
-    // Pipeline composition (multi-step) uses pipeline_run.rs which emits
-    // PIPELINE_RUN_STARTED + sets parent_pipeline_run_id on each step's
-    // dispatch.requested. This endpoint is for bare single-agent dispatch;
-    // parent_pipeline_run_id is always None here.
+    // Build the dispatch intent payload. The in-process shape only
+    // carries the four agent / prompt / model / slug fields; the
+    // driver-edge fields (repo_path / base_ref / source_spec_path /
+    // harness / branch override / resume / spec / depends_on / vars)
+    // are all `None` / `false` because the wire didn't carry them.
+    // The `service.agents` actor routes floki-harness envelopes
+    // (`harness == Some("floki")`) to the in-process floki closure —
+    // it ignores the driver-edge fields the coding path uses.
     let dispatch_payload = DispatchRequestedPayload {
         session_id: session_id.clone(),
         slug: slug.clone(),
         agent_id: req.agent.clone(),
-        harness: req.harness.or(resume_harness),
+        // The floki path always runs floki; the coding path's harness
+        // override lives on `CodeDispatchRequest`. Wire a "floki"
+        // marker so the actor routes this envelope to the floki
+        // closure (which ignores it otherwise).
+        harness: Some("floki".to_string()),
         model: req.model,
-        workspace: workspace_label.clone(),
         branch: branch.clone(),
-        source_spec_path: req.source_spec_path,
-        baseline_sha: resolve_project_head_sha(),
-        open_tab: req.open_tab,
-        invocation: req.invocation,
-        keepalive: req.keepalive,
-        prompt: req.prompt,
-        spec: req.spec,
-        resume: req.resume,
-        resume_session_id,
-        depends_on: req.depends_on,
-        vars: req.vars,
-        parent_pipeline_run_id: None,
+        repo_path: None,
+        base_ref: None,
+        source_spec_path: None,
+        // Ship-standard is git-free by ruling (decisions-2026-07-09 §"Git
+        // surface"); the in-process path never captures a baseline.
+        baseline_sha: None,
+        // In-process: no attach surface, no keepalive concept. The
+        // floki runtime drives itself in-process.
+        open_tab: false,
+        // Default invocation mode for the dispatch payload projection;
+        // the floki runtime doesn't read this field. `Pty` matches
+        // the historical pre-cutover default.
+        invocation: agent_schema::InvocationMode::Pty,
+        keepalive: false,
+        prompt: req.prompt.clone(),
+        // In-process never carries a spec body — the prompt is the
+        // first user turn and there's no job-spec markdown to land
+        // in a worktree (no worktree).
+        spec: None,
+        resume: false,
+        resume_session_id: None,
+        depends_on: None,
+        vars: None,
     };
 
     // dispatch.requested: the hard-failing spawn trigger. The service.agents
@@ -192,18 +184,19 @@ pub async fn dispatch_agent_session_core(
     // Best-effort: a canonical emit failure must NOT block the dispatch.
     // The dispatch.requested above is already in-flight; the spawn trigger
     // has been issued regardless of whether this audit row lands.
-    // space_id: resolve from workspace path via the projects projection;
-    // fall back to empty string if workspace is not yet registered.
-    let space_id = port
-        .space_id_for_workspace(&workspace_label)
-        .unwrap_or_default();
+    // space_id: the cosmetic workspace label is not a real space id — leave
+    // empty (consumers tolerate this via the default).
+    let space_id = String::new();
     if let Ok(canonical_env) = EventEnvelope::new(
         canonical_session_event_types::SESSION_STARTED,
         &session_id,
         &SessionStarted {
             session_id: session_id.clone(),
             agent_id: dispatch_payload.agent_id.clone(),
-            harness: dispatch_payload.harness.clone().unwrap_or_else(|| "claude".into()),
+            harness: dispatch_payload
+                .harness
+                .clone()
+                .unwrap_or_else(|| "claude".into()),
             model: dispatch_payload.model.clone(),
             space_id,
             slug: Some(slug.clone()),
@@ -217,28 +210,160 @@ pub async fn dispatch_agent_session_core(
     }
 
     let studio_url = format!("{}/sessions/{}", port.daemon_origin(), slug);
-    let billing_warning = billing_warning_for_axes(
-        dispatch_payload.invocation,
-        dispatch_payload.harness.as_deref(),
-    );
 
     Ok(DispatchOutcome {
         session_id,
         slug,
         branch,
-        resume: req.resume,
+        resume: false,
         studio_url,
-        billing_warning,
+        billing_warning: None,
     })
 }
 
-// ── Internal helper ───────────────────────────────────────────────────────────
+#[cfg(test)]
+mod tests {
+    //! Validation-gate tests for `dispatch_agent_session_core`. The point of
+    //! these is the wire-contract claim: a malformed request must be
+    //! rejected with `BadRequest` BEFORE any event is emitted — the test
+    //! doubles below count `persist_and_route` calls and assert they stay
+    //! at zero for every rejected request.
 
-/// Resolve HEAD SHA of the active project root. Used at dispatch time to
-/// capture the session's baseline — the point every future worktree branches
-/// from. `None` when the project dir can't be resolved or git fails.
-fn resolve_project_head_sha() -> Option<String> {
-    let project_ship = ship_substrate::project::get_project_dir(None).ok()?;
-    let project_root = project_ship.parent()?;
-    ship_git::read::resolve_head_sha(project_root)
+    use super::*;
+    use crate::services::agents::dispatch_request::DispatchRequest;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    /// `AgentDispatchPort` test double that counts `persist_and_route` calls
+    /// and rejects nothing — exercises the real validation gate in
+    /// `dispatch_agent_session_core`. The other accessors are not exercised
+    /// on the rejected paths (validation short-circuits first); we provide
+    /// trivial impls so the type is constructible.
+    struct CountingPort {
+        persist_calls: AtomicUsize,
+    }
+    #[async_trait]
+    impl AgentDispatchPort for CountingPort {
+        async fn persist_and_route(&self, _envelope: &EventEnvelope) -> anyhow::Result<()> {
+            self.persist_calls.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+        fn daemon_origin(&self) -> String {
+            "http://127.0.0.1:0".to_string()
+        }
+        #[cfg(feature = "bridge")]
+        fn worktrees_dir(&self) -> Option<std::path::PathBuf> {
+            Some(std::path::PathBuf::from("/tmp"))
+        }
+    }
+    fn req_with(agent: &str, prompt: Option<&str>, slug: Option<&str>) -> DispatchRequest {
+        DispatchRequest {
+            agent: agent.to_string(),
+            prompt: prompt.map(str::to_string),
+            model: None,
+            slug: slug.map(str::to_string),
+        }
+    }
+
+    /// The headline test: a literal `{}` shape — empty agent, no prompt,
+    /// no slug — must be rejected as `BadRequest` and must NOT emit a
+    /// single event.
+    #[tokio::test]
+    async fn empty_request_rejected_with_no_side_effects() {
+        let port = CountingPort {
+            persist_calls: AtomicUsize::new(0),
+        };
+        let req = req_with("", None, None);
+        let outcome = dispatch_agent_session_core(&port, req).await;
+        let err = match outcome {
+            Ok(_) => panic!("empty request must be rejected, got Ok"),
+            Err(e) => e,
+        };
+        match err {
+            DispatchCoreError::BadRequest(m) => {
+                assert!(m.contains("`agent` is required"), "got: {m}");
+            }
+            other => panic!("expected BadRequest, got {other:?}"),
+        }
+        assert_eq!(
+            port.persist_calls.load(Ordering::SeqCst),
+            0,
+            "empty request must not emit any event"
+        );
+    }
+
+    #[tokio::test]
+    async fn missing_agent_rejected_no_side_effects() {
+        let port = CountingPort {
+            persist_calls: AtomicUsize::new(0),
+        };
+        let req = req_with("", Some("do the thing"), None);
+        let outcome = dispatch_agent_session_core(&port, req).await;
+        let err = match outcome {
+            Ok(_) => panic!("empty agent must be rejected, got Ok"),
+            Err(e) => e,
+        };
+        assert!(matches!(err, DispatchCoreError::BadRequest(_)));
+        assert_eq!(port.persist_calls.load(Ordering::SeqCst), 0);
+    }
+
+    #[tokio::test]
+    async fn blank_prompt_rejected_no_side_effects() {
+        let port = CountingPort {
+            persist_calls: AtomicUsize::new(0),
+        };
+        // Agent is set, slug is None — passes the first two checks; a
+        // blank prompt trips the third check.
+        let req = req_with("rust-lane", None, None);
+        let outcome = dispatch_agent_session_core(&port, req).await;
+        let err = match outcome {
+            Ok(_) => panic!("blank prompt must be rejected, got Ok"),
+            Err(e) => e,
+        };
+        match err {
+            DispatchCoreError::BadRequest(m) => {
+                assert!(m.contains("`prompt` is required"), "got: {m}")
+            }
+            other => panic!("expected BadRequest, got {other:?}"),
+        }
+        assert_eq!(port.persist_calls.load(Ordering::SeqCst), 0);
+    }
+
+    #[tokio::test]
+    async fn bad_slug_rejected_no_side_effects() {
+        let port = CountingPort {
+            persist_calls: AtomicUsize::new(0),
+        };
+        let req = req_with("rust-lane", Some("do the thing"), Some("-bad-slug"));
+        let outcome = dispatch_agent_session_core(&port, req).await;
+        let err = match outcome {
+            Ok(_) => panic!("bad slug must be rejected, got Ok"),
+            Err(e) => e,
+        };
+        match err {
+            DispatchCoreError::BadRequest(m) => assert!(m.contains("does not match"), "got: {m}"),
+            other => panic!("expected BadRequest, got {other:?}"),
+        }
+        assert_eq!(port.persist_calls.load(Ordering::SeqCst), 0);
+    }
+
+    /// Sanity: a well-formed request DOES proceed past the validation
+    /// gate and the actor-side helper at least runs through (the test
+    /// double counts the `persist_and_route` call so the gate is
+    /// proven non-blocking on the happy path).
+    #[tokio::test]
+    async fn well_formed_request_proceeds_past_validation() {
+        let port = CountingPort {
+            persist_calls: AtomicUsize::new(0),
+        };
+        let req = req_with(
+            "rust-lane",
+            Some("do the thing"),
+            Some("dispatch-consolidation"),
+        );
+        let _ = dispatch_agent_session_core(&port, req).await;
+        assert!(
+            port.persist_calls.load(Ordering::SeqCst) >= 1,
+            "well-formed request must emit at least the dispatch.requested event"
+        );
+    }
 }

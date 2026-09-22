@@ -1,6 +1,6 @@
 //! Shared filesystem helper for domain services that persist to disk.
 //!
-//! One source of truth for reading/writing under `.ship/` and `~/.ship/`.
+//! One source of truth for reading/writing under `.ship/` and the global ship home.
 //! Every file-backed service (agents, skills, rules, mcp, permissions,
 //! pipelines, views, ...) delegates I/O here — path scoping, JSONC
 //! round-trip, atomic writes, and trash-on-delete are uniform.
@@ -35,7 +35,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Scope selector. Project is the enclosing repo's `.ship/` resolved via
-/// `ship_substrate::project::get_project_dir`. User is `~/.ship/`.
+/// `ship_substrate::project::get_stack_root` (the stack root). User is the daemon home.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Scope {
     Project,
@@ -87,7 +87,7 @@ pub struct FilesService {
 impl FilesService {
     /// Construct from a resolved daemon ship_dir (the user root) and an
     /// optional project ship_dir (typically discovered via
-    /// `ship_substrate::project::get_project_dir`).
+    /// `ship_substrate::project::get_stack_root`).
     pub fn new(user_root: PathBuf, project_root: Option<PathBuf>) -> Self {
         Self { project_root, user_root }
     }
@@ -96,7 +96,7 @@ impl FilesService {
     /// is the daemon's global `.ship/`; the project root is the enclosing
     /// project's `.ship/` if present.
     pub fn resolve_roots(ship_dir: &Path) -> Self {
-        let project_root = ship_substrate::project::get_project_dir(None)
+        let project_root = ship_substrate::project::get_stack_root(None)
             .ok()
             .filter(|p| p != ship_dir);
         Self {

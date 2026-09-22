@@ -6,19 +6,23 @@ publish = false
 description = "Shared domain types across the Ship workspace — EventEnvelope, ActorIdentity, Scope, Vector, CallerKind. Zero internal dependencies; every other Ship crate may depend on this."
 
 [dependencies]
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "03f917d5e51921754c1a6a12a4aa2beb56b4a405" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 chrono = { workspace = true }
 ulid = { workspace = true }
-inventory = { workspace = true }
 sha2 = { workspace = true }
 thiserror = { workspace = true }
+inventory = { workspace = true }
+async-trait = { workspace = true }
 specta = { workspace = true, features = ["chrono"], optional = true }
 
 
 [features]
 default = []
 specta = ["dep:specta"]
+# Unchecked `Stamped` mint for tests. Production builds never enable this.
+test-support = []
 
 [lints]
 workspace = true

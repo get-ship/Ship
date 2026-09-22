@@ -6,23 +6,28 @@ use tokio::process::{Child, Command};
 
 struct TestDaemon {
     port: u16,
-    token: String,
     _global_dir: tempfile::TempDir,
     child: Option<Child>,
 }
-
 impl TestDaemon {
     async fn start() -> Self {
         let global_dir = tempfile::tempdir().expect("create temp dir");
         let port = port();
 
+        // E2E smoke runs the daemon with `--unsafe-skip-auth` so loopback
+        // tests can hit authed routes without minting a session token.
+        // The test exercises the auth-middleware rejection path on
+        // unauthed calls and the loopback bypass on authed ones.
+
         let bin = env!("CARGO_BIN_EXE_shipd");
-        // Set cwd to the tempdir so ProjectRoot::discover() returns None and
-        // shipd writes to the singleton machine/daemon/. Otherwise shipd
-        // would inherit the test process's cwd (the Ship repo) and write to
-        // a per-worktree daemons/<hash>/ dir.
         let child = Command::new(bin)
-            .args(["--port", &port.to_string(), "--host", "127.0.0.1"])
+            .args([
+                "--port",
+                &port.to_string(),
+                "--host",
+                "127.0.0.1",
+                "--unsafe-skip-auth",
+            ])
             .current_dir(global_dir.path())
             .env("SHIP_HOME", global_dir.path())
             .env("RUST_LOG", "warn")
@@ -31,28 +36,21 @@ impl TestDaemon {
             .kill_on_drop(true)
             .spawn()
             .expect("spawn shipd");
-
-        // Per home-layout ADR, daemon IPC files live in machine/daemon/.
-        // Wait for the port file (written *after* HTTP bind) — token is
-        // written earlier and isn't a reliable readiness signal.
-        let daemon_dir = global_dir.path().join("machine").join("daemon");
+        // Wait for the port file (the only readiness signal we need —
+        // the cut removed the daemon token file).
+        let daemon_dir = global_dir.path().join("state").join("daemon");
         let port_path = daemon_dir.join("port");
-        let token_path = daemon_dir.join("token");
         let deadline = tokio::time::Instant::now() + Duration::from_secs(15);
         loop {
-            if port_path.exists() && token_path.exists() {
+            if port_path.exists() {
                 break;
             }
             assert!(
                 tokio::time::Instant::now() < deadline,
-                "shipd did not write port + token within 15s"
+                "shipd did not write port within 15s"
             );
             tokio::time::sleep(Duration::from_millis(50)).await;
         }
-        let token = std::fs::read_to_string(&token_path)
-            .expect("read daemon token")
-            .trim()
-            .to_string();
 
         // Health-poll: the HTTP listener can finish binding a few ms after
         // the port file lands. Poll /api/health until it responds.
@@ -71,24 +69,21 @@ impl TestDaemon {
             tokio::time::sleep(Duration::from_millis(50)).await;
         }
 
-        Self { port, token, _global_dir: global_dir, child: Some(child) }
+        Self {
+            port,
+            _global_dir: global_dir,
+            child: Some(child),
+        }
     }
 
     fn url(&self, path: &str) -> String {
         format!("http://127.0.0.1:{}{path}", self.port)
     }
 
+    /// The smoke daemon runs with `--unsafe-skip-auth`, so loopback
+    /// calls need no Authorization header.
     fn authed(&self) -> reqwest::Client {
-        use reqwest::header;
-        let mut headers = header::HeaderMap::new();
-        headers.insert(
-            header::AUTHORIZATION,
-            header::HeaderValue::from_str(&format!("Bearer {}", self.token)).unwrap(),
-        );
-        reqwest::Client::builder()
-            .default_headers(headers)
-            .build()
-            .unwrap()
+        reqwest::Client::new()
     }
 
     fn bare(&self) -> reqwest::Client {
@@ -98,7 +93,7 @@ impl TestDaemon {
 
 impl Drop for TestDaemon {
     fn drop(&mut self) {
-        if let Some(ref mut child) = self.child {
+        if let Some(child) = &mut self.child {
             let _ = child.start_kill();
         }
     }
@@ -165,10 +160,14 @@ async fn cors_rejects_bad_origin() {
 #[tokio::test]
 async fn unknown_route_returns_404() {
     let d = TestDaemon::start().await;
-    let res = d.authed().get(d.url("/api/nonexistent")).send().await.unwrap();
+    let res = d
+        .authed()
+        .get(d.url("/api/nonexistent"))
+        .send()
+        .await
+        .unwrap();
     assert_eq!(res.status(), 404);
 }
-
 
 #[tokio::test]
 async fn invoke_unknown_skill_404s() {

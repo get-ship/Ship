@@ -9,6 +9,10 @@ pub const PIDFILE_STALE_TAKEN: &str = "daemon.pidfile_stale_taken";
 pub const OWNER_BOUND: &str = "daemon.owner.bound";
 /// Daemon-owner binding — the user unpaired (`ship logout`).
 pub const OWNER_UNBOUND: &str = "daemon.owner.unbound";
+/// Boot-time finding: the most recent `daemon.startup_completed` has no
+/// matching `daemon.shutdown_completed` after it — the prior run ended
+/// without a clean shutdown emit (crash, kill -9, or power loss).
+pub const CRASH_DETECTED: &str = "daemon.crash_detected";
 
 pub const ALL_DAEMON: &[&str] = &[
     STARTUP_COMPLETED,
@@ -19,4 +23,5 @@ pub const ALL_DAEMON: &[&str] = &[
     PIDFILE_STALE_TAKEN,
     OWNER_BOUND,
     OWNER_UNBOUND,
+    CRASH_DETECTED,
 ];

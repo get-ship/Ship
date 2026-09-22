@@ -1,51 +1,50 @@
 [workspace]
 members = [
-    "crates/build-info",
     "crates/core/ship-substrate",
-    "crates/core/ship-substrate/crates/ship-substrate-host",
+    "crates/core/stack-model",
     "crates/core/ship-substrate/crates/ship-types",
+    "crates/core/ship-substrate/crates/ship-paths",
     "crates/core/ship-substrate/crates/ship-auth-types",
     "crates/core/ship-substrate/crates/ship-kernel",
-    "crates/core/ship-substrate/crates/ship-runner",
     "crates/core/ship-substrate/crates/ship-pipelines",
-    "crates/core/ship-substrate/crates/ship-js",
-    "crates/core/ship-substrate/crates/durable-execution",
+    "crates/core/ship-substrate/crates/fs-util",
+    "crates/core/ship-substrate/crates/config-doc",
+    "crates/core/path-layout",
+    "crates/core/ship-substrate/crates/blobstore",
+    "crates/core/ship-substrate/crates/blob-s3",
+    "crates/core/ship-substrate/crates/fs-watch",
+    "crates/core/ship-substrate/crates/fs-cap",
     "crates/core/ship-platform",
-    "crates/core/ship-git",
     "crates/core/ship-cloud",
-    "crates/ship-pipeline-runtime",
+    "crates/core/ship-substrate/crates/pipeline-defs",
     "crates/core/ship-platform/crates/ship-analytics",
     "crates/core/ship-platform/crates/ship-search",
     "crates/core/ship-gateway-client",
     "crates/core/ship-ops-rpc",
-    "crates/core/compiler",
+    "crates/core/agent-config-eval",
+    "crates/core/space-resolver",
     "crates/core/ship-platform/crates/ship-reactive",
     "crates/core/ship-platform/crates/ship-collection",
     "crates/core/ship-platform/crates/ship-artifacts",
     "crates/core/ship-platform/crates/ship-ui",
     "crates/core/ship-platform/crates/ship-space",
-    "crates/core/ship-platform/crates/ship-device",
-    "crates/core/ship-platform/crates/ship-config",
+    "crates/core/ship-platform/crates/ship-settings",
     "crates/core/ship-platform/crates/ship-triggers",
     "crates/core/ship-platform/crates/ship-account",
     "crates/core/ship-platform/crates/agent-def",
-    "crates/core/ship-platform/crates/ship-code",
-    "crates/core/ship-platform/crates/floki",
     "crates/core/ship-platform/crates/ship-agents",
-    "crates/core/ship-platform/crates/ship-harnesses",
     "crates/core/ship-platform/crates/ship-files",
-    "crates/core/ship-platform/crates/ship-messaging",
     "crates/core/ship-platform/crates/ship-store",
+    "crates/core/ship-platform/crates/bundle-limits",
     "crates/core/ship-platform/crates/ship-auth",
-    "crates/core/ship-platform/crates/ship-terminal",
-    "crates/core/ship-platform/crates/ship-isolation",
-    "crates/core/ship-platform/crates/ship-isolation/bin/ship-sidecar",
-    "crates/core/ship-sidecar-proto",
-    # crates/sui/* + crates/deck/* moved to the external sui repo (phase 2 carve);
-    # repointed via path = "/home/madvib/dev/sui/..." in consumer Cargo.toml files.
+    # ship-isolation / ship-device / ship-sidecar-proto / ship-sidecar moved to
+    # ship-infra (j-09). ship-git moved to ship-infra (j-04).
+    # Consumers use git deps with pinned revs.
+    # crates/sui/* + crates/deck/* moved to the external sail repo (phase 2 carve).
+    # Consumers use git deps on get-ship/sail (see apps/shipd, ship-ui, xtask).
     "crates/xtask",
     "apps/shipd",
-    "apps/ship-cli",
+    "apps/shipctl",
     "apps/host",
     "tests/contract",
 ]
@@ -56,47 +55,37 @@ members = [
 default-members = [
     "crates/build-info",
     "crates/core/ship-substrate",
-    "crates/core/ship-substrate/crates/ship-substrate-host",
+    "crates/core/stack-model",
     "crates/core/ship-substrate/crates/ship-types",
+    "crates/core/ship-substrate/crates/ship-paths",
     "crates/core/ship-substrate/crates/ship-auth-types",
     "crates/core/ship-substrate/crates/ship-kernel",
-    "crates/core/ship-substrate/crates/ship-runner",
     "crates/core/ship-substrate/crates/ship-pipelines",
-    "crates/core/ship-substrate/crates/ship-js",
     "crates/core/ship-platform",
-    "crates/core/ship-git",
     "crates/core/ship-cloud",
-    "crates/ship-pipeline-runtime",
+    "crates/core/ship-substrate/crates/pipeline-defs",
     "crates/core/ship-platform/crates/ship-analytics",
     "crates/core/ship-platform/crates/ship-search",
     "crates/core/ship-gateway-client",
     "crates/core/ship-ops-rpc",
-    "crates/core/compiler",
+    "crates/core/agent-config-eval",
+    "crates/core/space-resolver",
     "crates/core/ship-platform/crates/ship-reactive",
     "crates/core/ship-platform/crates/ship-collection",
     "crates/core/ship-platform/crates/ship-artifacts",
     "crates/core/ship-platform/crates/ship-ui",
     "crates/core/ship-platform/crates/ship-space",
-    "crates/core/ship-platform/crates/ship-device",
-    "crates/core/ship-platform/crates/ship-config",
+    "crates/core/ship-platform/crates/ship-settings",
     "crates/core/ship-platform/crates/ship-triggers",
     "crates/core/ship-platform/crates/ship-account",
     "crates/core/ship-platform/crates/agent-def",
-    "crates/core/ship-platform/crates/ship-code",
-    "crates/core/ship-platform/crates/floki",
-    "crates/core/ship-platform/crates/ship-agents",
-    "crates/core/ship-platform/crates/ship-harnesses",
     "crates/core/ship-platform/crates/ship-files",
-    "crates/core/ship-platform/crates/ship-messaging",
+    "crates/core/ship-platform/crates/bundle-limits",
     "crates/core/ship-platform/crates/ship-store",
     "crates/core/ship-platform/crates/ship-auth",
-    "crates/core/ship-platform/crates/ship-terminal",
-    "crates/core/ship-platform/crates/ship-isolation",
-    "crates/core/ship-platform/crates/ship-isolation/bin/ship-sidecar",
-    "crates/core/ship-sidecar-proto",
     "crates/xtask",
     "apps/shipd",
-    "apps/ship-cli",
+    "apps/shipctl",
     "tests/contract",
 ]
 resolver = "2"
@@ -128,7 +117,6 @@ futures-util = "0.3"
 # HTTP / RPC (members add features as needed)
 axum = { version = "0.8" }
 reqwest = { version = "0.12", default-features = false }
-ureq = "3"
 rmcp = "0.16.0"
 
 # CLI
@@ -231,3 +219,4 @@ debug = "line-tables-only"
 lto = "thin"
 codegen-units = 1
 strip = "debuginfo"
+

@@ -6,10 +6,12 @@ publish = false
 description = "AccountService — Ship Cloud identity (login / logout / state / key) over substrate ports (L1). Token at rest via config_doc secret-doc (no raw fs); account.* audit via KernelLog; gateway exchange via ship-gateway-client. Implements account.proto's typed AccountService."
 
 [dependencies]
+agent-schema = { git = "https://github.com/get-ship/fleet.git", rev = "03f917d5e51921754c1a6a12a4aa2beb56b4a405" }
 ship-substrate = { path = "../../../ship-substrate" }
 ship-types = { path = "../../../ship-substrate/crates/ship-types" }
 ship-gateway-client = { path = "../../../ship-gateway-client" }
 ship-ops-rpc = { path = "../../../ship-ops-rpc" }
+ship-proto = { git = "https://github.com/get-ship/ship-contracts.git", branch = "feat/next" }
 
 async-trait = { workspace = true }
 connectrpc = { version = "0.4", features = ["axum"] }

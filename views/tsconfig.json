@@ -1,43 +1,37 @@
 {
+  // apps/hub/views/tsconfig.json — typecheck config for the view controllers.
+  //
+  // These are SUI views (controller.ts + page.sail + style.css) seeded from
+  // Ship/views/. They are NOT wired as hub routes yet; they live here as
+  // view/store surface seeds.
+  //
+  // page.sail.d.ts stubs: each view ships a stub `page.sail.d.ts` with
+  //   `export type Scope = any`
+  // so TypeScript can resolve `import type { Scope } from './page.sail'`.
+  // When deck-cli runs a build pass it will overwrite these stubs with the
+  // compiler-generated precise types from .ship/sui-out/, and the `s: any`
+  // annotations in on:/use: blocks can be removed or replaced with MutableState<Scope>.
+  //
+  // Package resolution: moduleResolution=bundler walks up to
+  // apps/hub/node_modules/@ship/{sui-runtime,sdk-client} — no explicit
+  // paths needed.
+  //
+  // exclude: **/node_modules suppresses the pre-existing type error in
+  // @ship/sdk-client@0.1.0/src/account.ts (a registry package bug, not
+  // a view issue; identical error appears in the hub's own tsc baseline).
   "compilerOptions": {
     "target": "ES2022",
     "module": "ESNext",
-    "moduleResolution": "Bundler",
+    "moduleResolution": "bundler",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "strict": true,
-    "noUncheckedIndexedAccess": true,
-    "exactOptionalPropertyTypes": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
-    "noEmit": true,
-    "types": [],
-    // `views/` is not a workspace member (root package.json doesn't
-    // include it in `workspaces.packages`), so tsc walking up from
-    // a controller's import never finds `@ship/sui-runtime` in the
-    // root node_modules. Map the package names to their on-disk
-    // entries directly so tsc resolves the imports.
-    "paths": {
-      // `@ship/sui-runtime*` + `@ship/sui-dom*` aliases now point at the
-      // external sui repo (post-carve). TEMP — relativized to `../sui/...`
-      // in the layout-reshuffle capstone.
-      "@ship/sui-runtime": ["/home/madvib/dev/sui/packages/sui/runtime/src/index.ts"],
-      "@ship/sui-runtime/*": ["/home/madvib/dev/sui/packages/sui/runtime/src/*"],
-      "@ship/sui-dom/test-utils": ["/home/madvib/dev/sui/packages/sui/dom/src/test-utils/index.ts"],
-      "@ship/sui-dom/test-utils/*": ["/home/madvib/dev/sui/packages/sui/dom/src/test-utils/*"],
-      "@ship/sdk-client": ["../packages/sdk-client/src/index.ts"],
-      "@ship/sdk-client/*": ["../packages/sdk-client/src/*"],
-      "@ship/sdk": ["../packages/sdk/src/index.ts"],
-      "@ship/sdk/*": ["../packages/sdk/src/*"],
-    },
-    // Controllers do `import type { Scope } from './page.sui'`. The
-    // sui-compiler emits `page.sui.d.ts` into the project mirror tree
-    // at `<repo-root>/.ship/sui-out/views/<name>/`. `rootDirs` lets tsc
-    // treat the source tree and its mirror as a single virtual root for
-    // relative module resolution.
-    "rootDirs": [".", "../.ship/sui-out/views"]
+    "allowArbitraryExtensions": true,
+    "noEmit": true
   },
   "include": ["**/*.ts"],
-  "exclude": ["**/node_modules", "**/dist"]
+  "exclude": ["**/node_modules", "**/.deck", "**/.bun"]
 }

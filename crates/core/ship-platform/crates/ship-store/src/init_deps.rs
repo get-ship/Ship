@@ -1,9 +1,14 @@
-//! Default registry dependencies for `ship init`.
-//!
-//! When `ship init` creates a new project, this module seeds default `@ship/*`
-//! dependencies into `ship.jsonc` and optionally resolves them via the registry.
-//! If the registry is unreachable, the caller falls back to bare scaffold skills.
+//! This module seeds default `@ship/*` dependencies into `ship.jsonc` and
+//! optionally resolves them via the registry. If the registry is
+//! unreachable, the caller falls back to bare scaffold skills.
 
+// Fetched LEGACY packages may still carry a `.ship/` tree; this local
+// helper names that historical PACKAGE shape (migrates with the registry
+// story). Our own discovery no longer knows the dirname.
+#[allow(dead_code)]
+fn legacy_package_ship_dir<P: AsRef<std::path::Path>>(root: P) -> std::path::PathBuf {
+    root.as_ref().join(".ship")
+}
 use std::path::Path;
 
 use anyhow::{Context, Result};
@@ -34,7 +39,7 @@ pub struct SeedResult {
 /// `serde_json::Value`, injects the `dependencies` object, and writes back
 /// with pretty formatting.
 pub fn seed_default_dependencies(ship_dir: &Path) -> Result<SeedResult> {
-    let jsonc_path = ship_dir.join(ship_substrate::project::PRIMARY_CONFIG_FILE);
+    let jsonc_path = ship_dir.join("ship.jsonc");
     if !jsonc_path.exists() {
         anyhow::bail!(
             "ship.jsonc not found at {}; run project init first",
@@ -45,8 +50,9 @@ pub fn seed_default_dependencies(ship_dir: &Path) -> Result<SeedResult> {
     let raw = std::fs::read_to_string(&jsonc_path)
         .with_context(|| format!("reading {}", jsonc_path.display()))?;
 
-    let mut doc: serde_json::Value = serde_json::from_str(&ship_substrate::fs_util::strip_jsonc_comments(&raw))
-        .with_context(|| format!("parsing {}", jsonc_path.display()))?;
+    let mut doc: serde_json::Value =
+        serde_json::from_str(&ship_substrate::fs_util::strip_jsonc_comments(&raw))
+            .with_context(|| format!("parsing {}", jsonc_path.display()))?;
 
     // Idempotent: if dependencies already exist, leave them alone.
     if doc.get("dependencies").is_some() {
@@ -79,22 +85,23 @@ pub fn seed_default_dependencies(ship_dir: &Path) -> Result<SeedResult> {
 
 /// Attempt to install the dependencies declared in `ship.jsonc`.
 ///
-/// This is a best-effort operation for use after `ship init`. It reads the
-/// `dependencies` section from ship.jsonc (without requiring a `module` section),
-/// builds a lightweight registry manifest, and runs `resolve_and_fetch`.
+/// This is a best-effort operation. It reads the `dependencies` section
+/// from ship.jsonc (without requiring a `module` section), builds a
+/// lightweight registry manifest, and runs `resolve_and_fetch`.
 ///
 /// Returns `Ok(true)` if install succeeded, `Ok(false)` if it was skipped
 /// (no deps), or an error. Callers should catch errors and fall back gracefully.
 pub fn try_install_init_deps(ship_dir: &Path) -> Result<bool> {
-    let jsonc_path = ship_dir.join(ship_substrate::project::PRIMARY_CONFIG_FILE);
+    let jsonc_path = ship_dir.join("ship.jsonc");
     if !jsonc_path.exists() {
         return Ok(false);
     }
 
     let raw = std::fs::read_to_string(&jsonc_path)
         .with_context(|| format!("reading {}", jsonc_path.display()))?;
-    let doc: serde_json::Value = serde_json::from_str(&ship_substrate::fs_util::strip_jsonc_comments(&raw))
-        .with_context(|| format!("parsing {}", jsonc_path.display()))?;
+    let doc: serde_json::Value =
+        serde_json::from_str(&ship_substrate::fs_util::strip_jsonc_comments(&raw))
+            .with_context(|| format!("parsing {}", jsonc_path.display()))?;
 
     let deps_val = match doc.get("dependencies") {
         Some(v) if v.is_object() => v,
@@ -147,13 +154,13 @@ mod tests {
     use std::fs;
 
     fn init_ship_dir(tmp: &std::path::Path) -> std::path::PathBuf {
-        let ship_dir = ship_substrate::ShipHome::project_ship_dir(tmp);
+        let ship_dir = legacy_package_ship_dir(tmp);
         fs::create_dir_all(&ship_dir).unwrap();
         ship_dir
     }
 
     fn write_ship_jsonc(ship_dir: &std::path::Path, content: &str) {
-        fs::write(ship_dir.join(ship_substrate::project::PRIMARY_CONFIG_FILE), content).unwrap();
+        fs::write(ship_dir.join("ship.jsonc"), content).unwrap();
     }
 
     #[test]
@@ -167,8 +174,7 @@ mod tests {
         assert_eq!(result.added, DEFAULT_INIT_DEPS.len());
 
         // Verify the file now has dependencies.
-        let content =
-            fs::read_to_string(ship_dir.join(ship_substrate::project::PRIMARY_CONFIG_FILE)).unwrap();
+        let content = fs::read_to_string(ship_dir.join("ship.jsonc")).unwrap();
         let doc: serde_json::Value = serde_json::from_str(&content).unwrap();
         let deps = doc.get("dependencies").expect("dependencies key missing");
         assert!(deps.is_object());
@@ -195,8 +201,7 @@ mod tests {
         assert_eq!(result.added, 0);
 
         // Original deps must be unchanged.
-        let content =
-            fs::read_to_string(ship_dir.join(ship_substrate::project::PRIMARY_CONFIG_FILE)).unwrap();
+        let content = fs::read_to_string(ship_dir.join("ship.jsonc")).unwrap();
         let doc: serde_json::Value = serde_json::from_str(&content).unwrap();
         let deps = doc.get("dependencies").unwrap();
         assert_eq!(
@@ -230,8 +235,7 @@ mod tests {
 
         seed_default_dependencies(&ship_dir).unwrap();
 
-        let content =
-            fs::read_to_string(ship_dir.join(ship_substrate::project::PRIMARY_CONFIG_FILE)).unwrap();
+        let content = fs::read_to_string(ship_dir.join("ship.jsonc")).unwrap();
         let doc: serde_json::Value = serde_json::from_str(&content).unwrap();
         assert_eq!(doc.get("id").and_then(|v| v.as_str()), Some("abc123"));
         assert!(doc.get("project").is_some());

@@ -1,0 +1,272 @@
+/*
+ * Ship marketing-site global styles.
+ *
+ * Loads canonical Ship tokens + Syne/DM Sans (matching Studio + docs).
+ * Per-theme overrides come from the canonical @ship/tokens package
+ * (de-vendored — the local themes.css copy diverged). Base tokens still
+ * load from the local ./tokens.css.
+ */
+
+@import '@fontsource-variable/syne';
+@import '@fontsource-variable/dm-sans';
+@import './tokens.css';
+@import '@ship/tokens/themes.css';
+@import '@ship/tokens/sail-base.css';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body);
+  font-feature-settings: 'cv11', 'ss01', 'ss03';
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  line-height: 1.55;
+}
+
+body {
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+img,
+svg,
+video {
+  display: block;
+  max-width: 100%;
+}
+
+button {
+  font: inherit;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.08;
+  margin: 0;
+  color: var(--foreground);
+}
+
+h1 {
+  font-size: clamp(40px, 7vw, 88px);
+  letter-spacing: -0.035em;
+}
+
+h2 {
+  font-size: clamp(28px, 4vw, 44px);
+}
+
+h3 {
+  font-size: clamp(20px, 2.4vw, 26px);
+  letter-spacing: -0.015em;
+}
+
+p {
+  margin: 0;
+}
+
+.site-container {
+  width: 100%;
+  max-width: var(--site-max-width);
+  margin-inline: auto;
+  padding-inline: var(--site-gutter);
+}
+
+.site-muted {
+  color: var(--muted-foreground);
+}
+
+.site-accent {
+  color: var(--accent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ─── Site-wide motion primitives ────────────────────────────────
+ * Triggered by ../scripts/motion.ts. Designed to be small, gpu-only,
+ * and meaningful — not animated noise. All paths respect
+ * prefers-reduced-motion via the rules above.
+ * ───────────────────────────────────────────────────────────── */
+
+/* Reveal-up: invisible + nudged down until JS adds .is-revealed.
+ * Children with [data-reveal-child] stagger off --reveal-delay. */
+[data-reveal] {
+  opacity: 0;
+  transform: translate3d(0, 16px, 0);
+  transition:
+    opacity 700ms cubic-bezier(0.2, 0.7, 0.2, 1),
+    transform 700ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  will-change: opacity, transform;
+}
+[data-reveal].is-revealed {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+}
+[data-reveal-child] {
+  opacity: 0;
+  transform: translate3d(0, 14px, 0);
+  transition:
+    opacity 650ms cubic-bezier(0.2, 0.7, 0.2, 1) var(--reveal-delay, 0ms),
+    transform 650ms cubic-bezier(0.2, 0.7, 0.2, 1) var(--reveal-delay, 0ms);
+}
+[data-reveal].is-revealed [data-reveal-child] {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+}
+
+/* Spotlight: subtle cursor-tracked radial highlight on cards.
+ * --mx / --my are written by JS in % (0%–100%). The ::before is the
+ * highlight layer; it eases in on hover so quick pointer-over doesn't
+ * flash. */
+.spotlight {
+  position: relative;
+  isolation: isolate;
+}
+.spotlight::before {
+  content: "";
+  position: absolute; inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(
+    320px circle at var(--mx, 50%) var(--my, 50%),
+    color-mix(in oklab, var(--primary) 14%, transparent),
+    transparent 60%
+  );
+  opacity: 0;
+  transition: opacity 240ms ease;
+  z-index: 0;
+}
+.spotlight.is-spotlit::before { opacity: 1; }
+.spotlight > * { position: relative; z-index: 1; }
+
+/* Sticky-nav: when scrolled past hero, nav strengthens.
+ * The original .site-nav already has a backdrop-blur; this tightens it. */
+header.site-nav {
+  transition:
+    background-color 220ms ease,
+    border-color 220ms ease,
+    box-shadow 220ms ease;
+}
+header.site-nav.is-scrolled {
+  background: color-mix(in oklab, var(--page-bg) 88%, transparent);
+  border-bottom-color: color-mix(in oklab, var(--rail) 100%, transparent);
+  box-shadow: 0 1px 0 color-mix(in oklab, var(--page-fg) 4%, transparent);
+}
+
+/*
+ * Host marketing skins for surfaces that used to be dissolved CEs.
+ * Buttons paint from sail-base.css; these cover badge/card/dot demos.
+ */
+.m-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  border: 1px solid var(--border);
+}
+.m-badge[data-variant='soft'] {
+  background: color-mix(in oklch, var(--primary) 14%, transparent);
+  color: var(--primary);
+  border-color: transparent;
+}
+.m-badge[data-variant='outline'] {
+  background: transparent;
+}
+.m-badge[data-tone='success'] {
+  background: color-mix(in oklch, var(--success) 16%, transparent);
+  color: var(--success);
+  border-color: transparent;
+}
+.m-badge[data-tone='warning'] {
+  background: color-mix(in oklch, var(--warning) 16%, transparent);
+  color: var(--warning);
+  border-color: transparent;
+}
+.m-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--card);
+  color: var(--card-foreground);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-xs);
+}
+.m-card[data-padding='sm'] { padding: var(--space-2) var(--space-3); }
+.m-card[data-padding='md'] { padding: var(--space-3) var(--space-4); }
+.m-card[data-tone='success'] { border-color: color-mix(in oklch, var(--success) 50%, var(--border)); }
+.m-card[data-tone='primary'] { border-color: color-mix(in oklch, var(--primary) 50%, var(--border)); }
+.m-card[data-tone='warning'] { border-color: color-mix(in oklch, var(--warning) 50%, var(--border)); }
+.m-card-h { font-size: 11px; color: var(--muted-foreground); font-weight: 600; }
+.m-card-f { font-size: 11px; color: var(--muted-foreground); }
+span[dot] {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted-foreground);
+  flex-shrink: 0;
+}
+span[dot][size='sm'] { width: 6px; height: 6px; }
+span[dot][data-tone='success'] { background: var(--success); }
+span[dot][data-tone='destructive'] { background: var(--destructive); }
+span[dot][data-tone='warning'] { background: var(--warning); }
+span[dot][data-tone='muted'] { background: var(--muted-foreground); }
+
+/* Primary CTA tone for host buttons (sail-base covers un-toned variants). */
+button[variant='solid'][tone='primary'],
+a[variant='solid'][tone='primary'] {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+}
+button[variant='solid'][tone='primary']:hover:not(:disabled),
+a[variant='solid'][tone='primary']:hover {
+  background: color-mix(in oklch, var(--primary), var(--foreground) 12%);
+  border-color: color-mix(in oklch, var(--primary), var(--foreground) 12%);
+}
+button[size='lg'], a[variant][size='lg'] {
+  min-height: var(--control-h-lg, 44px);
+  padding-inline: var(--space-4);
+}
+button[size='sm'], a[variant][size='sm'] {
+  min-height: var(--control-h-sm, 32px);
+  padding-inline: var(--space-2_5);
+  font-size: var(--text-sm);
+}

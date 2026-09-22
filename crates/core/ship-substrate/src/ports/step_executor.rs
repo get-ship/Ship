@@ -42,16 +42,12 @@ pub enum StepExecutorError {
     Io(#[from] std::io::Error),
 }
 
-impl From<crate::spawn_bounded::BoundedError> for StepExecutorError {
-    fn from(e: crate::spawn_bounded::BoundedError) -> Self {
+impl From<bounded_spawn::BoundedError> for StepExecutorError {
+    fn from(e: bounded_spawn::BoundedError) -> Self {
         match e {
-            crate::spawn_bounded::BoundedError::TimedOut(d) => {
-                StepExecutorError::TimedOut(d.as_secs())
-            }
-            crate::spawn_bounded::BoundedError::OomCapped(mb) => {
-                StepExecutorError::MemoryCapped(mb)
-            }
-            crate::spawn_bounded::BoundedError::Io(e) => StepExecutorError::Io(e),
+            bounded_spawn::BoundedError::TimedOut(d) => StepExecutorError::TimedOut(d.as_secs()),
+            bounded_spawn::BoundedError::OomCapped(mb) => StepExecutorError::MemoryCapped(mb),
+            bounded_spawn::BoundedError::Io(e) => StepExecutorError::Io(e),
         }
     }
 }
@@ -73,7 +69,7 @@ impl StepExecutor {
         command: &str,
         work_dir: &Path,
     ) -> Result<StepOutput, StepExecutorError> {
-        use crate::spawn_bounded::Cmd;
+        use bounded_spawn::Cmd;
 
         let out = Cmd::new("sh")
             .arg("-c")

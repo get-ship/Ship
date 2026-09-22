@@ -2,10 +2,17 @@
 //!
 //! Split from `install.rs` to stay under the 300-line file cap.
 
+// Fetched LEGACY packages may still carry a `.ship/` tree; this local
+// helper names that historical PACKAGE shape (migrates with the registry
+// story). Our own discovery no longer knows the dirname.
+#[allow(dead_code)]
+fn legacy_package_ship_dir<P: AsRef<std::path::Path>>(root: P) -> std::path::PathBuf {
+    root.as_ref().join(".ship")
+}
 use std::path::Path;
 
 use anyhow::Context;
-use compiler::lockfile::ShipLock;
+use stack_model::lockfile::ShipLock;
 
 use super::cache::{CachedPackage, PackageCache};
 use super::fetch::fetch_package_content;
@@ -15,8 +22,7 @@ pub fn load_lock_if_present(path: &Path) -> anyhow::Result<Option<ShipLock>> {
     if !path.exists() {
         return Ok(None);
     }
-    let lock = ShipLock::from_file(path)
-        .with_context(|| format!("parsing {}", path.display()))?;
+    let lock = ShipLock::from_file(path).with_context(|| format!("parsing {}", path.display()))?;
     Ok(Some(lock))
 }
 
@@ -33,7 +39,7 @@ pub fn fetch_and_store(
         .with_context(|| format!("fetching {dep_path} @ {commit}"))?;
 
     // Ship-native packages land in tmp/.ship/; root-manifest packages land in tmp/.
-    let ship_dir = ship_substrate::ShipHome::project_ship_dir(tmp.path());
+    let ship_dir = legacy_package_ship_dir(tmp.path());
     let content_dir = if ship_dir.is_dir() {
         ship_dir.as_path()
     } else {
@@ -41,11 +47,11 @@ pub fn fetch_and_store(
     };
 
     // Security scan: block packages with critical hidden Unicode characters.
-    let findings = ship_substrate::security::scan_dir(content_dir);
-    if ship_substrate::security::has_critical(&findings) {
+    let findings = crate::content_scan::scan_dir(content_dir);
+    if crate::content_scan::has_critical(&findings) {
         let critical_findings: Vec<_> = findings
             .iter()
-            .filter(|f| f.severity == ship_substrate::security::Severity::Critical)
+            .filter(|f| f.severity == crate::content_scan::Severity::Critical)
             .collect();
         let details: Vec<String> = critical_findings.iter().map(|f| f.to_string()).collect();
         anyhow::bail!(

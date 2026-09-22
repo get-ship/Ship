@@ -42,10 +42,8 @@ const WRITE_TOOLS: &[&str] = &["Write", "Edit", "MultiEdit", "NotebookEdit"];
 /// Layer 1 already covers the obvious surface (`cat ~/.ship/machine/*` etc).
 /// These are the constructions Layer 1's literal-glob matcher misses.
 const SHIP_TOUCHING_VERBS: &[&str] = &[
-    "tar", "cp", "mv", "dd", "rsync", "tee", "chmod", "chown", "ln", "install",
-    "base64", "xxd", "od", "hexdump",
-    "cat", "head", "tail", "less", "more",
-    "rm",
+    "tar", "cp", "mv", "dd", "rsync", "tee", "chmod", "chown", "ln", "install", "base64", "xxd",
+    "od", "hexdump", "cat", "head", "tail", "less", "more", "rm",
 ];
 
 /// Commands whose first token, combined with a loopback URL, indicates
@@ -87,7 +85,9 @@ pub fn check(stdin_json: &str, ctx: &Context) -> Decision {
 }
 
 fn check_write(input: Option<&serde_json::Value>, home: &Path) -> Decision {
-    let Some(input) = input else { return Decision::Allow };
+    let Some(input) = input else {
+        return Decision::Allow;
+    };
     let path = input
         .get("file_path")
         .or_else(|| input.get("filePath"))
@@ -103,7 +103,9 @@ fn check_write(input: Option<&serde_json::Value>, home: &Path) -> Decision {
 }
 
 fn check_bash(input: Option<&serde_json::Value>, ctx: &Context) -> Decision {
-    let Some(input) = input else { return Decision::Allow };
+    let Some(input) = input else {
+        return Decision::Allow;
+    };
     let cmd = input.get("command").and_then(|v| v.as_str()).unwrap_or("");
     if cmd.is_empty() {
         return Decision::Allow;
@@ -276,9 +278,7 @@ fn strip_prefix_wrappers(tokens: &[String]) -> &str {
 
 fn segment_touches(haystack: &str, segment: &str) -> bool {
     let with_slash = format!("{segment}/");
-    haystack.contains(&with_slash)
-        || haystack.ends_with(segment)
-        || haystack == segment
+    haystack.contains(&with_slash) || haystack.ends_with(segment) || haystack == segment
 }
 
 fn path_has_segment(path: &Path, segment: &str) -> bool {

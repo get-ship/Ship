@@ -9,16 +9,18 @@ target_dir() {
         | cut -d'"' -f4
 }
 
-# The `ship` binary built in this checkout. Falls back to PATH if missing.
+# The `shipctl` binary built in this checkout. Falls back to PATH if
+# missing. Function name is sourced API (scripts/dev/* callers) — the
+# binary it resolves is shipctl.
 ship_bin() {
     local t
     t=$(target_dir)
-    if [ -x "$t/debug/ship" ]; then
-        echo "$t/debug/ship"
-    elif [ -x "$t/release/ship" ]; then
-        echo "$t/release/ship"
+    if [ -x "$t/debug/shipctl" ]; then
+        echo "$t/debug/shipctl"
+    elif [ -x "$t/release/shipctl" ]; then
+        echo "$t/release/shipctl"
     else
-        command -v ship
+        command -v shipctl
     fi
 }
 
@@ -83,11 +85,11 @@ build_sha() {
 
 # Stop the dev daemon serving the current daemon dir.
 #
-# `start.sh` launches `shipd` directly — not under `ship daemon supervise` —
-# so the running process's liveness is the `pid` handshake file shipd
+# `start.sh` launches `shipd` directly — not under `shipctl daemon supervise`
+# — so the running process's liveness is the `pid` handshake file shipd
 # writes into the daemon dir, NOT the flock-based `shipd.pid` that
-# `ship daemon stop` consults. A bare shipd never creates that flock
-# pidfile, so `ship daemon stop` finds no supervisor and exits 0 without
+# `shipctl daemon stop` consults. A bare shipd never creates that flock
+# pidfile, so `shipctl daemon stop` finds no supervisor and exits 0 without
 # signalling anything. Signal shipd's own pid directly; it handles SIGTERM
 # with a graceful shutdown, so no SIGKILL escalation is needed. Returns
 # non-zero (rather than escalating) if shipd genuinely ignores SIGTERM, so

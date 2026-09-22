@@ -1,33 +1,22 @@
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 
-/// Create a `.ship/` tree for L1 tests.
-/// Writes `ship.jsonc` with a generated id, plus the subdirectories that
-/// L1 functions (skills, rules, collections) expect to exist.
+/// Create a `.ship/` tree for L1 tests: an empty `ship.jsonc` config scaffold
+/// (presence only — identity lives in the `projects` pointer) plus the
+/// subdirectories that L1 functions (skills, rules, collections) expect.
 ///
-/// Also installs the platform-level projection factory + supervisor hooks
-/// so any `SqliteEventStore` constructed by the test sees the full bus.
-/// Idempotent across tests.
+/// Domain projections are no longer ambient — callers that need them pass
+/// [`crate::platform_projection_factory`] into store / kernel constructors.
+/// This helper only scaffolds dirs; it does not install projections.
 pub fn init_project(base_dir: impl AsRef<Path>) -> Result<PathBuf> {
-    crate::install_defaults();
     let base_dir = base_dir.as_ref();
-    let ship_dir = ship_substrate::ShipHome::project_ship_dir(base_dir);
-    std::fs::create_dir_all(&ship_dir)?;
-    let id = ship_substrate::gen_nanoid();
+    std::fs::create_dir_all(base_dir)?;
     std::fs::write(
-        ship_dir.join("ship.jsonc"),
-        format!("{{\"id\": \"{id}\"}}\n"),
+        base_dir.join(ship_substrate::project::STACK_CONFIG_FILENAME),
+        "export default {};\n",
     )?;
-    for rel in [
-        "project/adrs",
-        "project/specs",
-        "project/features",
-        "project/releases",
-        "project/notes",
-        "skills",
-        "rules",
-    ] {
-        std::fs::create_dir_all(ship_dir.join(rel))?;
+    for rel in ["skills", "rules", "agents"] {
+        std::fs::create_dir_all(base_dir.join(rel))?;
     }
-    Ok(ship_dir)
+    Ok(base_dir.to_path_buf())
 }

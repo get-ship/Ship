@@ -3,9 +3,7 @@
 //!
 //! `handle_dispatch_requested` is the SOLE handler of `dispatch.requested`
 //! (the spawn-intent channel, #26). It owns the spawn atom for bare
-//! `ship use` / `ship dispatch` / MCP `dispatch_agent` sessions. Pipeline-
-//! composed sessions (`parent_pipeline_run_id` set) are skipped here — the
-//! pipeline composer owns their spawn, and orchestrator advances them.
+//! `ship use` / `ship dispatch` / MCP `dispatch_agent` sessions.
 //!
 //! Drives the L0 runner mechanism (`exit_handler`, the kernel-emit helpers) and
 //! the injected dispatch ports ([`AgentPorts`]). Names no pipeline-DAG type and
@@ -13,25 +11,27 @@
 
 use std::sync::Arc;
 
-#[cfg(feature = "harness-drivers")]
-use ship_code::runner::build_spawn_env;
-use ship_runner::emit::persist_and_route;
-#[cfg(feature = "harness-drivers")]
-use ship_runner::emit::emit_process_spawned;
-#[cfg(feature = "harness-drivers")]
-use ship_code::runner::exit_handler::{self, ExitVocabulary};
-#[cfg(feature = "harness-drivers")]
-use ship_code::runner::router::DISPATCH_GATE;
-#[cfg(feature = "harness-drivers")]
-use agent_def::canonical_session::{SessionFailed, event_types as canonical_session_event_types};
-use agent_def::dispatch_intent::DispatchRequestedPayload;
-#[cfg(feature = "harness-drivers")]
-use agent_def::InvocationMode;
+#[cfg(feature = "bridge")]
+use crate::emit::emit_process_spawned;
+#[cfg(feature = "bridge")]
+use agent_schema::InvocationMode;
+use agent_schema::canonical_session::{
+    SessionFailed, event_types as canonical_session_event_types,
+};
+use agent_schema::dispatch_intent::DispatchRequestedPayload;
+#[cfg(feature = "bridge")]
+use bridge::LaunchProfile;
+#[cfg(feature = "bridge")]
+use bridge::dispatch_ports::SessionContext;
+#[cfg(feature = "bridge")]
+use bridge::lifecycle::ExitVocabulary;
+#[cfg(feature = "bridge")]
+use bridge::lifecycle::build_spawn_env;
+#[cfg(feature = "bridge")]
+#[cfg(feature = "bridge")]
+use bridge::lifecycle::exit_handler;
 use ship_substrate::events::EventEnvelope;
-#[cfg(feature = "harness-drivers")]
-use ship_code::dispatch_ports::SessionContext;
-#[cfg(feature = "harness-drivers")]
-use ship_substrate::services::dispatch_ports::LaunchProfile;
+use ship_substrate::events::emit::persist_and_route;
 use tokio::sync::Mutex;
 
 use crate::ports::AgentPorts;
@@ -43,8 +43,8 @@ type Kernel = Arc<Mutex<ship_substrate::events::KernelRouter>>;
 /// the exit handler, and emits `process.spawned`.
 ///
 /// The slow prep (git worktree add + harness spawn + sandbox-up) is detached
-/// off the caller's mailbox loop under the shared L0 [`DISPATCH_GATE`] so one
-/// slow dispatch doesn't stall every other event — see [`crate::actor`].
+/// off the caller's mailbox loop under the injected dispatch-gate semaphore
+/// so one slow dispatch doesn't stall every other event — see [`crate::actor`].
 pub async fn handle_dispatch_requested(
     kernel: &Kernel,
     envelope: &EventEnvelope,
@@ -57,41 +57,56 @@ pub async fn handle_dispatch_requested(
             return;
         }
     };
+    // R-A (mount split, 2026-07-10): a native harness dispatch with no
+    // closure wired still emits a typed `session.failed` — that's a real
+    // misconfiguration (shipd did not wire the Bridge Connect client), not
+    // a registry absence. A coding-agent request with no backend is now an
+    // absent service (no route mounted) and surfaces as a 404, NOT a
+    // refused call.
+    //
+    // `yoke` is the native harness id; `floki` is a temporary alias.
+    // Host injects YokeRunFn (shipd: in-process yoke embed by default).
+    let is_native = matches!(payload.harness.as_deref(), Some("floki") | Some("yoke"));
 
-    // Floki-harness fast path: when harness == "floki" and the closure is wired,
-    // spawn it off the mailbox loop (same detach pattern as the harness path
-    // below) and return immediately. The harness-driver stack is skipped — no
-    // worktree prep, no executor spawn, no process registry.
-    if payload.harness.as_deref() == Some("floki") {
-        if let Some(ref run_fn) = ports.floki_run_fn {
-            let run_fn = run_fn.clone();
-            let payload = payload.clone();
-            tokio::spawn(run_fn(payload));
+    if is_native {
+        if ports.yoke_run_fn.is_none() {
+            tracing::warn!(
+                slug = payload.slug,
+                session_id = payload.session_id,
+                harness = ?payload.harness,
+                "service.agents: native harness dispatch.requested but no \
+                 YokeRunFn wired — emitting typed session.failed"
+            );
+            emit_session_failed(
+                kernel,
+                &payload.session_id,
+                &payload.slug,
+                "no native harness backend wired (YokeRunFn missing at composition root)",
+            )
+            .await;
             return;
         }
+        let run_fn = ports.yoke_run_fn.as_ref().expect("checked above").clone();
+        let payload = payload.clone();
+        tokio::spawn(run_fn(payload));
+        return;
     }
 
-    // The rest of this function is harness-driver machinery. With flag-off,
-    // only the floki path above is reachable; non-floki sessions (and floki
-    // sessions with no closure wired) are silently no-op'd here — no process
-    // to spawn, no worktree to prep.
-    #[cfg(feature = "harness-drivers")]
+    // From here, the request targets a coding harness (or no harness
+    // was specified — which the dispatch core's validation should
+    // already reject). The harness-driver stack reaches this path
+    // when the install provides it (R-A: the registry is what the
+    // install provides; absence is structural, not an error). The
+    // `ship-code` cfg stays as the single conditional at the
+    // router assembly (mount split, 2026-07-10): shipd only builds
+    // this arm with `--features bridge`, and a coding agent
+    // naming an unprovided harness is not on the resolvable set.
+    #[cfg(feature = "bridge")]
     {
-        // Pipeline-composed sessions: the pipeline runner spawns the harness itself
-        // (it has step-monitor concerns this handler doesn't cover — gates, retries,
-        // output promotion, fanout). The dispatch.requested emitted by the
-        // composer is purely for observability/back-compat — the shared read model
-        // is the canonical_sessions projection, fed by the canonical session.* family.
-        // Skip the spawn here to avoid double-spawn.
-        if payload.parent_pipeline_run_id.is_some() {
-            tracing::debug!(
-                slug = payload.slug, session_id = payload.session_id,
-                parent = ?payload.parent_pipeline_run_id,
-                "service.agents: composed by pipeline — skip spawn (composer owns it)"
-            );
-            return;
-        }
-
+        // (Engine cut 2026-07-10: the `parent_pipeline_run_id` skip is
+        // gone — composed sessions (a multi-step pipeline-run concept)
+        // do not exist post-cut. service.agents owns every dispatch it
+        // sees; the bare `dispatch.requested` path is the only path.)
         if let Some(deps) = &payload.depends_on
             && !deps.is_empty()
         {
@@ -113,13 +128,12 @@ pub async fn handle_dispatch_requested(
         let kernel = kernel.clone();
         let ports = ports.clone();
         tokio::spawn(async move {
-            let _permit = DISPATCH_GATE.acquire().await;
+            let _permit = ports.dispatch_gate.acquire().await;
             dispatch_agent_session_internal(&kernel, &payload, &ports).await;
         });
     }
 }
-
-#[cfg(feature = "harness-drivers")]
+#[cfg(feature = "bridge")]
 async fn dispatch_agent_session_internal(
     kernel: &Kernel,
     payload: &DispatchRequestedPayload,
@@ -138,7 +152,10 @@ async fn dispatch_agent_session_internal(
     // found no handle to stop). Bail before spawning anything — the projection
     // has already marked the session cancelled.
     if ports.registry.take_if_cancelled(slug).await {
-        tracing::info!(slug, "service.agents: session already cancelled — skipping spawn");
+        tracing::info!(
+            slug,
+            "service.agents: session already cancelled — skipping spawn"
+        );
         return;
     }
 
@@ -146,15 +163,32 @@ async fn dispatch_agent_session_internal(
     // truth for how the executor launches the harness.
     let invocation = payload.invocation;
 
+    let work_dir = match ports.platform.worktrees_dir() {
+        Ok(root) => root.join(slug),
+        Err(e) => {
+            tracing::error!(slug, "service.agents: worktrees dir unavailable: {e}");
+            emit_session_failed(
+                kernel,
+                &payload.session_id,
+                slug,
+                &format!("worktrees dir unavailable: {e}"),
+            )
+            .await;
+            return;
+        }
+    };
+
     let session_ctx = SessionContext {
-        // routes use session_id as the pipeline_run_id-shape ulid
-        pipeline_run_id: payload.session_id.clone(),
+        session_id: payload.session_id.clone(),
         slug: slug.clone(),
         agent: payload.agent_id.clone(),
         branch: branch.clone(),
-        spec_path: ".artifacts/job-spec.md".to_string(),
+        // The spec's source file (mission scratch by convention) — the
+        // executor's pointer channel for interactive TUI delivery. Empty
+        // when the dispatch carried no path.
+        spec_path: payload.source_spec_path.clone().unwrap_or_default(),
         spec_content: payload.spec.clone(),
-        work_dir: ports.platform.worktrees_dir().join(slug),
+        work_dir,
         env: build_spawn_env(slug, &payload.agent_id, ports.spawn_policy.as_ref()).await,
         exit_tx: None,
         launch: LaunchProfile {
@@ -162,11 +196,24 @@ async fn dispatch_agent_session_internal(
             model: payload.model.clone(),
             persist_session: true,
             resume_session: payload.resume_session_id.clone(),
+            // The dispatch's content channel: the wire's `prompt` (spec
+            // body per the dispatch clients), falling back to `spec` for
+            // callers that send only the inline body. Without this the
+            // executors have nothing to deliver but their static kick
+            // (c-2026-07-05T12-36-00-000Z-b2c3d4e5's "go").
+            autostart_prompt: payload.prompt.clone().or_else(|| payload.spec.clone()),
             ..Default::default()
         },
         step: None,
         invocation,
         keepalive: payload.keepalive,
+        // Per-call fork source. `None` falls back to the daemon's
+        // default repo / that repo's HEAD — the same fallback the
+        // yoke path always took. Consumed in-call by
+        // `GitWorktreeIsolation::prepare`; never persisted; never
+        // exported to env.
+        repo_path: payload.repo_path.as_ref().map(std::path::PathBuf::from),
+        base_ref: payload.base_ref.clone(),
     };
 
     let worktree_path = match ports.isolation.prepare(&session_ctx).await {
@@ -183,6 +230,24 @@ async fn dispatch_agent_session_internal(
             return;
         }
     };
+
+    // Phase E: Fleet SessionManager door (opt-in). No second LaunchPlan —
+    // isolation already prepared the worktree; Fleet only runs the harness.
+    if crate::fleet_session::fleet_session_service_enabled() {
+        let session_ctx_with_dir = SessionContext {
+            work_dir: worktree_path.clone(),
+            ..session_ctx
+        };
+        crate::fleet_session::dispatch_via_fleet_session(
+            kernel,
+            payload,
+            ports,
+            &session_ctx_with_dir,
+            worktree_path,
+        )
+        .await;
+        return;
+    }
 
     let (exit_tx, exit_rx) = tokio::sync::mpsc::unbounded_channel();
     let session_ctx_with_dir = SessionContext {
@@ -235,7 +300,10 @@ async fn dispatch_agent_session_internal(
     // now instead of leaving it orphaned.
     if ports.registry.take_if_cancelled(slug).await {
         if let Some(h) = ports.registry.take(slug).await {
-            tracing::info!(slug, "service.agents: cancel raced the spawn — stopping just-spawned child");
+            tracing::info!(
+                slug,
+                "service.agents: cancel raced the spawn — stopping just-spawned child"
+            );
             if let Err(e) = ports.executor.stop(&h).await {
                 tracing::warn!(slug, "service.agents: post-spawn cancel stop failed: {e}");
             }
@@ -246,7 +314,7 @@ async fn dispatch_agent_session_internal(
     // Start the exit handler under the canonical session vocabulary — emits
     // session.{completed,failed} keyed on session_id.
     exit_handler::start(
-        kernel.clone(),
+        ports.lifecycle.clone(),
         ports.registry.clone(),
         ExitVocabulary::AgentSession {
             session_id: payload.session_id.clone(),
@@ -259,8 +327,11 @@ async fn dispatch_agent_session_internal(
 //
 // Canonical payloads (session.*) + EventEnvelope + persist_and_route.
 // No driver-edge fields (pid, worktree, exit_code, stage).
-
-#[cfg(feature = "harness-drivers")]
+// Canonical session emit helpers — ungated so the loud-refusal path can
+// reach them in ship-standard (no ship-code) builds. The floki
+// closure-missing case + the harness-backend-missing case BOTH fail
+// the dispatch with a typed `session.failed` event instead of silently
+// dropping the envelope.
 pub(crate) async fn emit_session_failed(
     kernel: &Kernel,
     session_id: &str,
@@ -271,11 +342,15 @@ pub(crate) async fn emit_session_failed(
         session_id: session_id.to_string(),
         reason: reason.to_string(),
     };
-    if let Ok(env) = EventEnvelope::new(
+    if let Ok(mut env) = EventEnvelope::new(
         canonical_session_event_types::SESSION_FAILED,
         session_id,
         &payload,
     ) {
+        // session.* coarse events are Runtime-scoped (per-machine execution
+        // state) — the registry default from `EventEnvelope::new` already
+        // routes this to `runtime.db` with no space binding required.
+        env.session_id = Some(session_id.to_string());
         let env = env.with_actor_id("service.agents");
         persist_and_route(kernel, env, slug).await;
     }

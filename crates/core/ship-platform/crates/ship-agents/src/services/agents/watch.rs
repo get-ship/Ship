@@ -18,6 +18,7 @@
 //!     on that agent's `agent.def.updated` (event_type match + path stem == id),
 //!     so another agent's edit does not patch this subscriber.
 
+use agent_schema::canonical_session::event_types as canonical_event_types;
 use ship_types::envelope::EventEnvelope;
 use ship_types::event_types;
 use ship_types::payload::AgentDefUpdated;
@@ -70,10 +71,13 @@ pub fn agent_scope_relevant(env: &EventEnvelope, id: &str) -> bool {
 }
 
 /// Agent id from a def file path — the last path segment minus the `.jsonc`
-/// suffix. Mirrors `ship_config::agents_index::file_stem` so a watch's id match
+/// suffix. Mirrors `ship_settings::agents_index::file_stem` so a watch's id match
 /// and the index's row key are derived identically.
 fn def_path_stem(rel: &str) -> &str {
-    rel.rsplit('/').next().unwrap_or(rel).trim_end_matches(".jsonc")
+    rel.rsplit('/')
+        .next()
+        .unwrap_or(rel)
+        .trim_end_matches(".jsonc")
 }
 
 #[cfg(test)]
@@ -96,15 +100,27 @@ mod tests {
     #[test]
     fn all_scope_wakes_on_agent_def_edit() {
         assert!(all_scope_relevant(&def_updated("foo.jsonc")));
-        assert!(all_scope_relevant(&env(event_types::AGENT_CHANGED, "agents", json!({}))));
+        assert!(all_scope_relevant(&env(
+            event_types::AGENT_CHANGED,
+            "agents",
+            json!({})
+        )));
     }
 
     #[test]
     fn all_scope_wakes_on_catalog_inputs_not_just_agent_defs() {
         // Catalogs depend on skill / rule (+ mcp/permissions) changes — the
         // broad config-namespace prefilter must wake on those, not just agents.
-        assert!(all_scope_relevant(&env(event_types::SKILL_CHANGED, "skills", json!({}))));
-        assert!(all_scope_relevant(&env(event_types::RULE_CHANGED, "rules", json!({}))));
+        assert!(all_scope_relevant(&env(
+            event_types::SKILL_CHANGED,
+            "skills",
+            json!({})
+        )));
+        assert!(all_scope_relevant(&env(
+            event_types::RULE_CHANGED,
+            "rules",
+            json!({})
+        )));
         assert!(all_scope_relevant(&env(
             event_types::PERMISSIONS_UPDATED,
             "global",
@@ -119,8 +135,16 @@ mod tests {
 
     #[test]
     fn all_scope_ignores_unrelated_events() {
-        assert!(!all_scope_relevant(&env(event_types::SESSION_STARTED, "s1", json!({}))));
-        assert!(!all_scope_relevant(&env(event_types::PROCESS_SPAWNED, "p1", json!({}))));
+        assert!(!all_scope_relevant(&env(
+            canonical_event_types::SESSION_STARTED,
+            "s1",
+            json!({})
+        )));
+        assert!(!all_scope_relevant(&env(
+            event_types::PROCESS_SPAWNED,
+            "p1",
+            json!({})
+        )));
     }
 
     #[test]
@@ -138,8 +162,14 @@ mod tests {
     fn agent_scope_ignores_non_def_events() {
         // A broad agent.changed (coarse domain) does NOT target one agent — only
         // the fine-grained agent.def.updated carries a def path to match on.
-        assert!(!agent_scope_relevant(&env(event_types::AGENT_CHANGED, "agents", json!({})), "foo"));
-        assert!(!agent_scope_relevant(&env(event_types::SKILL_CHANGED, "skills", json!({})), "foo"));
+        assert!(!agent_scope_relevant(
+            &env(event_types::AGENT_CHANGED, "agents", json!({})),
+            "foo"
+        ));
+        assert!(!agent_scope_relevant(
+            &env(event_types::SKILL_CHANGED, "skills", json!({})),
+            "foo"
+        ));
     }
 
     #[test]

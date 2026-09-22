@@ -1,0 +1,22 @@
+{
+  "name": "spaces",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Space scaffold \u2014 the thin per-space frontend the Tauri webview loads for `--app=<id>` windows. NO hub code (no marketplace/settings/auth/studio): the deck router mounts <ship-space-shell>, a config-driven shell that reads the space settings (scope=SPACE) and composes its chrome regions (nav/rail/dock) from config, mounts the always-on cmdk + search platform layer, and renders the active route in the view outlet. Built by `deck build` (deck-cli) into .deck/.",
+  "scripts": {
+    "build": ". \"$PWD/../../scripts/_sui-root.sh\" && DECK_FRAMEWORK_ASSETS_DIR=\"$DECK_FRAMEWORK_ASSETS_DIR\" cargo run --manifest-path \"$SUI_ROOT/Cargo.toml\" -q -p deck-cli -- build --project .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ship/chrome": "workspace:*",
+    "@ship/deck-host": "*",
+    "@ship/sdk-client": "^0.1.0",
+    "@ship/sail-dom": "*",
+    "@ship/sail-primitives": "*",
+    "@ship/sail-runtime": "*"
+  },
+  "devDependencies": {
+    "typescript": "~5.8.3"
+  }
+}

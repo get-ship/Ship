@@ -1,0 +1,27 @@
+{
+  "name": "@ship/collections",
+  "version": "0.1.0",
+  "description": "Ship Collections pack \u2014 ship-* components pre-bound to the collections SDK domain (list, table, item, schema, query, picker). Requires a host that has called setShipClient at startup.",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "customElements": "dist/custom-elements.json",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@ship/sdk-client": "^0.1.0",
+    "@ship/sail-dom": "*",
+    "@ship/sail-runtime": "*",
+    "@ship/sail-primitives": "*"
+  },
+  "devDependencies": {
+    "@ship/test-setup": "^0.1.0",
+    "happy-dom": "^20.9.0",
+    "vitest": "^4.1.5"
+  }
+}

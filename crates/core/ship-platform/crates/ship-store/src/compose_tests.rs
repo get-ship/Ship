@@ -1,8 +1,7 @@
 use std::path::Path;
 
 use super::*;
-use compiler::lockfile::{LockPackage, ShipLock};
-use std::collections::BTreeMap;
+use stack_model::lockfile::{LockPackage, Rails, ShipLock};
 use tempfile::TempDir;
 
 // ── helpers ───────────────────────────────────────────────────────────
@@ -16,7 +15,10 @@ fn write_file(root: &Path, rel: &str, content: &str) {
 }
 
 fn lock_with(packages: Vec<LockPackage>) -> ShipLock {
-    ShipLock { version: 1, packages }
+    ShipLock {
+        version: 1,
+        packages,
+    }
 }
 
 fn pkg(path: &str, hex: &str) -> LockPackage {
@@ -25,7 +27,7 @@ fn pkg(path: &str, hex: &str) -> LockPackage {
         version: "1.0.0".into(),
         commit: "a".repeat(40),
         hash: format!("sha256:{hex}"),
-        export_hashes: BTreeMap::new(),
+        rails: Rails::Stack,
     }
 }
 
@@ -37,7 +39,11 @@ fn local_only_mirrors_traveling_dirs() {
     let ship_dir = tmp.path().join(".ship");
     let cache_root = tmp.path().join("cache");
 
-    // Local traveling dirs across two of the four composed types.
+    // `views/` is intentionally NOT in COMPOSED_TYPES — the resolver owns
+    // view composition (`stack_model::compose::compose_space` /
+    // `ComposedLibrary::route_tree`), not this file materializer. So
+    // this test exercises one of the OTHER traveling dirs (pipelines) and
+    // confirms a local `views/` is NOT mirrored into the composed overlay.
     write_file(&ship_dir, "pipelines/build.jsonc", r#"{ "id": "build" }"#);
     write_file(&ship_dir, "views/dashboard/page.sui", "<view/>");
     // No lockfile → depless space.
@@ -49,9 +55,11 @@ fn local_only_mirrors_traveling_dirs() {
         composed.join("pipelines/build.jsonc").is_file(),
         "local pipeline mirrored verbatim"
     );
+    // Local `views/` is NOT mirrored — `views` was removed from
+    // COMPOSED_TYPES in J2 (resolver-owned, not file-materialized).
     assert!(
-        composed.join("views/dashboard/page.sui").is_file(),
-        "local view dir mirrored verbatim"
+        !composed.join("views/dashboard/page.sui").exists(),
+        "views/ is composed by the resolver, not mirrored into the file overlay"
     );
     // No dep namespace dirs created for absent types.
     assert!(!composed.join("triggers").exists());
@@ -79,7 +87,7 @@ fn one_dep_pipeline_namespaced_locals_untouched() {
     write_file(&obj, "pipelines/dep-pipe.jsonc", r#"{ "id": "dep-pipe" }"#);
 
     let lock = lock_with(vec![pkg("github.com/x/y", hex)]);
-    lock.write_atomic(&ship_dir.join("ship.lock")).unwrap();
+    lock.write_atomic(&tmp.path().join("ship.lock")).unwrap(); // lockfile at the stack root
 
     let composed = materialize_space(&ship_dir, Some(&cache_root)).unwrap();
 
@@ -120,14 +128,14 @@ fn one_dep_component_namespaced_resolvable_source() {
 
     std::fs::create_dir_all(&ship_dir).unwrap();
     let lock = lock_with(vec![pkg("github.com/acme/agents", hex)]);
-    lock.write_atomic(&ship_dir.join("ship.lock")).unwrap();
+    lock.write_atomic(&tmp.path().join("ship.lock")).unwrap(); // lockfile at the stack root
 
     let composed = materialize_space(&ship_dir, Some(&cache_root)).unwrap();
 
     // The dep's component source lands under its package namespace, ready for
     // the bundler's component discovery to scan + resolve `ship-agent-card`.
-    let src = composed
-        .join("components/github.com/acme/agents/ship-agent-card/ship-agent-card.sui");
+    let src =
+        composed.join("components/github.com/acme/agents/ship-agent-card/ship-agent-card.sui");
     assert!(
         src.is_file(),
         "dep component composed under package namespace at {}",
@@ -150,7 +158,10 @@ fn determinism_same_inputs_reuse_cached_dir() {
 
     let second = materialize_space(&ship_dir, Some(&cache_root)).unwrap();
 
-    assert_eq!(first, second, "identical inputs → identical composed hash dir");
+    assert_eq!(
+        first, second,
+        "identical inputs → identical composed hash dir"
+    );
     assert!(
         second.join("MARKER").is_file(),
         "cached dir reused as-is (no rebuild)"
@@ -189,7 +200,7 @@ fn collection_schema_collision_errors() {
         pkg("github.com/a/one", hex_a),
         pkg("github.com/b/two", hex_b),
     ]);
-    lock.write_atomic(&ship_dir.join("ship.lock")).unwrap();
+    lock.write_atomic(&tmp.path().join("ship.lock")).unwrap(); // lockfile at the stack root
 
     let err = materialize_space(&ship_dir, Some(&cache_root)).unwrap_err();
     let msg = format!("{err:#}");

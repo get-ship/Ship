@@ -17,10 +17,11 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use ship_config::agents_index::{AgentDefIndex, AgentDefQuery};
-use ship_config::agents_write::{notify_agent_def_saved, save_agents_config};
-use ship_config::types::AgentProfile;
-use ship_platform::config::agent_index::{apply_def_updated, build_def_index, spawn_def_index_consumer};
+use agent_schema::ProfileMeta;
+use ship_settings::agents_index::{AgentDefIndex, AgentDefQuery};
+use ship_settings::agents_index::{apply_def_updated, build_def_index, spawn_def_index_consumer};
+use ship_settings::agents_write::{notify_agent_def_saved, save_agents_config};
+use ship_settings::types::AgentProfile;
 use ship_substrate::data::DataService;
 use ship_substrate::events::new_isolated_for_test;
 use ship_substrate::home::ShipHome;
@@ -28,16 +29,16 @@ use ship_substrate::ports::{
     DataStore, FsBroker, FsCap, FsMode, FsRoot, KernelLog, LocalFsBroker, SingleBackendDataStore,
     SpaceId as PortSpaceId,
 };
+use ship_types::SpaceId;
 use ship_types::envelope::EventEnvelope;
 use ship_types::event_types;
 use ship_types::payload::AgentDefUpdated;
-use ship_types::SpaceId;
 
 /// Canonical project `.ship` dir under a fresh tempdir (canonicalized for the
 /// FsBroker symlink-escape guard, as in the S1 index proofs).
 fn ship_dir(tmp: &tempfile::TempDir) -> PathBuf {
     let base = std::fs::canonicalize(tmp.path()).unwrap();
-    ShipHome::project_ship_dir(base)
+    base.join(".ship")
 }
 
 /// FsCap rooted at `<ship_dir>/agents` for authoring def files in the test.
@@ -70,7 +71,10 @@ fn write_def(fs: &LocalFsBroker, cap: &FsCap, id: &str, doc: serde_json::Value) 
 /// Build the `agent.def.updated` envelope a producer (op write or watcher)
 /// emits: `{path, content_hash}` with the rel path as the entity.
 fn def_event(rel: &str, content_hash: &str) -> EventEnvelope {
-    let payload = AgentDefUpdated { path: rel.into(), content_hash: content_hash.into() };
+    let payload = AgentDefUpdated {
+        path: rel.into(),
+        content_hash: content_hash.into(),
+    };
     EventEnvelope::new(event_types::AGENT_DEF_UPDATED, rel, &payload).unwrap()
 }
 
@@ -83,8 +87,18 @@ async fn build_def_index_populates_rows_for_every_def() {
     let fs = LocalFsBroker::new();
     let (cap, _) = agents_cap(&dir);
 
-    write_def(&fs, &cap, "alpha", serde_json::json!({ "agent": { "id": "alpha", "name": "Alpha" } }));
-    write_def(&fs, &cap, "beta", serde_json::json!({ "agent": { "id": "beta", "name": "Beta" } }));
+    write_def(
+        &fs,
+        &cap,
+        "alpha",
+        serde_json::json!({ "agent": { "id": "alpha", "name": "Alpha" } }),
+    );
+    write_def(
+        &fs,
+        &cap,
+        "beta",
+        serde_json::json!({ "agent": { "id": "beta", "name": "Beta" } }),
+    );
 
     let index = make_index(&dir).await;
     build_def_index(&index, &fs, &dir, "project").await.unwrap();
@@ -108,12 +122,18 @@ async fn apply_def_updated_upserts_row_on_change() {
         &fs,
         &cap,
         "alpha",
-        serde_json::json!({ "agent": { "id": "alpha", "name": "Alpha", "role": "worker" } }),
+        serde_json::json!({ "agent": { "id": "alpha", "name": "Alpha" } }),
     );
     let index = make_index(&dir).await;
-    apply_def_updated(&index, &fs, &dir, "project", &def_event("alpha.jsonc", "h0"))
-        .await
-        .unwrap();
+    apply_def_updated(
+        &index,
+        &fs,
+        &dir,
+        "project",
+        &def_event("alpha.jsonc", "h0"),
+    )
+    .await
+    .unwrap();
     let before = index.query(AgentDefQuery::default()).await.unwrap();
     assert_eq!(before.len(), 1);
     assert_eq!(before[0].name, "Alpha");
@@ -126,17 +146,28 @@ async fn apply_def_updated_upserts_row_on_change() {
         &fs,
         &cap,
         "alpha",
-        serde_json::json!({ "agent": { "id": "alpha", "name": "Alpha Prime", "role": "lead" } }),
+        serde_json::json!({ "agent": { "id": "alpha", "name": "Alpha Prime" } }),
     );
-    apply_def_updated(&index, &fs, &dir, "project", &def_event("alpha.jsonc", "h1"))
-        .await
-        .unwrap();
+    apply_def_updated(
+        &index,
+        &fs,
+        &dir,
+        "project",
+        &def_event("alpha.jsonc", "h1"),
+    )
+    .await
+    .unwrap();
 
     let after = index.query(AgentDefQuery::default()).await.unwrap();
     assert_eq!(after.len(), 1, "upsert, not duplicate");
-    assert_eq!(after[0].name, "Alpha Prime", "row reflects the re-read content");
-    assert_eq!(after[0].role.as_deref(), Some("lead"));
-    assert_ne!(after[0].content_hash, hash_before, "edited content → new hash in the row");
+    assert_eq!(
+        after[0].name, "Alpha Prime",
+        "row reflects the re-read content"
+    );
+    assert_ne!(
+        after[0].content_hash, hash_before,
+        "edited content → new hash in the row"
+    );
 }
 
 // ── Test 3: a delete-marker envelope → the row is dropped ──────────────────────
@@ -148,11 +179,24 @@ async fn apply_def_updated_drops_row_on_delete_marker() {
     let fs = LocalFsBroker::new();
     let (cap, agents_dir) = agents_cap(&dir);
 
-    write_def(&fs, &cap, "keep", serde_json::json!({ "agent": { "id": "keep", "name": "Keep" } }));
-    write_def(&fs, &cap, "gone", serde_json::json!({ "agent": { "id": "gone", "name": "Gone" } }));
+    write_def(
+        &fs,
+        &cap,
+        "keep",
+        serde_json::json!({ "agent": { "id": "keep", "name": "Keep" } }),
+    );
+    write_def(
+        &fs,
+        &cap,
+        "gone",
+        serde_json::json!({ "agent": { "id": "gone", "name": "Gone" } }),
+    );
     let index = make_index(&dir).await;
     build_def_index(&index, &fs, &dir, "project").await.unwrap();
-    assert_eq!(index.query(AgentDefQuery::default()).await.unwrap().len(), 2);
+    assert_eq!(
+        index.query(AgentDefQuery::default()).await.unwrap().len(),
+        2
+    );
 
     // The file is removed, then the delete-marker (empty hash) is fed: the
     // consumer re-reads → file absent → drops the row.
@@ -175,16 +219,33 @@ async fn apply_def_updated_is_idempotent_under_double_emit() {
     let fs = LocalFsBroker::new();
     let (cap, _) = agents_cap(&dir);
 
-    write_def(&fs, &cap, "alpha", serde_json::json!({ "agent": { "id": "alpha", "name": "Alpha" } }));
+    write_def(
+        &fs,
+        &cap,
+        "alpha",
+        serde_json::json!({ "agent": { "id": "alpha", "name": "Alpha" } }),
+    );
     let index = make_index(&dir).await;
 
     // The same change notification arrives twice (op-emit then watcher-emit).
-    apply_def_updated(&index, &fs, &dir, "project", &def_event("alpha.jsonc", "h0"))
-        .await
-        .unwrap();
-    apply_def_updated(&index, &fs, &dir, "project", &def_event("alpha.jsonc", "h0"))
-        .await
-        .unwrap();
+    apply_def_updated(
+        &index,
+        &fs,
+        &dir,
+        "project",
+        &def_event("alpha.jsonc", "h0"),
+    )
+    .await
+    .unwrap();
+    apply_def_updated(
+        &index,
+        &fs,
+        &dir,
+        "project",
+        &def_event("alpha.jsonc", "h0"),
+    )
+    .await
+    .unwrap();
 
     let rows = index.query(AgentDefQuery::default()).await.unwrap();
     assert_eq!(rows.len(), 1, "double-emit yields one row, not a duplicate");
@@ -203,7 +264,12 @@ async fn apply_ignores_non_def_events() {
     let fs = LocalFsBroker::new();
     let (cap, _) = agents_cap(&dir);
 
-    write_def(&fs, &cap, "alpha", serde_json::json!({ "agent": { "id": "alpha", "name": "Alpha" } }));
+    write_def(
+        &fs,
+        &cap,
+        "alpha",
+        serde_json::json!({ "agent": { "id": "alpha", "name": "Alpha" } }),
+    );
     let index = make_index(&dir).await;
     build_def_index(&index, &fs, &dir, "project").await.unwrap();
 
@@ -214,7 +280,9 @@ async fn apply_ignores_non_def_events() {
         &serde_json::json!({ "path": "alpha.jsonc", "content_hash": "x" }),
     )
     .unwrap();
-    apply_def_updated(&index, &fs, &dir, "project", &other).await.unwrap();
+    apply_def_updated(&index, &fs, &dir, "project", &other)
+        .await
+        .unwrap();
 
     let rows = index.query(AgentDefQuery::default()).await.unwrap();
     assert_eq!(rows.len(), 1, "a non-def event leaves the index unchanged");
@@ -237,6 +305,11 @@ async fn write_then_emit_then_spawned_consumer_indexes_the_row() {
     // The index over the space db + the shared KernelLog both producers ride.
     let index = Arc::new(make_index(&dir).await);
     let kernel = Arc::new(KernelLog::new(new_isolated_for_test(dir.clone()).unwrap()));
+    // I-2: `PartitionedSink::route()` refuses a Space event whose key has no
+    // `spaces` registry row. `notify_agent_def_saved` below emits under
+    // "idx-test" and swallows the error (fire-and-forget NOTIFY), so a
+    // missing registration here would silently drop the event, not panic.
+    ship_substrate::testutil::register_space(&dir, "idx-test").unwrap();
 
     // Spawn the live consumer subscribed to the shared log.
     let _handle = spawn_def_index_consumer(
@@ -251,7 +324,14 @@ async fn write_then_emit_then_spawned_consumer_indexes_the_row() {
     save_agents_config(
         &fs,
         &dir,
-        &[AgentProfile { id: "live".into(), name: "Live".into(), ..Default::default() }],
+        &[AgentProfile {
+            agent: ProfileMeta {
+                id: "live".into(),
+                name: "Live".into(),
+                ..Default::default()
+            },
+            ..Default::default()
+}],
     )
     .unwrap();
     notify_agent_def_saved(&kernel, &fs, &dir, "live", Some(SpaceId::new("idx-test"))).await;
@@ -266,5 +346,8 @@ async fn write_then_emit_then_spawned_consumer_indexes_the_row() {
         }
         tokio::time::sleep(std::time::Duration::from_millis(25)).await;
     }
-    assert!(found, "the spawned consumer indexed the def after the gated write emit");
+    assert!(
+        found,
+        "the spawned consumer indexed the def after the gated write emit"
+    );
 }

@@ -113,10 +113,8 @@ mod tests {
 
     fn test_db_opener() -> Result<SqliteConnection> {
         use sqlx::Connection;
-        crate::db::block_on(async {
-            SqliteConnection::connect("sqlite::memory:").await
-        })
-        .map_err(|e| anyhow::anyhow!("{e}"))
+        crate::db::block_on(async { SqliteConnection::connect("sqlite::memory:").await })
+            .map_err(|e| anyhow::anyhow!("{e}"))
     }
 
     // ── Tests ────────────────────────────────────────────────────────────
@@ -182,7 +180,10 @@ mod tests {
         tokio::time::sleep(Duration::from_millis(100)).await;
 
         let count = applied.lock().unwrap().len();
-        assert!(count >= 1, "projection should process events after lag, got {count}");
+        assert!(
+            count >= 1,
+            "projection should process events after lag, got {count}"
+        );
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -200,6 +201,9 @@ mod tests {
 
         // Task should complete within a reasonable time
         let result = tokio::time::timeout(Duration::from_secs(2), handle).await;
-        assert!(result.is_ok(), "projection task should stop when channel closes");
+        assert!(
+            result.is_ok(),
+            "projection task should stop when channel closes"
+        );
     }
 }

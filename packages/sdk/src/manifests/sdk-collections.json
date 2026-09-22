@@ -1,0 +1,388 @@
+{
+  "_generated": "just gen-sdk — DO NOT EDIT",
+  "version": "0.1.0",
+  "$schema": "https://ship.design/schemas/sdk-collections.schema.json",
+  "entries": {
+    "adrs": {
+      "id": "adrs",
+      "name": "Architecture Decisions",
+      "fields": {
+        "title": {
+          "type": "string",
+          "required": true,
+          "filterable": true
+        },
+        "status": {
+          "type": "enum",
+          "values": [
+            "proposed",
+            "accepted",
+            "superseded",
+            "deprecated"
+          ],
+          "filterable": true,
+          "default": "proposed"
+        },
+        "context": {
+          "type": "markdown"
+        },
+        "decision": {
+          "type": "markdown"
+        },
+        "consequences": {
+          "type": "markdown"
+        }
+      }
+    },
+    "architecture-observations": {
+      "id": "architecture-observations",
+      "name": "Architecture Observations",
+      "fields": {
+        "id": {
+          "type": "string",
+          "required": true,
+          "filterable": true
+        },
+        "module": {
+          "type": "string",
+          "required": true,
+          "filterable": true
+        },
+        "layer": {
+          "type": "enum",
+          "values": [
+            "L0",
+            "L1",
+            "L2",
+            "shared",
+            "apps"
+          ],
+          "filterable": true
+        },
+        "tag": {
+          "type": "string",
+          "required": true,
+          "filterable": true
+        },
+        "tag_status": {
+          "type": "enum",
+          "values": [
+            "candidate",
+            "confirmed",
+            "promoted"
+          ],
+          "filterable": true
+        },
+        "severity": {
+          "type": "enum",
+          "values": [
+            "info",
+            "low",
+            "medium",
+            "high",
+            "critical"
+          ],
+          "filterable": true,
+          "sortable": true
+        },
+        "citation_file": {
+          "type": "string"
+        },
+        "citation_line": {
+          "type": "string"
+        },
+        "description": {
+          "type": "markdown",
+          "required": true
+        },
+        "status": {
+          "type": "enum",
+          "values": [
+            "pending",
+            "under-review",
+            "signed-off",
+            "superseded",
+            "closed"
+          ],
+          "filterable": true,
+          "default": "pending"
+        },
+        "audit_doc": {
+          "type": "string"
+        },
+        "task_id": {
+          "type": "string"
+        },
+        "pass_date": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "markdown"
+        }
+      }
+    },
+    "claim": {
+      "id": "claim",
+      "name": "Claims",
+      "fields": {
+        "kind": {
+          "type": "enum",
+          "values": [
+            "bug",
+            "request",
+            "observation",
+            "hitl"
+          ],
+          "required": true,
+          "filterable": true
+        },
+        "by": {
+          "type": "enum",
+          "values": [
+            "user",
+            "agent",
+            "external"
+          ],
+          "required": true,
+          "filterable": true
+        },
+        "target": {
+          "type": "string",
+          "required": true,
+          "filterable": true
+        },
+        "version": {
+          "type": "string",
+          "required": true,
+          "filterable": true
+        },
+        "body": {
+          "type": "string",
+          "required": true
+        },
+        "status": {
+          "type": "enum",
+          "values": [
+            "open",
+            "reconciled",
+            "archived"
+          ],
+          "required": true,
+          "filterable": true,
+          "default": "open"
+        },
+        "claimed_at": {
+          "type": "number",
+          "required": true,
+          "filterable": true,
+          "sortable": true
+        },
+        "archived_at": {
+          "type": "string"
+        },
+        "reconciliation": {
+          "type": "object"
+        }
+      }
+    },
+    "ops-gap": {
+      "id": "ops-gap",
+      "name": "Ops Catalog Gap",
+      "fields": {
+        "service": {
+          "type": "string",
+          "required": true,
+          "filterable": true
+        },
+        "op_name": {
+          "type": "string",
+          "required": true,
+          "filterable": true
+        },
+        "substrate_fn": {
+          "type": "string",
+          "required": true
+        },
+        "audience": {
+          "type": "enum",
+          "values": [
+            "operator",
+            "agent",
+            "both"
+          ],
+          "filterable": true
+        },
+        "capability": {
+          "type": "enum",
+          "values": [
+            "C0",
+            "C1",
+            "C2",
+            "C2_ELEVATED",
+            "C3"
+          ],
+          "filterable": true
+        },
+        "priority": {
+          "type": "enum",
+          "values": [
+            "P0",
+            "P1",
+            "P2",
+            "deferred"
+          ],
+          "filterable": true,
+          "sortable": true
+        },
+        "status": {
+          "type": "enum",
+          "values": [
+            "missing",
+            "scaffolded",
+            "implemented",
+            "rejected-no-wire",
+            "in-flight"
+          ],
+          "filterable": true,
+          "default": "missing"
+        },
+        "rationale": {
+          "type": "markdown"
+        },
+        "audit_source": {
+          "type": "string"
+        },
+        "consumer_demand": {
+          "type": "markdown"
+        },
+        "dependencies": {
+          "type": "string"
+        }
+      }
+    },
+    "sui-eval-runs": {
+      "id": "sui-eval-runs",
+      "name": "SUI Eval Runs",
+      "fields": {
+        "run_id": {
+          "type": "string",
+          "required": true,
+          "filterable": true
+        },
+        "lane_id": {
+          "type": "string",
+          "required": true,
+          "filterable": true
+        },
+        "model": {
+          "type": "string",
+          "filterable": true
+        },
+        "harness": {
+          "type": "string",
+          "filterable": true
+        },
+        "composite": {
+          "type": "number",
+          "filterable": true
+        },
+        "compile_passed": {
+          "type": "boolean",
+          "filterable": true
+        },
+        "lint_errors": {
+          "type": "number"
+        },
+        "lint_warnings": {
+          "type": "number"
+        },
+        "worktree": {
+          "type": "string"
+        },
+        "view_files": {
+          "type": "json"
+        },
+        "css_violations": {
+          "type": "json"
+        },
+        "missing_fragments": {
+          "type": "json"
+        },
+        "behavior_passed": {
+          "type": "number"
+        },
+        "behavior_total": {
+          "type": "number"
+        },
+        "behavior_score": {
+          "type": "number",
+          "filterable": true
+        }
+      }
+    },
+    "systems": {
+      "id": "systems",
+      "name": "Ship Systems",
+      "fields": {
+        "name": {
+          "type": "string",
+          "required": true,
+          "filterable": true
+        },
+        "layer": {
+          "type": "enum",
+          "values": [
+            "primitive",
+            "runtime",
+            "interface",
+            "meta"
+          ],
+          "filterable": true
+        },
+        "status": {
+          "type": "enum",
+          "values": [
+            "spec",
+            "building",
+            "shipping",
+            "complete"
+          ],
+          "filterable": true,
+          "default": "spec"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "current_state": {
+          "type": "markdown"
+        },
+        "desired_state": {
+          "type": "markdown"
+        },
+        "gaps": {
+          "type": "array"
+        },
+        "diagram": {
+          "type": "markdown"
+        },
+        "doc_skill": {
+          "type": "string",
+          "filterable": true
+        },
+        "code_paths": {
+          "type": "array"
+        },
+        "depends_on": {
+          "type": "array",
+          "filterable": true
+        },
+        "position_x": {
+          "type": "number"
+        },
+        "position_y": {
+          "type": "number"
+        }
+      }
+    }
+  }
+}

@@ -187,15 +187,14 @@ pub fn install_skill_from_source(
             let project_dir =
                 project_dir.ok_or_else(|| anyhow!("Project scope requires project_dir"))?;
             let dest_root = ensure_project_skills_storage(project_dir)?;
-            let installed =
-                install_skill_from_source_into_dir(&dest_root, source, skill_id, force)?;
-
-            let mut config = ship_config::project::get_config(Some(project_dir.to_path_buf()))?;
-            if !config.agent.skills.contains(&installed.id) {
-                config.agent.skills.push(installed.id.clone());
-                ship_config::project::save_config(&config, Some(project_dir.to_path_buf()))?;
-            }
-            Ok(installed)
+            // A2: the resolved descriptor (roll_up → ResolvedConfig) is the
+            // one source of truth for skill delivery. The pre-cutover write
+            // to `ship_settings::project::save_config`'s `config.agent.skills`
+            // array was a side effect of the dead ship.jsonc manifest model
+            // — skills arrive via `defineSkill` declare-forms in
+            // `stack.config.ts`; the roll-up re-materializes the descriptor
+            // post-install. No config write is necessary.
+            install_skill_from_source_into_dir(&dest_root, source, skill_id, force)
         }
     }
 }

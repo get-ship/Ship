@@ -9,6 +9,6 @@ Copy the unit and enable it:
     systemctl --user daemon-reload
     systemctl --user enable --now shipd.service
 
-`ship daemon status` will now show systemd-managed status.
-`ship daemon start/stop/restart` still go through the legacy
+`shipctl daemon status` will now show systemd-managed status.
+`shipctl daemon start/stop/restart` still go through the legacy
 supervisor — full systemctl delegation lands in a follow-up slice.

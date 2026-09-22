@@ -1,10 +1,7 @@
-pub mod canonical_session;
 pub mod daemon;
-pub mod mesh;
 pub mod pipeline;
 pub mod skill;
 pub mod supervisor;
-pub use mesh::*;
 
 // All lines below are constant definitions; no logic present. The constants are
 // NAME REFERENCES only — the vocabulary's source of truth is the inventory
@@ -49,35 +46,28 @@ pub const ARTIFACT_UPDATED: &str = "artifact.updated";
 pub const ARTIFACT_MOVED: &str = "artifact.moved";
 pub const ARTIFACT_DELETED: &str = "artifact.deleted";
 
-/// Emitted when a user sends a turn in a Ship command-bar chat session.
-/// Scoped to the originating Ship `session_id` via `EventEnvelope.session_id`
-/// so per-session filtering in the MCP `EventRelay` can route the turn only
-/// to the intended long-lived agent. Payload: `{ session_id, text, agent_id? }`.
-pub const STUDIO_CHAT_TURN: &str = "studio.chat_turn";
-
-/// Emitted when an agent replies into a Ship chat. The `entity_id` carries
-/// the target actor's id; the payload is `{ actor_id, text }`. Dashboards
-/// and views tail this event to render reply bubbles. Replaces the
-/// in-memory event_tx broadcast that only worked for registry-backed
-/// PtySessions.
-pub const STUDIO_REPLY: &str = "studio.reply";
-
 /// Emitted by `ship compile` at end of a successful run. Records what was
 /// compiled (active agent, harness, plugins, ship version) for the
 /// `project_compile_state` projection. `entity_id` is the space_id.
 pub const COMPILE_COMPLETED: &str = "compile.completed";
 
-/// Project registry — first time a project path is seen by the daemon.
-/// `entity_id` is the space_id (stable hash of the canonical path).
-pub const PROJECT_REGISTERED: &str = "project.registered";
-/// Project registry — `last_seen_at` bump (re-open, switch, reattach).
-pub const PROJECT_SEEN: &str = "project.seen";
-/// Project registry — user removed the project from their registry.
-pub const PROJECT_ARCHIVED: &str = "project.archived";
-/// Active-project switch. `entity_id` is the newly-active space_id.
-/// Payload carries the new + previous ids so chrome subscribers can
-/// distinguish a no-op set from a true context change.
-pub const PROJECT_SWITCHED: &str = "project.switched";
+/// Space location — the runtime opened a directory path as a space. The
+/// `spaces` Runtime-scoped projection (folded from this event in
+/// `ship-space::spaces_projection`) materializes one row per opened space;
+/// `entity_id` is the mint-once space_id (a nanoid, never derived from the
+/// path — the space owns its identity, the path is just where it currently
+/// lives). Payload: `SpaceOpened`.
+pub const SPACE_OPENED: &str = "space.opened";
+/// Space location — last-seen bump (a re-open of a known space). The runtime
+/// emits this on every boot of a previously-opened space. Payload:
+/// `SpaceSeen`.
+pub const SPACE_SEEN: &str = "space.seen";
+/// Stack membership — a stack root registered as a member of a space
+/// (`entity_id` = the space's id). Membership is REGISTRATION: the composed
+/// space is exactly the registered set; the runtime never scans directories
+/// for members. Folds into the Runtime-scoped `space_stacks` projection.
+/// Payload: `StackRegistered`.
+pub const STACK_REGISTERED: &str = "stack.registered";
 
 /// Auth — a daemon session (CLI / MCP / Studio-local) was issued.
 /// `entity_id` is the session token. The auth_sessions projection
@@ -132,17 +122,6 @@ pub const SETTINGS_CHANGED: &str = "settings.changed";
 /// Agent — a dispatched task ran to completion. `entity_id` is the task id.
 pub const AGENT_TASK_COMPLETE: &str = "agent.task.complete";
 
-
-/// Studio — a user annotation was created on a session or artifact.
-/// `entity_id` is the annotation id.
-/// A1: space, durable.
-pub const STUDIO_ANNOTATION_CREATED: &str = "studio.annotation.created";
-
-/// Studio — a feedback record was created (thumbs-up/down, rating, etc.).
-/// `entity_id` is the feedback id.
-/// A1: space, durable.
-pub const STUDIO_FEEDBACK_CREATED: &str = "studio.feedback.created";
-
 /// Sync — a push to the remote sync target failed.
 /// A1: device, durable.
 pub const SYNC_PUSH_FAILED: &str = "sync.push.failed";
@@ -184,27 +163,12 @@ pub const DAEMON_PIDFILE_ACQUIRED: &str = daemon::PIDFILE_ACQUIRED;
 pub const DAEMON_PIDFILE_STALE_TAKEN: &str = daemon::PIDFILE_STALE_TAKEN;
 pub const DAEMON_OWNER_BOUND: &str = daemon::OWNER_BOUND;
 pub const DAEMON_OWNER_UNBOUND: &str = daemon::OWNER_UNBOUND;
+pub const DAEMON_CRASH_DETECTED: &str = daemon::CRASH_DETECTED;
 pub const SUPERVISOR_SHUTTING_DOWN: &str = supervisor::SHUTTING_DOWN;
 pub const SUPERVISOR_SWEEP_STARTED: &str = supervisor::SWEEP_STARTED;
 pub const SUPERVISOR_SWEEP_COMPLETED: &str = supervisor::SWEEP_COMPLETED;
 pub const SUPERVISOR_DRIFT_DETECTED: &str = supervisor::DRIFT_DETECTED;
 pub const SUPERVISOR_COHERENCE_RESTORED: &str = supervisor::COHERENCE_RESTORED;
-
-// Canonical ship-shaped agent-session family (jobs: canonical-session-events,
-// workbench-teardown). 5 coarse-grain lifecycle events (started + 4
-// terminals) + 2 medium-grain turn events. The workbench family is retired.
-// The family also has a fine-grained `op.*` tier (see
-// `canonical_session::ALL_CANONICAL_OP`), registered in the event registry
-// but not aliased here and not in `ALL`. See `canonical_session` for docs.
-pub const SESSION_STARTED: &str = canonical_session::SESSION_STARTED;
-pub const SESSION_COMPLETED: &str = canonical_session::SESSION_COMPLETED;
-pub const SESSION_FAILED: &str = canonical_session::SESSION_FAILED;
-pub const SESSION_CANCELLED: &str = canonical_session::SESSION_CANCELLED;
-pub const SESSION_SUSPENDED: &str = canonical_session::SESSION_SUSPENDED;
-pub const TURN_STARTED: &str = canonical_session::TURN_STARTED;
-pub const TURN_ENDED: &str = canonical_session::TURN_ENDED;
-
-
 
 #[cfg(test)]
 mod tests {
@@ -217,7 +181,11 @@ mod tests {
     fn registered_event_names_are_unique() {
         let mut seen = std::collections::HashSet::new();
         for def in crate::event_registry::registry() {
-            assert!(seen.insert(def.name), "duplicate event registration: {}", def.name);
+            assert!(
+                seen.insert(def.name),
+                "duplicate event registration: {}",
+                def.name
+            );
         }
     }
 }

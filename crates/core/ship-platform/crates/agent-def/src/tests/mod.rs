@@ -10,14 +10,15 @@
 ///
 /// Test naming follows `agents_<subdomain>_<scenario>` so the Track A coverage
 /// tool matches them via the `<service>_<method>_*` pattern.
-#[cfg(test)]
-mod integration_skill_resolution;
-#[cfg(test)]
-mod integration_crud;
-#[cfg(test)]
-mod integration_profile_resolution;
-#[cfg(test)]
-mod integration_harness_routing;
+
+// Force-link ship-settings event inventory (`config.file_changed` is Runtime +
+// Ephemeral). agent-def depends on ship-settings but never imports a symbol from
+// it in lib code, so without this the linker drops the registration and the
+// kernel defaults unregistered events to Durable — breaking the ephemeral
+// contract in `file_changed_consumer` tests.
+#[allow(unused_imports)]
+use ship_settings::event_registrations as _;
+
 #[cfg(test)]
 mod event_scope_discipline;
 #[cfg(test)]
